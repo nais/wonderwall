@@ -20,17 +20,17 @@ jobs:
           echo "VERSION=$(./version.sh)" >> $GITHUB_ENV
       - name: Build Docker image
         run: |
-          docker build . --tag ${image_base}:${{ env.VERSION }}  --tag ${image_base}:latest
+          docker build . --tag ${{ env.image_base }}:${{ env.VERSION }}  --tag ${{ env.image_base }}:latest
       - name: Push versioned docker image
         run: |
-          docker push ${image_base}:${{ env.VERSION }}
+          docker push ${{ env.image_base }}:${{ env.VERSION }}
       - name: Push latest docker image
         if: github.ref == 'refs/heads/master'
-        run: docker push ${image_base}:latest
+        run: docker push ${{ env.image_base }}:latest
       - uses: nais/deploy/actions/deploy@v1
         if: github.ref == 'refs/heads/master'
         env:
           APIKEY: ${{ secrets.NAIS_DEPLOY_APIKEY }}
           CLUSTER: dev-gcp
           RESOURCE: .nais/nais.yml
-          VAR: image=${image_base}:${{ env.VERSION }}
+          VAR: image=${{ env.image_base }}:${{ env.VERSION }}
