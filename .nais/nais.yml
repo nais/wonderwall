@@ -1,0 +1,9 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: wonderwall
+  namespace: aura
+  labels:
+    team: aura
+spec:
+  image: {{ image }}

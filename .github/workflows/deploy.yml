@@ -1,0 +1,36 @@
+name: Build wonderwall
+
+on: [push]
+
+env:
+  image_base: ghcr.io/${{ github.repository }}
+
+jobs:
+  build-and-deploy:
+    name: Build, push and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Docker login
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: docker login ghcr.io -u ${GITHUB_REPOSITORY} -p ${GITHUB_TOKEN}
+      - name: Set version
+        run: |
+          echo "VERSION=$(./version.sh)" >> $GITHUB_ENV
+      - name: Build Docker image
+        run: |
+          docker build . --tag ${image_base}:${{ env.VERSION }}  --tag ${image_base}:latest
+      - name: Push versioned docker image
+        run: |
+          docker push ${image_base}:${{ env.VERSION }}
+      - name: Push latest docker image
+        if: github.ref == 'refs/heads/master'
+        run: docker push ${image_base}:latest
+      - uses: nais/deploy/actions/deploy@v1
+        if: github.ref == 'refs/heads/master'
+        env:
+          APIKEY: ${{ secrets.NAIS_DEPLOY_APIKEY }}
+          CLUSTER: dev-gcp
+          RESOURCE: .nais/nais.yml
+          VAR: image=${image_base}:${{ env.VERSION }}
