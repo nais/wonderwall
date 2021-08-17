@@ -7,5 +7,12 @@ metadata:
     team: aura
 spec:
   image: {{ image }}
+  ingresses:
+    - "https://wonderwall.dev-gcp.nais.io"
   idporten:
     enabled: true
+  env:
+    - name: WONDERWALL_LOG_FORMAT
+      value: json
+    - name: WONDERWALL_LOG_LEVEL
+      value: trace
