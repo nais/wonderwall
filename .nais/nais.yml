@@ -7,3 +7,5 @@ metadata:
     team: aura
 spec:
   image: {{ image }}
+  idporten:
+    enabled: true
