@@ -1,14 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"time"
-
 	"github.com/nais/liberator/pkg/conftools"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/logging"
+	"github.com/nais/wonderwall/pkg/router"
 	log "github.com/sirupsen/logrus"
+	"net/http"
+	"os"
 )
 
 var maskedConfig = []string{
@@ -30,9 +29,13 @@ func run() error {
 		log.Info(line)
 	}
 
-	fmt.Println("Sleeping for a while")
-	time.Sleep(time.Hour * 12)
-	return nil
+	handler := &router.Handler{
+		Config: cfg.IDPorten,
+	}
+
+	r := router.New(handler)
+
+	return http.ListenAndServe(cfg.BindAddress, r)
 }
 
 func main() {

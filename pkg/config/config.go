@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	BindAddress string `json:"bind-address"`
 	IDPorten  IDPorten `json:"idporten"`
 	LogFormat string   `json:"log-format"`
 	LogLevel  string   `json:"log-level"`
@@ -21,6 +22,7 @@ type IDPorten struct {
 }
 
 const (
+	BindAddress = "bind-address"
 	LogFormat            = "log-format"
 	LogLevel             = "log-level"
 	IDPortenClientID     = "idporten.client-id"
@@ -42,6 +44,7 @@ func Initialize() *Config {
 
 	flag.String(LogFormat, "text", "Log format, either 'json' or 'text'.")
 	flag.String(LogLevel, "debug", "Logging verbosity level.")
+	flag.String(BindAddress, "127.0.0.1:8090", "Listen address.")
 
 	return &Config{}
 }
