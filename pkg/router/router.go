@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/caos/oidc/pkg/client/rp"
+	"github.com/caos/oidc/pkg/oidc"
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
 	"github.com/nais/wonderwall/pkg/config"
@@ -63,13 +64,16 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 
 	url := rp.AuthURL(state, h.RelyingParty, opts...)
-	log.Infof("URL: %v", url)
 
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
+	marshalUserinfo := func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens, state string, rp rp.RelyingParty) {
+		log.Info(tokens)
+	}
 
+	rp.CodeExchangeHandler(marshalUserinfo, h.RelyingParty)(w, r)
 }
 
 func New(handler *Handler) chi.Router {
