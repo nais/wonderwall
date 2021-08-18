@@ -1,59 +1,71 @@
 package router
 
 import (
-	"crypto/rand"
-	"fmt"
 	"net/http"
 
+	"github.com/caos/oidc/pkg/client/rp"
 	"github.com/go-chi/chi"
+	"github.com/google/uuid"
 	"github.com/nais/wonderwall/pkg/config"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
+)
+
+const (
+	idTokenKey = "id_token"
+	stateParam = "state"
+	nonceParam = "nonce"
+	pkceCode   = "pkce"
 )
 
 type Handler struct {
-	Config config.IDPorten
-}
-
-func (h *Handler) LoginURL() (string, error) {
-	state := "foo" // FIXME: cookie
-	nonce := make([]byte, 16)
-	_, err := rand.Read(nonce)
-	if err != nil {
-		return "", err
-	}
-	req, err := http.NewRequest("GET", h.Config.WellKnown.AuthorizationEndpoint, nil)
-	if err != nil {
-		return "", err
-	}
-
-	// https://docs.digdir.no/oidc_protocol_authorize.html
-	// sidecar:
-	//   locale: nb          # enum i well-known
-	//   acr_values: Level4  # enum i well-known
-	v := req.URL.Query()
-	v.Add("response_type", "code")
-	v.Add("client_id", h.Config.ClientID)
-	v.Add("redirect_uri", h.Config.RedirectURI)
-	v.Add("scope", "openid")
-	v.Add("state", state)
-	v.Add("nonce", fmt.Sprintf("%x", nonce))
-	v.Add("acr_values", h.Config.SecurityLevel)
-	v.Add("response_mode", "query")
-	v.Add("ui_locales", h.Config.Locale)
-	v.Add("code_challenge", "") // fixme
-	v.Add("code_challenge_method", "S256")
-	req.URL.RawQuery = v.Encode()
-
-	return req.URL.String(), nil
+	Config       config.IDPorten
+	RelyingParty rp.RelyingParty
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	uri, err := h.LoginURL()
+	opts := make([]rp.AuthURLOpt, 0)
+	randomUUID, err := uuid.NewRandom()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "failed to create state: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
-	w.Header().Set("Location", uri)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	state := randomUUID.String()
+
+	randomUUID2, err := uuid.NewRandom()
+	if err != nil {
+		http.Error(w, "failed to create nonce: "+err.Error(), http.StatusUnauthorized)
+	}
+	nonce := randomUUID2.String()
+
+	if err := h.RelyingParty.CookieHandler().SetCookie(w, nonceParam, nonce); err != nil {
+		http.Error(w, "failed to create nonce cookie: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	if err := h.RelyingParty.CookieHandler().SetCookie(w, stateParam, state); err != nil {
+		http.Error(w, "failed to create state cookie: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+	codeChallenge, err := rp.GenerateAndStoreCodeChallenge(w, h.RelyingParty)
+	if err != nil {
+		http.Error(w, "failed to create code challenge: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+	opts = append(opts, rp.WithCodeChallenge(codeChallenge))
+	opts = append(opts, func() []oauth2.AuthCodeOption {
+		return []oauth2.AuthCodeOption{
+			oauth2.SetAuthURLParam("acr_values", h.Config.SecurityLevel),
+			oauth2.SetAuthURLParam("ui_locales", h.Config.Locale),
+			oauth2.SetAuthURLParam("response_mode", "query"),
+			oauth2.SetAuthURLParam("nonce", nonce),
+		}
+	})
+
+	url := rp.AuthURL(state, h.RelyingParty, opts...)
+	log.Infof("URL: %v", url)
+
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
