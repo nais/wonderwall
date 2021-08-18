@@ -25,6 +25,10 @@ func (h *Handler) LoginURL() (string, error) {
 		return "", err
 	}
 
+	// https://docs.digdir.no/oidc_protocol_authorize.html
+	// sidecar:
+	//   locale: nb          # enum i well-known
+	//   acr_values: Level4  # enum i well-known
 	v := req.URL.Query()
 	v.Add("response_type", "code")
 	v.Add("client_id", h.Config.ClientID)
@@ -32,13 +36,11 @@ func (h *Handler) LoginURL() (string, error) {
 	v.Add("scope", "openid")
 	v.Add("state", state)
 	v.Add("nonce", fmt.Sprintf("%x", nonce))
-	v.Add("acr_values", "Level4") // Or Level3 - security level - fixme: config?
+	v.Add("acr_values", h.Config.SecurityLevel)
 	v.Add("response_mode", "query")
-	v.Add("ui_locales", "nb")   // optional / fixme: config?
+	v.Add("ui_locales", h.Config.Locale)
 	v.Add("code_challenge", "") // fixme
 	v.Add("code_challenge_method", "S256")
-	// fixme: eIDAS?
-	// fixme: PAR request?
 	req.URL.RawQuery = v.Encode()
 
 	return req.URL.String(), nil
