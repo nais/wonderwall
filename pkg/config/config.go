@@ -8,21 +8,22 @@ import (
 )
 
 type Config struct {
-	BindAddress string `json:"bind-address"`
-	IDPorten  IDPorten `json:"idporten"`
-	LogFormat string   `json:"log-format"`
-	LogLevel  string   `json:"log-level"`
+	BindAddress string   `json:"bind-address"`
+	IDPorten    IDPorten `json:"idporten"`
+	LogFormat   string   `json:"log-format"`
+	LogLevel    string   `json:"log-level"`
 }
 
 type IDPorten struct {
-	ClientID     string `json:"client-id"`
-	ClientJWK    string `json:"client-jwk"`
-	RedirectURI  string `json:"redirect-uri"`
-	WellKnownURL string `json:"well-known-url"`
+	ClientID     string            `json:"client-id"`
+	ClientJWK    string            `json:"client-jwk"`
+	RedirectURI  string            `json:"redirect-uri"`
+	WellKnownURL string            `json:"well-known-url"`
+	WellKnown    IDPortenWellKnown `json:"well-known"`
 }
 
 const (
-	BindAddress = "bind-address"
+	BindAddress          = "bind-address"
 	LogFormat            = "log-format"
 	LogLevel             = "log-level"
 	IDPortenClientID     = "idporten.client-id"

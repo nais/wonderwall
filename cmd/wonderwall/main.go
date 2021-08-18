@@ -1,13 +1,14 @@
 package main
 
 import (
+	"net/http"
+	"os"
+
 	"github.com/nais/liberator/pkg/conftools"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/logging"
 	"github.com/nais/wonderwall/pkg/router"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"os"
 )
 
 var maskedConfig = []string{
@@ -16,8 +17,11 @@ var maskedConfig = []string{
 
 func run() error {
 	cfg := config.Initialize()
-	err := conftools.Load(cfg)
-	if err != nil {
+	if err := conftools.Load(cfg); err != nil {
+		return err
+	}
+
+	if err := cfg.FetchWellKnownConfig(); err != nil {
 		return err
 	}
 
