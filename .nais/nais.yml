@@ -9,7 +9,7 @@ spec:
   image: {{ image }}
   ingresses:
     - "https://wonderwall.dev-gcp.nais.io"
-  port: 3000
+  port: 8090
   idporten:
     enabled: true
   env:
