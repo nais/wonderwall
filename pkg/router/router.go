@@ -3,10 +3,10 @@ package router
 import (
 	"crypto/rand"
 	"fmt"
+	"net/http"
+
 	"github.com/go-chi/chi"
 	"github.com/nais/wonderwall/pkg/config"
-	"net/http"
-	"net/url"
 )
 
 type Handler struct {
@@ -20,8 +20,12 @@ func (h *Handler) LoginURL() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	req, err := http.NewRequest("GET", h.Config.WellKnown.AuthorizationEndpoint, nil)
+	if err != nil {
+		return "", err
+	}
 
-	v := &url.Values{}
+	v := req.URL.Query()
 	v.Add("response_type", "code")
 	v.Add("client_id", h.Config.ClientID)
 	v.Add("redirect_uri", h.Config.RedirectURI)
@@ -35,15 +39,9 @@ func (h *Handler) LoginURL() (string, error) {
 	v.Add("code_challenge_method", "S256")
 	// fixme: eIDAS?
 	// fixme: PAR request?
+	req.URL.RawQuery = v.Encode()
 
-	u := &url.URL{
-		Scheme:   "https",
-		Host:     "eid-exttest.difi.no",
-		Path:     "/idporten-oidc-provider/authorize",
-		RawQuery: v.Encode(),
-	}
-
-	return u.String(), nil
+	return req.URL.String(), nil
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
