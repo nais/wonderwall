@@ -12,6 +12,7 @@ import (
 	"github.com/nais/wonderwall/pkg/logging"
 	"github.com/nais/wonderwall/pkg/router"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
 )
 
 var maskedConfig = []string{
@@ -55,8 +56,19 @@ func run() error {
 		return err
 	}
 
+	oauthConfig := oauth2.Config{
+		ClientID: cfg.IDPorten.ClientID,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  cfg.IDPorten.WellKnown.AuthorizationEndpoint,
+			TokenURL: cfg.IDPorten.WellKnown.TokenEndpoint,
+		},
+		RedirectURL: cfg.IDPorten.RedirectURI,
+		Scopes:      scopes,
+	}
+
 	handler := &router.Handler{
 		Config:       cfg.IDPorten,
+		OauthConfig:  oauthConfig,
 		RelyingParty: relyingParty,
 	}
 
