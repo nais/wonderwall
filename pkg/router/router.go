@@ -1,11 +1,13 @@
 package router
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/go-chi/chi/middleware"
 	"github.com/nais/wonderwall/pkg/cryptutil"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -36,6 +38,7 @@ type Handler struct {
 	Config      config.IDPorten
 	OauthConfig oauth2.Config
 	Crypter     cryptutil.Crypter
+	ProxyHost   string
 	sessions    map[string]*oauth2.Token
 }
 
@@ -275,25 +278,57 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
+// Proxy all requests upstream
 func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	req := r.Clone(ctx)
+
+	// Get credentials from session cache
 	sessionCookie, err := r.Cookie(SessionCookieName)
 	if err != nil {
-		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte("no session cookie; should redirect to /oauth2/login\n"))
 		return
 	}
-
 	token, ok := h.sessions[sessionCookie.Value]
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte("no token stored for session %s; needs garbage collection client side\n"))
 		return
 	}
 
-	json.NewEncoder(w).Encode(token)
+	// Duplicate the incoming request, and add authentication.
+	req.URL.Host = h.ProxyHost
+	req.URL.Scheme = "http"
+	req.RequestURI = ""
+	req.Header.Add("authorization", "Bearer "+token.AccessToken)
+	req.Header.Add("x-pwned-by", "wonderwall") // todo: request id for tracing
+	// Attach request body from original request
+	req.Body = r.Body
+	defer req.Body.Close()
+
+	upstream, err := http.DefaultClient.Do(req)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(upstream.StatusCode)
+	for key, values := range upstream.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Forward server's reply downstream
+	io.Copy(w, upstream.Body)
 }
 
 func New(handler *Handler) chi.Router {
 	r := chi.NewRouter()
+	r.With(middleware.DefaultLogger)
 	r.Get("/", handler.Default)
 	r.Get("/oauth2/login", handler.Login)
 	r.Get("/oauth2/callback", handler.Callback)
