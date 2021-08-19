@@ -48,11 +48,25 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to create state cookie: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
-	codeChallenge, err := rp.GenerateAndStoreCodeChallenge(w, h.RelyingParty)
+
+	codeVerifierPart1, err := uuid.NewRandom()
 	if err != nil {
+		http.Error(w, "failed to create code verifier: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+	codeVerifierPart2, err := uuid.NewRandom()
+	if err != nil {
+		http.Error(w, "failed to create code verifier: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+	codeVerifier := codeVerifierPart1.String() + codeVerifierPart2.String()
+
+	if err := h.RelyingParty.CookieHandler().SetCookie(w, pkceCode, codeVerifier); err != nil {
 		http.Error(w, "failed to create code challenge: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
+	codeChallenge := oidc.NewSHACodeChallenge(codeVerifier)
+
 	opts = append(opts, rp.WithCodeChallenge(codeChallenge))
 	opts = append(opts, func() []oauth2.AuthCodeOption {
 		return []oauth2.AuthCodeOption{
