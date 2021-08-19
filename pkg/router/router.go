@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/caos/oidc/pkg/client/rp"
 	"github.com/go-chi/chi"
 	"github.com/nais/wonderwall/pkg/config"
 	"golang.org/x/oauth2"
@@ -23,9 +22,8 @@ const (
 )
 
 type Handler struct {
-	Config       config.IDPorten
-	OauthConfig  oauth2.Config
-	RelyingParty rp.RelyingParty
+	Config      config.IDPorten
+	OauthConfig oauth2.Config
 }
 
 type loginParams struct {
