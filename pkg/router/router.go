@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/cryptutil"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,27 +20,48 @@ import (
 )
 
 const (
-	ScopeOpenID = "openid"
+	SessionMaxLifetime     = time.Hour
+	ScopeOpenID            = "openid"
+	SessionCookieName      = "io.nais.wonderwall.session"
+	StateCookieName        = "io.nais.wonderwall.state"
+	CodeVerifierCookieName = "io.nais.wonderwall.code_verifier"
 )
+
+type session struct {
+	accessToken string
+	expiration  time.Time
+}
 
 type Handler struct {
 	Config      config.IDPorten
 	OauthConfig oauth2.Config
+	Crypter     cryptutil.Crypter
+	sessions    map[string]*oauth2.Token
 }
 
 type loginParams struct {
-	cookies      []*http.Cookie
+	session      string
 	state        string
 	codeVerifier string
 	url          string
+}
+
+func (h *Handler) Init() {
+	h.sessions = make(map[string]*oauth2.Token)
 }
 
 func (h *Handler) LoginURL() (*loginParams, error) {
 	codeVerifier := make([]byte, 64)
 	nonce := make([]byte, 32)
 	state := make([]byte, 32)
+	session := make([]byte, 32)
 
 	var err error
+
+	_, err = io.ReadFull(rand.Reader, session)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session id: %w", err)
+	}
 
 	_, err = io.ReadFull(rand.Reader, state)
 	if err != nil {
@@ -79,6 +102,7 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 	u.RawQuery = v.Encode()
 
 	return &loginParams{
+		session:      base64.RawURLEncoding.EncodeToString(session),
 		state:        base64.RawURLEncoding.EncodeToString(state),
 		codeVerifier: string(codeVerifier),
 		url:          u.String(),
@@ -93,19 +117,25 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "state",
-		Value:    params.state,
-		Expires:  time.Now().Add(10 * time.Minute),
+		Name:     SessionCookieName,
+		Value:    params.session,
+		Path:     "/",
+		Expires:  time.Now().Add(SessionMaxLifetime),
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
-	http.SetCookie(w, &http.Cookie{
-		Name:     "code_verifier",
-		Value:    params.codeVerifier,
-		Expires:  time.Now().Add(10 * time.Minute),
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-	})
+
+	err = h.setEncryptedCookie(w, StateCookieName, params.state)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = h.setEncryptedCookie(w, CodeVerifierCookieName, params.codeVerifier)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	http.Redirect(w, r, params.url, http.StatusTemporaryRedirect)
 }
@@ -149,55 +179,122 @@ func (h *Handler) SignedJWTProfileAssertion(expiration time.Duration) (string, e
 	return result.CompactSerialize()
 }
 
-func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
-	state, err := r.Cookie("state")
+func (h *Handler) setEncryptedCookie(w http.ResponseWriter, key string, plaintext string) error {
+	ciphertext, err := h.Crypter.Encrypt([]byte(plaintext))
 	if err != nil {
+		return fmt.Errorf("unable to encrypt cookie '%s': %w", key, err)
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     key,
+		Value:    base64.StdEncoding.EncodeToString(ciphertext),
+		Expires:  time.Now().Add(10 * time.Minute),
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return nil
+}
+
+func (h *Handler) getEncryptedCookie(r *http.Request, key string) (string, error) {
+	encoded, err := r.Cookie(key)
+	if err != nil {
+		return "", fmt.Errorf("no cookie named '%s': %w", key, err)
+	}
+
+	ciphertext, err := base64.StdEncoding.DecodeString(encoded.Value)
+	if err != nil {
+		return "", fmt.Errorf("cookie named '%s' is not base64 encoded: %w", key, err)
+	}
+
+	plaintext, err := h.Crypter.Decrypt(ciphertext)
+	if err != nil {
+		return "", fmt.Errorf("unable to decrypt cookie '%s': %w", key, err)
+	}
+
+	return string(plaintext), nil
+}
+
+func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
+	sessionCookie, err := r.Cookie(SessionCookieName)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	state, err := h.getEncryptedCookie(r, StateCookieName)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	codeVerifier, err := h.getEncryptedCookie(r, CodeVerifierCookieName)
+	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	params := r.URL.Query()
 	if params.Get("error") != "" {
+		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if params.Get("state") != state.Value {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	codeVerifier, err := r.Cookie("code_verifier")
-	if err != nil {
+	if params.Get("state") != state {
+		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	assertion, err := h.SignedJWTProfileAssertion(time.Second * 100)
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("code_verifier", codeVerifier.Value),
+		oauth2.SetAuthURLParam("code_verifier", codeVerifier),
 		oauth2.SetAuthURLParam("client_assertion", assertion),
 		oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
 	}
 
 	token, err := h.OauthConfig.Exchange(r.Context(), params.Get("code"), opts...)
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	w.Header().Add("Bearer", token.AccessToken)
+	h.sessions[sessionCookie.Value] = token
 
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
+func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
+	sessionCookie, err := r.Cookie(SessionCookieName)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	token, ok := h.sessions[sessionCookie.Value]
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	json.NewEncoder(w).Encode(token)
+}
+
 func New(handler *Handler) chi.Router {
 	r := chi.NewRouter()
+	r.Get("/", handler.Default)
 	r.Get("/oauth2/login", handler.Login)
 	r.Get("/oauth2/callback", handler.Callback)
 	return r

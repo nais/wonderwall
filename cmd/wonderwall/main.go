@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/nais/liberator/pkg/conftools"
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/cryptutil"
 	"github.com/nais/wonderwall/pkg/logging"
 	"github.com/nais/wonderwall/pkg/router"
 	log "github.com/sirupsen/logrus"
@@ -35,6 +36,12 @@ func run() error {
 
 	scopes := []string{router.ScopeOpenID}
 
+	key, err := cryptutil.RandomBytes(32)
+	if err != nil {
+		return err
+	}
+	crypt := cryptutil.New(key)
+
 	oauthConfig := oauth2.Config{
 		ClientID: cfg.IDPorten.ClientID,
 		Endpoint: oauth2.Endpoint{
@@ -48,7 +55,10 @@ func run() error {
 	handler := &router.Handler{
 		Config:      cfg.IDPorten,
 		OauthConfig: oauthConfig,
+		Crypter:     crypt,
 	}
+
+	handler.Init()
 
 	r := router.New(handler)
 
