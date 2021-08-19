@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/caos/oidc/pkg/client/rp"
-	"github.com/caos/oidc/pkg/oidc"
 	"github.com/go-chi/chi"
 	"github.com/nais/wonderwall/pkg/config"
 	"golang.org/x/oauth2"
@@ -20,10 +19,7 @@ import (
 )
 
 const (
-	idTokenKey = "id_token"
-	stateParam = "state"
-	nonceParam = "nonce"
-	pkceCode   = "pkce"
+	ScopeOpenID = "openid"
 )
 
 type Handler struct {
@@ -74,7 +70,7 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 	v.Add("response_type", "code")
 	v.Add("client_id", h.Config.ClientID)
 	v.Add("redirect_uri", h.Config.RedirectURI)
-	v.Add("scope", "openid")
+	v.Add("scope", ScopeOpenID)
 	v.Add("state", base64.RawURLEncoding.EncodeToString(state))
 	v.Add("nonce", base64.RawURLEncoding.EncodeToString(nonce))
 	v.Add("acr_values", h.Config.SecurityLevel)
@@ -86,7 +82,7 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 
 	return &loginParams{
 		state:        base64.RawURLEncoding.EncodeToString(state),
-		codeVerifier: base64.RawURLEncoding.EncodeToString(codeVerifier),
+		codeVerifier: string(codeVerifier),
 		url:          u.String(),
 	}, nil
 }
@@ -133,22 +129,25 @@ func (h *Handler) SignedJWTProfileAssertion(expiration time.Duration) (string, e
 
 	iat := time.Now()
 	exp := iat.Add(expiration)
-	jwtRequest := oidc.JWTTokenRequest{
+	jwtRequest := &JWTTokenRequest{
 		Issuer:    h.Config.ClientID,
 		Subject:   h.Config.ClientID,
-		Audience:  []string{h.Config.WellKnown.Issuer},
-		ExpiresAt: oidc.Time(exp),
-		IssuedAt:  oidc.Time(iat),
+		Audience:  h.Config.WellKnown.Issuer,
+		Scopes:    ScopeOpenID,
+		ExpiresAt: exp.Unix(),
+		IssuedAt:  iat.Unix(),
 	}
 
 	payload, err := json.Marshal(jwtRequest)
 	if err != nil {
 		return "", err
 	}
+
 	result, err := signer.Sign(payload)
 	if err != nil {
 		return "", err
 	}
+
 	return result.CompactSerialize()
 }
 
@@ -176,7 +175,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	assertion, err := h.SignedJWTProfileAssertion(time.Minute * 10)
+	assertion, err := h.SignedJWTProfileAssertion(time.Second * 100)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -188,12 +187,15 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
 	}
 
-	tokens, err := h.OauthConfig.Exchange(r.Context(), params.Get("code"), opts...)
+	token, err := h.OauthConfig.Exchange(r.Context(), params.Get("code"), opts...)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	w.Write([]byte(tokens.AccessToken))
+
+	w.Header().Add("Bearer", token.AccessToken)
+
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
 func New(handler *Handler) chi.Router {
