@@ -1,6 +1,9 @@
 package router
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"net/http"
 
 	"github.com/caos/oidc/pkg/client/rp"
@@ -8,7 +11,6 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
 	"github.com/nais/wonderwall/pkg/config"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -49,17 +51,18 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	codeVerifierPart1, err := uuid.NewRandom()
+	codeBytes := make([]byte, 32)
+	read, err := rand.Read(codeBytes)
+
 	if err != nil {
-		http.Error(w, "failed to create code verifier: "+err.Error(), http.StatusUnauthorized)
+		http.Error(w, "failed to create code: "+err.Error(), http.StatusUnauthorized)
+		return
+	} else if read != 32 {
+		http.Error(w, "failed to create code: could not read 32 bytes", http.StatusUnauthorized)
 		return
 	}
-	codeVerifierPart2, err := uuid.NewRandom()
-	if err != nil {
-		http.Error(w, "failed to create code verifier: "+err.Error(), http.StatusUnauthorized)
-		return
-	}
-	codeVerifier := codeVerifierPart1.String() + codeVerifierPart2.String()
+
+	codeVerifier := hex.EncodeToString(codeBytes)
 
 	if err := h.RelyingParty.CookieHandler().SetCookie(w, pkceCode, codeVerifier); err != nil {
 		http.Error(w, "failed to create code challenge: "+err.Error(), http.StatusUnauthorized)
@@ -83,11 +86,15 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
-	marshalUserinfo := func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens, state string, rp rp.RelyingParty) {
-		log.Info(tokens)
+	marshalToken := func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens, state string, rp rp.RelyingParty) {
+		data, err := json.Marshal(tokens)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write(data)
 	}
-
-	rp.CodeExchangeHandler(marshalUserinfo, h.RelyingParty)(w, r)
+	rp.CodeExchangeHandler(marshalToken, h.RelyingParty)(w, r)
 }
 
 func New(handler *Handler) chi.Router {
