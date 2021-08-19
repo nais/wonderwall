@@ -38,6 +38,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	randomUUID2, err := uuid.NewRandom()
 	if err != nil {
 		http.Error(w, "failed to create nonce: "+err.Error(), http.StatusUnauthorized)
+		return
 	}
 	nonce := randomUUID2.String()
 

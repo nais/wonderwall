@@ -15,24 +15,24 @@ type Config struct {
 }
 
 type IDPorten struct {
-	ClientID     string            `json:"client-id"`
-	ClientJWK    string            `json:"client-jwk"`
-	RedirectURI  string            `json:"redirect-uri"`
-	WellKnownURL string            `json:"well-known-url"`
-	WellKnown    IDPortenWellKnown `json:"well-known"`
-	Locale string `json:"locale"`
-	SecurityLevel string `json:"security-level"`
+	ClientID      string            `json:"client-id"`
+	ClientJWK     string            `json:"client-jwk"`
+	RedirectURI   string            `json:"redirect-uri"`
+	WellKnownURL  string            `json:"well-known-url"`
+	WellKnown     IDPortenWellKnown `json:"well-known"`
+	Locale        string            `json:"locale"`
+	SecurityLevel string            `json:"security-level"`
 }
 
 const (
-	BindAddress          = "bind-address"
-	LogFormat            = "log-format"
-	LogLevel             = "log-level"
-	IDPortenClientID     = "idporten.client-id"
-	IDPortenClientJWK    = "idporten.client-jwk"
-	IDPortenRedirectURI  = "idporten.redirect-uri"
-	IDPortenWellKnownURL = "idporten.well-known-url"
-	IDPortenLocale = "idporten.locale"
+	BindAddress           = "bind-address"
+	LogFormat             = "log-format"
+	LogLevel              = "log-level"
+	IDPortenClientID      = "idporten.client-id"
+	IDPortenClientJWK     = "idporten.client-jwk"
+	IDPortenRedirectURI   = "idporten.redirect-uri"
+	IDPortenWellKnownURL  = "idporten.well-known-url"
+	IDPortenLocale        = "idporten.locale"
 	IDPortenSecurityLevel = "idporten.security-level"
 )
 
