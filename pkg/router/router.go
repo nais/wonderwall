@@ -29,17 +29,12 @@ const (
 	CodeVerifierCookieName = "io.nais.wonderwall.code_verifier"
 )
 
-type session struct {
-	accessToken string
-	expiration  time.Time
-}
-
 type Handler struct {
-	Config      config.IDPorten
-	OauthConfig oauth2.Config
-	Crypter     cryptutil.Crypter
-	ProxyHost   string
-	sessions    map[string]*oauth2.Token
+	Config       config.IDPorten
+	OauthConfig  oauth2.Config
+	Crypter      cryptutil.Crypter
+	UpstreamHost string
+	sessions     map[string]*oauth2.Token
 }
 
 type loginParams struct {
@@ -282,55 +277,66 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
-	req := r.Clone(ctx)
+	upstreamRequest := r.Clone(ctx)
 
 	// Get credentials from session cache
 	sessionCookie, err := r.Cookie(SessionCookieName)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte("no session cookie; should redirect to /oauth2/login\n"))
+		log.Tracef("no session cookie; should redirect to /oauth2/login")
+		http.Redirect(w, r, "/oauth2/login", http.StatusTemporaryRedirect)
 		return
 	}
 	token, ok := h.sessions[sessionCookie.Value]
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte("no token stored for session %s; needs garbage collection client side\n"))
+		log.Tracef("no token stored for session %s; needs garbage collection client side", sessionCookie.Value)
+		http.Redirect(w, r, "/oauth2/login", http.StatusTemporaryRedirect)
 		return
 	}
 
 	// Duplicate the incoming request, and add authentication.
-	req.URL.Host = h.ProxyHost
-	req.URL.Scheme = "http"
-	req.RequestURI = ""
-	req.Header.Add("authorization", "Bearer "+token.AccessToken)
-	req.Header.Add("x-pwned-by", "wonderwall") // todo: request id for tracing
+	upstreamRequest.Header.Add("authorization", "Bearer "+token.AccessToken)
+	upstreamRequest.Header.Add("x-pwned-by", "wonderwall") // todo: request id for tracing
+	// Request should go to correct host
+	// req.Header.Set("host", req.Host)
+	upstreamRequest.Host = h.UpstreamHost // fixme
+	upstreamRequest.URL.Host = h.UpstreamHost
+	upstreamRequest.URL.Scheme = "http"
+	upstreamRequest.RequestURI = ""
 	// Attach request body from original request
-	req.Body = r.Body
-	defer req.Body.Close()
+	upstreamRequest.Body = r.Body
+	defer upstreamRequest.Body.Close()
 
-	upstream, err := http.DefaultClient.Do(req)
+	// Make sure requests aren't silently redirected
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	upstreamResponse, err := client.Do(upstreamRequest)
 	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
 		w.Write([]byte(err.Error()))
-		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(upstream.StatusCode)
-	for key, values := range upstream.Header {
+	for key, values := range upstreamResponse.Header {
 		for _, value := range values {
 			w.Header().Add(key, value)
 		}
 	}
+	w.Header().Set("x-pwned-by", "wonderwall") // todo: request id for tracing
+	w.WriteHeader(upstreamResponse.StatusCode)
 
 	// Forward server's reply downstream
-	io.Copy(w, upstream.Body)
+	io.Copy(w, upstreamResponse.Body)
 }
 
 func New(handler *Handler) chi.Router {
 	r := chi.NewRouter()
 	r.With(middleware.DefaultLogger)
-	r.Get("/", handler.Default)
 	r.Get("/oauth2/login", handler.Login)
 	r.Get("/oauth2/callback", handler.Callback)
+	r.HandleFunc("/*", handler.Default)
 	return r
 }

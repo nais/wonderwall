@@ -30,6 +30,8 @@ func run() error {
 		return err
 	}
 
+	log.Tracef("Trace logging enabled")
+
 	for _, line := range conftools.Format(maskedConfig) {
 		log.Info(line)
 	}
@@ -53,9 +55,10 @@ func run() error {
 	}
 
 	handler := &router.Handler{
-		Config:      cfg.IDPorten,
-		OauthConfig: oauthConfig,
-		Crypter:     crypt,
+		Config:       cfg.IDPorten,
+		Crypter:      crypt,
+		OauthConfig:  oauthConfig,
+		UpstreamHost: cfg.UpstreamHost,
 	}
 
 	handler.Init()

@@ -8,10 +8,11 @@ import (
 )
 
 type Config struct {
-	BindAddress string   `json:"bind-address"`
-	IDPorten    IDPorten `json:"idporten"`
-	LogFormat   string   `json:"log-format"`
-	LogLevel    string   `json:"log-level"`
+	BindAddress  string   `json:"bind-address"`
+	UpstreamHost string   `json:"upstream-host"`
+	IDPorten     IDPorten `json:"idporten"`
+	LogFormat    string   `json:"log-format"`
+	LogLevel     string   `json:"log-level"`
 }
 
 type IDPorten struct {
@@ -26,6 +27,7 @@ type IDPorten struct {
 
 const (
 	BindAddress           = "bind-address"
+	UpstreamHost          = "upstream-host"
 	LogFormat             = "log-format"
 	LogLevel              = "log-level"
 	IDPortenClientID      = "idporten.client-id"
@@ -50,6 +52,7 @@ func Initialize() *Config {
 	flag.String(LogFormat, "text", "Log format, either 'json' or 'text'.")
 	flag.String(LogLevel, "debug", "Logging verbosity level.")
 	flag.String(BindAddress, "127.0.0.1:8090", "Listen address.")
+	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 	flag.String(IDPortenSecurityLevel, "Level4", "Requested security level, either Level3 or Level4.")
 	flag.String(IDPortenLocale, "nb", "Locale for OAuth2 consent screen.")
 
