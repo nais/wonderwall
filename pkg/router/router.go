@@ -7,18 +7,23 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/middleware"
-	"github.com/nais/wonderwall/pkg/cryptutil"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/coreos/go-oidc"
+	"github.com/go-chi/chi/middleware"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/nais/wonderwall/pkg/auth"
+	"github.com/nais/wonderwall/pkg/cryptutil"
+
 	"github.com/go-chi/chi"
-	"github.com/nais/wonderwall/pkg/config"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
+
+	"github.com/nais/wonderwall/pkg/config"
 )
 
 const (
@@ -26,15 +31,17 @@ const (
 	ScopeOpenID            = "openid"
 	SessionCookieName      = "io.nais.wonderwall.session"
 	StateCookieName        = "io.nais.wonderwall.state"
+	NonceCookieName        = "io.nais.wonderwall.nonce"
 	CodeVerifierCookieName = "io.nais.wonderwall.code_verifier"
 )
 
 type Handler struct {
-	Config       config.IDPorten
-	OauthConfig  oauth2.Config
-	Crypter      cryptutil.Crypter
-	UpstreamHost string
-	sessions     map[string]*oauth2.Token
+	Config          config.IDPorten
+	OauthConfig     oauth2.Config
+	Crypter         cryptutil.Crypter
+	UpstreamHost    string
+	IdTokenVerifier *oidc.IDTokenVerifier
+	sessions        map[string]*oauth2.Token
 }
 
 type loginParams struct {
@@ -42,6 +49,7 @@ type loginParams struct {
 	state        string
 	codeVerifier string
 	url          string
+	nonce        string
 }
 
 func (h *Handler) Init() {
@@ -102,6 +110,7 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 	return &loginParams{
 		session:      base64.RawURLEncoding.EncodeToString(session),
 		state:        base64.RawURLEncoding.EncodeToString(state),
+		nonce:        base64.RawURLEncoding.EncodeToString(nonce),
 		codeVerifier: string(codeVerifier),
 		url:          u.String(),
 	}, nil
@@ -124,6 +133,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 
 	err = h.setEncryptedCookie(w, StateCookieName, params.state)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = h.setEncryptedCookie(w, NonceCookieName, params.nonce)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -228,6 +243,13 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nonce, err := h.getEncryptedCookie(r, NonceCookieName)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	codeVerifier, err := h.getEncryptedCookie(r, CodeVerifierCookieName)
 	if err != nil {
 		log.Error(err)
@@ -262,6 +284,13 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, err := h.OauthConfig.Exchange(r.Context(), params.Get("code"), opts...)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	err = auth.ValidateIdToken(r.Context(), h.IdTokenVerifier, token, nonce)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)

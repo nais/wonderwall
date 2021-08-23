@@ -1,15 +1,19 @@
 package main
 
 import (
+	"context"
+	"net/http"
+	"os"
+
+	"github.com/coreos/go-oidc"
 	"github.com/nais/liberator/pkg/conftools"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
+
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cryptutil"
 	"github.com/nais/wonderwall/pkg/logging"
 	"github.com/nais/wonderwall/pkg/router"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
-	"net/http"
-	"os"
 )
 
 var maskedConfig = []string{
@@ -59,6 +63,11 @@ func run() error {
 		Crypter:      crypt,
 		OauthConfig:  oauthConfig,
 		UpstreamHost: cfg.UpstreamHost,
+		IdTokenVerifier: oidc.NewVerifier(
+			cfg.IDPorten.WellKnown.Issuer,
+			oidc.NewRemoteKeySet(context.Background(), cfg.IDPorten.WellKnown.JwksURI),
+			&oidc.Config{ClientID: cfg.IDPorten.ClientID},
+		),
 	}
 
 	handler.Init()
