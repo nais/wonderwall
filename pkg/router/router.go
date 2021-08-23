@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/coreos/go-oidc"
+	"gopkg.in/square/go-jose.v2"
 	"io"
 	"net/http"
 	"net/url"
