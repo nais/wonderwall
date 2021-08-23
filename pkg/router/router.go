@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"gopkg.in/square/go-jose.v2/jwt"
 	"io"
 	"net/http"
 	"net/url"
@@ -279,6 +280,53 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }
 
+// Logout triggers self-initiated for the current user
+func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+
+	iss := params.Get("iss")
+	sid := params.Get("sid")
+
+	if len(sid) == 0 || len(iss) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	session, ok := h.sessions[sid]
+	if !ok {
+		// Can't remove session because it doesn't exist. Maybe it was garbage collected.
+		// We regard this as a redundant logout and return 200 OK.
+		return
+	}
+
+	// From here on, check that 'iss' from request matches data found in access token.
+	tok, err := jwt.ParseSigned(session.token.AccessToken)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var claims struct {
+		Issuer string `json:"iss"`
+	}
+
+	err = tok.UnsafeClaimsWithoutVerification(&claims)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if claims.Issuer != iss {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// All verified; delete session.
+	h.deleteSession(sid)
+}
+
 func New(handler *Handler) chi.Router {
 	r := chi.NewRouter()
 	r.Route("/oauth2", func(r chi.Router) {
@@ -286,6 +334,7 @@ func New(handler *Handler) chi.Router {
 		r.Get("/login", handler.Login)
 		r.Get("/callback", handler.Callback)
 		r.Get("/logout", handler.Logout)
+		r.Get("/logout/frontchannel", handler.FrontChannelLogout)
 	})
 	r.HandleFunc("/*", handler.Default)
 	return r
