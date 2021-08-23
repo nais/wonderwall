@@ -3,7 +3,6 @@ package router_test
 import (
 	"encoding/base64"
 	"github.com/nais/wonderwall/pkg/cryptutil"
-	"golang.org/x/net/publicsuffix"
 	"golang.org/x/oauth2"
 	"net/http"
 	"net/http/cookiejar"
@@ -105,9 +104,12 @@ func TestHandler_Callback(t *testing.T) {
 	r := router.New(h)
 	server := httptest.NewServer(r)
 
-	jar, err := cookiejar.New(&cookiejar.Options{
-		PublicSuffixList: publicsuffix.List,
-	})
+	idp := &idporten{}
+	idprouter := idportenRouter(idp)
+	idpserver := httptest.NewServer(idprouter)
+	h.OauthConfig.Endpoint.TokenURL = idpserver.URL + "/authorize"
+
+	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)
 
 	client := server.Client()
