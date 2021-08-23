@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/middleware"
@@ -43,6 +44,7 @@ type Handler struct {
 	UpstreamHost    string
 	IdTokenVerifier *oidc.IDTokenVerifier
 	sessions        map[string]*oauth2.Token
+	lock            sync.Mutex
 }
 
 type loginParams struct {
@@ -290,11 +292,23 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.sessions[claims.SessionID] = token
+	h.storeSession(claims.SessionID, token)
 
 	// fixme: distributed session store for multi-pod deployments
 
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+}
+
+func (h *Handler) storeSession(key string, token *oauth2.Token) {
+	h.lock.Lock()
+	h.sessions[key] = token
+	h.lock.Unlock()
+}
+
+func (h *Handler) deleteSession(key string) {
+	h.lock.Lock()
+	delete(h.sessions, key)
+	h.lock.Unlock()
 }
 
 // Proxy all requests upstream
@@ -375,7 +389,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	delete(h.sessions, sessionID)
+	h.deleteSession(sessionID)
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
