@@ -16,26 +16,28 @@ type Config struct {
 }
 
 type IDPorten struct {
-	ClientID      string            `json:"client-id"`
-	ClientJWK     string            `json:"client-jwk"`
-	RedirectURI   string            `json:"redirect-uri"`
-	WellKnownURL  string            `json:"well-known-url"`
-	WellKnown     IDPortenWellKnown `json:"well-known"`
-	Locale        string            `json:"locale"`
-	SecurityLevel string            `json:"security-level"`
+	ClientID              string            `json:"client-id"`
+	ClientJWK             string            `json:"client-jwk"`
+	RedirectURI           string            `json:"redirect-uri"`
+	WellKnownURL          string            `json:"well-known-url"`
+	WellKnown             IDPortenWellKnown `json:"well-known"`
+	Locale                string            `json:"locale"`
+	SecurityLevel         string            `json:"security-level"`
+	PostLogoutRedirectURI string            `json:"post-logout-redirect-uri"`
 }
 
 const (
-	BindAddress           = "bind-address"
-	UpstreamHost          = "upstream-host"
-	LogFormat             = "log-format"
-	LogLevel              = "log-level"
-	IDPortenClientID      = "idporten.client-id"
-	IDPortenClientJWK     = "idporten.client-jwk"
-	IDPortenRedirectURI   = "idporten.redirect-uri"
-	IDPortenWellKnownURL  = "idporten.well-known-url"
-	IDPortenLocale        = "idporten.locale"
-	IDPortenSecurityLevel = "idporten.security-level"
+	BindAddress                   = "bind-address"
+	UpstreamHost                  = "upstream-host"
+	LogFormat                     = "log-format"
+	LogLevel                      = "log-level"
+	IDPortenClientID              = "idporten.client-id"
+	IDPortenClientJWK             = "idporten.client-jwk"
+	IDPortenRedirectURI           = "idporten.redirect-uri"
+	IDPortenWellKnownURL          = "idporten.well-known-url"
+	IDPortenLocale                = "idporten.locale"
+	IDPortenSecurityLevel         = "idporten.security-level"
+	IDPortenPostLogoutRedirectURI = "idporten.post-logout-redirect-uri"
 )
 
 func bindNAIS() {
@@ -55,6 +57,7 @@ func Initialize() *Config {
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 	flag.String(IDPortenSecurityLevel, "Level4", "Requested security level, either Level3 or Level4.")
 	flag.String(IDPortenLocale, "nb", "Locale for OAuth2 consent screen.")
+	flag.String(IDPortenPostLogoutRedirectURI, "https://nav.no", "URI for redirecting the user after successful logout at IDPorten.")
 
 	return &Config{}
 }

@@ -361,11 +361,52 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, upstreamResponse.Body)
 }
 
+// Logout triggers self-initiated for the current user
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	sessionCookie, err := r.Cookie(SessionCookieName)
+	if err != nil {
+		log.Tracef("no session cookie; should redirect to /oauth2/login")
+		http.Redirect(w, r, "/oauth2/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	_, ok := h.sessions[sessionCookie.Value]
+	if !ok {
+		log.Tracef("no token stored for session %s; needs garbage collection client side", sessionCookie.Value)
+		http.Redirect(w, r, "/oauth2/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	delete(h.sessions, sessionCookie.Value)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     SessionCookieName,
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0,0),
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	u, err := url.Parse(h.Config.WellKnown.EndSessionEndpoint)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	v := u.Query()
+	v.Add("post_logout_redirect_uri", h.Config.PostLogoutRedirectURI)
+	u.RawQuery = v.Encode()
+
+	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
+}
+
 func New(handler *Handler) chi.Router {
 	r := chi.NewRouter()
 	r.With(middleware.DefaultLogger)
 	r.Get("/oauth2/login", handler.Login)
 	r.Get("/oauth2/callback", handler.Callback)
+	r.Get("/oauth2/logout_self", handler.Logout)
 	r.HandleFunc("/*", handler.Default)
 	return r
 }
