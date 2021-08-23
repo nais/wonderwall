@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/coreos/go-oidc"
 	"github.com/go-chi/chi/middleware"
 	log "github.com/sirupsen/logrus"
 
@@ -21,7 +20,6 @@ import (
 
 	"github.com/go-chi/chi"
 	"golang.org/x/oauth2"
-	"gopkg.in/square/go-jose.v2"
 
 	"github.com/nais/wonderwall/pkg/config"
 )
@@ -195,6 +193,7 @@ func (h *Handler) setEncryptedCookie(w http.ResponseWriter, key string, plaintex
 		Value:    base64.StdEncoding.EncodeToString(ciphertext),
 		Expires:  time.Now().Add(expiresIn),
 		Secure:   true,
+		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -299,6 +298,8 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	h.sessions[claims.SessionID] = token
 
+	// fixme: distributed session store for multi-pod deployments
+
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
@@ -308,6 +309,9 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	upstreamRequest := r.Clone(ctx)
 
+	upstreamRequest.Header.Del("authorization")
+
+	// fixme: let upstream application decide what to do with unauthenticated clients
 	// Get credentials from session cache
 	sessionID, err := h.getEncryptedCookie(r, SessionCookieName)
 	if err != nil {
