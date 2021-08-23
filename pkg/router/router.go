@@ -46,7 +46,6 @@ type Handler struct {
 }
 
 type loginParams struct {
-	session      string
 	state        string
 	codeVerifier string
 	url          string
@@ -61,14 +60,8 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 	codeVerifier := make([]byte, 64)
 	nonce := make([]byte, 32)
 	state := make([]byte, 32)
-	session := make([]byte, 32)
 
 	var err error
-
-	_, err = io.ReadFull(rand.Reader, session)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create session id: %w", err)
-	}
 
 	_, err = io.ReadFull(rand.Reader, state)
 	if err != nil {
@@ -109,7 +102,6 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 	u.RawQuery = v.Encode()
 
 	return &loginParams{
-		session:      base64.RawURLEncoding.EncodeToString(session),
 		state:        base64.RawURLEncoding.EncodeToString(state),
 		nonce:        base64.RawURLEncoding.EncodeToString(nonce),
 		codeVerifier: string(codeVerifier),
