@@ -43,6 +43,7 @@ type Handler struct {
 	Crypter         cryptutil.Crypter
 	UpstreamHost    string
 	IdTokenVerifier *oidc.IDTokenVerifier
+	SecureCookies   bool
 	sessions        map[string]session
 	lock            sync.Mutex
 }
@@ -155,7 +156,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	assertion, err := h.Config.SignedJWTProfileAssertion(time.Second * 100)
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

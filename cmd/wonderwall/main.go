@@ -61,10 +61,11 @@ func run() error {
 	}
 
 	handler := &router.Handler{
-		Config:       cfg.IDPorten,
-		Crypter:      crypt,
-		OauthConfig:  oauthConfig,
-		UpstreamHost: cfg.UpstreamHost,
+		Config:        cfg.IDPorten,
+		Crypter:       crypt,
+		OauthConfig:   oauthConfig,
+		UpstreamHost:  cfg.UpstreamHost,
+		SecureCookies: true,
 		IdTokenVerifier: oidc.NewVerifier(
 			cfg.IDPorten.WellKnown.Issuer,
 			oidc.NewRemoteKeySet(context.Background(), cfg.IDPorten.WellKnown.JwksURI),
