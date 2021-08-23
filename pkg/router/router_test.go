@@ -2,11 +2,13 @@ package router_test
 
 import (
 	"encoding/json"
-	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/router"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/square/go-jose.v2"
-	"testing"
+
+	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/router"
 )
 
 func TestJWK(t *testing.T) {
@@ -26,7 +28,6 @@ func TestLoginURL(t *testing.T) {
 			SecurityLevel: "Level4",
 		},
 	}
-	params, err := handler.LoginURL()
+	_, err := handler.LoginURL()
 	assert.NoError(t, err)
-	t.Logf("%+v", params)
 }
