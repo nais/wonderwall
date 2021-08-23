@@ -5,10 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/coreos/go-oidc"
-	"gopkg.in/square/go-jose.v2"
+	"github.com/nais/wonderwall/pkg/token"
 	"io"
 	"net/http"
 	"net/url"
@@ -30,7 +29,6 @@ import (
 const (
 	SessionMaxLifetime     = time.Hour
 	LoginCookieLifetime    = 10 * time.Minute
-	ScopeOpenID            = "openid"
 	SessionCookieName      = "io.nais.wonderwall.session"
 	StateCookieName        = "io.nais.wonderwall.state"
 	NonceCookieName        = "io.nais.wonderwall.nonce"
@@ -93,7 +91,7 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 	v.Add("response_type", "code")
 	v.Add("client_id", h.Config.ClientID)
 	v.Add("redirect_uri", h.Config.RedirectURI)
-	v.Add("scope", ScopeOpenID)
+	v.Add("scope", token.ScopeOpenID)
 	v.Add("state", base64.RawURLEncoding.EncodeToString(state))
 	v.Add("nonce", base64.RawURLEncoding.EncodeToString(nonce))
 	v.Add("acr_values", h.Config.SecurityLevel)
@@ -139,82 +137,6 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, params.url, http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) SignedJWTProfileAssertion(expiration time.Duration) (string, error) {
-	key := &jose.JSONWebKey{}
-	err := json.Unmarshal([]byte(h.Config.ClientJWK), key)
-	if err != nil {
-		return "", err
-	}
-	signingKey := jose.SigningKey{
-		Algorithm: jose.RS256,
-		Key:       key,
-	}
-	signer, err := jose.NewSigner(signingKey, &jose.SignerOptions{})
-	if err != nil {
-		return "", err
-	}
-
-	iat := time.Now()
-	exp := iat.Add(expiration)
-	jwtRequest := &JWTTokenRequest{
-		Issuer:    h.Config.ClientID,
-		Subject:   h.Config.ClientID,
-		Audience:  h.Config.WellKnown.Issuer,
-		Scopes:    ScopeOpenID,
-		ExpiresAt: exp.Unix(),
-		IssuedAt:  iat.Unix(),
-	}
-
-	payload, err := json.Marshal(jwtRequest)
-	if err != nil {
-		return "", err
-	}
-
-	result, err := signer.Sign(payload)
-	if err != nil {
-		return "", err
-	}
-
-	return result.CompactSerialize()
-}
-
-func (h *Handler) setEncryptedCookie(w http.ResponseWriter, key string, plaintext string, expiresIn time.Duration) error {
-	ciphertext, err := h.Crypter.Encrypt([]byte(plaintext))
-	if err != nil {
-		return fmt.Errorf("unable to encrypt cookie '%s': %w", key, err)
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     key,
-		Value:    base64.StdEncoding.EncodeToString(ciphertext),
-		Expires:  time.Now().Add(expiresIn),
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	})
-
-	return nil
-}
-
-func (h *Handler) getEncryptedCookie(r *http.Request, key string) (string, error) {
-	encoded, err := r.Cookie(key)
-	if err != nil {
-		return "", fmt.Errorf("no cookie named '%s': %w", key, err)
-	}
-
-	ciphertext, err := base64.StdEncoding.DecodeString(encoded.Value)
-	if err != nil {
-		return "", fmt.Errorf("cookie named '%s' is not base64 encoded: %w", key, err)
-	}
-
-	plaintext, err := h.Crypter.Decrypt(ciphertext)
-	if err != nil {
-		return "", fmt.Errorf("unable to decrypt cookie '%s': %w", key, err)
-	}
-
-	return string(plaintext), nil
-}
-
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	state, err := h.getEncryptedCookie(r, StateCookieName)
 	if err != nil {
@@ -250,7 +172,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	assertion, err := h.SignedJWTProfileAssertion(time.Second * 100)
+	assertion, err := h.Config.SignedJWTProfileAssertion(time.Second * 100)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -297,18 +219,6 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	// fixme: distributed session store for multi-pod deployments
 
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-}
-
-func (h *Handler) storeSession(key string, token *oauth2.Token) {
-	h.lock.Lock()
-	h.sessions[key] = token
-	h.lock.Unlock()
-}
-
-func (h *Handler) deleteSession(key string) {
-	h.lock.Lock()
-	delete(h.sessions, key)
-	h.lock.Unlock()
 }
 
 // Proxy all requests upstream

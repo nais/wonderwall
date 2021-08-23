@@ -1,10 +1,6 @@
-package router
+package token
 
-import (
-	"strings"
-)
-
-type SpaceDelimitedArray []string
+const ScopeOpenID            = "openid"
 
 type JWTTokenRequest struct {
 	Issuer    string `json:"iss"`
@@ -13,8 +9,4 @@ type JWTTokenRequest struct {
 	Audience  string `json:"aud"`
 	IssuedAt  int64  `json:"iat"`
 	ExpiresAt int64  `json:"exp"`
-}
-
-func (s SpaceDelimitedArray) MarshalJSON() ([]byte, error) {
-	return []byte(strings.Join(s, " ")), nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/nais/wonderwall/pkg/token"
 	"net/http"
 	"os"
 
@@ -40,7 +41,7 @@ func run() error {
 		log.Info(line)
 	}
 
-	scopes := []string{router.ScopeOpenID}
+	scopes := []string{token.ScopeOpenID}
 
 	key, err := cryptutil.RandomBytes(32)
 	if err != nil {
