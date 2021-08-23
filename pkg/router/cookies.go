@@ -7,6 +7,59 @@ import (
 	"time"
 )
 
+type Cookie struct {
+	name      string
+	value     string
+	expiresIn time.Duration
+}
+
+type CallbackCookies struct {
+	State        string
+	Nonce        string
+	CodeVerifier string
+}
+
+func NewCookie(name, value string, expiresIn time.Duration) Cookie {
+	return Cookie{
+		name:      name,
+		value:     value,
+		expiresIn: expiresIn,
+	}
+}
+
+func (h *Handler) getCallbackCookies(r *http.Request) (*CallbackCookies, error) {
+	state, err := h.getEncryptedCookie(r, StateCookieName)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := h.getEncryptedCookie(r, NonceCookieName)
+	if err != nil {
+		return nil, err
+	}
+
+	codeVerifier, err := h.getEncryptedCookie(r, CodeVerifierCookieName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CallbackCookies{
+		State:        state,
+		Nonce:        nonce,
+		CodeVerifier: codeVerifier,
+	}, nil
+}
+
+func (h *Handler) setEncryptedCookies(w http.ResponseWriter, cookies ...Cookie) error {
+	for _, cookie := range cookies {
+		err := h.setEncryptedCookie(w, cookie.name, cookie.value, cookie.expiresIn)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (h *Handler) setEncryptedCookie(w http.ResponseWriter, key string, plaintext string, expiresIn time.Duration) error {
 	ciphertext, err := h.Crypter.Encrypt([]byte(plaintext))
 	if err != nil {
@@ -42,4 +95,12 @@ func (h *Handler) getEncryptedCookie(r *http.Request, key string) (string, error
 	}
 
 	return string(plaintext), nil
+}
+
+func (h *Handler) deleteCookie(w http.ResponseWriter, key string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     key,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
 }

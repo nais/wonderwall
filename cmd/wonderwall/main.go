@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
-	"github.com/nais/wonderwall/pkg/token"
 	"net/http"
 	"os"
+
+	"github.com/nais/wonderwall/pkg/token"
 
 	"github.com/coreos/go-oidc"
 	"github.com/nais/liberator/pkg/conftools"

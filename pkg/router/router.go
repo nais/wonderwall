@@ -6,13 +6,14 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"github.com/coreos/go-oidc"
-	"github.com/nais/wonderwall/pkg/token"
 	"io"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/coreos/go-oidc"
+	"github.com/nais/wonderwall/pkg/token"
 
 	"github.com/go-chi/chi/middleware"
 	log "github.com/sirupsen/logrus"
@@ -116,19 +117,11 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.setEncryptedCookie(w, StateCookieName, params.state, LoginCookieLifetime)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	err = h.setEncryptedCookie(w, NonceCookieName, params.nonce, LoginCookieLifetime)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	err = h.setEncryptedCookie(w, CodeVerifierCookieName, params.codeVerifier, LoginCookieLifetime)
+	err = h.setEncryptedCookies(w,
+		NewCookie(StateCookieName, params.state, LoginCookieLifetime),
+		NewCookie(NonceCookieName, params.nonce, LoginCookieLifetime),
+		NewCookie(CodeVerifierCookieName, params.codeVerifier, LoginCookieLifetime),
+	)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -138,21 +131,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
-	state, err := h.getEncryptedCookie(r, StateCookieName)
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	nonce, err := h.getEncryptedCookie(r, NonceCookieName)
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	codeVerifier, err := h.getEncryptedCookie(r, CodeVerifierCookieName)
+	cookies, err := h.getCallbackCookies(r)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -166,7 +145,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if params.Get("state") != state {
+	if params.Get("state") != cookies.State {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -180,7 +159,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("code_verifier", codeVerifier),
+		oauth2.SetAuthURLParam("code_verifier", cookies.CodeVerifier),
 		oauth2.SetAuthURLParam("client_assertion", assertion),
 		oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
 	}
@@ -192,7 +171,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := auth.ValidateIdToken(r.Context(), h.IdTokenVerifier, token, nonce)
+	idToken, err := auth.ValidateIdToken(r.Context(), h.IdTokenVerifier, token, cookies.Nonce)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -301,12 +280,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	h.deleteSession(sessionID)
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     SessionCookieName,
-		Path:     "/",
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-	})
+	h.deleteCookie(w, SessionCookieName)
 
 	u, err := url.Parse(h.Config.WellKnown.EndSessionEndpoint)
 	if err != nil {
