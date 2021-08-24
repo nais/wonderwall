@@ -8,10 +8,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"golang.org/x/oauth2"
 
 	"github.com/coreos/go-oidc"
+
 	"github.com/nais/wonderwall/pkg/cryptutil"
 
 	"github.com/stretchr/testify/assert"
@@ -131,7 +133,7 @@ func TestHandler_Login(t *testing.T) {
 	assert.NotEmpty(t, callbackURL.Query().Get("code"))
 }
 
-func TestHandler_Callback(t *testing.T) {
+func TestHandler_Callback_and_Logout(t *testing.T) {
 	h := handler()
 	r := router.New(h)
 	server := httptest.NewServer(r)
@@ -140,7 +142,9 @@ func TestHandler_Callback(t *testing.T) {
 	idpserver := httptest.NewServer(idprouter)
 	h.OauthConfig.Endpoint.TokenURL = idpserver.URL + "/token"
 	h.Config.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
+	h.Config.WellKnown.EndSessionEndpoint = idpserver.URL + "/endsession"
 	h.Config.RedirectURI = server.URL + "/oauth2/callback"
+	h.Config.PostLogoutRedirectURI = server.URL
 	h.IdTokenVerifier = oidc.NewVerifier(
 		cfg.WellKnown.Issuer,
 		oidc.NewRemoteKeySet(context.Background(), idpserver.URL+"/jwks"),
@@ -190,4 +194,35 @@ func TestHandler_Callback(t *testing.T) {
 
 	assert.NotNil(t, sessionCookie)
 
+	// Request self-initiated logout
+	req, err = client.Get(server.URL + "/oauth2/logout")
+	assert.NoError(t, err)
+	defer req.Body.Close()
+
+	cookies = client.Jar.Cookies(callbackURL)
+	for _, cookie := range cookies {
+		if cookie.Name == router.SessionCookieName {
+			sessionCookie = cookie
+		}
+	}
+
+	assert.NotNil(t, sessionCookie)
+	assert.Empty(t, sessionCookie.Value)
+	assert.True(t, sessionCookie.Expires.Before(time.Now()))
+
+	// Get endsession endpoint after local logout
+	location = req.Header.Get("location")
+	endsessionURL, err := url.Parse(location)
+	assert.NoError(t, err)
+
+	idpserverURL, err := url.Parse(idpserver.URL)
+	assert.NoError(t, err)
+
+	idpserverURL.Path = "/endsession"
+	values := url.Values{}
+	values.Add("post_logout_redirect_uri", h.Config.PostLogoutRedirectURI)
+
+	idpserverURL.RawQuery = values.Encode()
+
+	assert.Equal(t, idpserverURL, endsessionURL)
 }

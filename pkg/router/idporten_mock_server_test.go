@@ -184,10 +184,6 @@ func (ip *IDPorten) Authorize(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }
 
-func (ip *IDPorten) EndSession(w http.ResponseWriter, r *http.Request) {
-
-}
-
 func (ip *IDPorten) Jwks(w http.ResponseWriter, r *http.Request) {
 	publicSet, err := jwk.PublicSetOf(ip.Keys)
 	if err != nil {
@@ -198,16 +194,10 @@ func (ip *IDPorten) Jwks(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(publicSet)
 }
 
-func (ip *IDPorten) WellKnown(w http.ResponseWriter, r *http.Request) {
-
-}
-
 func idportenRouter(ip *IDPorten) chi.Router {
 	r := chi.NewRouter()
 	r.Get("/authorize", ip.Authorize)
 	r.Post("/token", ip.Token)
-	r.Get("/endsession", ip.EndSession)
 	r.Get("/jwks", ip.Jwks)
-	r.Get("/.well-known/openid-configuration", ip.WellKnown)
 	return r
 }
