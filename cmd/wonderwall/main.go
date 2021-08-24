@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/go-redis/redis/v8"
 	"github.com/nais/wonderwall/pkg/session"
 	"net/http"
 	"os"
@@ -51,6 +52,19 @@ func run() error {
 	}
 	crypt := cryptutil.New(key)
 
+	var sessionStore session.Store
+	if len(cfg.Redis) > 0 {
+		redisClient := redis.NewClient(&redis.Options{
+			Network: "tcp",
+			Addr:    cfg.Redis,
+		})
+		sessionStore = session.NewRedis(redisClient)
+		log.Infof("Using Redis as session backing store")
+	} else {
+		sessionStore = session.NewMemory()
+		log.Warnf("Redis not configured, using in-memory session backing store; not suitable for multi-pod deployments!")
+	}
+
 	oauthConfig := oauth2.Config{
 		ClientID: cfg.IDPorten.ClientID,
 		Endpoint: oauth2.Endpoint{
@@ -67,7 +81,7 @@ func run() error {
 		OauthConfig:   oauthConfig,
 		UpstreamHost:  cfg.UpstreamHost,
 		SecureCookies: true,
-		Sessions:      session.NewMemory(),
+		Sessions:      sessionStore,
 		IdTokenVerifier: oidc.NewVerifier(
 			cfg.IDPorten.WellKnown.Issuer,
 			oidc.NewRemoteKeySet(context.Background(), cfg.IDPorten.WellKnown.JwksURI),
