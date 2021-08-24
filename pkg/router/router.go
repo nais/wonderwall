@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/session"
 	"gopkg.in/square/go-jose.v2/jwt"
 	"io"
 	"net/http"
@@ -44,7 +45,7 @@ type Handler struct {
 	UpstreamHost    string
 	IdTokenVerifier *oidc.IDTokenVerifier
 	SecureCookies   bool
-	sessions        map[string]session
+	Sessions        session.Store
 	lock            sync.Mutex
 }
 
@@ -53,10 +54,6 @@ type loginParams struct {
 	codeVerifier string
 	url          string
 	nonce        string
-}
-
-func (h *Handler) Init() {
-	h.sessions = make(map[string]session)
 }
 
 func (h *Handler) LoginURL() (*loginParams, error) {
@@ -197,11 +194,15 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.storeSession(claims.SessionID, session{
-		token: tokens,
-	})
-
-	// fixme: distributed session store for multi-pod deployments
+	err = h.Sessions.Write(r.Context(), claims.SessionID, &session.Data{
+		ID:    claims.SessionID,
+		Token: tokens,
+	}, SessionMaxLifetime)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
@@ -215,10 +216,10 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	upstreamRequest := r.Clone(ctx)
 	upstreamRequest.Header.Del("authorization")
 
-	session, err := h.getSessionFromCookie(r)
-	if err == nil && session != nil && session.token != nil {
+	sess, err := h.getSessionFromCookie(r)
+	if err == nil && sess != nil && sess.Token != nil {
 		// add authentication if session cookie and token checks out
-		upstreamRequest.Header.Add("authorization", "Bearer "+session.token.AccessToken)
+		upstreamRequest.Header.Add("authorization", "Bearer "+sess.Token.AccessToken)
 		upstreamRequest.Header.Add("x-pwned-by", "wonderwall") // todo: request id for tracing
 	}
 
@@ -260,10 +261,15 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 
 // Logout triggers self-initiated for the current user
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	session, err := h.getSessionFromCookie(r)
+	sess, err := h.getSessionFromCookie(r)
 
-	if err == nil && session != nil && session.token != nil {
-		h.deleteSession(session.id)
+	if err == nil && sess != nil && sess.Token != nil {
+		err = h.Sessions.Delete(r.Context(), sess.ID)
+		if err != nil {
+			log.Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		h.deleteCookie(w, SessionCookieName)
 	}
 	// todo: test logout without credentials
@@ -293,15 +299,15 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, ok := h.sessions[sid]
-	if !ok {
+	sess, err := h.Sessions.Read(r.Context(), sid)
+	if err != nil {
 		// Can't remove session because it doesn't exist. Maybe it was garbage collected.
 		// We regard this as a redundant logout and return 200 OK.
 		return
 	}
 
 	// From here on, check that 'iss' from request matches data found in access token.
-	tok, err := jwt.ParseSigned(session.token.AccessToken)
+	tok, err := jwt.ParseSigned(sess.Token.AccessToken)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -325,7 +331,12 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// All verified; delete session.
-	h.deleteSession(sid)
+	err = h.Sessions.Delete(r.Context(), sid)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func New(handler *Handler) chi.Router {

@@ -12,9 +12,9 @@ type memorySessionStore struct {
 	sessions map[string]*Data
 }
 
-var _ Session = &memorySessionStore{}
+var _ Store = &memorySessionStore{}
 
-func NewMemory() Session {
+func NewMemory() Store {
 	return &memorySessionStore{
 		sessions: make(map[string]*Data),
 	}

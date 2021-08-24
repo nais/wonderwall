@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/nais/wonderwall/pkg/session"
 	"net/http"
 	"os"
 
@@ -66,14 +67,13 @@ func run() error {
 		OauthConfig:   oauthConfig,
 		UpstreamHost:  cfg.UpstreamHost,
 		SecureCookies: true,
+		Sessions:      session.NewMemory(),
 		IdTokenVerifier: oidc.NewVerifier(
 			cfg.IDPorten.WellKnown.Issuer,
 			oidc.NewRemoteKeySet(context.Background(), cfg.IDPorten.WellKnown.JwksURI),
 			&oidc.Config{ClientID: cfg.IDPorten.ClientID},
 		),
 	}
-
-	handler.Init()
 
 	r := router.New(handler)
 

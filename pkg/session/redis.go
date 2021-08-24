@@ -10,9 +10,9 @@ type redisSessionStore struct {
 	client redis.Cmdable
 }
 
-var _ Session = &redisSessionStore{}
+var _ Store = &redisSessionStore{}
 
-func NewRedis(client redis.Cmdable) Session {
+func NewRedis(client redis.Cmdable) Store {
 	return &redisSessionStore{
 		client: client,
 	}

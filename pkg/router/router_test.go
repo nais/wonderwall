@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/session"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -62,7 +63,8 @@ var idp = NewIDPorten(clients)
 
 func handler() *router.Handler {
 	handler := router.Handler{
-		Config: cfg,
+		Config:   cfg,
+		Sessions: session.NewMemory(),
 		OauthConfig: oauth2.Config{
 			ClientID:     "client-id",
 			ClientSecret: "client-secret",
@@ -77,7 +79,6 @@ func handler() *router.Handler {
 		UpstreamHost:    "",
 		IdTokenVerifier: nil,
 	}
-	handler.Init()
 	return &handler
 }
 
