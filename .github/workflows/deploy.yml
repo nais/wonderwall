@@ -27,10 +27,20 @@ jobs:
       - name: Push latest docker image
         if: github.ref == 'refs/heads/master'
         run: docker push ${{ env.image_base }}:latest
-      - uses: nais/deploy/actions/deploy@v1
-        if: github.ref == 'refs/heads/master'
-        env:
-          APIKEY: ${{ secrets.NAIS_DEPLOY_APIKEY }}
-          CLUSTER: dev-gcp
-          RESOURCE: .nais/nais.yml
-          VAR: image=${{ env.image_base }}:${{ env.VERSION }}
+      - name: Checkout nais-yaml
+        uses: actions/checkout@v2
+        with:
+          repository: navikt/nais-yaml
+          token: ${{ secrets.NAIS_YAML_TOKEN }}
+          path: nais-yaml
+      - name: Update nais-yaml
+        run: |
+          cd nais-yaml
+          git config user.name "NAIS deploy pipeline"
+          git config user.email "aura@nav.no"
+          sed -E -i "s#wonderwall_image:.+#wonderwall_image: ${{ env.image_base }}:${{ env.VERSION }}#" vars/global.yaml
+          git add .
+          git --no-pager diff --cached
+          git status
+          git commit -a -m "Bump Wonderwall image in Naiserator configuration to version ${version}"
+          git push
