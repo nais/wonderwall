@@ -73,6 +73,7 @@ func (h *Handler) setEncryptedCookie(w http.ResponseWriter, key string, plaintex
 		Secure:   h.SecureCookies,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
 	})
 
 	return nil
@@ -102,5 +103,6 @@ func (h *Handler) deleteCookie(w http.ResponseWriter, key string) {
 		Name:     key,
 		Secure:   h.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
 	})
 }
