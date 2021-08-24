@@ -1,7 +1,8 @@
 package router_test
 
 import (
-	"encoding/base64"
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/coreos/go-oidc"
 	"github.com/nais/wonderwall/pkg/cryptutil"
 
 	"github.com/stretchr/testify/assert"
@@ -18,10 +20,12 @@ import (
 	"github.com/nais/wonderwall/pkg/router"
 )
 
+const clientID = "clientid"
+
 var encryptionKey = []byte(`G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq`) // 256 bits AES
 
 var cfg = config.IDPorten{
-	ClientID: "clientid",
+	ClientID: clientID,
 	ClientJWK: `
 {
   "kty": "RSA",
@@ -37,7 +41,7 @@ var cfg = config.IDPorten{
   "x5t": "9rJ_0ziKoGNjSS_l11hn0yQxEqg"
 }
 `,
-	RedirectURI:  "http://localhost/redirect",
+	RedirectURI:  "http://localhost/callback",
 	WellKnownURL: "",
 	WellKnown: config.IDPortenWellKnown{
 		Issuer:                "issuer",
@@ -48,8 +52,13 @@ var cfg = config.IDPorten{
 	PostLogoutRedirectURI: "",
 }
 
+var clients = map[string]string{
+	clientID: "http://localhost/oauth2/logout/frontchannel",
+}
+var idp = NewIDPorten(clients)
+
 func handler() *router.Handler {
-	return &router.Handler{
+	handler := router.Handler{
 		Config: cfg,
 		OauthConfig: oauth2.Config{
 			ClientID:     "client-id",
@@ -65,6 +74,8 @@ func handler() *router.Handler {
 		UpstreamHost:    "",
 		IdTokenVerifier: nil,
 	}
+	handler.Init()
+	return &handler
 }
 
 func TestLoginURL(t *testing.T) {
@@ -76,15 +87,21 @@ func TestLoginURL(t *testing.T) {
 }
 
 func TestHandler_Login(t *testing.T) {
-	r := router.New(handler())
-	server := httptest.NewServer(r)
+	h := handler()
+	r := router.New(h)
 
+	server := httptest.NewServer(r)
 	client := server.Client()
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
-	req, err := client.Get(server.URL + "/oauth2/login")
 
+	idprouter := idportenRouter(idp)
+	idpserver := httptest.NewServer(idprouter)
+
+	h.Config.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
+
+	req, err := client.Get(server.URL + "/oauth2/login")
 	assert.NoError(t, err)
 	defer req.Body.Close()
 
@@ -92,14 +109,26 @@ func TestHandler_Login(t *testing.T) {
 	u, err := url.Parse(location)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "localhost:1234", u.Host)
+	assert.Equal(t, idpserver.URL, fmt.Sprintf("%s://%s", u.Scheme, u.Host))
 	assert.Equal(t, "/authorize", u.Path)
 	assert.Equal(t, cfg.SecurityLevel, u.Query().Get("acr_values"))
+	assert.Equal(t, cfg.Locale, u.Query().Get("ui_locales"))
 	assert.Equal(t, cfg.ClientID, u.Query().Get("client_id"))
 	assert.Equal(t, cfg.RedirectURI, u.Query().Get("redirect_uri"))
 	assert.NotEmpty(t, u.Query().Get("state"))
 	assert.NotEmpty(t, u.Query().Get("nonce"))
 	assert.NotEmpty(t, u.Query().Get("code_challenge"))
+
+	req, err = client.Get(u.String())
+	assert.NoError(t, err)
+	defer req.Body.Close()
+
+	location = req.Header.Get("location")
+	callbackURL, err := url.Parse(location)
+	assert.NoError(t, err)
+
+	assert.Equal(t, u.Query().Get("state"), callbackURL.Query().Get("state"))
+	assert.NotEmpty(t, callbackURL.Query().Get("code"))
 }
 
 func TestHandler_Callback(t *testing.T) {
@@ -107,13 +136,16 @@ func TestHandler_Callback(t *testing.T) {
 	r := router.New(h)
 	server := httptest.NewServer(r)
 
-	clients := map[string]string{
-		h.Config.ClientID: server.URL + "/oauth2/logout/frontchannel",
-	}
-	idp := NewIDPorten(clients)
 	idprouter := idportenRouter(idp)
 	idpserver := httptest.NewServer(idprouter)
-	h.OauthConfig.Endpoint.TokenURL = idpserver.URL + "/authorize"
+	h.OauthConfig.Endpoint.TokenURL = idpserver.URL + "/token"
+	h.Config.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
+	h.Config.RedirectURI = server.URL + "/oauth2/callback"
+	h.IdTokenVerifier = oidc.NewVerifier(
+		cfg.WellKnown.Issuer,
+		oidc.NewRemoteKeySet(context.Background(), idpserver.URL+"/jwks"),
+		&oidc.Config{ClientID: cfg.ClientID},
+	)
 
 	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)
@@ -127,32 +159,35 @@ func TestHandler_Callback(t *testing.T) {
 	// First, run /oauth2/login to set cookies
 	req, err := client.Get(server.URL + "/oauth2/login")
 	assert.NoError(t, err)
-	req.Body.Close()
+	defer req.Body.Close()
 
-	u, err := url.Parse(server.URL)
+	// Get authorization URL
+	location := req.Header.Get("location")
+	u, err := url.Parse(location)
 	assert.NoError(t, err)
 
-	u.Path = "/oauth2/callback"
-	v := &url.Values{}
-
-	mapping := map[string]string{
-		router.NonceCookieName:        "nonce",
-		router.StateCookieName:        "state",
-		router.CodeVerifierCookieName: "code_verifier",
-	}
-	for _, cookie := range req.Cookies() {
-		ciphertext, err := base64.StdEncoding.DecodeString(cookie.Value)
-		if err != nil {
-			panic(err)
-		}
-		plaintext, err := h.Crypter.Decrypt(ciphertext)
-		if err != nil {
-			panic(err)
-		}
-		v.Set(mapping[cookie.Name], string(plaintext))
-	}
-	u.RawQuery = v.Encode()
-
+	// Follow redirect to authorize with idporten
 	req, err = client.Get(u.String())
 	assert.NoError(t, err)
+	defer req.Body.Close()
+
+	// Get callback URL after successful auth
+	location = req.Header.Get("location")
+	callbackURL, err := url.Parse(location)
+	assert.NoError(t, err)
+
+	// Follow redirect to callback
+	req, err = client.Get(callbackURL.String())
+	assert.NoError(t, err)
+
+	cookies := client.Jar.Cookies(callbackURL)
+	var sessionCookie *http.Cookie
+	for _, cookie := range cookies {
+		if cookie.Name == router.SessionCookieName {
+			sessionCookie = cookie
+		}
+	}
+
+	assert.NotNil(t, sessionCookie)
+
 }

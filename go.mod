@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/coreos/go-oidc v2.1.0+incompatible
 	github.com/go-chi/chi v1.5.4
+	github.com/google/uuid v1.1.2
 	github.com/lestrrat-go/jwx v1.2.5
 	github.com/nais/liberator v0.0.0-20210809103005-edb0141d646d
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
