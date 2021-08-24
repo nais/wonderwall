@@ -2,17 +2,20 @@ package router_test
 
 import (
 	"encoding/base64"
-	"github.com/nais/wonderwall/pkg/cryptutil"
-	"golang.org/x/oauth2"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
+	"golang.org/x/oauth2"
+
+	"github.com/nais/wonderwall/pkg/cryptutil"
+
+	"github.com/stretchr/testify/assert"
+
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/router"
-	"github.com/stretchr/testify/assert"
 )
 
 var encryptionKey = []byte(`G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq`) // 256 bits AES
@@ -104,7 +107,10 @@ func TestHandler_Callback(t *testing.T) {
 	r := router.New(h)
 	server := httptest.NewServer(r)
 
-	idp := &idporten{}
+	clients := map[string]string{
+		h.Config.ClientID: server.URL + "/oauth2/logout/frontchannel",
+	}
+	idp := NewIDPorten(clients)
 	idprouter := idportenRouter(idp)
 	idpserver := httptest.NewServer(idprouter)
 	h.OauthConfig.Endpoint.TokenURL = idpserver.URL + "/authorize"
