@@ -2,6 +2,7 @@ package router_test
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
@@ -225,4 +226,87 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	idpserverURL.RawQuery = values.Encode()
 
 	assert.Equal(t, idpserverURL, endsessionURL)
+}
+
+func TestHandler_FrontChannelLogout(t *testing.T) {
+	h := handler()
+	r := router.New(h)
+	server := httptest.NewServer(r)
+
+	idprouter := idportenRouter(idp)
+	idpserver := httptest.NewServer(idprouter)
+	h.OauthConfig.Endpoint.TokenURL = idpserver.URL + "/token"
+	h.Config.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
+	h.Config.WellKnown.EndSessionEndpoint = idpserver.URL + "/endsession"
+	h.Config.RedirectURI = server.URL + "/oauth2/callback"
+	h.Config.PostLogoutRedirectURI = server.URL
+	h.IdTokenVerifier = oidc.NewVerifier(
+		cfg.WellKnown.Issuer,
+		oidc.NewRemoteKeySet(context.Background(), idpserver.URL+"/jwks"),
+		&oidc.Config{ClientID: cfg.ClientID},
+	)
+
+	jar, err := cookiejar.New(nil)
+	assert.NoError(t, err)
+
+	client := server.Client()
+	client.Jar = jar
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	// First, run /oauth2/login to set cookies
+	req, err := client.Get(server.URL + "/oauth2/login")
+	assert.NoError(t, err)
+	defer req.Body.Close()
+
+	// Get authorization URL
+	location := req.Header.Get("location")
+	u, err := url.Parse(location)
+	assert.NoError(t, err)
+
+	// Follow redirect to authorize with idporten
+	req, err = client.Get(u.String())
+	assert.NoError(t, err)
+	defer req.Body.Close()
+
+	// Get callback URL after successful auth
+	location = req.Header.Get("location")
+	callbackURL, err := url.Parse(location)
+	assert.NoError(t, err)
+
+	// Follow redirect to callback
+	req, err = client.Get(callbackURL.String())
+	assert.NoError(t, err)
+
+	cookies := client.Jar.Cookies(callbackURL)
+	var sessionCookie *http.Cookie
+	for _, cookie := range cookies {
+		if cookie.Name == router.SessionCookieName {
+			sessionCookie = cookie
+		}
+	}
+
+	assert.NotNil(t, sessionCookie)
+
+	// Trigger front-channel logout
+	ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
+	assert.NoError(t, err)
+
+	sid, err := h.Crypter.Decrypt(ciphertext)
+	assert.NoError(t, err)
+
+	frontchannelLogoutURL, err := url.Parse(server.URL)
+	assert.NoError(t, err)
+
+	frontchannelLogoutURL.Path = "/oauth2/logout/frontchannel"
+
+	values := url.Values{}
+	values.Add("sid", string(sid))
+	values.Add("iss", h.Config.WellKnown.Issuer)
+	frontchannelLogoutURL.RawQuery = values.Encode()
+
+	req, err = client.Get(frontchannelLogoutURL.String())
+	assert.NoError(t, err)
+	defer req.Body.Close()
 }
