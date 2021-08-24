@@ -42,5 +42,5 @@ jobs:
           git add .
           git --no-pager diff --cached
           git status
-          git commit -a -m "Bump Wonderwall image in Naiserator configuration to version ${version}"
+          git commit -a -m "Bump Wonderwall image version ${{ env.VERSION }}"
           git push

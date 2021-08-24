@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/nais/wonderwall/pkg/session"
 	"net/http"
@@ -22,6 +24,7 @@ import (
 
 var maskedConfig = []string{
 	config.IDPortenClientJWK,
+	config.EncryptionKey,
 }
 
 func run() error {
@@ -46,10 +49,20 @@ func run() error {
 
 	scopes := []string{token.ScopeOpenID}
 
-	key, err := cryptutil.RandomBytes(32)
+	key, err := base64.StdEncoding.DecodeString(cfg.EncryptionKey)
 	if err != nil {
-		return err
+		if len(cfg.EncryptionKey) > 0 {
+			return fmt.Errorf("decode encryption key: %w", err)
+		}
 	}
+
+	if key == nil {
+		key, err = cryptutil.RandomBytes(32)
+		if err != nil {
+			return fmt.Errorf("generate random encryption key: %w", err)
+		}
+	}
+
 	crypt := cryptutil.New(key)
 
 	var sessionStore session.Store

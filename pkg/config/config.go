@@ -8,12 +8,13 @@ import (
 )
 
 type Config struct {
-	BindAddress  string   `json:"bind-address"`
-	UpstreamHost string   `json:"upstream-host"`
-	IDPorten     IDPorten `json:"idporten"`
-	LogFormat    string   `json:"log-format"`
-	LogLevel     string   `json:"log-level"`
-	Redis        string   `json:"redis"`
+	BindAddress   string   `json:"bind-address"`
+	UpstreamHost  string   `json:"upstream-host"`
+	EncryptionKey string   `json:"encryption-key"`
+	IDPorten      IDPorten `json:"idporten"`
+	LogFormat     string   `json:"log-format"`
+	LogLevel      string   `json:"log-level"`
+	Redis         string   `json:"redis"`
 }
 
 type IDPorten struct {
@@ -32,7 +33,8 @@ const (
 	UpstreamHost                  = "upstream-host"
 	LogFormat                     = "log-format"
 	LogLevel                      = "log-level"
-	Redis="redis"
+	EncryptionKey                 = "encryption-key"
+	Redis                         = "redis"
 	IDPortenClientID              = "idporten.client-id"
 	IDPortenClientJWK             = "idporten.client-jwk"
 	IDPortenRedirectURI           = "idporten.redirect-uri"
@@ -57,6 +59,7 @@ func Initialize() *Config {
 	flag.String(LogLevel, "debug", "Logging verbosity level.")
 	flag.String(BindAddress, "127.0.0.1:8090", "Listen address.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
+	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(Redis, "", "Address of Redis. An empty value will use in-memory session storage.")
 	flag.String(IDPortenSecurityLevel, "Level4", "Requested security level, either Level3 or Level4.")
 	flag.String(IDPortenLocale, "nb", "Locale for OAuth2 consent screen.")
