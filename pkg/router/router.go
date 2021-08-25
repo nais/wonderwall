@@ -6,27 +6,24 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/session"
-	"gopkg.in/square/go-jose.v2/jwt"
 	"io"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
 
-	"github.com/coreos/go-oidc"
-	"github.com/nais/wonderwall/pkg/token"
-
-	"github.com/go-chi/chi/middleware"
-	log "github.com/sirupsen/logrus"
-
-	"github.com/nais/wonderwall/pkg/auth"
-	"github.com/nais/wonderwall/pkg/cryptutil"
-
-	"github.com/go-chi/chi"
-	"golang.org/x/oauth2"
+	"github.com/lestrrat-go/jwx/jwt"
 
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/cryptutil"
+	"github.com/nais/wonderwall/pkg/session"
+	"github.com/nais/wonderwall/pkg/token"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"github.com/lestrrat-go/jwx/jwk"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -39,14 +36,14 @@ const (
 )
 
 type Handler struct {
-	Config          config.IDPorten
-	OauthConfig     oauth2.Config
-	Crypter         cryptutil.Crypter
-	UpstreamHost    string
-	IdTokenVerifier *oidc.IDTokenVerifier
-	SecureCookies   bool
-	Sessions        session.Store
-	lock            sync.Mutex
+	Config        config.IDPorten
+	OauthConfig   oauth2.Config
+	Crypter       cryptutil.Crypter
+	UpstreamHost  string
+	JwkSet        jwk.Set
+	SecureCookies bool
+	Sessions      session.Store
+	lock          sync.Mutex
 }
 
 type loginParams struct {
@@ -112,6 +109,7 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	params, err := h.LoginURL()
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -122,6 +120,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		NewCookie(CodeVerifierCookieName, params.codeVerifier, LoginCookieLifetime),
 	)
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -170,32 +169,35 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := auth.ValidateIdToken(r.Context(), h.IdTokenVerifier, tokens, cookies.Nonce)
+	idToken, err := token.ParseIDToken(r.Context(), h.JwkSet, tokens)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	var claims struct {
-		SessionID string `json:"sid"`
+	validateOpts := []jwt.ValidateOption{
+		jwt.WithAudience(h.Config.ClientID),
+		jwt.WithClaimValue("nonce", cookies.Nonce),
+		jwt.WithIssuer(h.Config.WellKnown.Issuer),
 	}
 
-	if err := idToken.Claims(&claims); err != nil {
+	err = idToken.Validate(validateOpts...)
+	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	err = h.setEncryptedCookie(w, SessionCookieName, claims.SessionID, SessionMaxLifetime)
+	err = h.setEncryptedCookie(w, SessionCookieName, idToken.SessionID, SessionMaxLifetime)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = h.Sessions.Write(r.Context(), claims.SessionID, &session.Data{
-		ID:    claims.SessionID,
+	err = h.Sessions.Write(r.Context(), idToken.SessionID, &session.Data{
+		ID:    idToken.SessionID,
 		Token: tokens,
 	}, SessionMaxLifetime)
 	if err != nil {
@@ -287,7 +289,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }
 
-// Logout triggers self-initiated for the current user
+// FrontChannelLogout triggers logout triggered by a third-party.
 func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 
@@ -307,25 +309,15 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// From here on, check that 'iss' from request matches data found in access token.
-	tok, err := jwt.ParseSigned(sess.Token.AccessToken)
+	tok, err := jwt.Parse([]byte(sess.Token.AccessToken))
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	var claims struct {
-		Issuer string `json:"iss"`
-	}
-
-	err = tok.UnsafeClaimsWithoutVerification(&claims)
+	err = jwt.Validate(tok, jwt.WithClaimValue("iss", iss))
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if claims.Issuer != iss {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}

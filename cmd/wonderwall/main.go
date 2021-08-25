@@ -4,14 +4,16 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/go-redis/redis/v8"
-	"github.com/nais/wonderwall/pkg/session"
 	"net/http"
 	"os"
 
+	"github.com/go-redis/redis/v8"
+	"github.com/lestrrat-go/jwx/jwk"
+
+	"github.com/nais/wonderwall/pkg/session"
+
 	"github.com/nais/wonderwall/pkg/token"
 
-	"github.com/coreos/go-oidc"
 	"github.com/nais/liberator/pkg/conftools"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -88,6 +90,11 @@ func run() error {
 		Scopes:      scopes,
 	}
 
+	jwkSet, err := jwk.Fetch(context.Background(), cfg.IDPorten.WellKnown.JwksURI)
+	if err != nil {
+		return fmt.Errorf("fetching jwks: %w", err)
+	}
+
 	handler := &router.Handler{
 		Config:        cfg.IDPorten,
 		Crypter:       crypt,
@@ -95,11 +102,7 @@ func run() error {
 		UpstreamHost:  cfg.UpstreamHost,
 		SecureCookies: true,
 		Sessions:      sessionStore,
-		IdTokenVerifier: oidc.NewVerifier(
-			cfg.IDPorten.WellKnown.Issuer,
-			oidc.NewRemoteKeySet(context.Background(), cfg.IDPorten.WellKnown.JwksURI),
-			&oidc.Config{ClientID: cfg.IDPorten.ClientID},
-		),
+		JwkSet:        jwkSet,
 	}
 
 	r := router.New(handler)

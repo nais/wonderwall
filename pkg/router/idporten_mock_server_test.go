@@ -41,6 +41,16 @@ func NewIDPorten(clients map[string]string) *IDPorten {
 		panic(err)
 	}
 
+	err = jwk.AssignKeyID(key)
+	if err != nil {
+		panic(err)
+	}
+
+	err = key.Set(jwk.AlgorithmKey, jwa.RS256)
+	if err != nil {
+		panic(err)
+	}
+
 	keys := jwk.NewSet()
 	keys.Add(key)
 

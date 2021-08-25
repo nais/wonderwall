@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/session"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -12,9 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/oauth2"
+	"github.com/lestrrat-go/jwx/jwk"
 
-	"github.com/coreos/go-oidc"
+	"github.com/nais/wonderwall/pkg/session"
+
+	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/cryptutil"
 
@@ -77,7 +78,6 @@ func handler() *router.Handler {
 		},
 		Crypter:         cryptutil.New(encryptionKey),
 		UpstreamHost:    "",
-		IdTokenVerifier: nil,
 	}
 	return &handler
 }
@@ -147,11 +147,9 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	h.Config.WellKnown.EndSessionEndpoint = idpserver.URL + "/endsession"
 	h.Config.RedirectURI = server.URL + "/oauth2/callback"
 	h.Config.PostLogoutRedirectURI = server.URL
-	h.IdTokenVerifier = oidc.NewVerifier(
-		cfg.WellKnown.Issuer,
-		oidc.NewRemoteKeySet(context.Background(), idpserver.URL+"/jwks"),
-		&oidc.Config{ClientID: cfg.ClientID},
-	)
+	jwkSet, err := jwk.Fetch(context.Background(), idpserver.URL+"/jwks")
+	assert.NoError(t, err)
+	h.JwkSet = jwkSet
 
 	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)
@@ -241,11 +239,10 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	h.Config.WellKnown.EndSessionEndpoint = idpserver.URL + "/endsession"
 	h.Config.RedirectURI = server.URL + "/oauth2/callback"
 	h.Config.PostLogoutRedirectURI = server.URL
-	h.IdTokenVerifier = oidc.NewVerifier(
-		cfg.WellKnown.Issuer,
-		oidc.NewRemoteKeySet(context.Background(), idpserver.URL+"/jwks"),
-		&oidc.Config{ClientID: cfg.ClientID},
-	)
+
+	jwkSet, err := jwk.Fetch(context.Background(), idpserver.URL+"/jwks")
+	assert.NoError(t, err)
+	h.JwkSet = jwkSet
 
 	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)
