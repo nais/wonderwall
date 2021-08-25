@@ -28,12 +28,14 @@ jobs:
         if: github.ref == 'refs/heads/master'
         run: docker push ${{ env.image_base }}:latest
       - name: Checkout nais-yaml
+        if: github.ref == 'refs/heads/master'
         uses: actions/checkout@v2
         with:
           repository: navikt/nais-yaml
           token: ${{ secrets.NAIS_YAML_TOKEN }}
           path: nais-yaml
       - name: Update nais-yaml
+        if: github.ref == 'refs/heads/master'
         run: |
           cd nais-yaml
           git config user.name "NAIS deploy pipeline"
