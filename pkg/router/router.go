@@ -266,8 +266,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Request should go to correct host
-	// req.Header.Set("host", req.Host)
-	upstreamRequest.Host = h.UpstreamHost // fixme
+	upstreamRequest.Host = r.Host
 	upstreamRequest.URL.Host = h.UpstreamHost
 	upstreamRequest.URL.Scheme = "http"
 	upstreamRequest.RequestURI = ""
