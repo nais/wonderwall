@@ -223,13 +223,12 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	idpserverURL, err := url.Parse(idpserver.URL)
 	assert.NoError(t, err)
 
-	idpserverURL.Path = "/endsession"
-	values := url.Values{}
-	values.Add("post_logout_redirect_uri", h.Config.PostLogoutRedirectURI)
+	endsessionParams := endsessionURL.Query()
 
-	idpserverURL.RawQuery = values.Encode()
-
-	assert.Equal(t, idpserverURL, endsessionURL)
+	assert.Equal(t, idpserverURL.Host, endsessionURL.Host)
+	assert.Equal(t, "/endsession", endsessionURL.Path)
+	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{h.Config.PostLogoutRedirectURI})
+	assert.NotEmpty(t, endsessionParams["id_token_hint"])
 }
 
 func TestHandler_FrontChannelLogout(t *testing.T) {

@@ -14,9 +14,10 @@ import (
 func TestMemory(t *testing.T) {
 	data := &session.Data{
 		ExternalSessionID: "myid",
-		Token: &oauth2.Token{
+		OAuth2Token: &oauth2.Token{
 			AccessToken: "axx",
 		},
+		IDTokenSerialized: "idtoken",
 	}
 
 	sess := session.NewMemory()

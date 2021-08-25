@@ -237,7 +237,8 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	err = h.Sessions.Write(r.Context(), sessionID, &session.Data{
 		ExternalSessionID: idToken.ExternalSessionID,
-		Token:             tokens,
+		OAuth2Token:       tokens,
+		IDTokenSerialized: idToken.Raw,
 	}, h.Config.SessionMaxLifetime)
 	if err != nil {
 		log.Error(err)
@@ -258,9 +259,9 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	upstreamRequest.Header.Del("authorization")
 
 	sess, err := h.getSessionFromCookie(r)
-	if err == nil && sess != nil && sess.Token != nil {
+	if err == nil && sess != nil && sess.OAuth2Token != nil {
 		// add authentication if session cookie and token checks out
-		upstreamRequest.Header.Add("authorization", "Bearer "+sess.Token.AccessToken)
+		upstreamRequest.Header.Add("authorization", "Bearer "+sess.OAuth2Token.AccessToken)
 		upstreamRequest.Header.Add("x-pwned-by", "wonderwall") // todo: request id for tracing
 	}
 
@@ -302,9 +303,11 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 
 // Logout triggers self-initiated for the current user
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	sess, err := h.getSessionFromCookie(r)
+	var idToken string
 
-	if err == nil && sess != nil && sess.Token != nil {
+	sess, err := h.getSessionFromCookie(r)
+	if err == nil && sess != nil && sess.OAuth2Token != nil {
+		idToken = sess.IDTokenSerialized
 		err = h.Sessions.Delete(r.Context(), h.localSessionID(sess.ExternalSessionID))
 		if err != nil {
 			log.Error(err)
@@ -313,7 +316,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		}
 		h.deleteCookie(w, SessionCookieName)
 	}
-	// todo: test logout without credentials
 
 	u, err := url.Parse(h.Config.WellKnown.EndSessionEndpoint)
 	if err != nil {
@@ -323,6 +325,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 	v := u.Query()
 	v.Add("post_logout_redirect_uri", h.Config.PostLogoutRedirectURI)
+
+	if len(idToken) != 0 {
+		v.Add("id_token_hint", idToken)
+	}
+
 	u.RawQuery = v.Encode()
 
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
@@ -348,7 +355,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// From here on, check that 'iss' from request matches data found in access token.
-	tok, err := jwt.Parse([]byte(sess.Token.AccessToken))
+	tok, err := jwt.Parse([]byte(sess.OAuth2Token.AccessToken))
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)

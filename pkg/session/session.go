@@ -17,7 +17,8 @@ type Store interface {
 
 type Data struct {
 	ExternalSessionID string
-	Token             *oauth2.Token
+	OAuth2Token       *oauth2.Token
+	IDTokenSerialized string
 }
 
 var _ encoding.BinaryMarshaler = &Data{}

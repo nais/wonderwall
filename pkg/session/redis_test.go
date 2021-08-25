@@ -4,20 +4,23 @@ package session_test
 
 import (
 	"context"
-	"github.com/go-redis/redis/v8"
-	"github.com/nais/wonderwall/pkg/session"
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/oauth2"
 	"testing"
 	"time"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
+
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 func TestRedis(t *testing.T) {
 	data := &session.Data{
 		ExternalSessionID: "myid",
-		Token: &oauth2.Token{
+		OAuth2Token: &oauth2.Token{
 			AccessToken: "axx",
 		},
+		IDTokenSerialized: "idtoken",
 	}
 
 	client := redis.NewClient(&redis.Options{
