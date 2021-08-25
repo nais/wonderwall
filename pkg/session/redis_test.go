@@ -14,7 +14,7 @@ import (
 
 func TestRedis(t *testing.T) {
 	data := &session.Data{
-		ID: "myid",
+		ExternalSessionID: "myid",
 		Token: &oauth2.Token{
 			AccessToken: "axx",
 		},

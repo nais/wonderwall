@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding"
 	"encoding/json"
-	"golang.org/x/oauth2"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 type Store interface {
@@ -15,8 +16,8 @@ type Store interface {
 }
 
 type Data struct {
-	ID    string
-	Token *oauth2.Token
+	ExternalSessionID string
+	Token             *oauth2.Token
 }
 
 var _ encoding.BinaryMarshaler = &Data{}

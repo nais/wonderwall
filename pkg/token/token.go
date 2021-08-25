@@ -23,9 +23,9 @@ type JWTTokenRequest struct {
 }
 
 type IDToken struct {
-	Raw       string
-	SessionID string
-	Token     jwt.Token
+	Raw               string
+	ExternalSessionID string
+	Token             jwt.Token
 }
 
 func (in *IDToken) Validate(opts ...jwt.ValidateOption) error {
@@ -57,15 +57,15 @@ func ParseIDToken(ctx context.Context, jwks jwk.Set, token *oauth2.Token) (*IDTo
 		return nil, fmt.Errorf("parsing jwt: %w", err)
 	}
 
-	sessionID, ok := idToken.Get("sid")
+	sid, ok := idToken.Get("sid")
 	if !ok {
 		return nil, fmt.Errorf("missing 'sid' claim in id_token")
 	}
 
 	result := &IDToken{
-		Raw:       raw,
-		SessionID: sessionID.(string),
-		Token:     idToken,
+		Raw:               raw,
+		ExternalSessionID: sid.(string),
+		Token:             idToken,
 	}
 
 	return result, nil

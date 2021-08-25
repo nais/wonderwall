@@ -73,6 +73,15 @@ func (h *Handler) WithSecureCookie(enabled bool) *Handler {
 	return h
 }
 
+// localSessionID prefixes the given `sid` with the given client ID to prevent key collisions.
+// `sid` is a key that refers to the user's unique SSO session at the Identity Provider, and the same key is present
+// in all tokens acquired by any Relying Party (such as Wonderwall) during that session.
+// Thus, we cannot assume that the value of `sid` to uniquely identify the pair of (user, application session)
+// if using a shared session store.
+func (h *Handler) localSessionID(sid string) string {
+	return fmt.Sprintf("%s-%s", h.Config.ClientID, sid)
+}
+
 type loginParams struct {
 	state        string
 	codeVerifier string
@@ -217,16 +226,18 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.setEncryptedCookie(w, SessionCookieName, idToken.SessionID, h.Config.SessionMaxLifetime)
+	sessionID := h.localSessionID(idToken.ExternalSessionID)
+
+	err = h.setEncryptedCookie(w, SessionCookieName, sessionID, h.Config.SessionMaxLifetime)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = h.Sessions.Write(r.Context(), idToken.SessionID, &session.Data{
-		ID:    idToken.SessionID,
-		Token: tokens,
+	err = h.Sessions.Write(r.Context(), sessionID, &session.Data{
+		ExternalSessionID: idToken.ExternalSessionID,
+		Token:             tokens,
 	}, h.Config.SessionMaxLifetime)
 	if err != nil {
 		log.Error(err)
@@ -294,7 +305,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	sess, err := h.getSessionFromCookie(r)
 
 	if err == nil && sess != nil && sess.Token != nil {
-		err = h.Sessions.Delete(r.Context(), sess.ID)
+		err = h.Sessions.Delete(r.Context(), h.localSessionID(sess.ExternalSessionID))
 		if err != nil {
 			log.Error(err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -329,7 +340,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess, err := h.Sessions.Read(r.Context(), sid)
+	sess, err := h.Sessions.Read(r.Context(), h.localSessionID(sid))
 	if err != nil {
 		// Can't remove session because it doesn't exist. Maybe it was garbage collected.
 		// We regard this as a redundant logout and return 200 OK.

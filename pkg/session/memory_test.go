@@ -2,16 +2,18 @@ package session_test
 
 import (
 	"context"
-	"github.com/nais/wonderwall/pkg/session"
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/oauth2"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
+
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 func TestMemory(t *testing.T) {
 	data := &session.Data{
-		ID: "myid",
+		ExternalSessionID: "myid",
 		Token: &oauth2.Token{
 			AccessToken: "axx",
 		},
