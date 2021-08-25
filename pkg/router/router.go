@@ -377,15 +377,17 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func New(handler *Handler) chi.Router {
+func New(handler *Handler, prefixes []string) chi.Router {
 	r := chi.NewRouter()
-	r.Route("/oauth2", func(r chi.Router) {
-		r.With(middleware.NoCache)
-		r.Get("/login", handler.Login)
-		r.Get("/callback", handler.Callback)
-		r.Get("/logout", handler.Logout)
-		r.Get("/logout/frontchannel", handler.FrontChannelLogout)
-	})
+	for _, prefix := range prefixes {
+		r.Route(prefix+"/oauth2", func(r chi.Router) {
+			r.With(middleware.NoCache)
+			r.Get("/login", handler.Login)
+			r.Get("/callback", handler.Callback)
+			r.Get("/logout", handler.Logout)
+			r.Get("/logout/frontchannel", handler.FrontChannelLogout)
+		})
+	}
 	r.HandleFunc("/*", handler.Default)
 	return r
 }

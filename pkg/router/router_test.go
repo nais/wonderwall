@@ -96,7 +96,8 @@ func TestHandler_Login(t *testing.T) {
 	cfg := defaultConfig()
 
 	h := handler(cfg)
-	r := router.New(h)
+	prefixes := config.ParseIngresses([]string{""})
+	r := router.New(h, prefixes)
 
 	server := httptest.NewServer(r)
 	client := server.Client()
@@ -150,7 +151,8 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	cfg.WellKnown.EndSessionEndpoint = idpserver.URL + "/endsession"
 
 	h := handler(cfg)
-	r := router.New(h)
+	prefixes := config.ParseIngresses([]string{""})
+	r := router.New(h, prefixes)
 	server := httptest.NewServer(r)
 
 	h.Config.RedirectURI = server.URL + "/oauth2/callback"
@@ -243,7 +245,8 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	cfg.WellKnown.TokenEndpoint = idpserver.URL + "/token"
 
 	h := handler(cfg)
-	r := router.New(h)
+	prefixes := config.ParseIngresses([]string{""})
+	r := router.New(h, prefixes)
 	server := httptest.NewServer(r)
 
 	h.Config.RedirectURI = server.URL + "/oauth2/callback"

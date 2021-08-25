@@ -87,7 +87,9 @@ func run() error {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}
 
-	r := router.New(handler)
+	prefixes := config.ParseIngresses(cfg.Ingresses)
+
+	r := router.New(handler, prefixes)
 
 	return http.ListenAndServe(cfg.BindAddress, r)
 }

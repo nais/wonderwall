@@ -19,6 +19,7 @@ type Config struct {
 	LogFormat     string   `json:"log-format"`
 	LogLevel      string   `json:"log-level"`
 	Redis         string   `json:"redis"`
+	Ingresses     []string `json:"ingresses"`
 }
 
 type IDPorten struct {
@@ -41,6 +42,7 @@ const (
 	LogLevel                      = "log-level"
 	EncryptionKey                 = "encryption-key"
 	Redis                         = "redis"
+	Ingresses                     = "ingresses"
 	IDPortenClientID              = "idporten.client-id"
 	IDPortenClientJWK             = "idporten.client-jwk"
 	IDPortenRedirectURI           = "idporten.redirect-uri"
@@ -74,6 +76,7 @@ func Initialize() *Config {
 	flag.String(IDPortenPostLogoutRedirectURI, "https://nav.no", "URI for redirecting the user after successful logout at IDPorten.")
 	flag.StringSlice(IDPortenScopes, []string{token.ScopeOpenID}, "List of scopes that should be used during the Auth Code flow.")
 	flag.Duration(IDPortenSessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
+	flag.StringSlice(Ingresses, []string{""}, "Ingresses used to access the main application.")
 
 	return &Config{}
 }
