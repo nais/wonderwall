@@ -208,6 +208,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		jwt.WithAudience(h.Config.ClientID),
 		jwt.WithClaimValue("nonce", cookies.Nonce),
 		jwt.WithIssuer(h.Config.WellKnown.Issuer),
+		jwt.WithAcceptableSkew(5 * time.Second),
 	}
 
 	err = idToken.Validate(validateOpts...)

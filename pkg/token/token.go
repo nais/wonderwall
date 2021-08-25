@@ -29,7 +29,12 @@ type IDToken struct {
 }
 
 func (in *IDToken) Validate(opts ...jwt.ValidateOption) error {
-	return jwt.Validate(in.Token, opts...)
+	err := jwt.Validate(in.Token, opts...)
+	if err != nil {
+		return fmt.Errorf("validating id_token: %w", err)
+	}
+
+	return nil
 }
 
 func ParseIDToken(ctx context.Context, jwks jwk.Set, token *oauth2.Token) (*IDToken, error) {
