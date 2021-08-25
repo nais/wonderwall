@@ -37,13 +37,41 @@ const (
 
 type Handler struct {
 	Config        config.IDPorten
-	OauthConfig   oauth2.Config
 	Crypter       cryptutil.Crypter
-	UpstreamHost  string
-	JwkSet        jwk.Set
+	OauthConfig   oauth2.Config
 	SecureCookies bool
 	Sessions      session.Store
+	UpstreamHost  string
+	jwkSet        jwk.Set
 	lock          sync.Mutex
+}
+
+func NewHandler(cfg config.IDPorten, crypter cryptutil.Crypter, jwkSet jwk.Set, sessionStore session.Store, upstreamHost string) (*Handler, error) {
+	oauthConfig := oauth2.Config{
+		ClientID: cfg.ClientID,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  cfg.WellKnown.AuthorizationEndpoint,
+			TokenURL: cfg.WellKnown.TokenEndpoint,
+		},
+		RedirectURL: cfg.RedirectURI,
+		Scopes:      cfg.Scopes,
+	}
+
+	return &Handler{
+		Config:        cfg,
+		Crypter:       crypter,
+		jwkSet:        jwkSet,
+		lock:          sync.Mutex{},
+		OauthConfig:   oauthConfig,
+		Sessions:      sessionStore,
+		SecureCookies: true,
+		UpstreamHost:  upstreamHost,
+	}, nil
+}
+
+func (h *Handler) WithSecureCookie(enabled bool) *Handler {
+	h.SecureCookies = enabled
+	return h
 }
 
 type loginParams struct {
@@ -169,7 +197,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := token.ParseIDToken(r.Context(), h.JwkSet, tokens)
+	idToken, err := token.ParseIDToken(r.Context(), h.jwkSet, tokens)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)

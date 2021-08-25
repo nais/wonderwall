@@ -14,10 +14,13 @@ import (
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
+
+	"github.com/nais/wonderwall/pkg/config"
 )
 
 type IDPorten struct {
 	Clients  map[string]string
+	Config   config.IDPorten
 	Codes    map[string]AuthRequest
 	Keys     jwk.Set
 	Sessions map[string]string
@@ -30,7 +33,7 @@ type AuthRequest struct {
 	Nonce         string
 }
 
-func NewIDPorten(clients map[string]string) *IDPorten {
+func NewIDPorten(clients map[string]string, config config.IDPorten) *IDPorten {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic(err)
@@ -56,9 +59,10 @@ func NewIDPorten(clients map[string]string) *IDPorten {
 
 	return &IDPorten{
 		Clients:  clients,
-		Sessions: make(map[string]string),
 		Codes:    make(map[string]AuthRequest),
+		Config:   config,
 		Keys:     keys,
+		Sessions: make(map[string]string),
 	}
 }
 
@@ -114,7 +118,7 @@ func (ip *IDPorten) Token(w http.ResponseWriter, r *http.Request) {
 
 	accessToken := jwt.New()
 	accessToken.Set("sub", sub)
-	accessToken.Set("iss", cfg.WellKnown.Issuer)
+	accessToken.Set("iss", ip.Config.WellKnown.Issuer)
 	accessToken.Set("acr", auth.AcrLevel)
 	accessToken.Set("iat", time.Now().Unix())
 	accessToken.Set("exp", time.Now().Unix()+expires)
@@ -127,8 +131,8 @@ func (ip *IDPorten) Token(w http.ResponseWriter, r *http.Request) {
 
 	idToken := jwt.New()
 	idToken.Set("sub", sub)
-	idToken.Set("iss", cfg.WellKnown.Issuer)
-	idToken.Set("aud", cfg.ClientID)
+	idToken.Set("iss", ip.Config.WellKnown.Issuer)
+	idToken.Set("aud", ip.Config.ClientID)
 	idToken.Set("locale", auth.Locale)
 	idToken.Set("nonce", auth.Nonce)
 	idToken.Set("acr", auth.AcrLevel)
@@ -143,7 +147,7 @@ func (ip *IDPorten) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ip.Sessions[sid] = cfg.ClientID
+	ip.Sessions[sid] = ip.Config.ClientID
 	// fixme: generate valid access token and id token; sign them with the correct key
 	token := &TokenJSON{
 		AccessToken: string(signedAccessToken),

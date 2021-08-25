@@ -12,11 +12,8 @@ import (
 
 	"github.com/nais/wonderwall/pkg/session"
 
-	"github.com/nais/wonderwall/pkg/token"
-
 	"github.com/nais/liberator/pkg/conftools"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cryptutil"
@@ -49,8 +46,6 @@ func run() error {
 		log.Info(line)
 	}
 
-	scopes := []string{token.ScopeOpenID}
-
 	key, err := base64.StdEncoding.DecodeString(cfg.EncryptionKey)
 	if err != nil {
 		if len(cfg.EncryptionKey) > 0 {
@@ -80,29 +75,17 @@ func run() error {
 		log.Warnf("Redis not configured, using in-memory session backing store; not suitable for multi-pod deployments!")
 	}
 
-	oauthConfig := oauth2.Config{
-		ClientID: cfg.IDPorten.ClientID,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  cfg.IDPorten.WellKnown.AuthorizationEndpoint,
-			TokenURL: cfg.IDPorten.WellKnown.TokenEndpoint,
-		},
-		RedirectURL: cfg.IDPorten.RedirectURI,
-		Scopes:      scopes,
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	jwkSet, err := jwk.Fetch(context.Background(), cfg.IDPorten.WellKnown.JwksURI)
+	jwkSet, err := jwk.Fetch(ctx, cfg.IDPorten.WellKnown.JwksURI)
 	if err != nil {
 		return fmt.Errorf("fetching jwks: %w", err)
 	}
 
-	handler := &router.Handler{
-		Config:        cfg.IDPorten,
-		Crypter:       crypt,
-		OauthConfig:   oauthConfig,
-		UpstreamHost:  cfg.UpstreamHost,
-		SecureCookies: true,
-		Sessions:      sessionStore,
-		JwkSet:        jwkSet,
+	handler, err := router.NewHandler(cfg.IDPorten, crypt, jwkSet, sessionStore, cfg.UpstreamHost)
+	if err != nil {
+		return fmt.Errorf("initializing routing handler: %w", err)
 	}
 
 	r := router.New(handler)

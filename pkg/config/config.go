@@ -5,6 +5,8 @@ import (
 
 	"github.com/nais/liberator/pkg/conftools"
 	"github.com/spf13/viper"
+
+	"github.com/nais/wonderwall/pkg/token"
 )
 
 type Config struct {
@@ -26,6 +28,7 @@ type IDPorten struct {
 	Locale                string            `json:"locale"`
 	SecurityLevel         string            `json:"security-level"`
 	PostLogoutRedirectURI string            `json:"post-logout-redirect-uri"`
+	Scopes                []string          `json:"scopes"`
 }
 
 const (
@@ -42,6 +45,7 @@ const (
 	IDPortenLocale                = "idporten.locale"
 	IDPortenSecurityLevel         = "idporten.security-level"
 	IDPortenPostLogoutRedirectURI = "idporten.post-logout-redirect-uri"
+	IDPortenScopes                = "idporten.scopes"
 )
 
 func bindNAIS() {
@@ -64,6 +68,7 @@ func Initialize() *Config {
 	flag.String(IDPortenSecurityLevel, "Level4", "Requested security level, either Level3 or Level4.")
 	flag.String(IDPortenLocale, "nb", "Locale for OAuth2 consent screen.")
 	flag.String(IDPortenPostLogoutRedirectURI, "https://nav.no", "URI for redirecting the user after successful logout at IDPorten.")
+	flag.StringSlice(IDPortenScopes, []string{token.ScopeOpenID}, "List of scopes that should be used during the Auth Code flow.")
 
 	return &Config{}
 }
