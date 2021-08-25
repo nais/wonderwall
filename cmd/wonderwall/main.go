@@ -58,7 +58,7 @@ func run() error {
 		}
 	}
 
-	if key == nil {
+	if len(key) == 0 {
 		key, err = cryptutil.RandomBytes(32)
 		if err != nil {
 			return fmt.Errorf("generate random encryption key: %w", err)
