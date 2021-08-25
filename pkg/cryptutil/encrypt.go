@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"time"
+
+	"github.com/nais/liberator/pkg/keygen"
 )
 
 type crypter struct {
@@ -26,12 +26,6 @@ func New(key []byte) Crypter {
 	}
 }
 
-func RandomBytes(length int) ([]byte, error) {
-	buf := make([]byte, length)
-	_, err := io.ReadFull(rand.Reader, buf)
-	return buf, err
-}
-
 // Generate an initialization vector for encryption.
 // It consists of the current UNIX timestamp with nanoseconds, and four bytes of randomness.
 func IV() ([]byte, error) {
@@ -44,7 +38,7 @@ func IV() ([]byte, error) {
 	}
 
 	// Pad nonce with 4 bytes
-	random, err := RandomBytes(4)
+	random, err := keygen.Keygen(4)
 	if err != nil {
 		return nil, err
 	}

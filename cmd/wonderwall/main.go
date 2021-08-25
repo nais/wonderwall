@@ -9,16 +9,15 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/lestrrat-go/jwx/jwk"
-
-	"github.com/nais/wonderwall/pkg/session"
-
 	"github.com/nais/liberator/pkg/conftools"
+	"github.com/nais/liberator/pkg/keygen"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cryptutil"
 	"github.com/nais/wonderwall/pkg/logging"
 	"github.com/nais/wonderwall/pkg/router"
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 var maskedConfig = []string{
@@ -54,7 +53,7 @@ func run() error {
 	}
 
 	if len(key) == 0 {
-		key, err = cryptutil.RandomBytes(32)
+		key, err = keygen.Keygen(32)
 		if err != nil {
 			return fmt.Errorf("generate random encryption key: %w", err)
 		}
