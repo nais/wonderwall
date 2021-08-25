@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	flag "github.com/spf13/pflag"
 
 	"github.com/nais/liberator/pkg/conftools"
@@ -29,6 +31,7 @@ type IDPorten struct {
 	SecurityLevel         string            `json:"security-level"`
 	PostLogoutRedirectURI string            `json:"post-logout-redirect-uri"`
 	Scopes                []string          `json:"scopes"`
+	SessionMaxLifetime    time.Duration     `json:"session-max-lifetime"`
 }
 
 const (
@@ -46,6 +49,7 @@ const (
 	IDPortenSecurityLevel         = "idporten.security-level"
 	IDPortenPostLogoutRedirectURI = "idporten.post-logout-redirect-uri"
 	IDPortenScopes                = "idporten.scopes"
+	IDPortenSessionMaxLifetime    = "idporten.session-max-lifetime"
 )
 
 func bindNAIS() {
@@ -69,6 +73,7 @@ func Initialize() *Config {
 	flag.String(IDPortenLocale, "nb", "Locale for OAuth2 consent screen.")
 	flag.String(IDPortenPostLogoutRedirectURI, "https://nav.no", "URI for redirecting the user after successful logout at IDPorten.")
 	flag.StringSlice(IDPortenScopes, []string{token.ScopeOpenID}, "List of scopes that should be used during the Auth Code flow.")
+	flag.Duration(IDPortenSessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 
 	return &Config{}
 }

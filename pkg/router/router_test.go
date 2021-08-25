@@ -59,6 +59,7 @@ func defaultConfig() config.IDPorten {
 		Locale:                "nb",
 		SecurityLevel:         "Level4",
 		PostLogoutRedirectURI: "",
+		SessionMaxLifetime:    time.Hour,
 	}
 }
 

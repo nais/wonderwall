@@ -27,7 +27,6 @@ import (
 )
 
 const (
-	SessionMaxLifetime     = time.Hour
 	LoginCookieLifetime    = 10 * time.Minute
 	SessionCookieName      = "io.nais.wonderwall.session"
 	StateCookieName        = "io.nais.wonderwall.state"
@@ -218,7 +217,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.setEncryptedCookie(w, SessionCookieName, idToken.SessionID, SessionMaxLifetime)
+	err = h.setEncryptedCookie(w, SessionCookieName, idToken.SessionID, h.Config.SessionMaxLifetime)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -228,7 +227,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	err = h.Sessions.Write(r.Context(), idToken.SessionID, &session.Data{
 		ID:    idToken.SessionID,
 		Token: tokens,
-	}, SessionMaxLifetime)
+	}, h.Config.SessionMaxLifetime)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
