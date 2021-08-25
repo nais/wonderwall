@@ -293,7 +293,6 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add(key, value)
 		}
 	}
-	w.Header().Set("x-pwned-by", "wonderwall") // todo: request id for tracing
 	w.WriteHeader(upstreamResponse.StatusCode)
 
 	// Forward server's reply downstream
