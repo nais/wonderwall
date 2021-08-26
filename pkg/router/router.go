@@ -258,6 +258,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	// Duplicate the incoming request, and delete any authentication.
 	upstreamRequest := r.Clone(ctx)
 	upstreamRequest.Header.Del("authorization")
+	upstreamRequest.Header.Del("x-pwned-by")
 
 	sess, err := h.getSessionFromCookie(r)
 	if err == nil && sess != nil && sess.OAuth2Token != nil {
