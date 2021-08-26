@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -67,6 +68,13 @@ func run() error {
 			Network: "tcp",
 			Addr:    cfg.Redis,
 		})
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			return fmt.Errorf("connecting to redis: %w", err)
+		}
+
 		sessionStore = session.NewRedis(redisClient)
 		log.Infof("Using Redis as session backing store")
 	} else {
