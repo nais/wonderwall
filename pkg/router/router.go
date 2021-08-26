@@ -32,6 +32,8 @@ const (
 	StateCookieName        = "io.nais.wonderwall.state"
 	NonceCookieName        = "io.nais.wonderwall.nonce"
 	CodeVerifierCookieName = "io.nais.wonderwall.code_verifier"
+	RedirectURLCookieName  = "io.nais.wonderwall.redirect_url"
+	RedirectURLParameter   = "redirect"
 )
 
 type Handler struct {
@@ -142,6 +144,26 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 	}, nil
 }
 
+// redirect url back to application
+func CanonicalRedirectURL(r *http.Request) string {
+	redirectURL := "/"
+	referer, err := url.Parse(r.Referer())
+	if err == nil && len(referer.Path) > 0 {
+		redirectURL = referer.Path
+	}
+	override := r.URL.Query().Get(RedirectURLParameter)
+	if len(override) > 0 {
+		referer, err = url.Parse(override)
+		if err == nil {
+			// strip scheme and host to avoid cross-domain redirects
+			referer.Scheme = ""
+			referer.Host = ""
+			redirectURL = referer.String()
+		}
+	}
+	return redirectURL
+}
+
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	params, err := h.LoginURL()
 	if err != nil {
@@ -154,6 +176,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		NewCookie(StateCookieName, params.state, LoginCookieLifetime),
 		NewCookie(NonceCookieName, params.nonce, LoginCookieLifetime),
 		NewCookie(CodeVerifierCookieName, params.codeVerifier, LoginCookieLifetime),
+		NewCookie(RedirectURLCookieName, CanonicalRedirectURL(r), LoginCookieLifetime),
 	)
 	if err != nil {
 		log.Error(err)
@@ -247,7 +270,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: should probably redirect to desired path after login
-	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, cookies.Referer, http.StatusTemporaryRedirect)
 }
 
 // Proxy all requests upstream

@@ -17,6 +17,7 @@ type CallbackCookies struct {
 	State        string
 	Nonce        string
 	CodeVerifier string
+	Referer      string
 }
 
 func NewCookie(name, value string, expiresIn time.Duration) Cookie {
@@ -43,10 +44,16 @@ func (h *Handler) getCallbackCookies(r *http.Request) (*CallbackCookies, error) 
 		return nil, err
 	}
 
+	referer, err := h.getEncryptedCookie(r, RedirectURLCookieName)
+	if err != nil {
+		return nil, err
+	}
+
 	return &CallbackCookies{
 		State:        state,
 		Nonce:        nonce,
 		CodeVerifier: codeVerifier,
+		Referer:      referer,
 	}, nil
 }
 
