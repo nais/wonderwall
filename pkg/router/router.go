@@ -246,6 +246,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: should probably redirect to desired path after login
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
@@ -345,7 +346,9 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess, err := h.Sessions.Read(r.Context(), h.localSessionID(sid))
+	sessionID := h.localSessionID(sid)
+
+	sess, err := h.Sessions.Read(r.Context(), sessionID)
 	if err != nil {
 		// Can't remove session because it doesn't exist. Maybe it was garbage collected.
 		// We regard this as a redundant logout and return 200 OK.
@@ -367,7 +370,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// All verified; delete session.
-	err = h.Sessions.Delete(r.Context(), sid)
+	err = h.Sessions.Delete(r.Context(), sessionID)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
