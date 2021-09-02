@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/metrics"
 	"net/http"
 	"os"
 	"time"
@@ -99,6 +100,13 @@ func run() error {
 
 	r := router.New(handler, prefixes)
 
+	go func() {
+		err := metrics.Handle(cfg.MetricsBindAddress)
+		if err != nil {
+			log.Errorf("fatal: metrics server error: %s", err)
+			os.Exit(1)
+		}
+	}()
 	return http.ListenAndServe(cfg.BindAddress, r)
 }
 

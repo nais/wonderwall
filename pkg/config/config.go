@@ -12,14 +12,15 @@ import (
 )
 
 type Config struct {
-	BindAddress   string   `json:"bind-address"`
-	UpstreamHost  string   `json:"upstream-host"`
-	EncryptionKey string   `json:"encryption-key"`
-	IDPorten      IDPorten `json:"idporten"`
-	LogFormat     string   `json:"log-format"`
-	LogLevel      string   `json:"log-level"`
-	Redis         string   `json:"redis"`
-	Ingresses     []string `json:"ingresses"`
+	BindAddress        string   `json:"bind-address"`
+	MetricsBindAddress string   `json:"metrics-bind-address"`
+	UpstreamHost       string   `json:"upstream-host"`
+	EncryptionKey      string   `json:"encryption-key"`
+	IDPorten           IDPorten `json:"idporten"`
+	LogFormat          string   `json:"log-format"`
+	LogLevel           string   `json:"log-level"`
+	Redis              string   `json:"redis"`
+	Ingresses          []string `json:"ingresses"`
 }
 
 type IDPorten struct {
@@ -37,6 +38,7 @@ type IDPorten struct {
 
 const (
 	BindAddress                   = "bind-address"
+	MetricsBindAddress            = "metrics-bind-address"
 	UpstreamHost                  = "upstream-host"
 	LogFormat                     = "log-format"
 	LogLevel                      = "log-level"
@@ -67,7 +69,8 @@ func Initialize() *Config {
 
 	flag.String(LogFormat, "text", "Log format, either 'json' or 'text'.")
 	flag.String(LogLevel, "debug", "Logging verbosity level.")
-	flag.String(BindAddress, "127.0.0.1:8090", "Listen address.")
+	flag.String(BindAddress, "127.0.0.1:8090", "Listen address for public connections.")
+	flag.String(MetricsBindAddress, "127.0.0.1:8091", "Listen address for metrics only.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(Redis, "", "Address of Redis. An empty value will use in-memory session storage.")

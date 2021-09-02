@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/middleware"
 	"io"
 	"net/http"
 	"net/url"
@@ -20,7 +21,7 @@ import (
 	"github.com/nais/wonderwall/pkg/token"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
+	chi_middleware "github.com/go-chi/chi/middleware"
 	"github.com/lestrrat-go/jwx/jwk"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -321,7 +322,10 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(upstreamResponse.StatusCode)
 
 	// Forward server's reply downstream
-	io.Copy(w, upstreamResponse.Body)
+	_, err = io.Copy(w, upstreamResponse.Body)
+	if err != nil {
+		log.Errorf("proxy data from upstream to client: %s", err)
+	}
 }
 
 // Logout triggers self-initiated for the current user
@@ -404,9 +408,13 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 
 func New(handler *Handler, prefixes []string) chi.Router {
 	r := chi.NewRouter()
+	mm := middleware.PrometheusMiddleware("wonderwall")
+
+	r.Use(mm.Handler())
+
 	for _, prefix := range prefixes {
 		r.Route(prefix+"/oauth2", func(r chi.Router) {
-			r.With(middleware.NoCache)
+			r.Use(chi_middleware.NoCache)
 			r.Get("/login", handler.Login)
 			r.Get("/callback", handler.Callback)
 			r.Get("/logout", handler.Logout)
