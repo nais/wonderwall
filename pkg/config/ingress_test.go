@@ -4,8 +4,9 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/nais/wonderwall/pkg/config"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/nais/wonderwall/pkg/config"
 )
 
 func TestParseIngresses(t *testing.T) {
@@ -19,6 +20,14 @@ func TestParseIngresses(t *testing.T) {
 
 func TestParseEmptyIngress(t *testing.T) {
 	ingresses := []string{""}
+	expected := []string{""}
+
+	prefixes := config.ParseIngresses(ingresses)
+	assert.Equal(t, expected, prefixes)
+}
+
+func TestParseDefaultIngress(t *testing.T) {
+	ingresses := []string{"/"}
 	expected := []string{""}
 
 	prefixes := config.ParseIngresses(ingresses)
