@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
@@ -55,9 +56,13 @@ func defaultConfig() config.IDPorten {
 		WellKnown: config.IDPortenWellKnown{
 			Issuer:                "issuer",
 			AuthorizationEndpoint: "http://localhost:1234/authorize",
+			ACRValuesSupported:    config.ACRValuesSupported{"Level3", "Level4"},
 		},
-		Locale:                "nb",
-		SecurityLevel:         "Level4",
+		Locale: "nb",
+		SecurityLevel: config.IDPortenSecurityLevel{
+			Enabled: true,
+			Value:   "Level4",
+		},
 		PostLogoutRedirectURI: "",
 		SessionMaxLifetime:    time.Hour,
 	}
@@ -87,9 +92,42 @@ func handler(cfg config.IDPorten) *router.Handler {
 }
 
 func TestLoginURL(t *testing.T) {
-	handler := handler(defaultConfig())
-	_, err := handler.LoginURL()
-	assert.NoError(t, err)
+	type loginURLTest struct {
+		url   string
+		error error
+	}
+
+	tests := []loginURLTest{
+		{
+			url:   "http://localhost:1234/oauth2/login?level=Level4",
+			error: nil,
+		},
+		{
+			url:   "http://localhost:1234/oauth2/login",
+			error: nil,
+		},
+		{
+			url:   "http://localhost:1234/oauth2/login?level=NoLevel",
+			error: router.InvalidSecurityLevelError,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.url, func(t *testing.T) {
+			cfg := defaultConfig()
+			req, err := http.NewRequest("GET", test.url, nil)
+			assert.NoError(t, err)
+
+			handler := handler(cfg)
+			_, err = handler.LoginURL(req)
+
+			if test.error != nil {
+				assert.True(t, errors.Is(err, test.error))
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestHandler_Login(t *testing.T) {
@@ -120,7 +158,7 @@ func TestHandler_Login(t *testing.T) {
 
 	assert.Equal(t, idpserver.URL, fmt.Sprintf("%s://%s", u.Scheme, u.Host))
 	assert.Equal(t, "/authorize", u.Path)
-	assert.Equal(t, cfg.SecurityLevel, u.Query().Get("acr_values"))
+	assert.Equal(t, cfg.SecurityLevel.Value, u.Query().Get("acr_values"))
 	assert.Equal(t, cfg.Locale, u.Query().Get("ui_locales"))
 	assert.Equal(t, cfg.ClientID, u.Query().Get("client_id"))
 	assert.Equal(t, cfg.RedirectURI, u.Query().Get("redirect_uri"))

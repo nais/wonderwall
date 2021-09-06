@@ -5,13 +5,15 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/middleware"
 	"io"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/nais/wonderwall/pkg/middleware"
 
 	"github.com/lestrrat-go/jwx/jwt"
 
@@ -28,14 +30,17 @@ import (
 )
 
 const (
-	LoginCookieLifetime    = 10 * time.Minute
-	SessionCookieName      = "io.nais.wonderwall.session"
-	StateCookieName        = "io.nais.wonderwall.state"
-	NonceCookieName        = "io.nais.wonderwall.nonce"
-	CodeVerifierCookieName = "io.nais.wonderwall.code_verifier"
-	RedirectURLCookieName  = "io.nais.wonderwall.redirect_url"
-	RedirectURLParameter   = "redirect"
+	LoginCookieLifetime       = 10 * time.Minute
+	SessionCookieName         = "io.nais.wonderwall.session"
+	StateCookieName           = "io.nais.wonderwall.state"
+	NonceCookieName           = "io.nais.wonderwall.nonce"
+	CodeVerifierCookieName    = "io.nais.wonderwall.code_verifier"
+	RedirectURLCookieName     = "io.nais.wonderwall.redirect_url"
+	RedirectURLParameter      = "redirect"
+	SecurityLevelURLParameter = "level"
 )
+
+var InvalidSecurityLevelError = errors.New("InvalidSecurityLevel")
 
 type Handler struct {
 	Config        config.IDPorten
@@ -92,7 +97,7 @@ type loginParams struct {
 	nonce        string
 }
 
-func (h *Handler) LoginURL() (*loginParams, error) {
+func (h *Handler) LoginURL(r *http.Request) (*loginParams, error) {
 	codeVerifier := make([]byte, 64)
 	nonce := make([]byte, 32)
 	state := make([]byte, 32)
@@ -130,11 +135,20 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 	v.Add("scope", token.ScopeOpenID)
 	v.Add("state", base64.RawURLEncoding.EncodeToString(state))
 	v.Add("nonce", base64.RawURLEncoding.EncodeToString(nonce))
-	v.Add("acr_values", h.Config.SecurityLevel)
 	v.Add("response_mode", "query")
 	v.Add("ui_locales", h.Config.Locale)
 	v.Add("code_challenge", base64.RawURLEncoding.EncodeToString(codeVerifierHash))
 	v.Add("code_challenge_method", "S256")
+
+	if h.Config.SecurityLevel.Enabled {
+		securityLevel, ok := h.securityLevel(r)
+		if ok {
+			v.Add("acr_values", securityLevel)
+		} else {
+			return nil, fmt.Errorf("%w: invalid value for %s=%s", InvalidSecurityLevelError, SecurityLevelURLParameter, securityLevel)
+		}
+	}
+
 	u.RawQuery = v.Encode()
 
 	return &loginParams{
@@ -143,6 +157,21 @@ func (h *Handler) LoginURL() (*loginParams, error) {
 		codeVerifier: string(codeVerifier),
 		url:          u.String(),
 	}, nil
+}
+
+func (h *Handler) securityLevel(r *http.Request) (string, bool) {
+	level := h.Config.SecurityLevel.Value
+
+	urlParam := r.URL.Query().Get(SecurityLevelURLParameter)
+	if len(urlParam) > 0 {
+		level = urlParam
+	}
+
+	if !h.Config.WellKnown.ACRValuesSupported.Contains(level) {
+		return level, false
+	}
+
+	return level, true
 }
 
 // redirect url back to application
@@ -166,10 +195,20 @@ func CanonicalRedirectURL(r *http.Request) string {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	params, err := h.LoginURL()
+	params, err := h.LoginURL(r)
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Errorf("login URL: %+v", err)
+
+		status := func(err error) int {
+			switch {
+			case errors.Is(err, InvalidSecurityLevelError):
+				return http.StatusBadRequest
+			default:
+				return http.StatusInternalServerError
+			}
+		}(err)
+
+		w.WriteHeader(status)
 		return
 	}
 
@@ -270,7 +309,6 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: should probably redirect to desired path after login
 	http.Redirect(w, r, cookies.Referer, http.StatusTemporaryRedirect)
 }
 

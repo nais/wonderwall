@@ -6,29 +6,40 @@ import (
 )
 
 type IDPortenWellKnown struct {
-	Issuer                                 string   `json:"issuer"`
-	AuthorizationEndpoint                  string   `json:"authorization_endpoint"`
-	PushedAuthorizationRequestEndpoint     string   `json:"pushed_authorization_request_endpoint"`
-	TokenEndpoint                          string   `json:"token_endpoint"`
-	EndSessionEndpoint                     string   `json:"end_session_endpoint"`
-	RevocationEndpoint                     string   `json:"revocation_endpoint"`
-	JwksURI                                string   `json:"jwks_uri"`
-	ResponseTypesSupported                 []string `json:"response_types_supported"`
-	ResponseModesSupported                 []string `json:"response_modes_supported"`
-	SubjectTypesSupported                  []string `json:"subject_types_supported"`
-	IDTokenSigningAlgValuesSupported       []string `json:"id_token_signing_alg_values_supported"`
-	CodeChallengeMethodsSupported          []string `json:"code_challenge_methods_supported"`
-	UserInfoEndpoint                       string   `json:"userinfo_endpoint"`
-	ScopesSupported                        []string `json:"scopes_supported"`
-	UILocalesSupported                     []string `json:"ui_locales_supported"`
-	ACRValuesSupported                     []string `json:"acr_values_supported"`
-	FrontchannelLogoutSupported            bool     `json:"frontchannel_logout_supported"`
-	FrontchannelLogoutSessionSupported     bool     `json:"frontchannel_logout_session_supported"`
-	IntrospectionEndpoint                  string   `json:"introspection_endpoint"`
-	TokenEndpointAuthMethodsSupported      []string `json:"token_endpoint_auth_methods_supported"`
-	RequestParameterSupported              bool     `json:"request_parameter_supported"`
-	RequestURIParameterSupported           bool     `json:"request_uri_parameter_supported"`
-	RequestObjectSigningAlgValuesSupported []string `json:"request_object_signing_alg_values_supported"`
+	Issuer                                 string             `json:"issuer"`
+	AuthorizationEndpoint                  string             `json:"authorization_endpoint"`
+	PushedAuthorizationRequestEndpoint     string             `json:"pushed_authorization_request_endpoint"`
+	TokenEndpoint                          string             `json:"token_endpoint"`
+	EndSessionEndpoint                     string             `json:"end_session_endpoint"`
+	RevocationEndpoint                     string             `json:"revocation_endpoint"`
+	JwksURI                                string             `json:"jwks_uri"`
+	ResponseTypesSupported                 []string           `json:"response_types_supported"`
+	ResponseModesSupported                 []string           `json:"response_modes_supported"`
+	SubjectTypesSupported                  []string           `json:"subject_types_supported"`
+	IDTokenSigningAlgValuesSupported       []string           `json:"id_token_signing_alg_values_supported"`
+	CodeChallengeMethodsSupported          []string           `json:"code_challenge_methods_supported"`
+	UserInfoEndpoint                       string             `json:"userinfo_endpoint"`
+	ScopesSupported                        []string           `json:"scopes_supported"`
+	UILocalesSupported                     []string           `json:"ui_locales_supported"`
+	ACRValuesSupported                     ACRValuesSupported `json:"acr_values_supported"`
+	FrontchannelLogoutSupported            bool               `json:"frontchannel_logout_supported"`
+	FrontchannelLogoutSessionSupported     bool               `json:"frontchannel_logout_session_supported"`
+	IntrospectionEndpoint                  string             `json:"introspection_endpoint"`
+	TokenEndpointAuthMethodsSupported      []string           `json:"token_endpoint_auth_methods_supported"`
+	RequestParameterSupported              bool               `json:"request_parameter_supported"`
+	RequestURIParameterSupported           bool               `json:"request_uri_parameter_supported"`
+	RequestObjectSigningAlgValuesSupported []string           `json:"request_object_signing_alg_values_supported"`
+}
+
+type ACRValuesSupported []string
+
+func (in ACRValuesSupported) Contains(value string) bool {
+	for _, allowed := range in {
+		if allowed == value {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Config) FetchWellKnownConfig() error {

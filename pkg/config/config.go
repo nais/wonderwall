@@ -24,16 +24,21 @@ type Config struct {
 }
 
 type IDPorten struct {
-	ClientID              string            `json:"client-id"`
-	ClientJWK             string            `json:"client-jwk"`
-	RedirectURI           string            `json:"redirect-uri"`
-	WellKnownURL          string            `json:"well-known-url"`
-	WellKnown             IDPortenWellKnown `json:"well-known"`
-	Locale                string            `json:"locale"`
-	SecurityLevel         string            `json:"security-level"`
-	PostLogoutRedirectURI string            `json:"post-logout-redirect-uri"`
-	Scopes                []string          `json:"scopes"`
-	SessionMaxLifetime    time.Duration     `json:"session-max-lifetime"`
+	ClientID              string                `json:"client-id"`
+	ClientJWK             string                `json:"client-jwk"`
+	RedirectURI           string                `json:"redirect-uri"`
+	WellKnownURL          string                `json:"well-known-url"`
+	WellKnown             IDPortenWellKnown     `json:"well-known"`
+	Locale                string                `json:"locale"`
+	SecurityLevel         IDPortenSecurityLevel `json:"security-level"`
+	PostLogoutRedirectURI string                `json:"post-logout-redirect-uri"`
+	Scopes                []string              `json:"scopes"`
+	SessionMaxLifetime    time.Duration         `json:"session-max-lifetime"`
+}
+
+type IDPortenSecurityLevel struct {
+	Enabled bool   `json:"enabled"`
+	Value   string `json:"value"`
 }
 
 const (
@@ -50,7 +55,8 @@ const (
 	IDPortenRedirectURI           = "idporten.redirect-uri"
 	IDPortenWellKnownURL          = "idporten.well-known-url"
 	IDPortenLocale                = "idporten.locale"
-	IDPortenSecurityLevel         = "idporten.security-level"
+	IDPortenSecurityLevelEnabled  = "idporten.security-level.enabled"
+	IDPortenSecurityLevelValue    = "idporten.security-level.value"
 	IDPortenPostLogoutRedirectURI = "idporten.post-logout-redirect-uri"
 	IDPortenScopes                = "idporten.scopes"
 	IDPortenSessionMaxLifetime    = "idporten.session-max-lifetime"
@@ -74,7 +80,8 @@ func Initialize() *Config {
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(Redis, "", "Address of Redis. An empty value will use in-memory session storage.")
-	flag.String(IDPortenSecurityLevel, "Level4", "Requested security level, either Level3 or Level4.")
+	flag.Bool(IDPortenSecurityLevelEnabled, true, "Set ID-Porten security level for authorization requests.")
+	flag.String(IDPortenSecurityLevelValue, "Level4", "Requested security level, either Level3 or Level4.")
 	flag.String(IDPortenLocale, "nb", "Locale for OAuth2 consent screen.")
 	flag.String(IDPortenPostLogoutRedirectURI, "https://nav.no", "URI for redirecting the user after successful logout at IDPorten.")
 	flag.StringSlice(IDPortenScopes, []string{token.ScopeOpenID}, "List of scopes that should be used during the Auth Code flow.")
