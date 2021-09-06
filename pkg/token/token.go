@@ -37,7 +37,7 @@ func (in *IDToken) Validate(opts ...jwt.ValidateOption) error {
 	return nil
 }
 
-func ParseIDToken(ctx context.Context, jwks jwk.Set, token *oauth2.Token) (*IDToken, error) {
+func ParseIDToken(ctx context.Context, jwks jwk.Set, token *oauth2.Token, opts ...jwt.ParseOption) (*IDToken, error) {
 	raw, ok := token.Extra("id_token").(string)
 	if !ok {
 		return nil, fmt.Errorf("missing id_token in token response")
@@ -50,8 +50,10 @@ func ParseIDToken(ctx context.Context, jwks jwk.Set, token *oauth2.Token) (*IDTo
 
 	parseOpts := []jwt.ParseOption{
 		jwt.WithKeySet(jwks),
-		jwt.WithRequiredClaim("sid"),
+		jwt.WithValidate(true),
 	}
+	parseOpts = append(parseOpts, opts...)
+
 	idToken, err := jwt.Parse([]byte(raw), parseOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("parsing jwt: %w", err)
