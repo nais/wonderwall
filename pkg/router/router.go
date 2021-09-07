@@ -268,15 +268,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parseOpts := []jwt.ParseOption{
-		jwt.WithRequiredClaim("sid"),
-	}
-
-	if h.Config.SecurityLevel.Enabled {
-		parseOpts = append(parseOpts, jwt.WithRequiredClaim("acr"))
-	}
-
-	idToken, err := token.ParseIDToken(r.Context(), h.jwkSet, tokens, parseOpts...)
+	idToken, err := token.ParseIDToken(r.Context(), h.jwkSet, tokens)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -288,6 +280,11 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		jwt.WithClaimValue("nonce", cookies.Nonce),
 		jwt.WithIssuer(h.Config.WellKnown.Issuer),
 		jwt.WithAcceptableSkew(5 * time.Second),
+		jwt.WithRequiredClaim("sid"),
+	}
+
+	if h.Config.SecurityLevel.Enabled {
+		validateOpts = append(validateOpts, jwt.WithRequiredClaim("acr"))
 	}
 
 	err = idToken.Validate(validateOpts...)
@@ -297,7 +294,13 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID := h.localSessionID(idToken.ExternalSessionID)
+	externalSessionID, ok := idToken.GetSID()
+	if !ok {
+		log.Error("missing required 'sid' claim")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	sessionID := h.localSessionID(externalSessionID)
 
 	err = h.setEncryptedCookie(w, SessionCookieName, sessionID, h.Config.SessionMaxLifetime)
 	if err != nil {
@@ -307,7 +310,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.Sessions.Write(r.Context(), sessionID, &session.Data{
-		ExternalSessionID: idToken.ExternalSessionID,
+		ExternalSessionID: externalSessionID,
 		OAuth2Token:       tokens,
 		IDTokenSerialized: idToken.Raw,
 	}, h.Config.SessionMaxLifetime)
