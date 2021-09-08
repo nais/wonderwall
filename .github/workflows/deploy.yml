@@ -10,7 +10,7 @@ jobs:
     name: Build, push and deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Docker login
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -32,17 +32,16 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: navikt/nais-yaml
-          token: ${{ secrets.NAIS_YAML_TOKEN }}
+          token: ${{ secrets.SRVNAIS_REPO_PUSH_PAT }}
           path: nais-yaml
       - name: Update nais-yaml
         if: github.ref == 'refs/heads/master'
         run: |
           cd nais-yaml
-          git config user.name "NAIS deploy pipeline"
-          git config user.email "aura@nav.no"
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
           sed -E -i "s#wonderwall_image:.+#wonderwall_image: ${{ env.image_base }}:${{ env.VERSION }}#" vars/global.yaml
           git add .
           git --no-pager diff --cached
-          git status
           git commit -a -m "Bump Wonderwall image version ${{ env.VERSION }}"
           git push
