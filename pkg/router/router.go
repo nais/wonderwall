@@ -242,13 +242,15 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	params := r.URL.Query()
 	if params.Get("error") != "" {
-		log.Error(err)
+		oauthError := params.Get("error")
+		oauthErrorDescription := params.Get("error_description")
+		log.Errorf("callback error: %s: %s", oauthError, oauthErrorDescription)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	if params.Get("state") != cookies.State {
-		log.Error(err)
+		log.Error("state parameter mismatch")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
