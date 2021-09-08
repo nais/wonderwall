@@ -56,9 +56,13 @@ func defaultConfig() config.IDPorten {
 		WellKnown: config.IDPortenWellKnown{
 			Issuer:                "issuer",
 			AuthorizationEndpoint: "http://localhost:1234/authorize",
-			ACRValuesSupported:    config.ACRValuesSupported{"Level3", "Level4"},
+			ACRValuesSupported:    config.Supported{"Level3", "Level4"},
+			UILocalesSupported:    config.Supported{"nb", "nb", "en", "se"},
 		},
-		Locale: "nb",
+		Locale: config.IDPortenLocale{
+			Enabled: true,
+			Value:   "nb",
+		},
 		SecurityLevel: config.IDPortenSecurityLevel{
 			Enabled: true,
 			Value:   "Level4",
@@ -110,6 +114,18 @@ func TestLoginURL(t *testing.T) {
 			url:   "http://localhost:1234/oauth2/login?level=NoLevel",
 			error: router.InvalidSecurityLevelError,
 		},
+		{
+			url:   "http://localhost:1234/oauth2/login?locale=nb",
+			error: nil,
+		},
+		{
+			url:   "http://localhost:1234/oauth2/login?level=Level4&locale=nb",
+			error: nil,
+		},
+		{
+			url:   "http://localhost:1234/oauth2/login?locale=es",
+			error: router.InvalidLocaleError,
+		},
 	}
 
 	for _, test := range tests {
@@ -159,7 +175,7 @@ func TestHandler_Login(t *testing.T) {
 	assert.Equal(t, idpserver.URL, fmt.Sprintf("%s://%s", u.Scheme, u.Host))
 	assert.Equal(t, "/authorize", u.Path)
 	assert.Equal(t, cfg.SecurityLevel.Value, u.Query().Get("acr_values"))
-	assert.Equal(t, cfg.Locale, u.Query().Get("ui_locales"))
+	assert.Equal(t, cfg.Locale.Value, u.Query().Get("ui_locales"))
 	assert.Equal(t, cfg.ClientID, u.Query().Get("client_id"))
 	assert.Equal(t, cfg.RedirectURI, u.Query().Get("redirect_uri"))
 	assert.NotEmpty(t, u.Query().Get("state"))
@@ -353,24 +369,4 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	req, err = client.Get(frontchannelLogoutURL.String())
 	assert.NoError(t, err)
 	defer req.Body.Close()
-}
-
-func TestCanonicalRedirectURL(t *testing.T) {
-	r, err := http.NewRequest("GET", "http://localhost:8080/oauth2/login", nil)
-	if err != nil {
-		panic(err)
-	}
-
-	// Default URL is /
-	assert.Equal(t, "/", router.CanonicalRedirectURL(r))
-
-	// HTTP Referer header is 2nd priority
-	r.Header.Set("referer", "http://localhost:8080/foo/bar/baz?gnu=notunix")
-	assert.Equal(t, "/foo/bar/baz", router.CanonicalRedirectURL(r))
-
-	// If redirect parameter is set, use that
-	v := &url.Values{}
-	v.Set("redirect", "https://google.com/path/to/redirect?val1=foo&val2=bar")
-	r.URL.RawQuery = v.Encode()
-	assert.Equal(t, "/path/to/redirect?val1=foo&val2=bar", router.CanonicalRedirectURL(r))
 }

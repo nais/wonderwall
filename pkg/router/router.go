@@ -30,17 +30,23 @@ import (
 )
 
 const (
-	LoginCookieLifetime       = 10 * time.Minute
-	SessionCookieName         = "io.nais.wonderwall.session"
-	StateCookieName           = "io.nais.wonderwall.state"
-	NonceCookieName           = "io.nais.wonderwall.nonce"
-	CodeVerifierCookieName    = "io.nais.wonderwall.code_verifier"
-	RedirectURLCookieName     = "io.nais.wonderwall.redirect_url"
+	LoginCookieLifetime = 10 * time.Minute
+
+	SessionCookieName      = "io.nais.wonderwall.session"
+	StateCookieName        = "io.nais.wonderwall.state"
+	NonceCookieName        = "io.nais.wonderwall.nonce"
+	CodeVerifierCookieName = "io.nais.wonderwall.code_verifier"
+	RedirectURLCookieName  = "io.nais.wonderwall.redirect_url"
+
 	RedirectURLParameter      = "redirect"
 	SecurityLevelURLParameter = "level"
+	LocaleURLParameter        = "locale"
 )
 
-var InvalidSecurityLevelError = errors.New("InvalidSecurityLevel")
+var (
+	InvalidSecurityLevelError = errors.New("InvalidSecurityLevel")
+	InvalidLocaleError        = errors.New("InvalidLocale")
+)
 
 type Handler struct {
 	Config        config.IDPorten
@@ -136,17 +142,17 @@ func (h *Handler) LoginURL(r *http.Request) (*loginParams, error) {
 	v.Add("state", base64.RawURLEncoding.EncodeToString(state))
 	v.Add("nonce", base64.RawURLEncoding.EncodeToString(nonce))
 	v.Add("response_mode", "query")
-	v.Add("ui_locales", h.Config.Locale)
 	v.Add("code_challenge", base64.RawURLEncoding.EncodeToString(codeVerifierHash))
 	v.Add("code_challenge_method", "S256")
 
-	if h.Config.SecurityLevel.Enabled {
-		securityLevel, ok := h.securityLevel(r)
-		if ok {
-			v.Add("acr_values", securityLevel)
-		} else {
-			return nil, fmt.Errorf("%w: invalid value for %s=%s", InvalidSecurityLevelError, SecurityLevelURLParameter, securityLevel)
-		}
+	err = h.withSecurityLevel(r, v)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %+v", InvalidSecurityLevelError, err)
+	}
+
+	err = h.withLocale(r, v)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %+v", InvalidLocaleError, err)
 	}
 
 	u.RawQuery = v.Encode()
@@ -159,39 +165,38 @@ func (h *Handler) LoginURL(r *http.Request) (*loginParams, error) {
 	}, nil
 }
 
-func (h *Handler) securityLevel(r *http.Request) (string, bool) {
-	level := h.Config.SecurityLevel.Value
-
-	urlParam := r.URL.Query().Get(SecurityLevelURLParameter)
-	if len(urlParam) > 0 {
-		level = urlParam
+func (h *Handler) withSecurityLevel(r *http.Request, v url.Values) error {
+	if !h.Config.SecurityLevel.Enabled {
+		return nil
 	}
 
-	if !h.Config.WellKnown.ACRValuesSupported.Contains(level) {
-		return level, false
+	fallback := h.Config.SecurityLevel.Value
+	supported := h.Config.WellKnown.ACRValuesSupported
+
+	securityLevel, err := LoginURLParameter(r, SecurityLevelURLParameter, fallback, supported)
+	if err != nil {
+		return err
 	}
 
-	return level, true
+	v.Add("acr_values", securityLevel)
+	return nil
 }
 
-// redirect url back to application
-func CanonicalRedirectURL(r *http.Request) string {
-	redirectURL := "/"
-	referer, err := url.Parse(r.Referer())
-	if err == nil && len(referer.Path) > 0 {
-		redirectURL = referer.Path
+func (h *Handler) withLocale(r *http.Request, v url.Values) error {
+	if !h.Config.Locale.Enabled {
+		return nil
 	}
-	override := r.URL.Query().Get(RedirectURLParameter)
-	if len(override) > 0 {
-		referer, err = url.Parse(override)
-		if err == nil {
-			// strip scheme and host to avoid cross-domain redirects
-			referer.Scheme = ""
-			referer.Host = ""
-			redirectURL = referer.String()
-		}
+
+	fallback := h.Config.Locale.Value
+	supported := h.Config.WellKnown.UILocalesSupported
+
+	locale, err := LoginURLParameter(r, LocaleURLParameter, fallback, supported)
+	if err != nil {
+		return err
 	}
-	return redirectURL
+
+	v.Add("ui_locales", locale)
+	return nil
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +206,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 		status := func(err error) int {
 			switch {
-			case errors.Is(err, InvalidSecurityLevelError):
+			case errors.Is(err, InvalidSecurityLevelError), errors.Is(err, InvalidLocaleError):
 				return http.StatusBadRequest
 			default:
 				return http.StatusInternalServerError
