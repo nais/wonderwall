@@ -90,7 +90,7 @@ func Initialize() *Config {
 	flag.String(IDPortenSecurityLevelValue, "Level4", "Requested security level, either Level3 or Level4.")
 	flag.Bool(IDPortenLocaleEnabled, true, "Toggle for setting the locale parameter for authorization requests.")
 	flag.String(IDPortenLocaleValue, "nb", "Locale for OAuth2 consent screen.")
-	flag.String(IDPortenPostLogoutRedirectURI, "https://nav.no", "URI for redirecting the user after successful logout at IDPorten.")
+	flag.String(IDPortenPostLogoutRedirectURI, "https://www.nav.no", "URI for redirecting the user after successful logout at IDPorten.")
 	flag.StringSlice(IDPortenScopes, []string{token.ScopeOpenID}, "List of scopes that should be used during the Auth Code flow.")
 	flag.Duration(IDPortenSessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 	flag.StringSlice(Ingresses, []string{"/"}, "Ingresses used to access the main application.")

@@ -38,9 +38,10 @@ const (
 	CodeVerifierCookieName = "io.nais.wonderwall.code_verifier"
 	RedirectURLCookieName  = "io.nais.wonderwall.redirect_url"
 
-	RedirectURLParameter      = "redirect"
-	SecurityLevelURLParameter = "level"
-	LocaleURLParameter        = "locale"
+	RedirectURLParameter           = "redirect"
+	SecurityLevelURLParameter      = "level"
+	LocaleURLParameter             = "locale"
+	PostLogoutRedirectURIParameter = "post_logout_redirect_uri"
 )
 
 var (
@@ -406,13 +407,13 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	v := u.Query()
-	v.Add("post_logout_redirect_uri", h.Config.PostLogoutRedirectURI)
+	v.Add("post_logout_redirect_uri", PostLogoutRedirectURI(r, h.Config.PostLogoutRedirectURI))
 
 	if len(idToken) != 0 {
 		v.Add("id_token_hint", idToken)
 	}
-
 	u.RawQuery = v.Encode()
 
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
