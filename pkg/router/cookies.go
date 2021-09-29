@@ -2,9 +2,17 @@ package router
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
+)
+
+const (
+	LoginCookieLifetime = 2 * time.Minute
+
+	SessionCookieNameTemplate = "io.nais.wonderwall.%s.session"
+	LoginCookieNameTemplate   = "io.nais.wonderwall.%s.callback"
 )
 
 type Cookie struct {
@@ -13,57 +21,50 @@ type Cookie struct {
 	expiresIn time.Duration
 }
 
-type CallbackCookies struct {
-	State        string
-	Nonce        string
-	CodeVerifier string
-	Referer      string
+type LoginCookie struct {
+	State        string `json:"state"`
+	Nonce        string `json:"nonce"`
+	CodeVerifier string `json:"code_verifier"`
+	Referer      string `json:"referer"`
 }
 
-func NewCookie(name, value string, expiresIn time.Duration) Cookie {
-	return Cookie{
-		name:      name,
-		value:     value,
-		expiresIn: expiresIn,
-	}
+func (h *Handler) GetLoginCookieName() string {
+	return fmt.Sprintf(LoginCookieNameTemplate, h.Config.ClientID)
 }
 
-func (h *Handler) getCallbackCookies(r *http.Request) (*CallbackCookies, error) {
-	state, err := h.getEncryptedCookie(r, StateCookieName)
-	if err != nil {
-		return nil, err
-	}
-
-	nonce, err := h.getEncryptedCookie(r, NonceCookieName)
-	if err != nil {
-		return nil, err
-	}
-
-	codeVerifier, err := h.getEncryptedCookie(r, CodeVerifierCookieName)
-	if err != nil {
-		return nil, err
-	}
-
-	referer, err := h.getEncryptedCookie(r, RedirectURLCookieName)
-	if err != nil {
-		return nil, err
-	}
-
-	return &CallbackCookies{
-		State:        state,
-		Nonce:        nonce,
-		CodeVerifier: codeVerifier,
-		Referer:      referer,
-	}, nil
+func (h *Handler) GetSessionCookieName() string {
+	return fmt.Sprintf(SessionCookieNameTemplate, h.Config.ClientID)
 }
 
-func (h *Handler) setEncryptedCookies(w http.ResponseWriter, cookies ...Cookie) error {
-	for _, cookie := range cookies {
-		err := h.setEncryptedCookie(w, cookie.name, cookie.value, cookie.expiresIn)
-		if err != nil {
-			return err
-		}
+func (h *Handler) getLoginCookie(w http.ResponseWriter, r *http.Request) (*LoginCookie, error) {
+	loginCookieJson, err := h.getEncryptedCookie(r, h.GetLoginCookieName())
+	if err != nil {
+		return nil, err
 	}
+
+	var loginCookie LoginCookie
+	err = json.Unmarshal([]byte(loginCookieJson), &loginCookie)
+	if err != nil {
+		return nil, err
+	}
+
+	// delete cookie as we no longer need it
+	h.deleteCookie(w, h.GetLoginCookieName())
+
+	return &loginCookie, nil
+}
+
+func (h *Handler) setLoginCookie(w http.ResponseWriter, loginCookie *LoginCookie) error {
+	loginCookieJson, err := json.Marshal(loginCookie)
+	if err != nil {
+		return fmt.Errorf("marshalling login cookie: %w", err)
+	}
+
+	err = h.setEncryptedCookie(w, h.GetLoginCookieName(), string(loginCookieJson), LoginCookieLifetime)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

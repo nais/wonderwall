@@ -30,14 +30,6 @@ import (
 )
 
 const (
-	LoginCookieLifetime = 10 * time.Minute
-
-	SessionCookieName      = "io.nais.wonderwall.session"
-	StateCookieName        = "io.nais.wonderwall.state"
-	NonceCookieName        = "io.nais.wonderwall.nonce"
-	CodeVerifierCookieName = "io.nais.wonderwall.code_verifier"
-	RedirectURLCookieName  = "io.nais.wonderwall.redirect_url"
-
 	RedirectURLParameter           = "redirect"
 	SecurityLevelURLParameter      = "level"
 	LocaleURLParameter             = "locale"
@@ -218,12 +210,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.setEncryptedCookies(w,
-		NewCookie(StateCookieName, params.state, LoginCookieLifetime),
-		NewCookie(NonceCookieName, params.nonce, LoginCookieLifetime),
-		NewCookie(CodeVerifierCookieName, params.codeVerifier, LoginCookieLifetime),
-		NewCookie(RedirectURLCookieName, CanonicalRedirectURL(r), LoginCookieLifetime),
-	)
+	err = h.setLoginCookie(w, &LoginCookie{
+		State:        params.state,
+		Nonce:        params.nonce,
+		CodeVerifier: params.codeVerifier,
+		Referer:      CanonicalRedirectURL(r),
+	})
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -234,7 +226,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
-	cookies, err := h.getCallbackCookies(r)
+	loginCookie, err := h.getLoginCookie(w, r)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -250,7 +242,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if params.Get("state") != cookies.State {
+	if params.Get("state") != loginCookie.State {
 		log.Error("state parameter mismatch")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -264,7 +256,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("code_verifier", cookies.CodeVerifier),
+		oauth2.SetAuthURLParam("code_verifier", loginCookie.CodeVerifier),
 		oauth2.SetAuthURLParam("client_assertion", assertion),
 		oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
 	}
@@ -285,7 +277,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	validateOpts := []jwt.ValidateOption{
 		jwt.WithAudience(h.Config.ClientID),
-		jwt.WithClaimValue("nonce", cookies.Nonce),
+		jwt.WithClaimValue("nonce", loginCookie.Nonce),
 		jwt.WithIssuer(h.Config.WellKnown.Issuer),
 		jwt.WithAcceptableSkew(5 * time.Second),
 		jwt.WithRequiredClaim("sid"),
@@ -310,7 +302,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionID := h.localSessionID(externalSessionID)
 
-	err = h.setEncryptedCookie(w, SessionCookieName, sessionID, h.Config.SessionMaxLifetime)
+	err = h.setEncryptedCookie(w, h.GetSessionCookieName(), sessionID, h.Config.SessionMaxLifetime)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -328,7 +320,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, cookies.Referer, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 
 // Proxy all requests upstream
@@ -398,7 +390,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		h.deleteCookie(w, SessionCookieName)
+		h.deleteCookie(w, h.GetSessionCookieName())
 	}
 
 	u, err := url.Parse(h.Config.WellKnown.EndSessionEndpoint)

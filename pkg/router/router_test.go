@@ -247,13 +247,22 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 
 	cookies := client.Jar.Cookies(callbackURL)
 	var sessionCookie *http.Cookie
+	var loginCookie *http.Cookie
 	for _, cookie := range cookies {
-		if cookie.Name == router.SessionCookieName {
+		if cookie.Name == h.GetSessionCookieName() {
 			sessionCookie = cookie
+		}
+
+		if cookie.Name == h.GetLoginCookieName() {
+			loginCookie = cookie
 		}
 	}
 
 	assert.NotNil(t, sessionCookie)
+
+	assert.NotNil(t, loginCookie)
+	assert.Empty(t, loginCookie.Value)
+	assert.True(t, loginCookie.Expires.Before(time.Now()))
 
 	// Request self-initiated logout
 	req, err = client.Get(server.URL + "/oauth2/logout")
@@ -262,7 +271,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 
 	cookies = client.Jar.Cookies(callbackURL)
 	for _, cookie := range cookies {
-		if cookie.Name == router.SessionCookieName {
+		if cookie.Name == h.GetSessionCookieName() {
 			sessionCookie = cookie
 		}
 	}
@@ -342,7 +351,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	cookies := client.Jar.Cookies(callbackURL)
 	var sessionCookie *http.Cookie
 	for _, cookie := range cookies {
-		if cookie.Name == router.SessionCookieName {
+		if cookie.Name == h.GetSessionCookieName() {
 			sessionCookie = cookie
 		}
 	}
