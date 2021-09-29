@@ -18,7 +18,7 @@ variables:
   - datasource:
       name: ds
       type: prometheus
-      regex: $env-(gcp|fss|sbs)
+      regex: $env-gcp
       include_all: true
       hide: variable
   - query:
@@ -32,12 +32,11 @@ variables:
 
 rows:
   - name: Resource usage
-    collapse: true
+    collapse: false
     panels:
       - graph:
           title: Memory usage - $ds
           datasource: $ds
-          repeat: ds
           transparent: true
           span: 4
           targets:
@@ -56,7 +55,6 @@ rows:
       - graph:
           title: CPU usage - $ds
           datasource: $ds
-          repeat: ds
           transparent: true
           span: 4
           targets:
