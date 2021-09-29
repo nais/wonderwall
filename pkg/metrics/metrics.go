@@ -23,6 +23,7 @@ var (
 )
 
 func Handle(address string) error {
+	Register(prometheus.DefaultRegisterer)
 	handler := promhttp.Handler()
 	return http.ListenAndServe(address, handler)
 }
