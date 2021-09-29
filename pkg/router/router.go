@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -31,10 +30,6 @@ import (
 )
 
 const (
-	LoginCookieLifetime        = 2 * time.Minute
-	SessionCookieNameTemplate  = "io.nais.wonderwall.%s.session"
-	CallbackCookieNameTemplate = "io.nais.wonderwall.%s.callback"
-
 	RedirectURLParameter           = "redirect"
 	SecurityLevelURLParameter      = "level"
 	LocaleURLParameter             = "locale"
@@ -215,21 +210,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	callbackCookies := &CallbackParams{
+	err = h.setLoginCookie(w, &LoginCookie{
 		State:        params.state,
 		Nonce:        params.nonce,
 		CodeVerifier: params.codeVerifier,
 		Referer:      CanonicalRedirectURL(r),
-	}
-
-	jsonString, err := json.Marshal(callbackCookies)
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	err = h.setEncryptedCookie(w, h.getCallbackCookieName(), string(jsonString), LoginCookieLifetime)
+	})
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -240,7 +226,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
-	cookies, err := h.getCallbackParams(r)
+	loginCookie, err := h.getLoginCookie(w, r)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -256,7 +242,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if params.Get("state") != cookies.State {
+	if params.Get("state") != loginCookie.State {
 		log.Error("state parameter mismatch")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -270,7 +256,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("code_verifier", cookies.CodeVerifier),
+		oauth2.SetAuthURLParam("code_verifier", loginCookie.CodeVerifier),
 		oauth2.SetAuthURLParam("client_assertion", assertion),
 		oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
 	}
@@ -291,7 +277,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	validateOpts := []jwt.ValidateOption{
 		jwt.WithAudience(h.Config.ClientID),
-		jwt.WithClaimValue("nonce", cookies.Nonce),
+		jwt.WithClaimValue("nonce", loginCookie.Nonce),
 		jwt.WithIssuer(h.Config.WellKnown.Issuer),
 		jwt.WithAcceptableSkew(5 * time.Second),
 		jwt.WithRequiredClaim("sid"),
@@ -334,7 +320,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, cookies.Referer, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 
 // Proxy all requests upstream
