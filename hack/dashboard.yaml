@@ -31,6 +31,18 @@ variables:
       hide: variable
 
 rows:
+  - name: Versions
+    collapse: false
+    panels:
+      - single_stat:
+          title: Sidecar versions in use
+          datasource: $ds
+          transparent: true
+          targets:
+            - prometheus:
+                query: count(label_replace(kube_pod_container_info{container="wonderwall"}, "version", "$1", "image", ".*:(.*)")) by (version)
+                legend: "{{ version }}"
+                instant: true
   - name: Resource usage
     collapse: false
     panels:
