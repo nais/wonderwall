@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -30,13 +31,10 @@ import (
 )
 
 const (
-	LoginCookieLifetime = 10 * time.Minute
+	SessionCookieName = "io.nais.wonderwall.session"
 
-	SessionCookieName      = "io.nais.wonderwall.session"
-	StateCookieName        = "io.nais.wonderwall.state"
-	NonceCookieName        = "io.nais.wonderwall.nonce"
-	CodeVerifierCookieName = "io.nais.wonderwall.code_verifier"
-	RedirectURLCookieName  = "io.nais.wonderwall.redirect_url"
+	LoginCookieLifetime = 2 * time.Minute
+	CallbackCookieName  = "io.nais.wonderwall.callback"
 
 	RedirectURLParameter           = "redirect"
 	SecurityLevelURLParameter      = "level"
@@ -218,12 +216,21 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.setEncryptedCookies(w,
-		NewCookie(StateCookieName, params.state, LoginCookieLifetime),
-		NewCookie(NonceCookieName, params.nonce, LoginCookieLifetime),
-		NewCookie(CodeVerifierCookieName, params.codeVerifier, LoginCookieLifetime),
-		NewCookie(RedirectURLCookieName, CanonicalRedirectURL(r), LoginCookieLifetime),
-	)
+	callbackCookies := &CallbackParams{
+		State:        params.state,
+		Nonce:        params.nonce,
+		CodeVerifier: params.codeVerifier,
+		Referer:      CanonicalRedirectURL(r),
+	}
+
+	jsonString, err := json.Marshal(callbackCookies)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = h.setEncryptedCookie(w, CallbackCookieName, string(jsonString), LoginCookieLifetime)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -234,7 +241,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
-	cookies, err := h.getCallbackCookies(r)
+	cookies, err := h.getCallbackParams(r)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)

@@ -2,6 +2,7 @@ package router
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -13,58 +14,26 @@ type Cookie struct {
 	expiresIn time.Duration
 }
 
-type CallbackCookies struct {
-	State        string
-	Nonce        string
-	CodeVerifier string
-	Referer      string
+type CallbackParams struct {
+	State        string `json:"state"`
+	Nonce        string `json:"nonce"`
+	CodeVerifier string `json:"code_verifier"`
+	Referer      string `json:"referer"`
 }
 
-func NewCookie(name, value string, expiresIn time.Duration) Cookie {
-	return Cookie{
-		name:      name,
-		value:     value,
-		expiresIn: expiresIn,
-	}
-}
-
-func (h *Handler) getCallbackCookies(r *http.Request) (*CallbackCookies, error) {
-	state, err := h.getEncryptedCookie(r, StateCookieName)
+func (h *Handler) getCallbackParams(r *http.Request) (*CallbackParams, error) {
+	callbackCookieString, err := h.getEncryptedCookie(r, CallbackCookieName)
 	if err != nil {
 		return nil, err
 	}
 
-	nonce, err := h.getEncryptedCookie(r, NonceCookieName)
+	var callbackParams CallbackParams
+	err = json.Unmarshal([]byte(callbackCookieString), &callbackParams)
 	if err != nil {
 		return nil, err
 	}
 
-	codeVerifier, err := h.getEncryptedCookie(r, CodeVerifierCookieName)
-	if err != nil {
-		return nil, err
-	}
-
-	referer, err := h.getEncryptedCookie(r, RedirectURLCookieName)
-	if err != nil {
-		return nil, err
-	}
-
-	return &CallbackCookies{
-		State:        state,
-		Nonce:        nonce,
-		CodeVerifier: codeVerifier,
-		Referer:      referer,
-	}, nil
-}
-
-func (h *Handler) setEncryptedCookies(w http.ResponseWriter, cookies ...Cookie) error {
-	for _, cookie := range cookies {
-		err := h.setEncryptedCookie(w, cookie.name, cookie.value, cookie.expiresIn)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return &callbackParams, nil
 }
 
 func (h *Handler) setEncryptedCookie(w http.ResponseWriter, key string, plaintext string, expiresIn time.Duration) error {
