@@ -248,7 +248,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	cookies := client.Jar.Cookies(callbackURL)
 	var sessionCookie *http.Cookie
 	for _, cookie := range cookies {
-		if cookie.Name == router.SessionCookieName {
+		if cookie.Name == h.GetSessionCookieName() {
 			sessionCookie = cookie
 		}
 	}
@@ -262,7 +262,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 
 	cookies = client.Jar.Cookies(callbackURL)
 	for _, cookie := range cookies {
-		if cookie.Name == router.SessionCookieName {
+		if cookie.Name == h.GetSessionCookieName() {
 			sessionCookie = cookie
 		}
 	}
@@ -342,7 +342,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	cookies := client.Jar.Cookies(callbackURL)
 	var sessionCookie *http.Cookie
 	for _, cookie := range cookies {
-		if cookie.Name == router.SessionCookieName {
+		if cookie.Name == h.GetSessionCookieName() {
 			sessionCookie = cookie
 		}
 	}

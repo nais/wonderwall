@@ -21,8 +21,16 @@ type CallbackParams struct {
 	Referer      string `json:"referer"`
 }
 
+func (h *Handler) getCallbackCookieName() string {
+	return fmt.Sprintf(CallbackCookieNameTemplate, h.Config.ClientID)
+}
+
+func (h *Handler) GetSessionCookieName() string {
+	return fmt.Sprintf(SessionCookieNameTemplate, h.Config.ClientID)
+}
+
 func (h *Handler) getCallbackParams(r *http.Request) (*CallbackParams, error) {
-	callbackCookieString, err := h.getEncryptedCookie(r, CallbackCookieName)
+	callbackCookieString, err := h.getEncryptedCookie(r, h.getCallbackCookieName())
 	if err != nil {
 		return nil, err
 	}

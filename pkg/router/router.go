@@ -31,10 +31,9 @@ import (
 )
 
 const (
-	SessionCookieName = "io.nais.wonderwall.session"
-
-	LoginCookieLifetime = 2 * time.Minute
-	CallbackCookieName  = "io.nais.wonderwall.callback"
+	LoginCookieLifetime        = 2 * time.Minute
+	SessionCookieNameTemplate  = "io.nais.wonderwall.%s.session"
+	CallbackCookieNameTemplate = "io.nais.wonderwall.%s.callback"
 
 	RedirectURLParameter           = "redirect"
 	SecurityLevelURLParameter      = "level"
@@ -230,7 +229,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.setEncryptedCookie(w, CallbackCookieName, string(jsonString), LoginCookieLifetime)
+	err = h.setEncryptedCookie(w, h.getCallbackCookieName(), string(jsonString), LoginCookieLifetime)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -317,7 +316,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionID := h.localSessionID(externalSessionID)
 
-	err = h.setEncryptedCookie(w, SessionCookieName, sessionID, h.Config.SessionMaxLifetime)
+	err = h.setEncryptedCookie(w, h.GetSessionCookieName(), sessionID, h.Config.SessionMaxLifetime)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -405,7 +404,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		h.deleteCookie(w, SessionCookieName)
+		h.deleteCookie(w, h.GetSessionCookieName())
 	}
 
 	u, err := url.Parse(h.Config.WellKnown.EndSessionEndpoint)

@@ -7,7 +7,7 @@ import (
 )
 
 func (h *Handler) getSessionFromCookie(r *http.Request) (*session.Data, error) {
-	sessionID, err := h.getEncryptedCookie(r, SessionCookieName)
+	sessionID, err := h.getEncryptedCookie(r, h.GetSessionCookieName())
 	if err != nil {
 		return nil, fmt.Errorf("no session cookie: %w", err)
 	}
