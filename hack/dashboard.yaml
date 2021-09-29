@@ -1,0 +1,94 @@
+title: Wonderwall
+editable: true
+tags: [generated, yaml]
+auto_refresh: 1m
+time: ["now-24h", "now"]
+timezone: default # valid values are: utc, browser, default
+
+# Render to JSON using https://github.com/K-Phoen/grabana v0.17.0 or newer
+# Import into Grafana using UI (remember to select folder)
+
+variables:
+  - custom:
+      name: env
+      default: dev
+      values_map:
+        dev: dev
+        prod: prod
+  - datasource:
+      name: ds
+      type: prometheus
+      regex: $env-gcp
+      include_all: true
+      hide: variable
+  - query:
+      name: redis_op
+      label: Redis Operation
+      datasource: $env-gcp
+      request: "label_values(wonderwall_redis_latency_bucket, operation)"
+      include_all: true
+      default_all: true
+      hide: variable
+
+rows:
+  - name: Resource usage
+    collapse: false
+    panels:
+      - graph:
+          title: Memory usage - $ds
+          datasource: $ds
+          transparent: true
+          span: 4
+          targets:
+            - prometheus:
+                query: avg(kube_pod_container_resource_limits{container="wonderwall",resource="memory"}) by (namespace)
+                legend: "limits in {{ namespace }}"
+            - prometheus:
+                query: avg(kube_pod_container_resource_requests{container="wonderwall",resource="memory"}) by (namespace)
+                legend: "requests in {{ namespace }}"
+            - prometheus:
+                query: sum(container_memory_working_set_bytes{container="wonderwall"}) by (pod, namespace)
+                legend: "working set {{ pod }} in {{ namespace }}"
+            - prometheus:
+                query: sum(container_memory_usage_bytes{container="wonderwall"}) by (pod, namespace)
+                legend: "Resident set size {{ pod }} in {{ namespace }}"
+      - graph:
+          title: CPU usage - $ds
+          datasource: $ds
+          transparent: true
+          span: 4
+          targets:
+            - prometheus:
+                query: avg(kube_pod_container_resource_limits{container="wonderwall",resource="cpu"}) by (namespace)
+                legend: "limits in {{ namespace }}"
+            - prometheus:
+                query: avg(kube_pod_container_resource_requests{container="wonderwall",resource="cpu"}) by (namespace)
+                legend: "requests in {{ namespace }}"
+            - prometheus:
+                query: sum(irate(container_cpu_usage_seconds_total{container="wonderwall"}[2m])) by (pod, namespace)
+                legend: "{{ pod }} in {{ namespace }}"
+  - name: Redis Latency - $redis_op
+    repeat_for: redis_op
+    collapse: true
+    panels:
+      - heatmap:
+          # Must be done manually in Grafana after import: Set max datapoints to 25
+          title: $ds
+          datasource: $ds
+          repeat: ds
+          data_format: time_series_buckets
+          hide_zero_buckets: true
+          transparent: true
+          span: 4
+          tooltip:
+            show: true
+            showhistogram: false
+            decimals: 0
+          yaxis:
+            unit: "dtdurations"
+            decimals: 0
+          targets:
+            - prometheus:
+                query: sum(increase(wonderwall_redis_latency_bucket{operation="$redis_op"}[$__interval])) by (le)
+                legend: "{{ le }}"
+                format: heatmap
