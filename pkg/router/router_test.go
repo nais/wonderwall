@@ -153,8 +153,12 @@ func TestHandler_Login(t *testing.T) {
 	prefixes := config.ParseIngresses([]string{""})
 	r := router.New(h, prefixes)
 
+	jar, err := cookiejar.New(nil)
+	assert.NoError(t, err)
+
 	server := httptest.NewServer(r)
 	client := server.Client()
+	client.Jar = jar
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
@@ -164,9 +168,16 @@ func TestHandler_Login(t *testing.T) {
 
 	h.Config.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
 
-	req, err := client.Get(server.URL + "/oauth2/login")
+	loginURL, err := url.Parse(server.URL + "/oauth2/login")
+	assert.NoError(t, err)
+
+	req, err := client.Get(loginURL.String())
 	assert.NoError(t, err)
 	defer req.Body.Close()
+
+	cookies := client.Jar.Cookies(loginURL)
+	loginCookie := getCookieFromJar(h.GetLoginCookieName(), cookies)
+	assert.NotNil(t, loginCookie)
 
 	location := req.Header.Get("location")
 	u, err := url.Parse(location)
@@ -222,9 +233,17 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	}
 
 	// First, run /oauth2/login to set cookies
-	req, err := client.Get(server.URL + "/oauth2/login")
+	loginURL, err := url.Parse(server.URL + "/oauth2/login")
+	req, err := client.Get(loginURL.String())
 	assert.NoError(t, err)
 	defer req.Body.Close()
+
+	cookies := client.Jar.Cookies(loginURL)
+	sessionCookie := getCookieFromJar(h.GetSessionCookieName(), cookies)
+	loginCookie := getCookieFromJar(h.GetLoginCookieName(), cookies)
+
+	assert.Nil(t, sessionCookie)
+	assert.NotNil(t, loginCookie)
 
 	// Get authorization URL
 	location := req.Header.Get("location")
@@ -245,40 +264,25 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	req, err = client.Get(callbackURL.String())
 	assert.NoError(t, err)
 
-	cookies := client.Jar.Cookies(callbackURL)
-	var sessionCookie *http.Cookie
-	var loginCookie *http.Cookie
-	for _, cookie := range cookies {
-		if cookie.Name == h.GetSessionCookieName() {
-			sessionCookie = cookie
-		}
-
-		if cookie.Name == h.GetLoginCookieName() {
-			loginCookie = cookie
-		}
-	}
+	cookies = client.Jar.Cookies(callbackURL)
+	sessionCookie = getCookieFromJar(h.GetSessionCookieName(), cookies)
+	loginCookie = getCookieFromJar(h.GetLoginCookieName(), cookies)
 
 	assert.NotNil(t, sessionCookie)
-
-	assert.NotNil(t, loginCookie)
-	assert.Empty(t, loginCookie.Value)
-	assert.True(t, loginCookie.Expires.Before(time.Now()))
+	assert.Nil(t, loginCookie)
 
 	// Request self-initiated logout
-	req, err = client.Get(server.URL + "/oauth2/logout")
+	logoutURL, err := url.Parse(server.URL + "/oauth2/logout")
+	assert.NoError(t, err)
+
+	req, err = client.Get(logoutURL.String())
 	assert.NoError(t, err)
 	defer req.Body.Close()
 
-	cookies = client.Jar.Cookies(callbackURL)
-	for _, cookie := range cookies {
-		if cookie.Name == h.GetSessionCookieName() {
-			sessionCookie = cookie
-		}
-	}
+	cookies = client.Jar.Cookies(logoutURL)
+	sessionCookie = getCookieFromJar(h.GetSessionCookieName(), cookies)
 
-	assert.NotNil(t, sessionCookie)
-	assert.Empty(t, sessionCookie.Value)
-	assert.True(t, sessionCookie.Expires.Before(time.Now()))
+	assert.Nil(t, sessionCookie)
 
 	// Get endsession endpoint after local logout
 	location = req.Header.Get("location")
@@ -349,12 +353,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	assert.NoError(t, err)
 
 	cookies := client.Jar.Cookies(callbackURL)
-	var sessionCookie *http.Cookie
-	for _, cookie := range cookies {
-		if cookie.Name == h.GetSessionCookieName() {
-			sessionCookie = cookie
-		}
-	}
+	sessionCookie := getCookieFromJar(h.GetSessionCookieName(), cookies)
 
 	assert.NotNil(t, sessionCookie)
 
@@ -378,4 +377,14 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	req, err = client.Get(frontchannelLogoutURL.String())
 	assert.NoError(t, err)
 	defer req.Body.Close()
+}
+
+func getCookieFromJar(name string, cookies []*http.Cookie) *http.Cookie {
+	for _, cookie := range cookies {
+		if cookie.Name == name {
+			return cookie
+		}
+	}
+
+	return nil
 }

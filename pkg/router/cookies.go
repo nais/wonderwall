@@ -75,13 +75,14 @@ func (h *Handler) setEncryptedCookie(w http.ResponseWriter, key string, plaintex
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     key,
-		Value:    base64.StdEncoding.EncodeToString(ciphertext),
 		Expires:  time.Now().Add(expiresIn),
-		Secure:   h.SecureCookies,
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(expiresIn.Seconds()),
+		Name:     key,
 		Path:     "/",
+		SameSite: http.SameSiteLaxMode,
+		Secure:   h.SecureCookies,
+		Value:    base64.StdEncoding.EncodeToString(ciphertext),
 	})
 
 	return nil
@@ -107,10 +108,14 @@ func (h *Handler) getEncryptedCookie(r *http.Request, key string) (string, error
 }
 
 func (h *Handler) deleteCookie(w http.ResponseWriter, key string) {
+	expires := time.Now().Add(-7 * 24 * time.Hour)
 	http.SetCookie(w, &http.Cookie{
+		Expires:  expires,
+		HttpOnly: true,
+		MaxAge:   -1,
 		Name:     key,
-		Secure:   h.SecureCookies,
-		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
+		SameSite: http.SameSiteLaxMode,
+		Secure:   h.SecureCookies,
 	})
 }
