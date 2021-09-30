@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"github.com/google/uuid"
 	"github.com/nais/wonderwall/pkg/token"
 	"gopkg.in/square/go-jose.v2"
 	"time"
@@ -31,6 +32,7 @@ func (cfg *IDPorten) SignedJWTProfileAssertion(expiration time.Duration) (string
 		Scopes:    token.ScopeOpenID,
 		ExpiresAt: exp.Unix(),
 		IssuedAt:  iat.Unix(),
+		JwtID:     uuid.New().String(),
 	}
 
 	payload, err := json.Marshal(jwtRequest)

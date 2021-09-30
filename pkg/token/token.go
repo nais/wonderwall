@@ -20,6 +20,7 @@ type JWTTokenRequest struct {
 	Audience  string `json:"aud"`
 	IssuedAt  int64  `json:"iat"`
 	ExpiresAt int64  `json:"exp"`
+	JwtID     string `json:"jti"`
 }
 
 type IDToken struct {
