@@ -2,28 +2,24 @@ package session
 
 import (
 	"context"
-	"fmt"
 	"github.com/go-redis/redis/v8"
-	"github.com/nais/wonderwall/pkg/cryptutil"
 	"github.com/nais/wonderwall/pkg/metrics"
 	"time"
 )
 
 type redisSessionStore struct {
 	client  redis.Cmdable
-	crypter cryptutil.Crypter
 }
 
 var _ Store = &redisSessionStore{}
 
-func NewRedis(client redis.Cmdable, crypter cryptutil.Crypter) Store {
+func NewRedis(client redis.Cmdable) Store {
 	return &redisSessionStore{
 		client:  client,
-		crypter: crypter,
 	}
 }
 
-func (s *redisSessionStore) Read(ctx context.Context, key string) (*Data, error) {
+func (s *redisSessionStore) Read(ctx context.Context, key string) (*EncryptedData, error) {
 	encryptedData := &EncryptedData{}
 	err := metrics.ObserveRedisLatency("Read", func() error {
 		var err error
@@ -35,22 +31,12 @@ func (s *redisSessionStore) Read(ctx context.Context, key string) (*Data, error)
 		return nil, err
 	}
 
-	data, err := encryptedData.Decrypt(s.crypter)
-	if err != nil {
-		return nil, fmt.Errorf("decrypting session data: %w", err)
-	}
-
-	return data, nil
+	return encryptedData, nil
 }
 
-func (s *redisSessionStore) Write(ctx context.Context, key string, value *Data, expiration time.Duration) error {
-	encryptedData, err := value.Encrypt(s.crypter)
-	if err != nil {
-		return err
-	}
-
+func (s *redisSessionStore) Write(ctx context.Context, key string, value *EncryptedData, expiration time.Duration) error {
 	return metrics.ObserveRedisLatency("Write", func() error {
-		status := s.client.Set(ctx, key, encryptedData, expiration)
+		status := s.client.Set(ctx, key, value, expiration)
 		return status.Err()
 	})
 }

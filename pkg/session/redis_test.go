@@ -30,18 +30,25 @@ func TestRedis(t *testing.T) {
 		IDTokenSerialized: "idtoken",
 	}
 
+	encryptedData, err := data.Encrypt(crypter)
+	assert.NoError(t, err)
+
 	client := redis.NewClient(&redis.Options{
 		Network: "tcp",
 		Addr:    "127.0.0.1:6379",
 	})
 
-	sess := session.NewRedis(client, crypter)
-	err = sess.Write(context.Background(), "key", data, time.Minute)
+	sess := session.NewRedis(client)
+	err = sess.Write(context.Background(), "key", encryptedData, time.Minute)
 	assert.NoError(t, err)
 
 	result, err := sess.Read(context.Background(), "key")
 	assert.NoError(t, err)
-	assert.Equal(t, data, result)
+	assert.Equal(t, encryptedData, result)
+
+	decrypted, err := result.Decrypt(crypter)
+	assert.NoError(t, err)
+	assert.Equal(t, data, decrypted)
 
 	err = sess.Delete(context.Background(), "key")
 

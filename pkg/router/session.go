@@ -25,9 +25,14 @@ func (h *Handler) getSessionFromCookie(r *http.Request) (*session.Data, error) {
 		return nil, fmt.Errorf("no session cookie: %w", err)
 	}
 
-	sessionData, err := h.Sessions.Read(r.Context(), sessionID)
+	encryptedSessionData, err := h.Sessions.Read(r.Context(), sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("reading session from store: %w", err)
+	}
+
+	sessionData, err := encryptedSessionData.Decrypt(h.Crypter)
+	if err != nil {
+		return nil, fmt.Errorf("decrypting session data: %w", err)
 	}
 
 	return sessionData, nil
@@ -69,10 +74,36 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 		IDTokenSerialized: idToken.Raw,
 	}
 
-	err = h.Sessions.Write(r.Context(), sessionID, sessionData, sessionLifetime)
+	encryptedSessionData, err := sessionData.Encrypt(h.Crypter)
+	if err != nil {
+		return fmt.Errorf("encrypting session data: %w", err)
+	}
+
+	err = h.Sessions.Write(r.Context(), sessionID, encryptedSessionData, sessionLifetime)
 	if err != nil {
 		return fmt.Errorf("writing session to store: %w", err)
 	}
 
 	return nil
+}
+
+func (h *Handler) getAccessTokenFromSession(r *http.Request, sessionID string) (jwt.Token, error) {
+	encryptedSession, err := h.Sessions.Read(r.Context(), sessionID)
+	if err != nil {
+		// Session not found; ignoring
+		return nil, nil
+	}
+
+	sessionData, err := encryptedSession.Decrypt(h.Crypter)
+	if err != nil {
+		// Can't decrypt, likely not our session; ignoring
+		return nil, nil
+	}
+
+	accessToken, err := jwt.Parse([]byte(sessionData.OAuth2Token.AccessToken))
+	if err != nil {
+		return nil, fmt.Errorf("parsing session access token: %w", err)
+	}
+
+	return accessToken, nil
 }

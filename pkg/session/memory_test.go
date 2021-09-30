@@ -26,13 +26,20 @@ func TestMemory(t *testing.T) {
 		IDTokenSerialized: "idtoken",
 	}
 
-	sess := session.NewMemory(crypter)
-	err = sess.Write(context.Background(), "key", data, time.Minute)
+	encryptedData, err := data.Encrypt(crypter)
+	assert.NoError(t, err)
+
+	sess := session.NewMemory()
+	err = sess.Write(context.Background(), "key", encryptedData, time.Minute)
 	assert.NoError(t, err)
 
 	result, err := sess.Read(context.Background(), "key")
 	assert.NoError(t, err)
-	assert.Equal(t, data, result)
+	assert.Equal(t, encryptedData, result)
+
+	decrypted, err := result.Decrypt(crypter)
+	assert.NoError(t, err)
+	assert.Equal(t, data, decrypted)
 
 	err = sess.Delete(context.Background(), "key")
 

@@ -79,10 +79,10 @@ func run() error {
 			return fmt.Errorf("connecting to redis: %w", err)
 		}
 
-		sessionStore = session.NewRedis(redisClient, crypt)
+		sessionStore = session.NewRedis(redisClient)
 		log.Infof("Using Redis as session backing store")
 	} else {
-		sessionStore = session.NewMemory(crypt)
+		sessionStore = session.NewMemory()
 		log.Warnf("Redis not configured, using in-memory session backing store; not suitable for multi-pod deployments!")
 	}
 

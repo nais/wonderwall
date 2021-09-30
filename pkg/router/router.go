@@ -372,22 +372,20 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 
 	sessionID := h.localSessionID(sid)
 
-	sess, err := h.Sessions.Read(r.Context(), sessionID)
-	if err != nil {
+	// From here on, check that 'iss' from request matches data found in access token.
+	accessToken, err := h.getAccessTokenFromSession(r, sessionID)
+	if accessToken == nil {
 		// Can't remove session because it doesn't exist. Maybe it was garbage collected.
 		// We regard this as a redundant logout and return 200 OK.
 		return
 	}
-
-	// From here on, check that 'iss' from request matches data found in access token.
-	tok, err := jwt.Parse([]byte(sess.OAuth2Token.AccessToken))
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = jwt.Validate(tok, jwt.WithClaimValue("iss", iss))
+	err = jwt.Validate(accessToken, jwt.WithClaimValue("iss", iss))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
