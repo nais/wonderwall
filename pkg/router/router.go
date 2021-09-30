@@ -80,15 +80,6 @@ func (h *Handler) WithSecureCookie(enabled bool) *Handler {
 	return h
 }
 
-// localSessionID prefixes the given `sid` with the given client ID to prevent key collisions.
-// `sid` is a key that refers to the user's unique SSO session at the Identity Provider, and the same key is present
-// in all tokens acquired by any Relying Party (such as Wonderwall) during that session.
-// Thus, we cannot assume that the value of `sid` to uniquely identify the pair of (user, application session)
-// if using a shared session store.
-func (h *Handler) localSessionID(sid string) string {
-	return fmt.Sprintf("%s-%s", h.Config.ClientID, sid)
-}
-
 type loginParams struct {
 	state        string
 	codeVerifier string
@@ -300,22 +291,10 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	sessionID := h.localSessionID(externalSessionID)
 
-	err = h.setEncryptedCookie(w, h.GetSessionCookieName(), sessionID, h.Config.SessionMaxLifetime)
+	err = h.createSession(w, r, externalSessionID, tokens, idToken)
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	err = h.Sessions.Write(r.Context(), sessionID, &session.Data{
-		ExternalSessionID: externalSessionID,
-		OAuth2Token:       tokens,
-		IDTokenSerialized: idToken.Raw,
-	}, h.Config.SessionMaxLifetime)
-	if err != nil {
-		log.Error(err)
+		log.Errorf("creating session: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -323,7 +302,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 
-// Proxy all requests upstream
+// Default proxies all requests upstream
 func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
