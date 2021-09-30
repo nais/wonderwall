@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/auth"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -134,8 +135,11 @@ func TestLoginURL(t *testing.T) {
 			req, err := http.NewRequest("GET", test.url, nil)
 			assert.NoError(t, err)
 
+			params, err := auth.GenerateLoginParameters()
+			assert.NoError(t, err)
+
 			handler := handler(cfg)
-			_, err = handler.LoginURL(req)
+			_, err = handler.LoginURL(req, params)
 
 			if test.error != nil {
 				assert.True(t, errors.Is(err, test.error))
