@@ -1,9 +1,12 @@
+//go:build integration
 // +build integration
 
 package session_test
 
 import (
 	"context"
+	"github.com/nais/liberator/pkg/keygen"
+	"github.com/nais/wonderwall/pkg/cryptutil"
 	"testing"
 	"time"
 
@@ -15,6 +18,10 @@ import (
 )
 
 func TestRedis(t *testing.T) {
+	key, err := keygen.Keygen(32)
+	assert.NoError(t, err)
+	crypter := cryptutil.New(key)
+
 	data := &session.Data{
 		ExternalSessionID: "myid",
 		OAuth2Token: &oauth2.Token{
@@ -28,8 +35,8 @@ func TestRedis(t *testing.T) {
 		Addr:    "127.0.0.1:6379",
 	})
 
-	sess := session.NewRedis(client)
-	err := sess.Write(context.Background(), "key", data, time.Minute)
+	sess := session.NewRedis(client, crypter)
+	err = sess.Write(context.Background(), "key", data, time.Minute)
 	assert.NoError(t, err)
 
 	result, err := sess.Read(context.Background(), "key")

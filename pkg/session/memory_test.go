@@ -2,6 +2,8 @@ package session_test
 
 import (
 	"context"
+	"github.com/nais/liberator/pkg/keygen"
+	"github.com/nais/wonderwall/pkg/cryptutil"
 	"testing"
 	"time"
 
@@ -12,6 +14,10 @@ import (
 )
 
 func TestMemory(t *testing.T) {
+	key, err := keygen.Keygen(32)
+	assert.NoError(t, err)
+	crypter := cryptutil.New(key)
+
 	data := &session.Data{
 		ExternalSessionID: "myid",
 		OAuth2Token: &oauth2.Token{
@@ -20,8 +26,8 @@ func TestMemory(t *testing.T) {
 		IDTokenSerialized: "idtoken",
 	}
 
-	sess := session.NewMemory()
-	err := sess.Write(context.Background(), "key", data, time.Minute)
+	sess := session.NewMemory(crypter)
+	err = sess.Write(context.Background(), "key", data, time.Minute)
 	assert.NoError(t, err)
 
 	result, err := sess.Read(context.Background(), "key")

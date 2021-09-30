@@ -25,7 +25,12 @@ func (h *Handler) getSessionFromCookie(r *http.Request) (*session.Data, error) {
 		return nil, fmt.Errorf("no session cookie: %w", err)
 	}
 
-	return h.Sessions.Read(r.Context(), sessionID)
+	sessionData, err := h.Sessions.Read(r.Context(), sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("reading session from store: %w", err)
+	}
+
+	return sessionData, nil
 }
 
 func (h *Handler) getSessionLifetime(accessToken string) (time.Duration, error) {
@@ -58,11 +63,13 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 		return fmt.Errorf("setting session cookie: %w", err)
 	}
 
-	err = h.Sessions.Write(r.Context(), sessionID, &session.Data{
+	sessionData := &session.Data{
 		ExternalSessionID: externalSessionID,
 		OAuth2Token:       tokens,
 		IDTokenSerialized: idToken.Raw,
-	}, sessionLifetime)
+	}
+
+	err = h.Sessions.Write(r.Context(), sessionID, sessionData, sessionLifetime)
 	if err != nil {
 		return fmt.Errorf("writing session to store: %w", err)
 	}

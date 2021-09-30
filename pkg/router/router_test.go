@@ -87,7 +87,7 @@ func handler(cfg config.IDPorten) *router.Handler {
 	}
 
 	crypter := cryptutil.New(encryptionKey)
-	sessionStore := session.NewMemory()
+	sessionStore := session.NewMemory(crypter)
 
 	handler, err := router.NewHandler(cfg, crypter, jwkSet, sessionStore, "")
 	if err != nil {

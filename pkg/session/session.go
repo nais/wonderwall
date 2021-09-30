@@ -3,7 +3,9 @@ package session
 import (
 	"context"
 	"encoding"
+	"encoding/base64"
 	"encoding/json"
+	"github.com/nais/wonderwall/pkg/cryptutil"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -15,19 +17,59 @@ type Store interface {
 	Delete(ctx context.Context, keys ...string) error
 }
 
+type EncryptedData struct {
+	Data string `json:"data"`
+}
+
+var _ encoding.BinaryMarshaler = &EncryptedData{}
+var _ encoding.BinaryUnmarshaler = &EncryptedData{}
+
+func (in *EncryptedData) MarshalBinary() ([]byte, error) {
+	return json.Marshal(in)
+}
+
+func (in *EncryptedData) UnmarshalBinary(bytes []byte) error {
+	return json.Unmarshal(bytes, in)
+}
+
+func (in *EncryptedData) Decrypt(crypter cryptutil.Crypter) (*Data, error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(in.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	rawData, err := crypter.Decrypt(ciphertext)
+	if err != nil {
+		return nil, err
+	}
+
+	var data Data
+	err = json.Unmarshal(rawData, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+}
+
 type Data struct {
-	ExternalSessionID string
-	OAuth2Token       *oauth2.Token
-	IDTokenSerialized string
+	ExternalSessionID string        `json:"external_session_id"`
+	OAuth2Token       *oauth2.Token `json:"oauth2_token"`
+	IDTokenSerialized string        `json:"id_token_serialized"`
 }
 
-var _ encoding.BinaryMarshaler = &Data{}
-var _ encoding.BinaryUnmarshaler = &Data{}
+func (in *Data) Encrypt(crypter cryptutil.Crypter) (*EncryptedData, error) {
+	bytes, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
 
-func (data *Data) MarshalBinary() ([]byte, error) {
-	return json.Marshal(data)
-}
+	ciphertext, err := crypter.Encrypt(bytes)
+	if err != nil {
+		return nil, err
+	}
 
-func (data *Data) UnmarshalBinary(bytes []byte) error {
-	return json.Unmarshal(bytes, data)
+	return &EncryptedData{
+		Data: base64.StdEncoding.EncodeToString(ciphertext),
+	}, nil
 }
