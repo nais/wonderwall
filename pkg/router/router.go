@@ -227,7 +227,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := token.ParseIDToken(r.Context(), h.jwkSet, tokens)
+	idToken, err := token.ParseIDToken(h.jwkSet, tokens)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusUnauthorized)

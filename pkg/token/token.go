@@ -1,14 +1,11 @@
 package token
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
 	"golang.org/x/oauth2"
-
-	"github.com/nais/wonderwall/pkg/keyset"
 )
 
 const ScopeOpenID = "openid"
@@ -42,19 +39,15 @@ func (in *IDToken) GetSID() (string, bool) {
 	return sid.(string), ok
 }
 
-func ParseIDToken(ctx context.Context, jwks jwk.Set, token *oauth2.Token) (*IDToken, error) {
+func ParseIDToken(jwks jwk.Set, token *oauth2.Token) (*IDToken, error) {
 	raw, ok := token.Extra("id_token").(string)
 	if !ok {
 		return nil, fmt.Errorf("missing id_token in token response")
 	}
 
-	err := keyset.EnsureValid(ctx, jwks)
-	if err != nil {
-		return nil, err
-	}
-
 	parseOpts := []jwt.ParseOption{
 		jwt.WithKeySet(jwks),
+		jwt.InferAlgorithmFromKey(true),
 	}
 	idToken, err := jwt.Parse([]byte(raw), parseOpts...)
 	if err != nil {
