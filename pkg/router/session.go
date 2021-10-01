@@ -1,7 +1,9 @@
 package router
 
 import (
+	"errors"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/token"
@@ -27,6 +29,10 @@ func (h *Handler) getSessionFromCookie(r *http.Request) (*session.Data, error) {
 
 	encryptedSessionData, err := h.Sessions.Read(r.Context(), sessionID)
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			// TODO: attempt to fetch encrypted data from fallback session cookie (if set)
+		}
+
 		return nil, fmt.Errorf("reading session from store: %w", err)
 	}
 
@@ -81,6 +87,8 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 
 	err = h.Sessions.Write(r.Context(), sessionID, encryptedSessionData, sessionLifetime)
 	if err != nil {
+		// TODO: fallback to writing encrypted session data to cookie
+
 		return fmt.Errorf("writing session to store: %w", err)
 	}
 
@@ -90,8 +98,13 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 func (h *Handler) getAccessTokenFromSession(r *http.Request, sessionID string) (jwt.Token, error) {
 	encryptedSession, err := h.Sessions.Read(r.Context(), sessionID)
 	if err != nil {
-		// Session not found; ignoring
-		return nil, nil
+		if errors.Is(err, redis.Nil) {
+			// Session not found; ignoring
+			return nil, nil
+		}
+
+		// TODO: fetch from fallback session cookie (if set)
+		return nil, fmt.Errorf("fetching session from store: %w", err)
 	}
 
 	sessionData, err := encryptedSession.Decrypt(h.Crypter)
@@ -106,4 +119,14 @@ func (h *Handler) getAccessTokenFromSession(r *http.Request, sessionID string) (
 	}
 
 	return accessToken, nil
+}
+
+func (h *Handler) destroySession(r *http.Request, sessionID string) error {
+	err := h.Sessions.Delete(r.Context(), sessionID)
+	if err != nil {
+		return fmt.Errorf("deleting session from store: %w", err)
+	}
+
+	// TODO: delete fallback session cookie (if set)
+	return nil
 }

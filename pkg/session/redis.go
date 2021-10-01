@@ -8,24 +8,21 @@ import (
 )
 
 type redisSessionStore struct {
-	client  redis.Cmdable
+	client redis.Cmdable
 }
 
 var _ Store = &redisSessionStore{}
 
 func NewRedis(client redis.Cmdable) Store {
 	return &redisSessionStore{
-		client:  client,
+		client: client,
 	}
 }
 
 func (s *redisSessionStore) Read(ctx context.Context, key string) (*EncryptedData, error) {
 	encryptedData := &EncryptedData{}
 	err := metrics.ObserveRedisLatency("Read", func() error {
-		var err error
-		status := s.client.Get(ctx, key)
-		err = status.Scan(encryptedData)
-		return err
+		return s.client.Get(ctx, key).Scan(encryptedData)
 	})
 	if err != nil {
 		return nil, err
@@ -36,14 +33,12 @@ func (s *redisSessionStore) Read(ctx context.Context, key string) (*EncryptedDat
 
 func (s *redisSessionStore) Write(ctx context.Context, key string, value *EncryptedData, expiration time.Duration) error {
 	return metrics.ObserveRedisLatency("Write", func() error {
-		status := s.client.Set(ctx, key, value, expiration)
-		return status.Err()
+		return s.client.Set(ctx, key, value, expiration).Err()
 	})
 }
 
 func (s *redisSessionStore) Delete(ctx context.Context, keys ...string) error {
 	return metrics.ObserveRedisLatency("Delete", func() error {
-		status := s.client.Del(ctx, keys...)
-		return status.Err()
+		return s.client.Del(ctx, keys...).Err()
 	})
 }

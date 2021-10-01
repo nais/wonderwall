@@ -326,26 +326,27 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 
 // Logout triggers self-initiated for the current user
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	var idToken string
-
-	sess, err := h.getSessionFromCookie(r)
-	if err == nil && sess != nil && sess.OAuth2Token != nil {
-		idToken = sess.IDTokenSerialized
-		err = h.Sessions.Delete(r.Context(), h.localSessionID(sess.ExternalSessionID))
-		if err != nil {
-			log.Error(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		h.deleteCookie(w, h.GetSessionCookieName())
-	}
-
 	u, err := url.Parse(h.Config.WellKnown.EndSessionEndpoint)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	var idToken string
+
+	sess, err := h.getSessionFromCookie(r)
+	if err == nil && sess != nil && sess.OAuth2Token != nil {
+		idToken = sess.IDTokenSerialized
+		err = h.destroySession(r, h.localSessionID(sess.ExternalSessionID))
+		if err != nil {
+			log.Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	h.deleteCookie(w, h.GetSessionCookieName())
 
 	v := u.Query()
 	v.Add("post_logout_redirect_uri", PostLogoutRedirectURI(r, h.Config.PostLogoutRedirectURI))
@@ -362,42 +363,24 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 
-	iss := params.Get("iss")
 	sid := params.Get("sid")
 
-	if len(sid) == 0 || len(iss) == 0 {
+	if len(sid) == 0 {
+		log.Error("sid not set for front-channel logout")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	sessionID := h.localSessionID(sid)
 
-	// From here on, check that 'iss' from request matches data found in access token.
-	accessToken, err := h.getAccessTokenFromSession(r, sessionID)
-	if accessToken == nil {
-		// Can't remove session because it doesn't exist. Maybe it was garbage collected.
-		// We regard this as a redundant logout and return 200 OK.
-		return
-	}
+	err := h.destroySession(r, sessionID)
 	if err != nil {
 		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		// Session is already destroyed at the OP and is highly unlikely to be used again.
 	}
 
-	err = jwt.Validate(accessToken, jwt.WithClaimValue("iss", iss))
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	// All verified; delete session.
-	err = h.Sessions.Delete(r.Context(), sessionID)
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	// Unconditionally destroy all local references to the session.
+	h.deleteCookie(w, h.GetSessionCookieName())
 }
 
 func New(handler *Handler, prefixes []string) chi.Router {
