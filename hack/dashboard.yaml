@@ -15,6 +15,14 @@ variables:
       values_map:
         dev: dev
         prod: prod
+  - query:
+      name: namespace
+      label: Namespace
+      datasource: $env-gcp
+      request: "label_values(kube_pod_container_info{container=\"wonderwall\"}, namespace)"
+      include_all: true
+      default_all: true
+      all_value: ".*"
   - datasource:
       name: ds
       type: prometheus
@@ -38,9 +46,10 @@ rows:
           title: Sidecar versions in use
           datasource: $ds
           transparent: true
+          span: 12
           targets:
             - prometheus:
-                query: count(label_replace(kube_pod_container_info{container="wonderwall"}, "version", "$1", "image", ".*:(.*)")) by (version)
+                query: count(label_replace(kube_pod_container_info{container="wonderwall",namespace=~"$namespace"}, "version", "$1", "image", ".*:(.*)")) by (version)
                 legend: "{{ version }}"
                 instant: true
   - name: Resource usage
@@ -50,44 +59,48 @@ rows:
           title: Memory usage - $ds
           datasource: $ds
           transparent: true
-          span: 4
           targets:
             - prometheus:
-                query: avg(kube_pod_container_resource_limits{container="wonderwall",resource="memory"}) by (namespace)
-                legend: "limits in {{ namespace }}"
-            - prometheus:
-                query: avg(kube_pod_container_resource_requests{container="wonderwall",resource="memory"}) by (namespace)
-                legend: "requests in {{ namespace }}"
-            - prometheus:
-                query: sum(container_memory_working_set_bytes{container="wonderwall"}) by (pod, namespace)
+                query: sum(container_memory_working_set_bytes{container="wonderwall",namespace=~"$namespace"}) by (pod, namespace)
                 legend: "working set {{ pod }} in {{ namespace }}"
             - prometheus:
-                query: sum(container_memory_usage_bytes{container="wonderwall"}) by (pod, namespace)
+                query: sum(container_memory_usage_bytes{container="wonderwall",namespace=~"$namespace"}) by (pod, namespace)
                 legend: "Resident set size {{ pod }} in {{ namespace }}"
       - graph:
           title: CPU usage - $ds
           datasource: $ds
           transparent: true
-          span: 4
           targets:
             - prometheus:
-                query: avg(kube_pod_container_resource_limits{container="wonderwall",resource="cpu"}) by (namespace)
-                legend: "limits in {{ namespace }}"
-            - prometheus:
-                query: avg(kube_pod_container_resource_requests{container="wonderwall",resource="cpu"}) by (namespace)
-                legend: "requests in {{ namespace }}"
-            - prometheus:
-                query: sum(irate(container_cpu_usage_seconds_total{container="wonderwall"}[2m])) by (pod, namespace)
+                query: sum(irate(container_cpu_usage_seconds_total{container="wonderwall",namespace=~"$namespace"}[2m])) by (pod, namespace)
                 legend: "{{ pod }} in {{ namespace }}"
-  - name: Redis Latency - $redis_op
-    repeat_for: redis_op
-    collapse: true
+  - name: HTTP
+    collapse: false
+    panels:
+      - graph:
+          title: HTTP requests
+          datasource: $ds
+          transparent: true
+          targets:
+            - prometheus:
+                query: sum(rate(requests_total{job="wonderwall",namespace=~"$namespace"}[5m])) by (code)
+                legend: "{{ code }}"
+      - graph:
+          title: HTTP latency
+          datasource: $ds
+          transparent: true
+          targets:
+            - prometheus:
+                query: sum(irate(request_duration_seconds_sum{job="wonderwall",namespace=~"$namespace"}[2m])) by (path)
+                legend: "{{ path }}"
+  - name: Redis Latency
+    collapse: false
     panels:
       - heatmap:
           # Must be done manually in Grafana after import: Set max datapoints to 25
-          title: $ds
+          title: $redis_op
           datasource: $ds
-          repeat: ds
+          repeat: redis_op
           data_format: time_series_buckets
           hide_zero_buckets: true
           transparent: true
@@ -101,6 +114,6 @@ rows:
             decimals: 0
           targets:
             - prometheus:
-                query: sum(increase(wonderwall_redis_latency_bucket{operation="$redis_op"}[$__interval])) by (le)
+                query: sum(increase(wonderwall_redis_latency_bucket{operation="$redis_op",namespace=~"$namespace"}[$__interval])) by (le)
                 legend: "{{ le }}"
                 format: heatmap

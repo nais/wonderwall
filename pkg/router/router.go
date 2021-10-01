@@ -387,10 +387,9 @@ func New(handler *Handler, prefixes []string) chi.Router {
 	r := chi.NewRouter()
 	mm := middleware.PrometheusMiddleware("wonderwall")
 
-	r.Use(mm.Handler())
-
 	for _, prefix := range prefixes {
 		r.Route(prefix+"/oauth2", func(r chi.Router) {
+			r.Use(mm.Handler())
 			r.Use(chi_middleware.NoCache)
 			r.Get("/login", handler.Login)
 			r.Get("/callback", handler.Callback)

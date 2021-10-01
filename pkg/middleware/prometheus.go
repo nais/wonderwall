@@ -18,7 +18,7 @@ var (
 
 const (
 	reqsName    = "requests_total"
-	latencyName = "request_duration_ms"
+	latencyName = "request_duration_seconds"
 )
 
 type middleware func(http.Handler) http.Handler
