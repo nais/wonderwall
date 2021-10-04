@@ -11,8 +11,8 @@ import (
 const (
 	LoginCookieLifetime = 10 * time.Minute
 
-	SessionCookieNameTemplate = "io.nais.wonderwall.%s.session"
-	LoginCookieNameTemplate   = "io.nais.wonderwall.%s.callback"
+	SessionCookieNameTemplate = "io.nais.wonderwall.session"
+	LoginCookieNameTemplate   = "io.nais.wonderwall.callback"
 )
 
 type Cookie struct {
@@ -29,11 +29,11 @@ type LoginCookie struct {
 }
 
 func (h *Handler) GetLoginCookieName() string {
-	return fmt.Sprintf(LoginCookieNameTemplate, h.Config.ClientID)
+	return LoginCookieNameTemplate
 }
 
 func (h *Handler) GetSessionCookieName() string {
-	return fmt.Sprintf(SessionCookieNameTemplate, h.Config.ClientID)
+	return SessionCookieNameTemplate
 }
 
 func (h *Handler) getLoginCookie(w http.ResponseWriter, r *http.Request) (*LoginCookie, error) {
