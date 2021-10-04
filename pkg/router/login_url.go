@@ -1,12 +1,18 @@
 package router
 
 import (
+	"errors"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/auth"
-	error2 "github.com/nais/wonderwall/pkg/errorhandler"
-	"github.com/nais/wonderwall/pkg/token"
 	"net/http"
 	"net/url"
+
+	"github.com/nais/wonderwall/pkg/auth"
+	"github.com/nais/wonderwall/pkg/token"
+)
+
+var (
+	InvalidSecurityLevelError = errors.New("InvalidSecurityLevel")
+	InvalidLocaleError        = errors.New("InvalidLocale")
 )
 
 func (h *Handler) LoginURL(r *http.Request, params *auth.Parameters) (string, error) {
@@ -28,12 +34,12 @@ func (h *Handler) LoginURL(r *http.Request, params *auth.Parameters) (string, er
 
 	err = h.withSecurityLevel(r, v)
 	if err != nil {
-		return "", fmt.Errorf("%w: %+v", error2.InvalidSecurityLevelError, err)
+		return "", fmt.Errorf("%w: %+v", InvalidSecurityLevelError, err)
 	}
 
 	err = h.withLocale(r, v)
 	if err != nil {
-		return "", fmt.Errorf("%w: %+v", error2.InvalidLocaleError, err)
+		return "", fmt.Errorf("%w: %+v", InvalidLocaleError, err)
 	}
 
 	u.RawQuery = v.Encode()

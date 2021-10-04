@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/mock"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -111,7 +112,7 @@ func TestHandler_Login(t *testing.T) {
 		return http.ErrUseLastResponse
 	}
 
-	idprouter := idportenRouter(NewIDPorten(clients, cfg))
+	idprouter := mock.IDPortenRouter(mock.NewIDPorten(clients, cfg))
 	idpserver := httptest.NewServer(idprouter)
 
 	h.Config.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
@@ -156,7 +157,7 @@ func TestHandler_Login(t *testing.T) {
 func TestHandler_Callback_and_Logout(t *testing.T) {
 	cfg := defaultConfig()
 
-	idprouter := idportenRouter(NewIDPorten(clients, cfg))
+	idprouter := mock.IDPortenRouter(mock.NewIDPorten(clients, cfg))
 	idpserver := httptest.NewServer(idprouter)
 	cfg.WellKnown.JwksURI = idpserver.URL + "/jwks"
 	cfg.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
@@ -251,8 +252,8 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 func TestHandler_FrontChannelLogout(t *testing.T) {
 	cfg := defaultConfig()
 
-	idp := NewIDPorten(clients, cfg)
-	idprouter := idportenRouter(idp)
+	idp := mock.NewIDPorten(clients, cfg)
+	idprouter := mock.IDPortenRouter(idp)
 	idpserver := httptest.NewServer(idprouter)
 
 	cfg.WellKnown.JwksURI = idpserver.URL + "/jwks"

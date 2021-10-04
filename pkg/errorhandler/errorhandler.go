@@ -1,15 +1,9 @@
 package errorhandler
 
 import (
-	"errors"
 	"github.com/nais/wonderwall/pkg/middleware"
 	log "github.com/sirupsen/logrus"
 	"net/http"
-)
-
-var (
-	InvalidSecurityLevelError = errors.New("InvalidSecurityLevel")
-	InvalidLocaleError        = errors.New("InvalidLocale")
 )
 
 func respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error) {

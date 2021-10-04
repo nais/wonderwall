@@ -3,7 +3,7 @@ package router_test
 import (
 	"errors"
 	"github.com/nais/wonderwall/pkg/auth"
-	error2 "github.com/nais/wonderwall/pkg/errorhandler"
+	"github.com/nais/wonderwall/pkg/router"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
@@ -26,7 +26,7 @@ func TestLoginURL(t *testing.T) {
 		},
 		{
 			url:   "http://localhost:1234/oauth2/login?level=NoLevel",
-			error: error2.InvalidSecurityLevelError,
+			error: router.InvalidSecurityLevelError,
 		},
 		{
 			url:   "http://localhost:1234/oauth2/login?locale=nb",
@@ -38,7 +38,7 @@ func TestLoginURL(t *testing.T) {
 		},
 		{
 			url:   "http://localhost:1234/oauth2/login?locale=es",
-			error: error2.InvalidLocaleError,
+			error: router.InvalidLocaleError,
 		},
 	}
 

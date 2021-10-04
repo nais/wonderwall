@@ -1,4 +1,4 @@
-package router_test
+package mock
 
 import (
 	"crypto/rand"
@@ -208,7 +208,7 @@ func (ip *IDPorten) Jwks(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(publicSet)
 }
 
-func idportenRouter(ip *IDPorten) chi.Router {
+func IDPortenRouter(ip *IDPorten) chi.Router {
 	r := chi.NewRouter()
 	r.Get("/authorize", ip.Authorize)
 	r.Post("/token", ip.Token)
