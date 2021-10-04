@@ -1,7 +1,7 @@
 // This code was originally written by Rene Zbinden and modified by Vladimir Konovalov.
 // Copied from https://github.com/766b/chi-prometheus and further adapted.
 
-package middleware
+package prometheus
 
 import (
 	"net/http"
@@ -31,7 +31,7 @@ type Middleware struct {
 }
 
 // NewMiddleware returns a new prometheus Middleware handler.
-func PrometheusMiddleware(name string, buckets ...float64) *Middleware {
+func NewMiddleware(name string, buckets ...float64) *Middleware {
 	var m Middleware
 	m.reqs = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
