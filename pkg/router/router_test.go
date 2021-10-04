@@ -6,9 +6,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/auth"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -94,60 +92,6 @@ func handler(cfg config.IDPorten) *router.Handler {
 		panic(err)
 	}
 	return handler.WithSecureCookie(false)
-}
-
-func TestLoginURL(t *testing.T) {
-	type loginURLTest struct {
-		url   string
-		error error
-	}
-
-	tests := []loginURLTest{
-		{
-			url:   "http://localhost:1234/oauth2/login?level=Level4",
-			error: nil,
-		},
-		{
-			url:   "http://localhost:1234/oauth2/login",
-			error: nil,
-		},
-		{
-			url:   "http://localhost:1234/oauth2/login?level=NoLevel",
-			error: router.InvalidSecurityLevelError,
-		},
-		{
-			url:   "http://localhost:1234/oauth2/login?locale=nb",
-			error: nil,
-		},
-		{
-			url:   "http://localhost:1234/oauth2/login?level=Level4&locale=nb",
-			error: nil,
-		},
-		{
-			url:   "http://localhost:1234/oauth2/login?locale=es",
-			error: router.InvalidLocaleError,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.url, func(t *testing.T) {
-			cfg := defaultConfig()
-			req, err := http.NewRequest("GET", test.url, nil)
-			assert.NoError(t, err)
-
-			params, err := auth.GenerateLoginParameters()
-			assert.NoError(t, err)
-
-			handler := handler(cfg)
-			_, err = handler.LoginURL(req, params)
-
-			if test.error != nil {
-				assert.True(t, errors.Is(err, test.error))
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
 }
 
 func TestHandler_Login(t *testing.T) {
