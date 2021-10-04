@@ -30,10 +30,15 @@ func (h *Handler) getSessionFromCookie(r *http.Request) (*session.Data, error) {
 	encryptedSessionData, err := h.Sessions.Read(r.Context(), sessionID)
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			// TODO: attempt to fetch encrypted data from fallback session cookie (if set)
+			return nil, fmt.Errorf("session not found in store: %w", err)
 		}
 
-		return nil, fmt.Errorf("reading session from store: %w", err)
+		fallbackSessionData, err := h.GetSessionFallback(r)
+		if err != nil {
+			return nil, fmt.Errorf("fallback session not found: %w", err)
+		}
+
+		return fallbackSessionData, nil
 	}
 
 	sessionData, err := encryptedSessionData.Decrypt(h.Crypter)
@@ -47,12 +52,12 @@ func (h *Handler) getSessionFromCookie(r *http.Request) (*session.Data, error) {
 func (h *Handler) getSessionLifetime(accessToken string) (time.Duration, error) {
 	defaultSessionLifetime := h.Config.SessionMaxLifetime
 
-	token, err := jwt.Parse([]byte(accessToken))
+	tok, err := jwt.Parse([]byte(accessToken))
 	if err != nil {
 		return 0, err
 	}
 
-	tokenDuration := token.Expiration().Sub(time.Now())
+	tokenDuration := tok.Expiration().Sub(time.Now())
 
 	if tokenDuration <= defaultSessionLifetime {
 		return tokenDuration, nil
@@ -74,11 +79,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 		return fmt.Errorf("setting session cookie: %w", err)
 	}
 
-	sessionData := &session.Data{
-		ExternalSessionID: externalSessionID,
-		OAuth2Token:       tokens,
-		IDTokenSerialized: idToken.Raw,
-	}
+	sessionData := session.NewData(externalSessionID, tokens.AccessToken, idToken.Raw)
 
 	encryptedSessionData, err := sessionData.Encrypt(h.Crypter)
 	if err != nil {
@@ -86,47 +87,23 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 	}
 
 	err = h.Sessions.Write(r.Context(), sessionID, encryptedSessionData, sessionLifetime)
-	if err != nil {
-		// TODO: fallback to writing encrypted session data to cookie
-
-		return fmt.Errorf("writing session to store: %w", err)
+	if err == nil {
+		return nil
 	}
 
+	err = h.SetSessionFallback(w, sessionData, sessionLifetime)
+	if err != nil {
+		return fmt.Errorf("writing session to fallback store: %w", err)
+	}
 	return nil
 }
 
-func (h *Handler) getAccessTokenFromSession(r *http.Request, sessionID string) (jwt.Token, error) {
-	encryptedSession, err := h.Sessions.Read(r.Context(), sessionID)
-	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			// Session not found; ignoring
-			return nil, nil
-		}
-
-		// TODO: fetch from fallback session cookie (if set)
-		return nil, fmt.Errorf("fetching session from store: %w", err)
-	}
-
-	sessionData, err := encryptedSession.Decrypt(h.Crypter)
-	if err != nil {
-		// Can't decrypt, likely not our session; ignoring
-		return nil, nil
-	}
-
-	accessToken, err := jwt.Parse([]byte(sessionData.OAuth2Token.AccessToken))
-	if err != nil {
-		return nil, fmt.Errorf("parsing session access token: %w", err)
-	}
-
-	return accessToken, nil
-}
-
-func (h *Handler) destroySession(r *http.Request, sessionID string) error {
+func (h *Handler) destroySession(w http.ResponseWriter, r *http.Request, sessionID string) error {
 	err := h.Sessions.Delete(r.Context(), sessionID)
 	if err != nil {
 		return fmt.Errorf("deleting session from store: %w", err)
 	}
 
-	// TODO: delete fallback session cookie (if set)
+	h.DeleteSessionFallback(w)
 	return nil
 }

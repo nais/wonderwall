@@ -281,9 +281,9 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	upstreamRequest.Header.Del("x-pwned-by")
 
 	sess, err := h.getSessionFromCookie(r)
-	if err == nil && sess != nil && sess.OAuth2Token != nil {
+	if err == nil && sess != nil && len(sess.AccessToken) > 0 {
 		// add authentication if session cookie and token checks out
-		upstreamRequest.Header.Add("authorization", "Bearer "+sess.OAuth2Token.AccessToken)
+		upstreamRequest.Header.Add("authorization", "Bearer "+sess.AccessToken)
 		upstreamRequest.Header.Add("x-pwned-by", "wonderwall") // todo: request id for tracing
 	}
 
@@ -336,9 +336,9 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	var idToken string
 
 	sess, err := h.getSessionFromCookie(r)
-	if err == nil && sess != nil && sess.OAuth2Token != nil {
-		idToken = sess.IDTokenSerialized
-		err = h.destroySession(r, h.localSessionID(sess.ExternalSessionID))
+	if err == nil && sess != nil {
+		idToken = sess.IDToken
+		err = h.destroySession(w, r, h.localSessionID(sess.ExternalSessionID))
 		if err != nil {
 			log.Error(err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -373,7 +373,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 
 	sessionID := h.localSessionID(sid)
 
-	err := h.destroySession(r, sessionID)
+	err := h.destroySession(w, r, sessionID)
 	if err != nil {
 		log.Error(err)
 		// Session is already destroyed at the OP and is highly unlikely to be used again.

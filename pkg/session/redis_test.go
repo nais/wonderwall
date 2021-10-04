@@ -11,10 +11,8 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/oauth2"
-
 	"github.com/nais/wonderwall/pkg/session"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRedis(t *testing.T) {
@@ -22,13 +20,7 @@ func TestRedis(t *testing.T) {
 	assert.NoError(t, err)
 	crypter := cryptutil.New(key)
 
-	data := &session.Data{
-		ExternalSessionID: "myid",
-		OAuth2Token: &oauth2.Token{
-			AccessToken: "axx",
-		},
-		IDTokenSerialized: "idtoken",
-	}
+	data := session.NewData("myid", "accesstoken", "idtoken")
 
 	encryptedData, err := data.Encrypt(crypter)
 	assert.NoError(t, err)

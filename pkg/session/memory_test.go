@@ -7,10 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/oauth2"
-
 	"github.com/nais/wonderwall/pkg/session"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMemory(t *testing.T) {
@@ -18,13 +16,7 @@ func TestMemory(t *testing.T) {
 	assert.NoError(t, err)
 	crypter := cryptutil.New(key)
 
-	data := &session.Data{
-		ExternalSessionID: "myid",
-		OAuth2Token: &oauth2.Token{
-			AccessToken: "axx",
-		},
-		IDTokenSerialized: "idtoken",
-	}
+	data := session.NewData("myid", "accesstoken", "idtoken")
 
 	encryptedData, err := data.Encrypt(crypter)
 	assert.NoError(t, err)

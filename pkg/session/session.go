@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"github.com/nais/wonderwall/pkg/cryptutil"
 	"time"
-
-	"golang.org/x/oauth2"
 )
 
 type Store interface {
@@ -53,9 +51,17 @@ func (in *EncryptedData) Decrypt(crypter cryptutil.Crypter) (*Data, error) {
 }
 
 type Data struct {
-	ExternalSessionID string        `json:"external_session_id"`
-	OAuth2Token       *oauth2.Token `json:"oauth2_token"`
-	IDTokenSerialized string        `json:"id_token_serialized"`
+	ExternalSessionID string `json:"external_session_id"`
+	AccessToken       string `json:"access_token"`
+	IDToken           string `json:"id_token"`
+}
+
+func NewData(externalSessionID, accessToken, idToken string) *Data {
+	return &Data{
+		ExternalSessionID: externalSessionID,
+		AccessToken:       accessToken,
+		IDToken:           idToken,
+	}
 }
 
 func (in *Data) Encrypt(crypter cryptutil.Crypter) (*EncryptedData, error) {
