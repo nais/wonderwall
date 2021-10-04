@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/middleware/correlationid"
-	"github.com/nais/wonderwall/pkg/middleware/prometheus"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,6 +14,7 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cryptutil"
 	"github.com/nais/wonderwall/pkg/errorhandler"
+	"github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/token"
 
@@ -296,12 +295,12 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 
 func New(handler *Handler, prefixes []string) chi.Router {
 	r := chi.NewRouter()
-	prometheusMiddleware := prometheus.NewMiddleware("wonderwall")
+	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall")
 
 	for _, prefix := range prefixes {
 		r.Route(prefix+"/oauth2", func(r chi.Router) {
-			r.Use(prometheusMiddleware.Handler())
-			r.Use(correlationid.Handler)
+			r.Use(prometheusMiddleware.Handler)
+			r.Use(middleware.CorrelationIDHandler)
 			r.Use(chi_middleware.NoCache)
 			r.Get("/login", handler.Login)
 			r.Get("/callback", handler.Callback)

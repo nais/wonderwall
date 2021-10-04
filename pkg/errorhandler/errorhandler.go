@@ -2,7 +2,7 @@ package errorhandler
 
 import (
 	"errors"
-	"github.com/nais/wonderwall/pkg/middleware/correlationid"
+	"github.com/nais/wonderwall/pkg/middleware"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 )
@@ -13,7 +13,7 @@ var (
 )
 
 func respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error) {
-	id, ok := correlationid.GetFromContext(r.Context())
+	id, ok := middleware.GetCorrelationID(r.Context())
 	if !ok {
 		log.Warnf("no correlation id in context")
 	}
