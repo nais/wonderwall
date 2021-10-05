@@ -10,6 +10,7 @@ require (
 	github.com/lestrrat-go/jwx v1.2.7
 	github.com/nais/liberator v0.0.0-20210809103005-edb0141d646d
 	github.com/prometheus/client_golang v1.0.0
+	github.com/rs/zerolog v1.18.1-0.20200514152719-663cbb4c8469
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.8.1
@@ -43,7 +44,6 @@ require (
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect
 	github.com/prometheus/common v0.4.1 // indirect
 	github.com/prometheus/procfs v0.0.2 // indirect
-	github.com/rs/zerolog v1.18.1-0.20200514152719-663cbb4c8469 // indirect
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
