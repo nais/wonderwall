@@ -12,4 +12,5 @@ FROM alpine:3
 RUN export PATH=$PATH:/app
 WORKDIR /app
 COPY --from=builder /src/bin/wonderwall /app/wonderwall
+COPY --from=builder /src/templates /app/templates/
 ENTRYPOINT ["/app/wonderwall"]

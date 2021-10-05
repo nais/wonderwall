@@ -9,7 +9,7 @@ import (
 
 func NewHttpLogger(cfg *config.Config) zerolog.Logger {
 	opts := httplog.Options{
-		Concise: true,
+		Concise:  true,
 		LogLevel: "warn",
 	}
 

@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	RedirectURLParameter           = "redirect"
 	SecurityLevelURLParameter      = "level"
 	LocaleURLParameter             = "locale"
 	PostLogoutRedirectURIParameter = "post_logout_redirect_uri"

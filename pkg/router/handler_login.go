@@ -3,6 +3,7 @@ package router
 import (
 	"errors"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/url"
 	"net/http"
 
 	"github.com/nais/wonderwall/pkg/auth"
@@ -33,7 +34,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		State:        params.State,
 		Nonce:        params.Nonce,
 		CodeVerifier: params.CodeVerifier,
-		Referer:      CanonicalRedirectURL(r),
+		Referer:      url.CanonicalRedirectURL(r),
 	})
 	if err != nil {
 		errorhandler.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))

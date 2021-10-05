@@ -3,3 +3,4 @@ run.sh
 .vscode/
 .idea
 *.iml
+.env
