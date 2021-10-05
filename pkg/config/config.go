@@ -3,9 +3,8 @@ package config
 import (
 	"time"
 
-	flag "github.com/spf13/pflag"
-
 	"github.com/nais/liberator/pkg/conftools"
+	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	"github.com/nais/wonderwall/pkg/token"
@@ -79,7 +78,7 @@ func Initialize() *Config {
 	conftools.Initialize("wonderwall")
 	bindNAIS()
 
-	flag.String(LogFormat, "text", "Log format, either 'json' or 'text'.")
+	flag.String(LogFormat, "json", "Log format, either 'json' or 'text'.")
 	flag.String(LogLevel, "debug", "Logging verbosity level.")
 	flag.String(BindAddress, "127.0.0.1:8090", "Listen address for public connections.")
 	flag.String(MetricsBindAddress, "127.0.0.1:8091", "Listen address for metrics only.")

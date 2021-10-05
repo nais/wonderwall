@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/rs/zerolog"
 	"sync"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -27,9 +28,17 @@ type Handler struct {
 	UpstreamHost  string
 	jwkSet        jwk.Set
 	lock          sync.Mutex
+	httplogger    zerolog.Logger
 }
 
-func NewHandler(cfg config.IDPorten, crypter cryptutil.Crypter, jwkSet jwk.Set, sessionStore session.Store, upstreamHost string) (*Handler, error) {
+func NewHandler(
+	cfg config.IDPorten,
+	crypter cryptutil.Crypter,
+	httplogger zerolog.Logger,
+	jwkSet jwk.Set,
+	sessionStore session.Store,
+	upstreamHost string,
+) (*Handler, error) {
 	oauthConfig := oauth2.Config{
 		ClientID: cfg.ClientID,
 		Endpoint: oauth2.Endpoint{
@@ -43,6 +52,7 @@ func NewHandler(cfg config.IDPorten, crypter cryptutil.Crypter, jwkSet jwk.Set, 
 	return &Handler{
 		Config:        cfg,
 		Crypter:       crypter,
+		httplogger:    httplogger,
 		jwkSet:        jwkSet,
 		lock:          sync.Mutex{},
 		OauthConfig:   oauthConfig,

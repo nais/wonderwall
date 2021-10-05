@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/mock"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -16,10 +15,12 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cryptutil"
+	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -88,7 +89,7 @@ func handler(cfg config.IDPorten) *router.Handler {
 	crypter := cryptutil.New(encryptionKey)
 	sessionStore := session.NewMemory()
 
-	handler, err := router.NewHandler(cfg, crypter, jwkSet, sessionStore, "")
+	handler, err := router.NewHandler(cfg, crypter, zerolog.Logger{}, jwkSet, sessionStore, "")
 	if err != nil {
 		panic(err)
 	}

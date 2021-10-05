@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/go-chi/chi"
-	"github.com/nais/wonderwall/pkg/metrics"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-redis/redis/v8"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nais/liberator/pkg/conftools"
@@ -21,6 +20,7 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cryptutil"
 	"github.com/nais/wonderwall/pkg/logging"
+	"github.com/nais/wonderwall/pkg/metrics"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -94,7 +94,8 @@ func run() error {
 		return fmt.Errorf("fetching jwks: %w", err)
 	}
 
-	handler, err := router.NewHandler(cfg.IDPorten, crypt, jwkSet, sessionStore, cfg.UpstreamHost)
+	httplogger := logging.NewHttpLogger(cfg)
+	handler, err := router.NewHandler(cfg.IDPorten, crypt, httplogger, jwkSet, sessionStore, cfg.UpstreamHost)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}

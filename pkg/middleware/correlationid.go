@@ -2,22 +2,18 @@ package middleware
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"net/http"
+
+	chi_middleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 )
-
-// contextKey is the type of contextKeys used for correlation IDs.
-type contextKey struct{}
-
-func GetCorrelationID(ctx context.Context) (string, bool) {
-	id, ok := ctx.Value(contextKey{}).(string)
-	return id, ok
-}
 
 func CorrelationIDHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		id := uuid.New().String()
+
 		ctx := r.Context()
-		ctx = context.WithValue(ctx, contextKey{}, uuid.New().String())
+		ctx = context.WithValue(ctx, chi_middleware.RequestIDKey, id)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)

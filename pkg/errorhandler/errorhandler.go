@@ -1,22 +1,14 @@
 package errorhandler
 
 import (
-	"github.com/nais/wonderwall/pkg/middleware"
-	log "github.com/sirupsen/logrus"
 	"net/http"
+
+	"github.com/go-chi/httplog"
 )
 
 func respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error) {
-	id, ok := middleware.GetCorrelationID(r.Context())
-	if !ok {
-		log.Warnf("no correlation id in context")
-	}
-
-	logFields := log.Fields{
-		"correlation_id": id,
-	}
-
-	log.WithFields(logFields).Error(cause)
+	logger := httplog.LogEntry(r.Context())
+	logger.Error().Stack().Err(cause).Msgf("error in route: %+v", cause)
 	w.WriteHeader(statusCode)
 }
 
