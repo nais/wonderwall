@@ -37,7 +37,6 @@ func (h *Handler) GetSessionCookieName() string {
 }
 
 func (h *Handler) getLoginCookie(w http.ResponseWriter, r *http.Request) (*LoginCookie, error) {
-	return nil, fmt.Errorf("Feiltest")
 	loginCookieJson, err := h.getEncryptedCookie(r, h.GetLoginCookieName())
 	if err != nil {
 		return nil, err
