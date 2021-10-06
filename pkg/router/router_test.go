@@ -33,7 +33,7 @@ var clients = map[string]string{
 	clientID: "http://localhost/oauth2/logout/frontchannel",
 }
 
-func defaultConfig() config.IDPorten {
+func defaultConfig() config.Config {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic(err)
@@ -49,7 +49,7 @@ func defaultConfig() config.IDPorten {
 		panic(err)
 	}
 
-	return config.IDPorten{
+	return config.Config{IDPorten: config.IDPorten{
 		ClientID:     clientID,
 		ClientJWK:    string(clientJwk),
 		RedirectURI:  "http://localhost/callback",
@@ -70,17 +70,17 @@ func defaultConfig() config.IDPorten {
 		},
 		PostLogoutRedirectURI: "",
 		SessionMaxLifetime:    time.Hour,
-	}
+	}}
 }
 
-func handler(cfg config.IDPorten) *router.Handler {
+func handler(cfg config.Config) *router.Handler {
 	var jwkSet jwk.Set
 	var err error
 
-	if len(cfg.WellKnown.JwksURI) == 0 {
+	if len(cfg.IDPorten.WellKnown.JwksURI) == 0 {
 		jwk.NewSet()
 	} else {
-		jwkSet, err = jwk.Fetch(context.Background(), cfg.WellKnown.JwksURI)
+		jwkSet, err = jwk.Fetch(context.Background(), cfg.IDPorten.WellKnown.JwksURI)
 	}
 	if err != nil {
 		panic(err)
@@ -113,10 +113,10 @@ func TestHandler_Login(t *testing.T) {
 		return http.ErrUseLastResponse
 	}
 
-	idprouter := mock.IDPortenRouter(mock.NewIDPorten(clients, cfg))
+	idprouter := mock.IDPortenRouter(mock.NewIDPorten(clients, cfg.IDPorten))
 	idpserver := httptest.NewServer(idprouter)
 
-	h.Config.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
+	h.Config.IDPorten.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
 
 	loginURL, err := url.Parse(server.URL + "/oauth2/login")
 	assert.NoError(t, err)
@@ -135,10 +135,10 @@ func TestHandler_Login(t *testing.T) {
 
 	assert.Equal(t, idpserver.URL, fmt.Sprintf("%s://%s", u.Scheme, u.Host))
 	assert.Equal(t, "/authorize", u.Path)
-	assert.Equal(t, cfg.SecurityLevel.Value, u.Query().Get("acr_values"))
-	assert.Equal(t, cfg.Locale.Value, u.Query().Get("ui_locales"))
-	assert.Equal(t, cfg.ClientID, u.Query().Get("client_id"))
-	assert.Equal(t, cfg.RedirectURI, u.Query().Get("redirect_uri"))
+	assert.Equal(t, cfg.IDPorten.SecurityLevel.Value, u.Query().Get("acr_values"))
+	assert.Equal(t, cfg.IDPorten.Locale.Value, u.Query().Get("ui_locales"))
+	assert.Equal(t, cfg.IDPorten.ClientID, u.Query().Get("client_id"))
+	assert.Equal(t, cfg.IDPorten.RedirectURI, u.Query().Get("redirect_uri"))
 	assert.NotEmpty(t, u.Query().Get("state"))
 	assert.NotEmpty(t, u.Query().Get("nonce"))
 	assert.NotEmpty(t, u.Query().Get("code_challenge"))
@@ -158,20 +158,20 @@ func TestHandler_Login(t *testing.T) {
 func TestHandler_Callback_and_Logout(t *testing.T) {
 	cfg := defaultConfig()
 
-	idprouter := mock.IDPortenRouter(mock.NewIDPorten(clients, cfg))
+	idprouter := mock.IDPortenRouter(mock.NewIDPorten(clients, cfg.IDPorten))
 	idpserver := httptest.NewServer(idprouter)
-	cfg.WellKnown.JwksURI = idpserver.URL + "/jwks"
-	cfg.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
-	cfg.WellKnown.TokenEndpoint = idpserver.URL + "/token"
-	cfg.WellKnown.EndSessionEndpoint = idpserver.URL + "/endsession"
+	cfg.IDPorten.WellKnown.JwksURI = idpserver.URL + "/jwks"
+	cfg.IDPorten.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
+	cfg.IDPorten.WellKnown.TokenEndpoint = idpserver.URL + "/token"
+	cfg.IDPorten.WellKnown.EndSessionEndpoint = idpserver.URL + "/endsession"
 
 	h := handler(cfg)
 	prefixes := config.ParseIngresses([]string{""})
 	r := router.New(h, prefixes)
 	server := httptest.NewServer(r)
 
-	h.Config.RedirectURI = server.URL + "/oauth2/callback"
-	h.Config.PostLogoutRedirectURI = server.URL
+	h.Config.IDPorten.RedirectURI = server.URL + "/oauth2/callback"
+	h.Config.IDPorten.PostLogoutRedirectURI = server.URL
 
 	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)
@@ -246,28 +246,28 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 
 	assert.Equal(t, idpserverURL.Host, endsessionURL.Host)
 	assert.Equal(t, "/endsession", endsessionURL.Path)
-	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{h.Config.PostLogoutRedirectURI})
+	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{h.Config.IDPorten.PostLogoutRedirectURI})
 	assert.NotEmpty(t, endsessionParams["id_token_hint"])
 }
 
 func TestHandler_FrontChannelLogout(t *testing.T) {
 	cfg := defaultConfig()
 
-	idp := mock.NewIDPorten(clients, cfg)
+	idp := mock.NewIDPorten(clients, cfg.IDPorten)
 	idprouter := mock.IDPortenRouter(idp)
 	idpserver := httptest.NewServer(idprouter)
 
-	cfg.WellKnown.JwksURI = idpserver.URL + "/jwks"
-	cfg.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
-	cfg.WellKnown.TokenEndpoint = idpserver.URL + "/token"
+	cfg.IDPorten.WellKnown.JwksURI = idpserver.URL + "/jwks"
+	cfg.IDPorten.WellKnown.AuthorizationEndpoint = idpserver.URL + "/authorize"
+	cfg.IDPorten.WellKnown.TokenEndpoint = idpserver.URL + "/token"
 
 	h := handler(cfg)
 	prefixes := config.ParseIngresses([]string{""})
 	r := router.New(h, prefixes)
 	server := httptest.NewServer(r)
 
-	h.Config.RedirectURI = server.URL + "/oauth2/callback"
-	h.Config.PostLogoutRedirectURI = server.URL
+	h.Config.IDPorten.RedirectURI = server.URL + "/oauth2/callback"
+	h.Config.IDPorten.PostLogoutRedirectURI = server.URL
 
 	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)
@@ -321,7 +321,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 
 	values := url.Values{}
 	values.Add("sid", string(sid))
-	values.Add("iss", h.Config.WellKnown.Issuer)
+	values.Add("iss", h.Config.IDPorten.WellKnown.Issuer)
 	frontchannelLogoutURL.RawQuery = values.Encode()
 
 	req, err = client.Get(frontchannelLogoutURL.String())

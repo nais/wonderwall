@@ -5,8 +5,6 @@ import (
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
-
-	"github.com/nais/wonderwall/pkg/errorhandler"
 )
 
 // FrontChannelLogout triggers logout triggered by a third-party.
@@ -16,7 +14,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	sid := params.Get("sid")
 
 	if len(sid) == 0 {
-		errorhandler.BadRequest(w, r, fmt.Errorf("front-channel logout: sid not set in query parameter"))
+		h.BadRequest(w, r, fmt.Errorf("front-channel logout: sid not set in query parameter"))
 		return
 	}
 

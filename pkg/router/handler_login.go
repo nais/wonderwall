@@ -7,13 +7,12 @@ import (
 	"net/http"
 
 	"github.com/nais/wonderwall/pkg/auth"
-	"github.com/nais/wonderwall/pkg/errorhandler"
 )
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	params, err := auth.GenerateLoginParameters()
 	if err != nil {
-		errorhandler.InternalError(w, r, fmt.Errorf("login: generating login parameters: %w", err))
+		h.InternalError(w, r, fmt.Errorf("login: generating login parameters: %w", err))
 		return
 	}
 
@@ -22,9 +21,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		cause := fmt.Errorf("login: creating login URL: %w", err)
 
 		if errors.Is(err, InvalidSecurityLevelError) || errors.Is(err, InvalidLocaleError) {
-			errorhandler.BadRequest(w, r, cause)
+			h.BadRequest(w, r, cause)
 		} else {
-			errorhandler.InternalError(w, r, cause)
+			h.InternalError(w, r, cause)
 		}
 
 		return
@@ -37,7 +36,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		Referer:      request.CanonicalRedirectURL(r),
 	})
 	if err != nil {
-		errorhandler.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
+		h.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
 		return
 	}
 

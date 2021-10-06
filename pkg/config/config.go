@@ -1,13 +1,11 @@
 package config
 
 import (
-	"time"
-
 	"github.com/nais/liberator/pkg/conftools"
+	"github.com/nais/wonderwall/pkg/token"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	"github.com/nais/wonderwall/pkg/token"
+	"time"
 )
 
 type Config struct {
@@ -20,6 +18,7 @@ type Config struct {
 	LogLevel           string   `json:"log-level"`
 	Redis              string   `json:"redis"`
 	Ingresses          []string `json:"ingresses"`
+	ErrorRedirectURI   string   `json:"error-redirect-uri"`
 }
 
 type IDPorten struct {
@@ -65,6 +64,7 @@ const (
 	IDPortenPostLogoutRedirectURI = "idporten.post-logout-redirect-uri"
 	IDPortenScopes                = "idporten.scopes"
 	IDPortenSessionMaxLifetime    = "idporten.session-max-lifetime"
+	ErrorRedirectURI              = "error-redirect-uri"
 )
 
 func bindNAIS() {
@@ -93,6 +93,7 @@ func Initialize() *Config {
 	flag.StringSlice(IDPortenScopes, []string{token.ScopeOpenID}, "List of scopes that should be used during the Auth Code flow.")
 	flag.Duration(IDPortenSessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 	flag.StringSlice(Ingresses, []string{"/"}, "Ingresses used to access the main application.")
+	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
 
 	return &Config{}
 }

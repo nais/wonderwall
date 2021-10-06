@@ -18,7 +18,7 @@ import (
 // Thus, we cannot assume that the value of `sid` to uniquely identify the pair of (user, application session)
 // if using a shared session store.
 func (h *Handler) localSessionID(sid string) string {
-	return fmt.Sprintf("%s-%s", h.Config.ClientID, sid)
+	return fmt.Sprintf("%s-%s", h.Config.IDPorten.ClientID, sid)
 }
 
 func (h *Handler) getSessionFromCookie(r *http.Request) (*session.Data, error) {
@@ -50,7 +50,7 @@ func (h *Handler) getSessionFromCookie(r *http.Request) (*session.Data, error) {
 }
 
 func (h *Handler) getSessionLifetime(accessToken string) (time.Duration, error) {
-	defaultSessionLifetime := h.Config.SessionMaxLifetime
+	defaultSessionLifetime := h.Config.IDPorten.SessionMaxLifetime
 
 	tok, err := jwt.Parse([]byte(accessToken))
 	if err != nil {

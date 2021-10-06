@@ -17,15 +17,15 @@ var (
 )
 
 func (h *Handler) LoginURL(r *http.Request, params *auth.Parameters) (string, error) {
-	u, err := url.Parse(h.Config.WellKnown.AuthorizationEndpoint)
+	u, err := url.Parse(h.Config.IDPorten.WellKnown.AuthorizationEndpoint)
 	if err != nil {
 		return "", err
 	}
 
 	v := u.Query()
 	v.Add("response_type", "code")
-	v.Add("client_id", h.Config.ClientID)
-	v.Add("redirect_uri", h.Config.RedirectURI)
+	v.Add("client_id", h.Config.IDPorten.ClientID)
+	v.Add("redirect_uri", h.Config.IDPorten.RedirectURI)
 	v.Add("scope", token.ScopeOpenID)
 	v.Add("state", params.State)
 	v.Add("nonce", params.Nonce)
@@ -49,12 +49,12 @@ func (h *Handler) LoginURL(r *http.Request, params *auth.Parameters) (string, er
 }
 
 func (h *Handler) withSecurityLevel(r *http.Request, v url.Values) error {
-	if !h.Config.SecurityLevel.Enabled {
+	if !h.Config.IDPorten.SecurityLevel.Enabled {
 		return nil
 	}
 
-	fallback := h.Config.SecurityLevel.Value
-	supported := h.Config.WellKnown.ACRValuesSupported
+	fallback := h.Config.IDPorten.SecurityLevel.Value
+	supported := h.Config.IDPorten.WellKnown.ACRValuesSupported
 
 	securityLevel, err := request.LoginURLParameter(r, request.SecurityLevelURLParameter, fallback, supported)
 	if err != nil {
@@ -66,12 +66,12 @@ func (h *Handler) withSecurityLevel(r *http.Request, v url.Values) error {
 }
 
 func (h *Handler) withLocale(r *http.Request, v url.Values) error {
-	if !h.Config.Locale.Enabled {
+	if !h.Config.IDPorten.Locale.Enabled {
 		return nil
 	}
 
-	fallback := h.Config.Locale.Value
-	supported := h.Config.WellKnown.UILocalesSupported
+	fallback := h.Config.IDPorten.Locale.Value
+	supported := h.Config.IDPorten.WellKnown.UILocalesSupported
 
 	locale, err := request.LoginURLParameter(r, request.LocaleURLParameter, fallback, supported)
 	if err != nil {

@@ -95,7 +95,7 @@ func run() error {
 	}
 
 	httplogger := logging.NewHttpLogger(cfg)
-	handler, err := router.NewHandler(cfg.IDPorten, crypt, httplogger, jwkSet, sessionStore, cfg.UpstreamHost)
+	handler, err := router.NewHandler(*cfg, crypt, httplogger, jwkSet, sessionStore, cfg.UpstreamHost)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}

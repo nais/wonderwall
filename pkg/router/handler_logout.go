@@ -5,15 +5,13 @@ import (
 	"github.com/nais/wonderwall/pkg/request"
 	"net/http"
 	"net/url"
-
-	"github.com/nais/wonderwall/pkg/errorhandler"
 )
 
 // Logout triggers self-initiated for the current user
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	u, err := url.Parse(h.Config.WellKnown.EndSessionEndpoint)
+	u, err := url.Parse(h.Config.IDPorten.WellKnown.EndSessionEndpoint)
 	if err != nil {
-		errorhandler.InternalError(w, r, fmt.Errorf("logout: parsing end session endpoint: %w", err))
+		h.InternalError(w, r, fmt.Errorf("logout: parsing end session endpoint: %w", err))
 		return
 	}
 
@@ -24,7 +22,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		idToken = sess.IDToken
 		err = h.destroySession(w, r, h.localSessionID(sess.ExternalSessionID))
 		if err != nil {
-			errorhandler.InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
+			h.InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
 			return
 		}
 	}
@@ -32,7 +30,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	h.deleteCookie(w, h.GetSessionCookieName())
 
 	v := u.Query()
-	v.Add("post_logout_redirect_uri", request.PostLogoutRedirectURI(r, h.Config.PostLogoutRedirectURI))
+	v.Add("post_logout_redirect_uri", request.PostLogoutRedirectURI(r, h.Config.IDPorten.PostLogoutRedirectURI))
 
 	if len(idToken) != 0 {
 		v.Add("id_token_hint", idToken)

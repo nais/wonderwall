@@ -13,7 +13,7 @@ import (
 )
 
 type Handler struct {
-	Config        config.IDPorten
+	Config        config.Config
 	Crypter       cryptutil.Crypter
 	OauthConfig   oauth2.Config
 	SecureCookies bool
@@ -25,7 +25,7 @@ type Handler struct {
 }
 
 func NewHandler(
-	cfg config.IDPorten,
+	cfg config.Config,
 	crypter cryptutil.Crypter,
 	httplogger zerolog.Logger,
 	jwkSet jwk.Set,
@@ -33,13 +33,13 @@ func NewHandler(
 	upstreamHost string,
 ) (*Handler, error) {
 	oauthConfig := oauth2.Config{
-		ClientID: cfg.ClientID,
+		ClientID: cfg.IDPorten.ClientID,
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  cfg.WellKnown.AuthorizationEndpoint,
-			TokenURL: cfg.WellKnown.TokenEndpoint,
+			AuthURL:  cfg.IDPorten.WellKnown.AuthorizationEndpoint,
+			TokenURL: cfg.IDPorten.WellKnown.TokenEndpoint,
 		},
-		RedirectURL: cfg.RedirectURI,
-		Scopes:      cfg.Scopes,
+		RedirectURL: cfg.IDPorten.RedirectURI,
+		Scopes:      cfg.IDPorten.Scopes,
 	}
 
 	return &Handler{
