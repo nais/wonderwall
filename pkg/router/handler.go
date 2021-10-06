@@ -12,12 +12,6 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-const (
-	SecurityLevelURLParameter      = "level"
-	LocaleURLParameter             = "locale"
-	PostLogoutRedirectURIParameter = "post_logout_redirect_uri"
-)
-
 type Handler struct {
 	Config        config.IDPorten
 	Crypter       cryptutil.Crypter

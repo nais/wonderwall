@@ -1,14 +1,31 @@
-package router_test
+package request_test
 
 import (
-	"net/http"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/router"
+	"github.com/nais/wonderwall/pkg/request"
+	"github.com/stretchr/testify/assert"
+	"net/http"
+	"net/url"
+	"testing"
 )
+
+func TestCanonicalRedirectURL(t *testing.T) {
+	r, err := http.NewRequest("GET", "http://localhost:8080/oauth2/login", nil)
+	assert.NoError(t, err)
+
+	// Default URL is /
+	assert.Equal(t, "/", request.CanonicalRedirectURL(r))
+
+	// HTTP Referer header is 2nd priority
+	r.Header.Set("referer", "http://localhost:8080/foo/bar/baz?gnu=notunix")
+	assert.Equal(t, "/foo/bar/baz", request.CanonicalRedirectURL(r))
+
+	// If redirect parameter is set, use that
+	v := &url.Values{}
+	v.Set("redirect", "https://google.com/path/to/redirect?val1=foo&val2=bar")
+	r.URL.RawQuery = v.Encode()
+	assert.Equal(t, "/path/to/redirect?val1=foo&val2=bar", request.CanonicalRedirectURL(r))
+}
 
 func TestLoginURLParameter(t *testing.T) {
 	for _, test := range []struct {
@@ -38,19 +55,19 @@ func TestLoginURLParameter(t *testing.T) {
 		{
 			name:      "invalid URL parameter value should return error",
 			url:       "http://localhost:8080/oauth2/login?param=invalid",
-			expectErr: router.InvalidLoginParameterError,
+			expectErr: request.InvalidLoginParameterError,
 		},
 		{
 			name:      "invalid fallback value should return error",
 			fallback:  "invalid",
 			url:       "http://localhost:8080/oauth2/login",
-			expectErr: router.InvalidLoginParameterError,
+			expectErr: request.InvalidLoginParameterError,
 		},
 		{
 			name:      "no supported values should return error",
 			url:       "http://localhost:8080/oauth2/login",
 			supported: config.Supported{""},
-			expectErr: router.InvalidLoginParameterError,
+			expectErr: request.InvalidLoginParameterError,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -74,7 +91,7 @@ func TestLoginURLParameter(t *testing.T) {
 				supported = test.supported
 			}
 
-			val, err := router.LoginURLParameter(r, parameter, fallback, supported)
+			val, err := request.LoginURLParameter(r, parameter, fallback, supported)
 
 			if test.expectErr == nil {
 				assert.NoError(t, err)

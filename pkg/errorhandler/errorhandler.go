@@ -2,7 +2,7 @@ package errorhandler
 
 import (
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/nais/wonderwall/pkg/url"
+	"github.com/nais/wonderwall/pkg/request"
 	"html/template"
 	"net/http"
 
@@ -21,7 +21,7 @@ func respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause 
 	t, _ := template.ParseFiles("templates/error.html")
 	errorPage := ErrorPage{
 		CorrelationID:        middleware.GetReqID(r.Context()),
-		CanonicalRedirectURL: url.CanonicalRedirectURL(r),
+		CanonicalRedirectURL: request.CanonicalRedirectURL(r),
 	}
 	t.Execute(w, errorPage)
 }

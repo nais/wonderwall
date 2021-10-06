@@ -3,6 +3,7 @@ package router
 import (
 	"errors"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/request"
 	"net/http"
 	"net/url"
 
@@ -55,7 +56,7 @@ func (h *Handler) withSecurityLevel(r *http.Request, v url.Values) error {
 	fallback := h.Config.SecurityLevel.Value
 	supported := h.Config.WellKnown.ACRValuesSupported
 
-	securityLevel, err := LoginURLParameter(r, SecurityLevelURLParameter, fallback, supported)
+	securityLevel, err := request.LoginURLParameter(r, request.SecurityLevelURLParameter, fallback, supported)
 	if err != nil {
 		return err
 	}
@@ -72,7 +73,7 @@ func (h *Handler) withLocale(r *http.Request, v url.Values) error {
 	fallback := h.Config.Locale.Value
 	supported := h.Config.WellKnown.UILocalesSupported
 
-	locale, err := LoginURLParameter(r, LocaleURLParameter, fallback, supported)
+	locale, err := request.LoginURLParameter(r, request.LocaleURLParameter, fallback, supported)
 	if err != nil {
 		return err
 	}

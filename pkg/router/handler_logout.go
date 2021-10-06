@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+	"github.com/nais/wonderwall/pkg/request"
 	"net/http"
 	"net/url"
 
@@ -31,7 +32,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	h.deleteCookie(w, h.GetSessionCookieName())
 
 	v := u.Query()
-	v.Add("post_logout_redirect_uri", PostLogoutRedirectURI(r, h.Config.PostLogoutRedirectURI))
+	v.Add("post_logout_redirect_uri", request.PostLogoutRedirectURI(r, h.Config.PostLogoutRedirectURI))
 
 	if len(idToken) != 0 {
 		v.Add("id_token_hint", idToken)
