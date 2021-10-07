@@ -12,7 +12,7 @@ import (
 )
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
-	loginCookie, err := h.getLoginCookie(w, r)
+	loginCookie, err := h.getLoginCookie(r)
 	if err != nil {
 		h.Unauthorized(w, r, fmt.Errorf("callback: fetching login cookie: %w", err))
 		return
@@ -84,6 +84,9 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		h.InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return
 	}
+
+	// delete login cookie as we no longer need it
+	h.deleteCookie(w, h.GetLoginCookieName())
 
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }

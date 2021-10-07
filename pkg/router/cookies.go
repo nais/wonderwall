@@ -36,7 +36,7 @@ func (h *Handler) GetSessionCookieName() string {
 	return SessionCookieNameTemplate
 }
 
-func (h *Handler) getLoginCookie(w http.ResponseWriter, r *http.Request) (*LoginCookie, error) {
+func (h *Handler) getLoginCookie(r *http.Request) (*LoginCookie, error) {
 	loginCookieJson, err := h.getEncryptedCookie(r, h.GetLoginCookieName())
 	if err != nil {
 		return nil, err
@@ -47,9 +47,6 @@ func (h *Handler) getLoginCookie(w http.ResponseWriter, r *http.Request) (*Login
 	if err != nil {
 		return nil, err
 	}
-
-	// delete cookie as we no longer need it
-	h.deleteCookie(w, h.GetLoginCookieName())
 
 	return &loginCookie, nil
 }
