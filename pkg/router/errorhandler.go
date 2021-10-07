@@ -2,18 +2,17 @@ package router
 
 import (
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httplog"
 	"github.com/nais/wonderwall/pkg/request"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
-
-	"github.com/go-chi/httplog"
 )
 
 type ErrorPage struct {
-	CorrelationID        string
-	CanonicalRedirectURL string
+	CorrelationID string
+	RetryURI      string
 }
 
 func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error) {
@@ -32,12 +31,18 @@ func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCod
 
 func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int) {
 	w.WriteHeader(statusCode)
+
 	t, _ := template.ParseFiles("templates/error.html")
-	errorPage := ErrorPage{
-		CorrelationID:        middleware.GetReqID(r.Context()),
-		CanonicalRedirectURL: request.CanonicalRedirectURL(r),
+	loginCookie, err := h.getLoginCookie(r)
+	if err != nil {
+		loginCookie = nil
 	}
-	t.Execute(w, errorPage)
+
+	errorPage := ErrorPage{
+		CorrelationID: middleware.GetReqID(r.Context()),
+		RetryURI:      request.RetryURI(r, h.Config.Ingress, loginCookie),
+	}
+	_ = t.Execute(w, errorPage)
 }
 
 func (h *Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, statusCode int) error {

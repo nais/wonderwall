@@ -3,6 +3,7 @@ package router
 import (
 	"errors"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/request"
 	"net/http"
 
@@ -29,7 +30,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.setLoginCookie(w, &LoginCookie{
+	err = h.setLoginCookie(w, &cookie.Login{
 		State:        params.State,
 		Nonce:        params.Nonce,
 		CodeVerifier: params.CodeVerifier,

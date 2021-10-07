@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/cookie"
 	"net/http"
 	"time"
 )
@@ -15,19 +16,6 @@ const (
 	LoginCookieNameTemplate   = "io.nais.wonderwall.callback"
 )
 
-type Cookie struct {
-	name      string
-	value     string
-	expiresIn time.Duration
-}
-
-type LoginCookie struct {
-	State        string `json:"state"`
-	Nonce        string `json:"nonce"`
-	CodeVerifier string `json:"code_verifier"`
-	Referer      string `json:"referer"`
-}
-
 func (h *Handler) GetLoginCookieName() string {
 	return LoginCookieNameTemplate
 }
@@ -36,13 +24,13 @@ func (h *Handler) GetSessionCookieName() string {
 	return SessionCookieNameTemplate
 }
 
-func (h *Handler) getLoginCookie(r *http.Request) (*LoginCookie, error) {
+func (h *Handler) getLoginCookie(r *http.Request) (*cookie.Login, error) {
 	loginCookieJson, err := h.getEncryptedCookie(r, h.GetLoginCookieName())
 	if err != nil {
 		return nil, err
 	}
 
-	var loginCookie LoginCookie
+	var loginCookie cookie.Login
 	err = json.Unmarshal([]byte(loginCookieJson), &loginCookie)
 	if err != nil {
 		return nil, err
@@ -51,7 +39,7 @@ func (h *Handler) getLoginCookie(r *http.Request) (*LoginCookie, error) {
 	return &loginCookie, nil
 }
 
-func (h *Handler) setLoginCookie(w http.ResponseWriter, loginCookie *LoginCookie) error {
+func (h *Handler) setLoginCookie(w http.ResponseWriter, loginCookie *cookie.Login) error {
 	loginCookieJson, err := json.Marshal(loginCookie)
 	if err != nil {
 		return fmt.Errorf("marshalling login cookie: %w", err)
