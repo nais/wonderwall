@@ -1,11 +1,13 @@
 package config
 
 import (
+	"time"
+
 	"github.com/nais/liberator/pkg/conftools"
-	"github.com/nais/wonderwall/pkg/token"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"time"
+
+	"github.com/nais/wonderwall/pkg/token"
 )
 
 type Config struct {
@@ -17,7 +19,7 @@ type Config struct {
 	LogFormat          string   `json:"log-format"`
 	LogLevel           string   `json:"log-level"`
 	Redis              string   `json:"redis"`
-	Ingresses          []string `json:"ingresses"`
+	Ingress            string   `json:"ingress"`
 	ErrorRedirectURI   string   `json:"error-redirect-uri"`
 }
 
@@ -52,7 +54,8 @@ const (
 	LogLevel                      = "log-level"
 	EncryptionKey                 = "encryption-key"
 	Redis                         = "redis"
-	Ingresses                     = "ingresses"
+	Ingress                       = "ingress"
+	ErrorRedirectURI              = "error-redirect-uri"
 	IDPortenClientID              = "idporten.client-id"
 	IDPortenClientJWK             = "idporten.client-jwk"
 	IDPortenRedirectURI           = "idporten.redirect-uri"
@@ -64,7 +67,6 @@ const (
 	IDPortenPostLogoutRedirectURI = "idporten.post-logout-redirect-uri"
 	IDPortenScopes                = "idporten.scopes"
 	IDPortenSessionMaxLifetime    = "idporten.session-max-lifetime"
-	ErrorRedirectURI              = "error-redirect-uri"
 )
 
 func bindNAIS() {
@@ -85,6 +87,9 @@ func Initialize() *Config {
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(Redis, "", "Address of Redis. An empty value will use in-memory session storage.")
+	flag.String(Ingress, "/", "Ingress used to access the main application.")
+	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
+
 	flag.Bool(IDPortenSecurityLevelEnabled, true, "Toggle for setting the sceurity level (acr_values) parameter for authorization requests.")
 	flag.String(IDPortenSecurityLevelValue, "Level4", "Requested security level, either Level3 or Level4.")
 	flag.Bool(IDPortenLocaleEnabled, true, "Toggle for setting the locale parameter for authorization requests.")
@@ -92,8 +97,6 @@ func Initialize() *Config {
 	flag.String(IDPortenPostLogoutRedirectURI, "https://www.nav.no", "URI for redirecting the user after successful logout at IDPorten.")
 	flag.StringSlice(IDPortenScopes, []string{token.ScopeOpenID}, "List of scopes that should be used during the Auth Code flow.")
 	flag.Duration(IDPortenSessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
-	flag.StringSlice(Ingresses, []string{"/"}, "Ingresses used to access the main application.")
-	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
 
 	return &Config{}
 }

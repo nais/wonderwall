@@ -1,7 +1,6 @@
 package config_test
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,27 +8,52 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 )
 
-func TestParseIngresses(t *testing.T) {
-	ingresses := []string{"https://tjenester.nav.no/sykepenger/", "https://sykepenger.nav.no/", "https://sykepenger-test.nav.no"}
-	expected := []string{"", "/sykepenger"}
+func TestParseIngress(t *testing.T) {
+	for _, test := range []struct{
+		ingress string
+		want string
+	}{
+		{
+			ingress: "https://tjenester.nav.no/sykepenger/",
+			want:    "/sykepenger",
+		},
+		{
+			ingress: "https://tjenester.nav.no/sykepenger/test",
+			want:    "/sykepenger/test",
+		},
+		{
+			ingress: "https://tjenester.nav.no/test/sykepenger/",
+			want:    "/test/sykepenger",
+		},
+		{
+			ingress: "https://sykepenger.nav.no/",
+			want:    "",
+		},
+		{
+			ingress: "https://sykepenger-test.nav.no",
+			want:    "",
+		},
 
-	prefixes := config.ParseIngresses(ingresses)
-	sort.Strings(prefixes)
-	assert.Equal(t, expected, prefixes)
+	} {
+		t.Run(test.ingress, func(t *testing.T) {
+			prefix := config.ParseIngress(test.ingress)
+			assert.Equal(t, test.want, prefix)
+		})
+	}
 }
 
 func TestParseEmptyIngress(t *testing.T) {
-	ingresses := []string{""}
-	expected := []string{""}
+	ingress := ""
+	expected := ""
 
-	prefixes := config.ParseIngresses(ingresses)
-	assert.Equal(t, expected, prefixes)
+	prefix := config.ParseIngress(ingress)
+	assert.Equal(t, expected, prefix)
 }
 
 func TestParseDefaultIngress(t *testing.T) {
-	ingresses := []string{"/"}
-	expected := []string{""}
+	ingress := "/"
+	expected := ""
 
-	prefixes := config.ParseIngresses(ingresses)
-	assert.Equal(t, expected, prefixes)
+	prefix := config.ParseIngress(ingress)
+	assert.Equal(t, expected, prefix)
 }

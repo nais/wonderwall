@@ -100,9 +100,7 @@ func run() error {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}
 
-	prefixes := config.ParseIngresses(cfg.Ingresses)
-
-	r := router.New(handler, prefixes)
+	r := router.New(handler)
 
 	go func() {
 		err := metrics.Handle(cfg.MetricsBindAddress)

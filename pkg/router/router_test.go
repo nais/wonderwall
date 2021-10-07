@@ -100,8 +100,7 @@ func TestHandler_Login(t *testing.T) {
 	cfg := defaultConfig()
 
 	h := handler(cfg)
-	prefixes := config.ParseIngresses([]string{""})
-	r := router.New(h, prefixes)
+	r := router.New(h)
 
 	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)
@@ -166,8 +165,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	cfg.IDPorten.WellKnown.EndSessionEndpoint = idpserver.URL + "/endsession"
 
 	h := handler(cfg)
-	prefixes := config.ParseIngresses([]string{""})
-	r := router.New(h, prefixes)
+	r := router.New(h)
 	server := httptest.NewServer(r)
 
 	h.Config.IDPorten.RedirectURI = server.URL + "/oauth2/callback"
@@ -262,8 +260,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	cfg.IDPorten.WellKnown.TokenEndpoint = idpserver.URL + "/token"
 
 	h := handler(cfg)
-	prefixes := config.ParseIngresses([]string{""})
-	r := router.New(h, prefixes)
+	r := router.New(h)
 	server := httptest.NewServer(r)
 
 	h.Config.IDPorten.RedirectURI = server.URL + "/oauth2/callback"
