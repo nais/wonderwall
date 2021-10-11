@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+	"github.com/nais/wonderwall/pkg/auth"
 	"net/http"
 	"time"
 
@@ -31,7 +32,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	assertion, err := h.Config.IDPorten.SignedJWTProfileAssertion(time.Second * 100)
+	assertion, err := auth.ClientAssertion(h.Config.IDPorten, time.Second * 30)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: creating client assertion: %w", err))
 		return

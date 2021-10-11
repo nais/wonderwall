@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/lestrrat-go/jwx/jwa"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -43,6 +45,9 @@ func defaultConfig() config.Config {
 	if err != nil {
 		panic(err)
 	}
+	key.Set(jwk.AlgorithmKey, jwa.RS256)
+	key.Set(jwk.KeyTypeKey, jwa.RSA)
+	key.Set(jwk.KeyIDKey, uuid.New().String())
 
 	clientJwk, err := json.Marshal(key)
 	if err != nil {
