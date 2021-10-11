@@ -23,6 +23,10 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 		// add authentication if session cookie and token checks out
 		upstreamRequest.Header.Add("authorization", "Bearer "+sess.AccessToken)
 		upstreamRequest.Header.Add("x-pwned-by", "wonderwall") // todo: request id for tracing
+	} else if h.Config.AutoLogin {
+		r.Header.Add("Referer", r.URL.String())
+		h.Login(w, r)
+		return
 	}
 
 	// Request should go to correct host

@@ -21,6 +21,7 @@ type Config struct {
 	Redis              string   `json:"redis"`
 	Ingress            string   `json:"ingress"`
 	ErrorRedirectURI   string   `json:"error-redirect-uri"`
+	AutoLogin          bool     `json:"auto-login"`
 }
 
 type IDPorten struct {
@@ -56,6 +57,7 @@ const (
 	Redis                         = "redis"
 	Ingress                       = "ingress"
 	ErrorRedirectURI              = "error-redirect-uri"
+	AutoLogin                     = "auto-login"
 	IDPortenClientID              = "idporten.client-id"
 	IDPortenClientJWK             = "idporten.client-jwk"
 	IDPortenRedirectURI           = "idporten.redirect-uri"
@@ -89,6 +91,7 @@ func Initialize() *Config {
 	flag.String(Redis, "", "Address of Redis. An empty value will use in-memory session storage.")
 	flag.String(Ingress, "/", "Ingress used to access the main application.")
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
+	flag.Bool(AutoLogin, false, "Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.")
 
 	flag.Bool(IDPortenSecurityLevelEnabled, true, "Toggle for setting the sceurity level (acr_values) parameter for authorization requests.")
 	flag.String(IDPortenSecurityLevelValue, "Level4", "Requested security level, either Level3 or Level4.")
