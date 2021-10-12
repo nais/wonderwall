@@ -69,15 +69,10 @@ func run() error {
 	var sessionStore session.Store
 	if len(cfg.Redis) > 0 {
 		redisClient := redis.NewClient(&redis.Options{
-			Network: "tcp",
-			Addr:    cfg.Redis,
+			Network:    "tcp",
+			Addr:       cfg.Redis,
+			MaxRetries: 10,
 		})
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := redisClient.Ping(ctx).Err(); err != nil {
-			return fmt.Errorf("connecting to redis: %w", err)
-		}
 
 		sessionStore = session.NewRedis(redisClient)
 		log.Infof("Using Redis as session backing store")
