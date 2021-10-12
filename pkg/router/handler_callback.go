@@ -46,13 +46,13 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	tokens, err := h.OauthConfig.Exchange(r.Context(), params.Get("code"), opts...)
 	if err != nil {
-		h.Unauthorized(w, r, fmt.Errorf("callback: exchanging code: %w", err))
+		h.InternalError(w, r, fmt.Errorf("callback: exchanging code: %w", err))
 		return
 	}
 
 	idToken, err := token.ParseIDToken(h.jwkSet, tokens)
 	if err != nil {
-		h.Unauthorized(w, r, fmt.Errorf("callback: parsing id_token: %w", err))
+		h.InternalError(w, r, fmt.Errorf("callback: parsing id_token: %w", err))
 		return
 	}
 
@@ -70,13 +70,13 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	err = idToken.Validate(validateOpts...)
 	if err != nil {
-		h.Unauthorized(w, r, fmt.Errorf("callback: validating id_token: %w", err))
+		h.InternalError(w, r, fmt.Errorf("callback: validating id_token: %w", err))
 		return
 	}
 
 	externalSessionID, ok := idToken.GetSID()
 	if !ok {
-		h.Unauthorized(w, r, fmt.Errorf("callback: missing required 'sid' claim in id_token"))
+		h.InternalError(w, r, fmt.Errorf("callback: missing required 'sid' claim in id_token"))
 		return
 	}
 

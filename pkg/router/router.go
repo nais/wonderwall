@@ -11,13 +11,13 @@ import (
 func New(handler *Handler) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.CorrelationIDHandler)
-	r.Use(middleware.LogEntryHandler(handler.httplogger))
 	r.Use(chi_middleware.Recoverer)
 	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall")
 
 	prefix := config.ParseIngress(handler.Config.Ingress)
 
 	r.Route(prefix+"/oauth2", func(r chi.Router) {
+		r.Use(middleware.LogEntryHandler(handler.httplogger))
 		r.Use(prometheusMiddleware.Handler)
 		r.Use(chi_middleware.NoCache)
 		r.Get("/login", handler.Login)
