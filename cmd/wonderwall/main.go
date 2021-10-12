@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -28,6 +29,7 @@ import (
 var maskedConfig = []string{
 	config.IDPortenClientJWK,
 	config.EncryptionKey,
+	config.RedisPassword,
 }
 
 func run() error {
@@ -66,20 +68,7 @@ func run() error {
 
 	crypt := cryptutil.New(key)
 
-	var sessionStore session.Store
-	if len(cfg.Redis) > 0 {
-		redisClient := redis.NewClient(&redis.Options{
-			Network:    "tcp",
-			Addr:       cfg.Redis,
-			MaxRetries: 10,
-		})
-
-		sessionStore = session.NewRedis(redisClient)
-		log.Infof("Using Redis as session backing store")
-	} else {
-		sessionStore = session.NewMemory()
-		log.Warnf("Redis not configured, using in-memory session backing store; not suitable for multi-pod deployments!")
-	}
+	sessionStore := setupSessionStore(cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -104,6 +93,41 @@ func run() error {
 		}
 	}()
 	return startServer(cfg, r)
+}
+
+func setupSessionStore(cfg *config.Config) session.Store {
+	if len(cfg.Redis.Address) == 0 {
+		log.Warnf("Redis not configured, using in-memory session backing store; not suitable for multi-pod deployments!")
+		return session.NewMemory()
+	}
+
+	redisClient, err := configureRedisClient(cfg)
+	if err != nil {
+		log.Fatalf("Failed to configure Redis: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	err = redisClient.Ping(ctx).Err()
+	if err != nil {
+		log.Warnf("Failed to connect to configured Redis, using cookie fallback: %v", err)
+	}
+
+	log.Infof("Using Redis as session backing store")
+	return session.NewRedis(redisClient)
+}
+
+func configureRedisClient(cfg *config.Config) (*redis.Client, error) {
+	redisClient := redis.NewClient(&redis.Options{
+		Network:    "tcp",
+		Addr:       cfg.Redis.Address,
+		Username:   cfg.Redis.Username,
+		Password:   cfg.Redis.Password,
+		MaxRetries: 10,
+		TLSConfig:  &tls.Config{},
+	})
+	return redisClient, nil
 }
 
 func startServer(cfg *config.Config, r chi.Router) error {

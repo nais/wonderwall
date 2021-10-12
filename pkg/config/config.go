@@ -18,10 +18,16 @@ type Config struct {
 	IDPorten           IDPorten `json:"idporten"`
 	LogFormat          string   `json:"log-format"`
 	LogLevel           string   `json:"log-level"`
-	Redis              string   `json:"redis"`
+	Redis              Redis    `json:"redis"`
 	Ingress            string   `json:"ingress"`
 	ErrorRedirectURI   string   `json:"error-redirect-uri"`
 	AutoLogin          bool     `json:"auto-login"`
+}
+
+type Redis struct {
+	Address  string `json:"address"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type IDPorten struct {
@@ -54,7 +60,9 @@ const (
 	LogFormat                     = "log-format"
 	LogLevel                      = "log-level"
 	EncryptionKey                 = "encryption-key"
-	Redis                         = "redis"
+	RedisAddress                  = "redis.address"
+	RedisUsername                 = "redis.username"
+	RedisPassword                 = "redis.password"
 	Ingress                       = "ingress"
 	ErrorRedirectURI              = "error-redirect-uri"
 	AutoLogin                     = "auto-login"
@@ -88,7 +96,9 @@ func Initialize() *Config {
 	flag.String(MetricsBindAddress, "127.0.0.1:8091", "Listen address for metrics only.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
-	flag.String(Redis, "", "Address of Redis. An empty value will use in-memory session storage.")
+	flag.String(RedisAddress, "", "Address of Redis. An empty value will use in-memory session storage.")
+	flag.String(RedisUsername, "", "Username for Redis.")
+	flag.String(RedisPassword, "", "Password for Redis.")
 	flag.String(Ingress, "/", "Ingress used to access the main application.")
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
 	flag.Bool(AutoLogin, false, "Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.")
