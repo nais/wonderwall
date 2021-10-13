@@ -32,7 +32,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	assertion, err := auth.ClientAssertion(h.Config.IDPorten, time.Second * 30)
+	assertion, err := auth.ClientAssertion(h.Config.IDPorten, time.Second*30)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: creating client assertion: %w", err))
 		return

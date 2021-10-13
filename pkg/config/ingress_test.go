@@ -9,9 +9,9 @@ import (
 )
 
 func TestParseIngress(t *testing.T) {
-	for _, test := range []struct{
+	for _, test := range []struct {
 		ingress string
-		want string
+		want    string
 	}{
 		{
 			ingress: "https://tjenester.nav.no/sykepenger/",
@@ -33,7 +33,6 @@ func TestParseIngress(t *testing.T) {
 			ingress: "https://sykepenger-test.nav.no",
 			want:    "",
 		},
-
 	} {
 		t.Run(test.ingress, func(t *testing.T) {
 			prefix := config.ParseIngress(test.ingress)

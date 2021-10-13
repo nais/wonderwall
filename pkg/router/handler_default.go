@@ -18,7 +18,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	upstreamRequest.Header.Del("authorization")
 	upstreamRequest.Header.Del("x-pwned-by")
 
-	sess, err := h.getSessionFromCookie(r)
+	sess, err := h.getSessionFromCookie(w, r)
 	if err == nil && sess != nil && len(sess.AccessToken) > 0 {
 		// add authentication if session cookie and token checks out
 		upstreamRequest.Header.Add("authorization", "Bearer "+sess.AccessToken)

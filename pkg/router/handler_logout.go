@@ -17,7 +17,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	var idToken string
 
-	sess, err := h.getSessionFromCookie(r)
+	sess, err := h.getSessionFromCookie(w, r)
 	if err == nil && sess != nil {
 		idToken = sess.IDToken
 		err = h.destroySession(w, r, h.localSessionID(sess.ExternalSessionID))
