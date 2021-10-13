@@ -27,12 +27,19 @@ jobs:
       - name: Push latest docker image
         if: github.ref == 'refs/heads/master'
         run: docker push ${{ env.image_base }}:latest
+      - uses: navikt/github-app-token-generator@v1
+        id: get-token
+        if: github.ref == 'refs/heads/master'
+        with:
+          private-key: ${{ secrets.NAIS_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.NAIS_APP_ID }}
+          repo: navikt/nais-yaml
       - name: Checkout nais-yaml
         if: github.ref == 'refs/heads/master'
         uses: actions/checkout@v2
         with:
           repository: navikt/nais-yaml
-          token: ${{ secrets.SRVNAIS_REPO_PUSH_PAT }}
+          token: ${{ steps.get-token.outputs.token }}
           path: nais-yaml
       - name: Update nais-yaml
         if: github.ref == 'refs/heads/master'
