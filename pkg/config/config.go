@@ -28,6 +28,7 @@ type Redis struct {
 	Address  string `json:"address"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+	TLS      bool   `json:"tls"`
 }
 
 type IDPorten struct {
@@ -63,6 +64,7 @@ const (
 	RedisAddress                  = "redis.address"
 	RedisUsername                 = "redis.username"
 	RedisPassword                 = "redis.password"
+	RedisTLS                      = "redis.tls"
 	Ingress                       = "ingress"
 	ErrorRedirectURI              = "error-redirect-uri"
 	AutoLogin                     = "auto-login"
@@ -99,6 +101,7 @@ func Initialize() *Config {
 	flag.String(RedisAddress, "", "Address of Redis. An empty value will use in-memory session storage.")
 	flag.String(RedisUsername, "", "Username for Redis.")
 	flag.String(RedisPassword, "", "Password for Redis.")
+	flag.Bool(RedisTLS, true, "Whether or not to use TLS for connecting to Redis.")
 	flag.String(Ingress, "/", "Ingress used to access the main application.")
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
 	flag.Bool(AutoLogin, false, "Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.")

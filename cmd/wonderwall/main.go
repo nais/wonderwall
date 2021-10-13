@@ -119,14 +119,18 @@ func setupSessionStore(cfg *config.Config) session.Store {
 }
 
 func configureRedisClient(cfg *config.Config) (*redis.Client, error) {
-	redisClient := redis.NewClient(&redis.Options{
-		Network:    "tcp",
-		Addr:       cfg.Redis.Address,
-		Username:   cfg.Redis.Username,
-		Password:   cfg.Redis.Password,
-		MaxRetries: 10,
-		TLSConfig:  &tls.Config{},
-	})
+	opts := &redis.Options{
+		Network:  "tcp",
+		Addr:     cfg.Redis.Address,
+		Username: cfg.Redis.Username,
+		Password: cfg.Redis.Password,
+	}
+
+	if cfg.Redis.TLS {
+		opts.TLSConfig = &tls.Config{}
+	}
+
+	redisClient := redis.NewClient(opts)
 	return redisClient, nil
 }
 
