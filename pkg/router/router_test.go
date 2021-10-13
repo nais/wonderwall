@@ -329,6 +329,8 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	req, err = client.Get(frontchannelLogoutURL.String())
 	assert.NoError(t, err)
 	defer req.Body.Close()
+
+	assert.Equal(t, http.StatusOK, req.StatusCode)
 }
 
 func getCookieFromJar(name string, cookies []*http.Cookie) *http.Cookie {

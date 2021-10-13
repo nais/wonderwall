@@ -28,4 +28,5 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 
 	// Unconditionally destroy all local references to the session.
 	h.deleteCookie(w, h.GetSessionCookieName())
+	w.WriteHeader(http.StatusOK)
 }
