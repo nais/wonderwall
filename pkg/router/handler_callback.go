@@ -1,14 +1,16 @@
 package router
 
 import (
+	"context"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/auth"
 	"net/http"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
 	"golang.org/x/oauth2"
 
+	"github.com/nais/wonderwall/pkg/auth"
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/token"
 )
 
@@ -32,19 +34,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	assertion, err := auth.ClientAssertion(h.Config.IDPorten, time.Second*30)
-	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("callback: creating client assertion: %w", err))
-		return
-	}
-
-	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("code_verifier", loginCookie.CodeVerifier),
-		oauth2.SetAuthURLParam("client_assertion", assertion),
-		oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
-	}
-
-	tokens, err := h.OauthConfig.Exchange(r.Context(), params.Get("code"), opts...)
+	tokens, err := h.codeExchangeForToken(r.Context(), loginCookie, params.Get("code"))
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: exchanging code: %w", err))
 		return
@@ -56,27 +46,9 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	validateOpts := []jwt.ValidateOption{
-		jwt.WithAudience(h.Config.IDPorten.ClientID),
-		jwt.WithClaimValue("nonce", loginCookie.Nonce),
-		jwt.WithIssuer(h.Config.IDPorten.WellKnown.Issuer),
-		jwt.WithAcceptableSkew(5 * time.Second),
-		jwt.WithRequiredClaim("sid"),
-	}
-
-	if h.Config.IDPorten.SecurityLevel.Enabled {
-		validateOpts = append(validateOpts, jwt.WithRequiredClaim("acr"))
-	}
-
-	err = idToken.Validate(validateOpts...)
+	externalSessionID, err := h.validateIDToken(idToken, loginCookie)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: validating id_token: %w", err))
-		return
-	}
-
-	externalSessionID, ok := idToken.GetSID()
-	if !ok {
-		h.InternalError(w, r, fmt.Errorf("callback: missing required 'sid' claim in id_token"))
 		return
 	}
 
@@ -90,4 +62,50 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	h.deleteCookie(w, h.GetLoginCookieName())
 
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
+}
+
+func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *cookie.Login, code string) (*oauth2.Token, error) {
+	assertion, err := auth.ClientAssertion(h.Config.IDPorten, time.Second*30)
+	if err != nil {
+		return nil, fmt.Errorf("creating client assertion: %w", err)
+	}
+
+	opts := []oauth2.AuthCodeOption{
+		oauth2.SetAuthURLParam("code_verifier", loginCookie.CodeVerifier),
+		oauth2.SetAuthURLParam("client_assertion", assertion),
+		oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
+	}
+
+	tokens, err := h.OauthConfig.Exchange(ctx, code, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("exchanging code for token: %w", err)
+	}
+
+	return tokens, nil
+}
+
+func (h *Handler) validateIDToken(idToken *token.IDToken, loginCookie *cookie.Login) (string, error) {
+	validateOpts := []jwt.ValidateOption{
+		jwt.WithAudience(h.Config.IDPorten.ClientID),
+		jwt.WithClaimValue("nonce", loginCookie.Nonce),
+		jwt.WithIssuer(h.Config.IDPorten.WellKnown.Issuer),
+		jwt.WithAcceptableSkew(5 * time.Second),
+		jwt.WithRequiredClaim("sid"),
+	}
+
+	if h.Config.IDPorten.SecurityLevel.Enabled {
+		validateOpts = append(validateOpts, jwt.WithRequiredClaim("acr"))
+	}
+
+	err := idToken.Validate(validateOpts...)
+	if err != nil {
+		return "", err
+	}
+
+	externalSessionID, err := idToken.GetSID()
+	if err != nil {
+		return "", fmt.Errorf("getting external session ID from id_token: %w", err)
+	}
+
+	return externalSessionID, nil
 }
