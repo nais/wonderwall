@@ -2,14 +2,15 @@ package router
 
 import (
 	"fmt"
-	"github.com/nais/wonderwall/pkg/request"
 	"net/http"
 	"net/url"
+
+	"github.com/nais/wonderwall/pkg/request"
 )
 
 // Logout triggers self-initiated for the current user
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	u, err := url.Parse(h.Config.IDPorten.WellKnown.EndSessionEndpoint)
+	u, err := url.Parse(h.Provider.GetOpenIDConfiguration().EndSessionEndpoint)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("logout: parsing end session endpoint: %w", err))
 		return
@@ -30,7 +31,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	h.deleteCookie(w, h.GetSessionCookieName())
 
 	v := u.Query()
-	v.Add("post_logout_redirect_uri", request.PostLogoutRedirectURI(r, h.Config.IDPorten.PostLogoutRedirectURI))
+
+	postLogoutURI := request.PostLogoutRedirectURI(r, h.Provider.GetClientConfiguration().GetPostLogoutRedirectURI())
+	if len(postLogoutURI) > 0 {
+		v.Add("post_logout_redirect_uri", postLogoutURI)
+	}
 
 	if len(idToken) != 0 {
 		v.Add("id_token_hint", idToken)

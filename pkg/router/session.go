@@ -21,7 +21,7 @@ import (
 // Thus, we cannot assume that the value of `sid` to uniquely identify the pair of (user, application session)
 // if using a shared session store.
 func (h *Handler) localSessionID(sid string) string {
-	return fmt.Sprintf("%s-%s", h.Config.IDPorten.ClientID, sid)
+	return fmt.Sprintf("%s:%s:%s", h.Config.OpenID.Provider, h.Provider.GetClientConfiguration().GetClientID(), sid)
 }
 
 func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (*session.Data, error) {

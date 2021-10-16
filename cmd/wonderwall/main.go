@@ -66,20 +66,15 @@ func run() error {
 		}
 	}
 
-	crypt := cryptutil.New(key)
-
-	sessionStore := setupSessionStore(cfg)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	jwkSet, err := jwk.Fetch(ctx, cfg.IDPorten.WellKnown.JwksURI)
+	prv, err := provider.NewProvider(cfg)
 	if err != nil {
-		return fmt.Errorf("fetching jwks: %w", err)
+		return err
 	}
 
+	crypt := cryptutil.New(key)
+	sessionStore := setupSessionStore(cfg)
 	httplogger := logging.NewHttpLogger(cfg)
-	handler, err := router.NewHandler(*cfg, crypt, httplogger, jwkSet, sessionStore, cfg.UpstreamHost)
+	handler, err := router.NewHandler(*cfg, crypt, httplogger, prv, sessionStore)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}
