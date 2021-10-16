@@ -8,8 +8,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const ScopeOpenID = "openid"
-
 type IDToken struct {
 	Raw   string
 	Token jwt.Token
