@@ -13,7 +13,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-redis/redis/v8"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nais/liberator/pkg/conftools"
 	"github.com/nais/liberator/pkg/keygen"
 	log "github.com/sirupsen/logrus"
@@ -22,23 +21,23 @@ import (
 	"github.com/nais/wonderwall/pkg/cryptutil"
 	"github.com/nais/wonderwall/pkg/logging"
 	"github.com/nais/wonderwall/pkg/metrics"
+	"github.com/nais/wonderwall/pkg/provider"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
 var maskedConfig = []string{
-	config.IDPortenClientJWK,
+	config.OpenIDClientJWK,
 	config.EncryptionKey,
 	config.RedisPassword,
 }
 
 func run() error {
-	cfg := config.Initialize()
-	if err := conftools.Load(cfg); err != nil {
+	cfg, err := config.Initialize()
+	if err != nil {
 		return err
 	}
-
-	if err := cfg.FetchWellKnownConfig(); err != nil {
+	if err := conftools.Load(cfg); err != nil {
 		return err
 	}
 

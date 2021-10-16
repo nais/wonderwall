@@ -46,8 +46,8 @@ func (in Supported) Contains(value string) bool {
 	return false
 }
 
-func FetchWellKnownConfig(wellKnownURI string) (*Configuration, error) {
-	response, err := http.Get(wellKnownURI)
+func FetchWellKnownConfig(config ClientConfiguration) (*Configuration, error) {
+	response, err := http.Get(config.GetWellKnownURL())
 	if err != nil {
 		return nil, fmt.Errorf("fetching well known configuration: %w", err)
 	}

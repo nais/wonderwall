@@ -55,7 +55,7 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 }
 
 func (h *Handler) getSessionLifetime(accessToken string) (time.Duration, error) {
-	defaultSessionLifetime := h.Config.IDPorten.SessionMaxLifetime
+	defaultSessionLifetime := h.Config.SessionMaxLifetime
 
 	tok, err := jwt.Parse([]byte(accessToken))
 	if err != nil {

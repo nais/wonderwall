@@ -48,9 +48,9 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 	baseConfig := cfg.NewBaseConfig(clientJwk)
 	var clientConfig openid.ClientConfiguration
 	switch cfg.OpenID.Provider {
-	case "idporten":
+	case config.ProviderIDPorten:
 		clientConfig = baseConfig.IDPorten()
-	case "azure":
+	case config.ProviderAzure:
 		clientConfig = baseConfig.Azure()
 	case "":
 		return nil, fmt.Errorf("missing required config %s", config.OpenIDProvider)
@@ -70,7 +70,7 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("missing required config %s", config.OpenIDRedirectURI)
 	}
 
-	configuration, err := openid.FetchWellKnownConfig(clientConfig.GetWellKnownURL())
+	configuration, err := openid.FetchWellKnownConfig(clientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("fetching well known config: %w", err)
 	}

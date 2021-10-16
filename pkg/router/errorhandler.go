@@ -1,13 +1,16 @@
 package router
 
 import (
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/httplog"
-	"github.com/nais/wonderwall/pkg/request"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httplog"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/nais/wonderwall/pkg/request"
 )
 
 type ErrorPage struct {
@@ -32,7 +35,12 @@ func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCod
 func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int) {
 	w.WriteHeader(statusCode)
 
-	t, _ := template.ParseFiles("templates/error.html")
+	t, err := template.ParseFiles("templates/error.html")
+	if err != nil {
+		log.Errorf("parsing error template: %+v", err)
+		return
+	}
+
 	loginCookie, err := h.getLoginCookie(r)
 	if err != nil {
 		loginCookie = nil
