@@ -9,6 +9,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
+	"github.com/nais/wonderwall/pkg/openid"
 )
 
 var (
@@ -40,7 +41,7 @@ func CanonicalRedirectURL(r *http.Request) string {
 
 // LoginURLParameter attempts to get a given parameter from the given HTTP request, falling back if none found.
 // The value must exist in the supplied list of supported values.
-func LoginURLParameter(r *http.Request, parameter, fallback string, supported config.Supported) (string, error) {
+func LoginURLParameter(r *http.Request, parameter, fallback string, supported openid.Supported) (string, error) {
 	value := r.URL.Query().Get(parameter)
 
 	if len(value) == 0 {

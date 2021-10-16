@@ -1,13 +1,15 @@
 package request_test
 
 import (
-	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/request"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/nais/wonderwall/pkg/cookie"
+	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/request"
 )
 
 func TestCanonicalRedirectURL(t *testing.T) {
@@ -33,7 +35,7 @@ func TestLoginURLParameter(t *testing.T) {
 		name      string
 		parameter string
 		fallback  string
-		supported config.Supported
+		supported openid.Supported
 		url       string
 		expectErr error
 		expected  string
@@ -67,7 +69,7 @@ func TestLoginURLParameter(t *testing.T) {
 		{
 			name:      "no supported values should return error",
 			url:       "http://localhost:8080/oauth2/login",
-			supported: config.Supported{""},
+			supported: openid.Supported{""},
 			expectErr: request.InvalidLoginParameterError,
 		},
 	} {
@@ -78,7 +80,7 @@ func TestLoginURLParameter(t *testing.T) {
 			// default test values
 			parameter := "param"
 			fallback := "valid"
-			supported := config.Supported{"valid", "valid2"}
+			supported := openid.Supported{"valid", "valid2"}
 
 			if len(test.parameter) > 0 {
 				parameter = test.parameter

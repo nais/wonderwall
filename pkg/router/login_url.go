@@ -3,12 +3,11 @@ package router
 import (
 	"errors"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/request"
 	"net/http"
 	"net/url"
 
-	"github.com/nais/wonderwall/pkg/auth"
-	"github.com/nais/wonderwall/pkg/token"
+	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/request"
 )
 
 var (
@@ -16,8 +15,8 @@ var (
 	InvalidLocaleError        = errors.New("InvalidLocale")
 )
 
-func (h *Handler) LoginURL(r *http.Request, params *auth.Parameters) (string, error) {
-	u, err := url.Parse(h.Config.IDPorten.WellKnown.AuthorizationEndpoint)
+func (h *Handler) LoginURL(r *http.Request, params *openid.Parameters) (string, error) {
+	u, err := url.Parse(h.Provider.GetOpenIDConfiguration().AuthorizationEndpoint)
 	if err != nil {
 		return "", err
 	}

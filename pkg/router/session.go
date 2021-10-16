@@ -45,12 +45,12 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 		return nil, fmt.Errorf("session not found in store: %w", err)
 	}
 
-	log.Warnf("get session: store is unavailable; using cookie fallback: %+v", err)
 	fallbackSessionData, err := h.GetSessionFallback(r)
 	if err != nil {
 		return nil, fmt.Errorf("fallback session not found: %w", err)
 	}
 
+	log.Warnf("get session: store is unavailable: %+v; using cookie fallback", err)
 	return fallbackSessionData, nil
 }
 
@@ -97,11 +97,12 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 		return nil
 	}
 
-	log.Warnf("create session: store is unavailable; using cookie fallback: %+v", err)
 	err = h.SetSessionFallback(w, sessionData, sessionLifetime)
 	if err != nil {
 		return fmt.Errorf("writing session to fallback store: %w", err)
 	}
+
+	log.Warnf("create session: store is unavailable: %+v; using cookie fallback", err)
 	return nil
 }
 
