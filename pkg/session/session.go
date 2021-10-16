@@ -5,8 +5,9 @@ import (
 	"encoding"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/nais/wonderwall/pkg/cryptutil"
 	"time"
+
+	"github.com/nais/wonderwall/pkg/cryptutil"
 )
 
 type Store interface {

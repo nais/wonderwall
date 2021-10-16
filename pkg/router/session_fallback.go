@@ -2,9 +2,10 @@ package router
 
 import (
 	"fmt"
-	"github.com/nais/wonderwall/pkg/session"
 	"net/http"
 	"time"
+
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 func (h *Handler) SessionFallbackExternalIDCookieName() string {
