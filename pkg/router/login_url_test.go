@@ -47,14 +47,14 @@ func TestLoginURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.url, func(t *testing.T) {
-			cfg := defaultConfig()
 			req, err := http.NewRequest("GET", test.url, nil)
 			assert.NoError(t, err)
 
 			params, err := openid.GenerateLoginParameters()
 			assert.NoError(t, err)
 
-			handler := handler(cfg)
+			provider := mock.NewTestProvider()
+			handler := handler(provider)
 			_, err = handler.LoginURL(req, params)
 
 			if test.error != nil {
