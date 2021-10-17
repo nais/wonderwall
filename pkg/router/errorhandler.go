@@ -1,6 +1,7 @@
 package router
 
 import (
+	_ "embed"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -16,6 +17,20 @@ import (
 type ErrorPage struct {
 	CorrelationID string
 	RetryURI      string
+}
+
+//go:embed templates/error.gohtml
+var errorGoHtml string
+var errorTemplate *template.Template
+
+func init() {
+	var err error
+
+	errorTemplate = template.New("error")
+	errorTemplate, err = errorTemplate.Parse(errorGoHtml)
+	if err != nil {
+		log.Fatalf("parsing error template: %+v", err)
+	}
 }
 
 func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error) {
@@ -35,12 +50,6 @@ func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCod
 func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int) {
 	w.WriteHeader(statusCode)
 
-	t, err := template.ParseFiles("templates/error.html")
-	if err != nil {
-		log.Errorf("parsing error template: %+v", err)
-		return
-	}
-
 	loginCookie, err := h.getLoginCookie(r)
 	if err != nil {
 		loginCookie = nil
@@ -50,7 +59,10 @@ func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, s
 		CorrelationID: middleware.GetReqID(r.Context()),
 		RetryURI:      request.RetryURI(r, h.Config.Ingress, loginCookie),
 	}
-	_ = t.Execute(w, errorPage)
+	err = errorTemplate.Execute(w, errorPage)
+	if err != nil {
+		log.Errorf("executing error template: %+v", err)
+	}
 }
 
 func (h *Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, statusCode int) error {
