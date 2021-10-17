@@ -17,10 +17,8 @@ func idportenFlags() {
 	viper.BindEnv(OpenIDWellKnownURL, "IDPORTEN_WELL_KNOWN_URL")
 
 	viper.SetDefault(OpenIDPostLogoutRedirectURI, "https://www.nav.no")
-	viper.SetDefault(OpenIDACRValuesEnabled, true)
-	viper.SetDefault(OpenIDACRValuesValue, "Level4")
-	viper.SetDefault(OpenIDUILocalesEnabled, true)
-	viper.SetDefault(OpenIDUILocalesValue, "nb")
+	viper.SetDefault(OpenIDACRValues, "Level4")
+	viper.SetDefault(OpenIDUILocales, "nb")
 }
 
 func (in *BaseConfig) IDPorten() openid.ClientConfiguration {

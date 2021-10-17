@@ -74,8 +74,8 @@ func TestHandler_Login(t *testing.T) {
 
 	assert.Equal(t, idpserver.URL, fmt.Sprintf("%s://%s", u.Scheme, u.Host))
 	assert.Equal(t, "/authorize", u.Path)
-	assert.Equal(t, idp.GetClientConfiguration().GetACRValues().Value, u.Query().Get("acr_values"))
-	assert.Equal(t, idp.GetClientConfiguration().GetUILocales().Value, u.Query().Get("ui_locales"))
+	assert.Equal(t, idp.GetClientConfiguration().GetACRValues(), u.Query().Get("acr_values"))
+	assert.Equal(t, idp.GetClientConfiguration().GetUILocales(), u.Query().Get("ui_locales"))
 	assert.Equal(t, idp.GetClientConfiguration().GetClientID(), u.Query().Get("client_id"))
 	assert.Equal(t, idp.GetClientConfiguration().GetRedirectURI(), u.Query().Get("redirect_uri"))
 	assert.NotEmpty(t, u.Query().Get("state"))

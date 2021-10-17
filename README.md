@@ -2,8 +2,8 @@
 
 ![anyway here's wonderwall](https://i.imgur.com/NhRLEej.png)
 
-`wonderwall` is an application that implements _OpenID Connect_ (OIDC) in a way that makes it easy to plug into Kubernetes as a
-sidecar. As such, this is OIDC as a sidecar, or OaaS, or to explain the joke: Oasis - Wonderwall
+`wonderwall` is an application that implements _OpenID Connect_ (OIDC) in a way that makes it easy to plug into
+Kubernetes as a sidecar. As such, this is OIDC as a sidecar, or OaaS, or to explain the joke: Oasis - Wonderwall
 
 ## Features
 
@@ -52,32 +52,29 @@ openid.client-id -> WONDERWALL_OPENID_CLIENT_ID
 The following flags are available:
 
 ```shell
-Usage of ./bin/wonderwall
-      --auto-login                               Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.
-      --bind-address string                      Listen address for public connections. (default "127.0.0.1:8090")
-      --encryption-key string                    Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
-      --error-redirect-uri string                URI to redirect user to on errors for custom error handling.
-      --ingress string                           Ingress used to access the main application. (default "/")
-      --log-format string                        Log format, either 'json' or 'text'. (default "json")
-      --log-level string                         Logging verbosity level. (default "debug")
-      --metrics-bind-address string              Listen address for metrics only. (default "127.0.0.1:8091")
-      --openid.acr-values.enabled                Toggle for setting the security level (acr_values) parameter for authorization requests.
-      --openid.acr-values.value string           Space separated string that configures the requested acr_values.
-      --openid.client-id string                  Client ID for the OpenID client.
-      --openid.client-jwk string                 JWK containing the private key for the OpenID client in string format.
-      --openid.post-logout-redirect-uri string   URI for redirecting the user after successful logout at the Identity Provider.
-      --openid.provider string                   Provider configuration to load and use, either 'openid', 'azure', 'idporten'. (default "openid")
-      --openid.redirect-uri string               Redirect URI for the OpenID client that should be used in authorization requests.
-      --openid.scopes strings                    List of additional scopes (other than 'openid') that should be used during the login flow.
-      --openid.ui-locales.enabled                Toggle for setting the UI locale parameter for authorization requests.
-      --openid.ui-locales.value string           Space-separated string that configures the default locales for OAuth2 consent screen.
-      --openid.well-known-url string             URI to the well-known OpenID Configuration metadata document.
-      --redis.address string                     Address of Redis. An empty value will use in-memory session storage.
-      --redis.password string                    Password for Redis.
-      --redis.tls                                Whether or not to use TLS for connecting to Redis. (default true)
-      --redis.username string                    Username for Redis.
-      --session-max-lifetime duration            Max lifetime for user sessions. (default 1h0m0s)
-      --upstream-host string                     Address of upstream host. (default "127.0.0.1:8080")
+--auto-login                               Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.
+--bind-address string                      Listen address for public connections. (default "127.0.0.1:8090")
+--encryption-key string                    Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
+--error-redirect-uri string                URI to redirect user to on errors for custom error handling.
+--ingress string                           Ingress used to access the main application. (default "/")
+--log-format string                        Log format, either 'json' or 'text'. (default "json")
+--log-level string                         Logging verbosity level. (default "debug")
+--metrics-bind-address string              Listen address for metrics only. (default "127.0.0.1:8091")
+--openid.acr-values string                 Space separated string that configures the default security level (acr_values) parameter for authorization requests.
+--openid.client-id string                  Client ID for the OpenID client.
+--openid.client-jwk string                 JWK containing the private key for the OpenID client in string format.
+--openid.post-logout-redirect-uri string   URI for redirecting the user after successful logout at the Identity Provider.
+--openid.provider string                   Provider configuration to load and use, either 'openid', 'azure', 'idporten'. (default "openid")
+--openid.redirect-uri string               Redirect URI for the OpenID client that should be used in authorization requests.
+--openid.scopes strings                    List of additional scopes (other than 'openid') that should be used during the login flow.
+--openid.ui-locales string                 Space-separated string that configures the default UI locale (ui_locales) parameter for OAuth2 consent screen.
+--openid.well-known-url string             URI to the well-known OpenID Configuration metadata document.
+--redis.address string                     Address of Redis. An empty value will use in-memory session storage.
+--redis.password string                    Password for Redis.
+--redis.tls                                Whether or not to use TLS for connecting to Redis. (default true)
+--redis.username string                    Username for Redis.
+--session-max-lifetime duration            Max lifetime for user sessions. (default 1h0m0s)
+--upstream-host string                     Address of upstream host. (default "127.0.0.1:8080")
 ```
 
 At minimum, the following configuration must be provided:
@@ -106,14 +103,13 @@ The default values for the following flags are also changed:
 
 | Flag | Value |
 | ---- | ----- |
-| `openid.acr-values.enabled` | `true` |
-| `openid.acr-values.value` | `Level4` |
-| `openid.ui-locales.enabled` | `true` |
-| `openid.ui-locales.value` | `nb` |
+| `openid.acr-values` | `Level4` |
+| `openid.ui-locales` | `nb` |
 
 #### Azure AD
 
-When the `openid.provider` flag is set to `azure`, the following environment variables are bound to the required flags described previously:
+When the `openid.provider` flag is set to `azure`, the following environment variables are bound to the required flags
+described previously:
 
 - `AZURE_APP_CLIENT_ID`  
   Client ID for the client at Azure AD.
@@ -135,6 +131,6 @@ When the `openid.provider` flag is set to `azure`, the following environment var
 
 `make wonderwall` and `./bin/wonderwall`
 
-See [configuration](#configuration). 
+See [configuration](#configuration).
 
 Optionally run the Redis server with `docker-compose up`.

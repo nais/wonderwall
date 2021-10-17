@@ -94,7 +94,7 @@ func (h *Handler) validateIDToken(idToken *token.IDToken, loginCookie *cookie.Lo
 		jwt.WithRequiredClaim("sid"),
 	}
 
-	if h.Provider.GetClientConfiguration().GetACRValues().Enabled {
+	if len(h.Provider.GetClientConfiguration().GetACRValues()) > 0 {
 		validateOpts = append(validateOpts, jwt.WithRequiredClaim("acr"))
 	}
 

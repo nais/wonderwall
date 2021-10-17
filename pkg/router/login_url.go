@@ -48,11 +48,12 @@ func (h *Handler) LoginURL(r *http.Request, params *openid.Parameters) (string, 
 }
 
 func (h *Handler) withSecurityLevel(r *http.Request, v url.Values) error {
-	if !h.Provider.GetClientConfiguration().GetACRValues().Enabled {
+	acrValues := h.Provider.GetClientConfiguration().GetACRValues()
+	if len(acrValues) == 0 {
 		return nil
 	}
 
-	fallback := h.Provider.GetClientConfiguration().GetACRValues().Value
+	fallback := acrValues
 	supported := h.Provider.GetOpenIDConfiguration().ACRValuesSupported
 
 	securityLevel, err := request.LoginURLParameter(r, request.SecurityLevelURLParameter, fallback, supported)
@@ -65,11 +66,12 @@ func (h *Handler) withSecurityLevel(r *http.Request, v url.Values) error {
 }
 
 func (h *Handler) withLocale(r *http.Request, v url.Values) error {
-	if !h.Provider.GetClientConfiguration().GetUILocales().Enabled {
+	uiLocales := h.Provider.GetClientConfiguration().GetUILocales()
+	if len(uiLocales) == 0 {
 		return nil
 	}
 
-	fallback := h.Provider.GetClientConfiguration().GetUILocales().Value
+	fallback := uiLocales
 	supported := h.Provider.GetOpenIDConfiguration().UILocalesSupported
 
 	locale, err := request.LoginURLParameter(r, request.LocaleURLParameter, fallback, supported)

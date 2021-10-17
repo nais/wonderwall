@@ -75,6 +75,16 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("fetching well known config: %w", err)
 	}
 
+	acrValues := clientConfig.GetACRValues()
+	if len(acrValues) > 0 && !configuration.ACRValuesSupported.Contains(acrValues) {
+		return nil, fmt.Errorf("identity provider does not support '%s=%s'", config.OpenIDACRValues, acrValues)
+	}
+
+	uiLocales := clientConfig.GetUILocales()
+	if len(uiLocales) > 0 && !configuration.UILocalesSupported.Contains(uiLocales) {
+		return nil, fmt.Errorf("identity provider does not support '%s=%s'", config.OpenIDUILocales, acrValues)
+	}
+
 	jwkSet, err := configuration.FetchJwkSet(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("fetching jwk set: %w", err)

@@ -8,7 +8,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 
-	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/scopes"
 )
 
@@ -18,8 +17,8 @@ type TestClientConfiguration struct {
 	RedirectURI           string
 	PostLogoutRedirectURI string
 	Scopes                scopes.Scopes
-	ACRValues             openid.OptionalConfiguration
-	UILocales             openid.OptionalConfiguration
+	ACRValues             string
+	UILocales             string
 	WellKnownURL          string
 }
 
@@ -43,11 +42,11 @@ func (c TestClientConfiguration) GetScopes() scopes.Scopes {
 	return c.Scopes
 }
 
-func (c TestClientConfiguration) GetACRValues() openid.OptionalConfiguration {
+func (c TestClientConfiguration) GetACRValues() string {
 	return c.ACRValues
 }
 
-func (c TestClientConfiguration) GetUILocales() openid.OptionalConfiguration {
+func (c TestClientConfiguration) GetUILocales() string {
 	return c.UILocales
 }
 
@@ -70,18 +69,12 @@ func clientConfiguration() TestClientConfiguration {
 	key.Set(jwk.KeyIDKey, uuid.New().String())
 
 	return TestClientConfiguration{
-		ClientID:     "client_id",
-		ClientJWK:    key,
-		RedirectURI:  "http://localhost/callback",
-		WellKnownURL: "",
-		UILocales: openid.OptionalConfiguration{
-			Enabled: true,
-			Value:   "nb",
-		},
-		ACRValues: openid.OptionalConfiguration{
-			Enabled: true,
-			Value:   "Level4",
-		},
+		ClientID:              "client_id",
+		ClientJWK:             key,
+		RedirectURI:           "http://localhost/callback",
+		WellKnownURL:          "",
+		UILocales:             "nb",
+		ACRValues:             "Level4",
 		PostLogoutRedirectURI: "",
 		Scopes:                scopes.Defaults(),
 	}

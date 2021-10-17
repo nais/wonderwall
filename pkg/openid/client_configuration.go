@@ -12,12 +12,7 @@ type ClientConfiguration interface {
 	GetPostLogoutRedirectURI() string
 	GetRedirectURI() string
 	GetScopes() scopes.Scopes
-	GetACRValues() OptionalConfiguration
-	GetUILocales() OptionalConfiguration
+	GetACRValues() string
+	GetUILocales() string
 	GetWellKnownURL() string
-}
-
-type OptionalConfiguration struct {
-	Enabled bool   `json:"enabled"`
-	Value   string `json:"value"`
 }

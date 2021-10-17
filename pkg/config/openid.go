@@ -4,7 +4,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	flag "github.com/spf13/pflag"
 
-	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/scopes"
 )
 
@@ -16,22 +15,20 @@ const (
 	OpenIDRedirectURI           = "openid.redirect-uri"
 	OpenIDScopes                = "openid.scopes"
 	OpenIDWellKnownURL          = "openid.well-known-url"
-	OpenIDACRValuesEnabled      = "openid.acr-values.enabled"
-	OpenIDACRValuesValue        = "openid.acr-values.value"
-	OpenIDUILocalesEnabled      = "openid.ui-locales.enabled"
-	OpenIDUILocalesValue        = "openid.ui-locales.value"
+	OpenIDACRValues             = "openid.acr-values"
+	OpenIDUILocales             = "openid.ui-locales"
 )
 
 type OpenID struct {
-	Provider              Provider                     `json:"provider"`
-	ClientID              string                       `json:"client-id"`
-	ClientJWK             string                       `json:"client-jwk"`
-	PostLogoutRedirectURI string                       `json:"post-logout-redirect-uri"`
-	RedirectURI           string                       `json:"redirect-uri"`
-	Scopes                []string                     `json:"scopes"`
-	WellKnownURL          string                       `json:"well-known-url"`
-	ACRValues             openid.OptionalConfiguration `json:"acr-values"`
-	UILocales             openid.OptionalConfiguration `json:"ui-locales"`
+	Provider              Provider `json:"provider"`
+	ClientID              string   `json:"client-id"`
+	ClientJWK             string   `json:"client-jwk"`
+	PostLogoutRedirectURI string   `json:"post-logout-redirect-uri"`
+	RedirectURI           string   `json:"redirect-uri"`
+	Scopes                []string `json:"scopes"`
+	WellKnownURL          string   `json:"well-known-url"`
+	ACRValues             string   `json:"acr-values"`
+	UILocales             string   `json:"ui-locales"`
 }
 
 type Provider string
@@ -67,18 +64,12 @@ func (in *BaseConfig) GetScopes() scopes.Scopes {
 	return scopes.Defaults().WithAdditional(in.Scopes...)
 }
 
-func (in *BaseConfig) GetACRValues() openid.OptionalConfiguration {
-	return openid.OptionalConfiguration{
-		Enabled: in.ACRValues.Enabled,
-		Value:   in.ACRValues.Value,
-	}
+func (in *BaseConfig) GetACRValues() string {
+	return in.ACRValues
 }
 
-func (in *BaseConfig) GetUILocales() openid.OptionalConfiguration {
-	return openid.OptionalConfiguration{
-		Enabled: in.UILocales.Enabled,
-		Value:   in.UILocales.Value,
-	}
+func (in *BaseConfig) GetUILocales() string {
+	return in.UILocales
 }
 
 func (in *BaseConfig) GetWellKnownURL() string {
@@ -100,8 +91,6 @@ func openIDFlags() {
 	flag.StringSlice(OpenIDScopes, []string{}, "List of additional scopes (other than 'openid') that should be used during the login flow.")
 	flag.String(OpenIDWellKnownURL, "", "URI to the well-known OpenID Configuration metadata document.")
 
-	flag.Bool(OpenIDACRValuesEnabled, false, "Toggle for setting the security level (acr_values) parameter for authorization requests.")
-	flag.String(OpenIDACRValuesValue, "", "Space separated string that configures the requested acr_values.")
-	flag.Bool(OpenIDUILocalesEnabled, false, "Toggle for setting the UI locale parameter for authorization requests.")
-	flag.String(OpenIDUILocalesValue, "", "Space-separated string that configures the default locales for OAuth2 consent screen.")
+	flag.String(OpenIDACRValues, "", "Space separated string that configures the default security level (acr_values) parameter for authorization requests.")
+	flag.String(OpenIDUILocales, "", "Space-separated string that configures the default UI locale (ui_locales) parameter for OAuth2 consent screen.")
 }
