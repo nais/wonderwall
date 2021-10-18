@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"path"
 
 	"github.com/lestrrat-go/jwx/jwk"
 
@@ -52,7 +53,7 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("missing required config %s", config.Ingress)
 	}
 
-	redirectURI, err := redirectURI(ingress)
+	redirectURI, err := RedirectURI(ingress)
 	if err != nil {
 		return nil, fmt.Errorf("creating redirect URI from ingress: %w", err)
 	}
@@ -105,16 +106,16 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 	}, nil
 }
 
-func redirectURI(ingress string) (string, error) {
+func RedirectURI(ingress string) (string, error) {
+	if len(ingress) == 0 {
+		return "", fmt.Errorf("ingress cannot be empty")
+	}
+
 	base, err := url.Parse(ingress)
 	if err != nil {
 		return "", err
 	}
 
-	callbackPath, err := url.Parse(paths.OAuth2 + paths.Callback)
-	if err != nil {
-		return "", err
-	}
-
-	return base.ResolveReference(callbackPath).String(), nil
+	base.Path = path.Join(base.Path, paths.OAuth2, paths.Callback)
+	return base.String(), nil
 }
