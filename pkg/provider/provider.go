@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lestrrat-go/jwx/jwk"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/openid"
@@ -81,6 +82,8 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("fetching well known config: %w", err)
 	}
 
+	printConfigs(clientConfig, *configuration)
+
 	acrValues := clientConfig.GetACRValues()
 	if len(acrValues) > 0 && !configuration.ACRValuesSupported.Contains(acrValues) {
 		return nil, fmt.Errorf("identity provider does not support '%s=%s'", config.OpenIDACRValues, acrValues)
@@ -101,4 +104,17 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		configuration:       configuration,
 		jwkSet:              jwkSet,
 	}, nil
+}
+
+func printConfigs(clientCfg openid.ClientConfiguration, openIdCfg openid.Configuration) {
+	log.Info("🤔 openid client configuration 🤔")
+	log.Infof("acr values: '%s'", clientCfg.GetACRValues())
+	log.Infof("client id: '%s'", clientCfg.GetClientID())
+	log.Infof("post-logout redirect uri: '%s'", clientCfg.GetPostLogoutRedirectURI())
+	log.Infof("redirect uri: '%s'", clientCfg.GetRedirectURI())
+	log.Infof("scopes: '%s'", clientCfg.GetScopes())
+	log.Infof("ui locales: '%s'", clientCfg.GetUILocales())
+
+	log.Info("😗 openid provider configuration 😗")
+	log.Infof("%#v", openIdCfg)
 }
