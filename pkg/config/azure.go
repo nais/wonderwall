@@ -14,7 +14,6 @@ type azure struct {
 func azureFlags() {
 	viper.BindEnv(OpenIDClientID, "AZURE_APP_CLIENT_ID")
 	viper.BindEnv(OpenIDClientJWK, "AZURE_APP_JWK")
-	viper.BindEnv(OpenIDRedirectURI, "AZURE_APP_REDIRECT_URI")
 	viper.BindEnv(OpenIDWellKnownURL, "AZURE_APP_WELL_KNOWN_URL")
 }
 

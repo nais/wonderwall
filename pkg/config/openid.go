@@ -12,7 +12,6 @@ const (
 	OpenIDClientID              = "openid.client-id"
 	OpenIDClientJWK             = "openid.client-jwk"
 	OpenIDPostLogoutRedirectURI = "openid.post-logout-redirect-uri"
-	OpenIDRedirectURI           = "openid.redirect-uri"
 	OpenIDScopes                = "openid.scopes"
 	OpenIDWellKnownURL          = "openid.well-known-url"
 	OpenIDACRValues             = "openid.acr-values"
@@ -24,7 +23,6 @@ type OpenID struct {
 	ClientID              string   `json:"client-id"`
 	ClientJWK             string   `json:"client-jwk"`
 	PostLogoutRedirectURI string   `json:"post-logout-redirect-uri"`
-	RedirectURI           string   `json:"redirect-uri"`
 	Scopes                []string `json:"scopes"`
 	WellKnownURL          string   `json:"well-known-url"`
 	ACRValues             string   `json:"acr-values"`
@@ -41,11 +39,12 @@ const (
 
 type BaseConfig struct {
 	OpenID
-	clientJwk jwk.Key
+	clientJwk   jwk.Key
+	redirectURI string
 }
 
 func (in *BaseConfig) GetRedirectURI() string {
-	return in.RedirectURI
+	return in.redirectURI
 }
 
 func (in *BaseConfig) GetClientID() string {
@@ -76,10 +75,11 @@ func (in *BaseConfig) GetWellKnownURL() string {
 	return in.WellKnownURL
 }
 
-func (c *Config) NewBaseConfig(clientJwk jwk.Key) *BaseConfig {
+func (c *Config) NewBaseConfig(clientJwk jwk.Key, redirectURI string) *BaseConfig {
 	return &BaseConfig{
-		OpenID:    c.OpenID,
-		clientJwk: clientJwk,
+		OpenID:      c.OpenID,
+		clientJwk:   clientJwk,
+		redirectURI: redirectURI,
 	}
 }
 
@@ -87,7 +87,6 @@ func openIDFlags() {
 	flag.String(OpenIDClientID, "", "Client ID for the OpenID client.")
 	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format.")
 	flag.String(OpenIDPostLogoutRedirectURI, "", "URI for redirecting the user after successful logout at the Identity Provider.")
-	flag.String(OpenIDRedirectURI, "", "Redirect URI for the OpenID client that should be used in authorization requests.")
 	flag.StringSlice(OpenIDScopes, []string{}, "List of additional scopes (other than 'openid') that should be used during the login flow.")
 	flag.String(OpenIDWellKnownURL, "", "URI to the well-known OpenID Configuration metadata document.")
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/middleware"
+	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 func New(handler *Handler) chi.Router {
@@ -16,14 +17,14 @@ func New(handler *Handler) chi.Router {
 
 	prefix := config.ParseIngress(handler.Config.Ingress)
 
-	r.Route(prefix+"/oauth2", func(r chi.Router) {
+	r.Route(prefix+paths.OAuth2, func(r chi.Router) {
 		r.Use(middleware.LogEntryHandler(handler.httplogger))
 		r.Use(prometheusMiddleware.Handler)
 		r.Use(chi_middleware.NoCache)
-		r.Get("/login", handler.Login)
-		r.Get("/callback", handler.Callback)
-		r.Get("/logout", handler.Logout)
-		r.Get("/logout/frontchannel", handler.FrontChannelLogout)
+		r.Get(paths.Login, handler.Login)
+		r.Get(paths.Callback, handler.Callback)
+		r.Get(paths.Logout, handler.Logout)
+		r.Get(paths.FrontChannelLogout, handler.FrontChannelLogout)
 	})
 	r.HandleFunc("/*", handler.Default)
 	return r
