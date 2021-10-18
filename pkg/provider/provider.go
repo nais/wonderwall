@@ -3,14 +3,11 @@ package provider
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"path"
 
 	"github.com/lestrrat-go/jwx/jwk"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 type Provider interface {
@@ -53,7 +50,7 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("missing required config %s", config.Ingress)
 	}
 
-	redirectURI, err := RedirectURI(ingress)
+	redirectURI, err := openid.RedirectURI(ingress)
 	if err != nil {
 		return nil, fmt.Errorf("creating redirect URI from ingress: %w", err)
 	}
@@ -104,18 +101,4 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		configuration:       configuration,
 		jwkSet:              jwkSet,
 	}, nil
-}
-
-func RedirectURI(ingress string) (string, error) {
-	if len(ingress) == 0 {
-		return "", fmt.Errorf("ingress cannot be empty")
-	}
-
-	base, err := url.Parse(ingress)
-	if err != nil {
-		return "", err
-	}
-
-	base.Path = path.Join(base.Path, paths.OAuth2, paths.Callback)
-	return base.String(), nil
 }

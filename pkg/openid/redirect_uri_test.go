@@ -1,4 +1,4 @@
-package provider_test
+package openid_test
 
 import (
 	"fmt"
@@ -6,14 +6,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nais/wonderwall/pkg/provider"
+	"github.com/nais/wonderwall/pkg/openid"
 )
 
 func TestRedirectURI(t *testing.T) {
 	for _, test := range []struct {
 		input string
 		want  string
-		err error
+		err   error
 	}{
 		{
 			input: "https://nav.no/dagpenger",
@@ -33,16 +33,15 @@ func TestRedirectURI(t *testing.T) {
 		},
 		{
 			input: "",
-			err: fmt.Errorf("ingress cannot be empty"),
+			err:   fmt.Errorf("ingress cannot be empty"),
 		},
 	} {
-		actual, err := provider.RedirectURI(test.input)
+		actual, err := openid.RedirectURI(test.input)
 		if test.err != nil {
 			assert.EqualError(t, err, test.err.Error())
 		} else {
 			assert.NoError(t, err)
+			assert.Equal(t, test.want, actual)
 		}
-
-		assert.Equal(t, test.want, actual)
 	}
 }
