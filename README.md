@@ -53,18 +53,19 @@ The following flags are available:
 
 ```shell
 --auto-login                               Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.
---bind-address string                      Listen address for public connections. (default "127.0.0.1:3000")
+--bind-address string                      Listen address for public connections. (default "127.0.0.1:8090")
 --encryption-key string                    Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
 --error-redirect-uri string                URI to redirect user to on errors for custom error handling.
---ingress string                           Ingress used to access the main application.
+--ingress string                           Ingress used to access the main application. (default "/")
 --log-format string                        Log format, either 'json' or 'text'. (default "json")
 --log-level string                         Logging verbosity level. (default "debug")
---metrics-bind-address string              Listen address for metrics only. (default "127.0.0.1:3001")
+--metrics-bind-address string              Listen address for metrics only. (default "127.0.0.1:8091")
 --openid.acr-values string                 Space separated string that configures the default security level (acr_values) parameter for authorization requests.
 --openid.client-id string                  Client ID for the OpenID client.
 --openid.client-jwk string                 JWK containing the private key for the OpenID client in string format.
 --openid.post-logout-redirect-uri string   URI for redirecting the user after successful logout at the Identity Provider.
 --openid.provider string                   Provider configuration to load and use, either 'openid', 'azure', 'idporten'. (default "openid")
+--openid.redirect-uri string               Redirect URI for the OpenID client that should be used in authorization requests.
 --openid.scopes strings                    List of additional scopes (other than 'openid') that should be used during the login flow.
 --openid.ui-locales string                 Space-separated string that configures the default UI locale (ui_locales) parameter for OAuth2 consent screen.
 --openid.well-known-url string             URI to the well-known OpenID Configuration metadata document.
@@ -80,18 +81,21 @@ At minimum, the following configuration must be provided:
 
 - `openid.client-id`
 - `openid.client-jwk`
+- `openid.redirect-uri`
 - `openid.well-known-url`
-- `ingress`
 
 #### ID-porten
 
-When the `openid.provider` flag is set to `idporten`, the following environment variables are bound to the required `openid`
+When the `openid.provider` flag is set to `idporten`, the following environment variables are bound to the required
 flags described previously:
 
 - `IDPORTEN_CLIENT_ID`  
   Client ID for the client at ID-porten.
 - `IDPORTEN_CLIENT_JWK`  
   Private key belonging to the client in JWK format.
+- `IDPORTEN_REDIRECT_URI`  
+  Valid pre-registered redirect URI that ID-porten should redirect the user to as part of the authentication flow.  
+  For example: `http://localhost:8090/oauth2/callback`
 - `IDPORTEN_WELL_KNOWN_URL`  
   Well-known OpenID Configuration endpoint for ID-porten: <https://docs.digdir.no/oidc_func_wellknown.html>.
 
@@ -111,6 +115,9 @@ described previously:
   Client ID for the client at Azure AD.
 - `AZURE_APP_CLIENT_JWK`  
   Private key belonging to the client in JWK format.
+- `AZURE_APP_REDIRECT_URI`  
+  Valid pre-registered redirect URI that Azure AD should redirect the user to as part of the authentication flow.  
+  For example: `http://localhost:8090/oauth2/callback`
 - `AZURE_APP_WELL_KNOWN_URL`  
   Well-known OpenID Configuration endpoint for Azure AD.
 

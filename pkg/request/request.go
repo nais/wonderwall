@@ -10,7 +10,6 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 var (
@@ -85,7 +84,7 @@ func RetryURI(r *http.Request, ingress string, loginCookie *cookie.Login) string
 
 	prefix := config.ParseIngress(ingress)
 
-	if strings.HasSuffix(retryURI, paths.OAuth2+paths.Logout) || strings.HasSuffix(retryURI, paths.OAuth2+paths.FrontChannelLogout) {
+	if strings.HasSuffix(retryURI, "/oauth2/logout") || strings.HasSuffix(retryURI, "/oauth2/logout/frontchannel") {
 		return prefix + retryURI
 	}
 
@@ -114,7 +113,7 @@ func RetryURI(r *http.Request, ingress string, loginCookie *cookie.Login) string
 		redirect = loginCookie.Referer
 	}
 
-	retryURI = fmt.Sprintf(prefix + paths.OAuth2 + paths.Login)
+	retryURI = fmt.Sprintf("%s/oauth2/login", prefix)
 	retryURI = retryURI + fmt.Sprintf("?%s=%s", RedirectURLParameter, redirect)
 	return retryURI
 }

@@ -3,13 +3,11 @@ package provider
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	"github.com/lestrrat-go/jwx/jwk"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 type Provider interface {
@@ -47,17 +45,7 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("parsing client JWK: %w", err)
 	}
 
-	ingress := cfg.Ingress
-	if len(ingress) == 0 {
-		return nil, fmt.Errorf("missing required config %s", config.Ingress)
-	}
-
-	redirectURI, err := redirectURI(ingress)
-	if err != nil {
-		return nil, fmt.Errorf("creating redirect URI from ingress: %w", err)
-	}
-
-	baseConfig := cfg.NewBaseConfig(clientJwk, redirectURI)
+	baseConfig := cfg.NewBaseConfig(clientJwk)
 	var clientConfig openid.ClientConfiguration
 	switch cfg.OpenID.Provider {
 	case config.ProviderIDPorten:
@@ -76,6 +64,10 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 
 	if len(clientConfig.GetWellKnownURL()) == 0 {
 		return nil, fmt.Errorf("missing required config %s", config.OpenIDWellKnownURL)
+	}
+
+	if len(clientConfig.GetRedirectURI()) == 0 {
+		return nil, fmt.Errorf("missing required config %s", config.OpenIDRedirectURI)
 	}
 
 	configuration, err := openid.FetchWellKnownConfig(clientConfig)
@@ -103,18 +95,4 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		configuration:       configuration,
 		jwkSet:              jwkSet,
 	}, nil
-}
-
-func redirectURI(ingress string) (string, error) {
-	base, err := url.Parse(ingress)
-	if err != nil {
-		return "", err
-	}
-
-	callbackPath, err := url.Parse(paths.OAuth2 + paths.Callback)
-	if err != nil {
-		return "", err
-	}
-
-	return base.ResolveReference(callbackPath).String(), nil
 }
