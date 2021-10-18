@@ -4,9 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/cookie"
 	"net/http"
 	"time"
+
+	"github.com/nais/wonderwall/pkg/cookie"
 )
 
 const (

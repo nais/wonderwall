@@ -9,8 +9,8 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"golang.org/x/oauth2"
 
-	"github.com/nais/wonderwall/pkg/auth"
 	"github.com/nais/wonderwall/pkg/cookie"
+	"github.com/nais/wonderwall/pkg/provider"
 	"github.com/nais/wonderwall/pkg/token"
 )
 
@@ -40,7 +40,8 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := token.ParseIDToken(h.jwkSet, tokens)
+	jwkSet := h.Provider.GetPublicJwkSet()
+	idToken, err := token.ParseIDToken(*jwkSet, tokens)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: parsing id_token: %w", err))
 		return
@@ -65,7 +66,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *cookie.Login, code string) (*oauth2.Token, error) {
-	assertion, err := auth.ClientAssertion(h.Config.IDPorten, time.Second*30)
+	assertion, err := provider.ClientAssertion(h.Provider, time.Second*30)
 	if err != nil {
 		return nil, fmt.Errorf("creating client assertion: %w", err)
 	}
@@ -86,14 +87,14 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *cookie.
 
 func (h *Handler) validateIDToken(idToken *token.IDToken, loginCookie *cookie.Login) (string, error) {
 	validateOpts := []jwt.ValidateOption{
-		jwt.WithAudience(h.Config.IDPorten.ClientID),
+		jwt.WithAudience(h.Provider.GetClientConfiguration().GetClientID()),
 		jwt.WithClaimValue("nonce", loginCookie.Nonce),
-		jwt.WithIssuer(h.Config.IDPorten.WellKnown.Issuer),
+		jwt.WithIssuer(h.Provider.GetOpenIDConfiguration().Issuer),
 		jwt.WithAcceptableSkew(5 * time.Second),
 		jwt.WithRequiredClaim("sid"),
 	}
 
-	if h.Config.IDPorten.SecurityLevel.Enabled {
+	if len(h.Provider.GetClientConfiguration().GetACRValues()) > 0 {
 		validateOpts = append(validateOpts, jwt.WithRequiredClaim("acr"))
 	}
 

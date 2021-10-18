@@ -1,18 +1,36 @@
 package router
 
 import (
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/httplog"
-	"github.com/nais/wonderwall/pkg/request"
+	_ "embed"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httplog"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/nais/wonderwall/pkg/request"
 )
 
 type ErrorPage struct {
 	CorrelationID string
 	RetryURI      string
+}
+
+//go:embed templates/error.gohtml
+var errorGoHtml string
+var errorTemplate *template.Template
+
+func init() {
+	var err error
+
+	errorTemplate = template.New("error")
+	errorTemplate, err = errorTemplate.Parse(errorGoHtml)
+	if err != nil {
+		log.Fatalf("parsing error template: %+v", err)
+	}
 }
 
 func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error) {
@@ -32,7 +50,6 @@ func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCod
 func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int) {
 	w.WriteHeader(statusCode)
 
-	t, _ := template.ParseFiles("templates/error.html")
 	loginCookie, err := h.getLoginCookie(r)
 	if err != nil {
 		loginCookie = nil
@@ -42,7 +59,10 @@ func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, s
 		CorrelationID: middleware.GetReqID(r.Context()),
 		RetryURI:      request.RetryURI(r, h.Config.Ingress, loginCookie),
 	}
-	_ = t.Execute(w, errorPage)
+	err = errorTemplate.Execute(w, errorPage)
+	if err != nil {
+		log.Errorf("executing error template: %+v", err)
+	}
 }
 
 func (h *Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, statusCode int) error {

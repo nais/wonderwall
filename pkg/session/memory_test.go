@@ -2,13 +2,14 @@ package session_test
 
 import (
 	"context"
-	"github.com/nais/liberator/pkg/keygen"
-	"github.com/nais/wonderwall/pkg/cryptutil"
 	"testing"
 	"time"
 
-	"github.com/nais/wonderwall/pkg/session"
+	"github.com/nais/liberator/pkg/keygen"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/nais/wonderwall/pkg/cryptutil"
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 func TestMemory(t *testing.T) {

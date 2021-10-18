@@ -3,15 +3,15 @@ package router
 import (
 	"errors"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/request"
 	"net/http"
 
-	"github.com/nais/wonderwall/pkg/auth"
+	"github.com/nais/wonderwall/pkg/cookie"
+	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/request"
 )
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	params, err := auth.GenerateLoginParameters()
+	params, err := openid.GenerateLoginParameters()
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("login: generating login parameters: %w", err))
 		return

@@ -1,14 +1,14 @@
 package router
 
 import (
-	"github.com/rs/zerolog"
 	"sync"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cryptutil"
+	"github.com/nais/wonderwall/pkg/provider"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
@@ -16,10 +16,9 @@ type Handler struct {
 	Config        config.Config
 	Crypter       cryptutil.Crypter
 	OauthConfig   oauth2.Config
+	Provider      provider.Provider
 	SecureCookies bool
 	Sessions      session.Store
-	UpstreamHost  string
-	jwkSet        jwk.Set
 	lock          sync.Mutex
 	httplogger    zerolog.Logger
 }
@@ -28,30 +27,28 @@ func NewHandler(
 	cfg config.Config,
 	crypter cryptutil.Crypter,
 	httplogger zerolog.Logger,
-	jwkSet jwk.Set,
+	provider provider.Provider,
 	sessionStore session.Store,
-	upstreamHost string,
 ) (*Handler, error) {
 	oauthConfig := oauth2.Config{
-		ClientID: cfg.IDPorten.ClientID,
+		ClientID: provider.GetClientConfiguration().GetClientID(),
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  cfg.IDPorten.WellKnown.AuthorizationEndpoint,
-			TokenURL: cfg.IDPorten.WellKnown.TokenEndpoint,
+			AuthURL:  provider.GetOpenIDConfiguration().AuthorizationEndpoint,
+			TokenURL: provider.GetOpenIDConfiguration().TokenEndpoint,
 		},
-		RedirectURL: cfg.IDPorten.RedirectURI,
-		Scopes:      cfg.IDPorten.Scopes,
+		RedirectURL: provider.GetClientConfiguration().GetRedirectURI(),
+		Scopes:      provider.GetClientConfiguration().GetScopes(),
 	}
 
 	return &Handler{
 		Config:        cfg,
 		Crypter:       crypter,
 		httplogger:    httplogger,
-		jwkSet:        jwkSet,
 		lock:          sync.Mutex{},
 		OauthConfig:   oauthConfig,
+		Provider:      provider,
 		Sessions:      sessionStore,
 		SecureCookies: true,
-		UpstreamHost:  upstreamHost,
 	}, nil
 }
 

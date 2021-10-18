@@ -2,11 +2,14 @@ package router_test
 
 import (
 	"errors"
-	"github.com/nais/wonderwall/pkg/auth"
-	"github.com/nais/wonderwall/pkg/router"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/nais/wonderwall/pkg/mock"
+	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/router"
 )
 
 func TestLoginURL(t *testing.T) {
@@ -44,14 +47,14 @@ func TestLoginURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.url, func(t *testing.T) {
-			cfg := defaultConfig()
 			req, err := http.NewRequest("GET", test.url, nil)
 			assert.NoError(t, err)
 
-			params, err := auth.GenerateLoginParameters()
+			params, err := openid.GenerateLoginParameters()
 			assert.NoError(t, err)
 
-			handler := handler(cfg)
+			provider := mock.NewTestProvider()
+			handler := handler(provider)
 			_, err = handler.LoginURL(req, params)
 
 			if test.error != nil {

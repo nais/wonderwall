@@ -2,8 +2,9 @@ package cryptutil_test
 
 import (
 	"crypto/rand"
-	"github.com/nais/wonderwall/pkg/cryptutil"
 	"testing"
+
+	"github.com/nais/wonderwall/pkg/cryptutil"
 
 	"github.com/stretchr/testify/assert"
 )

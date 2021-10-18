@@ -5,14 +5,15 @@ package session_test
 
 import (
 	"context"
-	"github.com/nais/liberator/pkg/keygen"
-	"github.com/nais/wonderwall/pkg/cryptutil"
 	"testing"
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/nais/wonderwall/pkg/session"
+	"github.com/nais/liberator/pkg/keygen"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/nais/wonderwall/pkg/cryptutil"
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 func TestRedis(t *testing.T) {

@@ -21,7 +21,7 @@ import (
 // Thus, we cannot assume that the value of `sid` to uniquely identify the pair of (user, application session)
 // if using a shared session store.
 func (h *Handler) localSessionID(sid string) string {
-	return fmt.Sprintf("%s-%s", h.Config.IDPorten.ClientID, sid)
+	return fmt.Sprintf("%s:%s:%s", h.Config.OpenID.Provider, h.Provider.GetClientConfiguration().GetClientID(), sid)
 }
 
 func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (*session.Data, error) {
@@ -45,17 +45,17 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 		return nil, fmt.Errorf("session not found in store: %w", err)
 	}
 
-	log.Warnf("get session: store is unavailable; using cookie fallback: %+v", err)
 	fallbackSessionData, err := h.GetSessionFallback(r)
 	if err != nil {
 		return nil, fmt.Errorf("fallback session not found: %w", err)
 	}
 
+	log.Warnf("get session: store is unavailable: %+v; using cookie fallback", err)
 	return fallbackSessionData, nil
 }
 
 func (h *Handler) getSessionLifetime(accessToken string) (time.Duration, error) {
-	defaultSessionLifetime := h.Config.IDPorten.SessionMaxLifetime
+	defaultSessionLifetime := h.Config.SessionMaxLifetime
 
 	tok, err := jwt.Parse([]byte(accessToken))
 	if err != nil {
@@ -97,11 +97,12 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 		return nil
 	}
 
-	log.Warnf("create session: store is unavailable; using cookie fallback: %+v", err)
 	err = h.SetSessionFallback(w, sessionData, sessionLifetime)
 	if err != nil {
 		return fmt.Errorf("writing session to fallback store: %w", err)
 	}
+
+	log.Warnf("create session: store is unavailable: %+v; using cookie fallback", err)
 	return nil
 }
 

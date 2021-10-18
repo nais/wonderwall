@@ -1,4 +1,4 @@
-package auth
+package openid
 
 import (
 	"crypto/rand"

@@ -1,11 +1,15 @@
-package config
+package openid
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+
+	"github.com/lestrrat-go/jwx/jwk"
 )
 
-type IDPortenWellKnown struct {
+type Configuration struct {
 	Issuer                                 string    `json:"issuer"`
 	AuthorizationEndpoint                  string    `json:"authorization_endpoint"`
 	PushedAuthorizationRequestEndpoint     string    `json:"pushed_authorization_request_endpoint"`
@@ -42,15 +46,28 @@ func (in Supported) Contains(value string) bool {
 	return false
 }
 
-func (c *Config) FetchWellKnownConfig() error {
-	response, err := http.Get(c.IDPorten.WellKnownURL)
+func FetchWellKnownConfig(config ClientConfiguration) (*Configuration, error) {
+	response, err := http.Get(config.GetWellKnownURL())
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("fetching well known configuration: %w", err)
 	}
 
-	// can this play with viper in any way?
-	if err := json.NewDecoder(response.Body).Decode(&c.IDPorten.WellKnown); err != nil {
-		return err
+	var cfg Configuration
+	if err := json.NewDecoder(response.Body).Decode(&cfg); err != nil {
+		return nil, fmt.Errorf("decoding well known configuration: %w", err)
 	}
-	return nil
+
+	return &cfg, nil
+}
+
+func (c *Configuration) FetchJwkSet(ctx context.Context) (*jwk.Set, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	jwkSet, err := jwk.Fetch(ctx, c.JwksURI)
+	if err != nil {
+		return nil, fmt.Errorf("fetching jwks: %w", err)
+	}
+
+	return &jwkSet, nil
 }

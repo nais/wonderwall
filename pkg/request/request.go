@@ -9,6 +9,8 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
+	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 var (
@@ -40,7 +42,7 @@ func CanonicalRedirectURL(r *http.Request) string {
 
 // LoginURLParameter attempts to get a given parameter from the given HTTP request, falling back if none found.
 // The value must exist in the supplied list of supported values.
-func LoginURLParameter(r *http.Request, parameter, fallback string, supported config.Supported) (string, error) {
+func LoginURLParameter(r *http.Request, parameter, fallback string, supported openid.Supported) (string, error) {
 	value := r.URL.Query().Get(parameter)
 
 	if len(value) == 0 {
@@ -83,7 +85,7 @@ func RetryURI(r *http.Request, ingress string, loginCookie *cookie.Login) string
 
 	prefix := config.ParseIngress(ingress)
 
-	if strings.HasSuffix(retryURI, "/oauth2/logout") || strings.HasSuffix(retryURI, "/oauth2/logout/frontchannel") {
+	if strings.HasSuffix(retryURI, paths.OAuth2+paths.Logout) || strings.HasSuffix(retryURI, paths.OAuth2+paths.FrontChannelLogout) {
 		return prefix + retryURI
 	}
 
@@ -112,7 +114,7 @@ func RetryURI(r *http.Request, ingress string, loginCookie *cookie.Login) string
 		redirect = loginCookie.Referer
 	}
 
-	retryURI = fmt.Sprintf("%s/oauth2/login", prefix)
+	retryURI = fmt.Sprintf(prefix + paths.OAuth2 + paths.Login)
 	retryURI = retryURI + fmt.Sprintf("?%s=%s", RedirectURLParameter, redirect)
 	return retryURI
 }

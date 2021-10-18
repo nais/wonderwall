@@ -2,18 +2,20 @@ package router_test
 
 import (
 	"encoding/base64"
-	"github.com/nais/wonderwall/pkg/router"
-	"github.com/nais/wonderwall/pkg/session"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/nais/wonderwall/pkg/mock"
+	"github.com/nais/wonderwall/pkg/router"
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 func TestHandler_GetSessionFallback(t *testing.T) {
-	cfg := defaultConfig()
-	h := handler(cfg)
+	h := handler(mock.NewTestProvider())
 
 	t.Run("request without fallback session cookies", func(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -53,8 +55,7 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 }
 
 func TestHandler_SetSessionFallback(t *testing.T) {
-	cfg := defaultConfig()
-	h := handler(cfg)
+	h := handler(mock.NewTestProvider())
 
 	// request should set session cookies in response
 	writer := httptest.NewRecorder()
@@ -87,8 +88,7 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 }
 
 func TestHandler_DeleteSessionFallback(t *testing.T) {
-	cfg := defaultConfig()
-	h := handler(cfg)
+	h := handler(mock.NewTestProvider())
 
 	writer := httptest.NewRecorder()
 	h.DeleteSessionFallback(writer)

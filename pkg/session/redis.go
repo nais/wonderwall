@@ -2,9 +2,11 @@ package session
 
 import (
 	"context"
-	"github.com/go-redis/redis/v8"
-	"github.com/nais/wonderwall/pkg/metrics"
 	"time"
+
+	"github.com/go-redis/redis/v8"
+
+	"github.com/nais/wonderwall/pkg/metrics"
 )
 
 type redisSessionStore struct {

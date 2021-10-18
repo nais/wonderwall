@@ -3,12 +3,11 @@ package router
 import (
 	"errors"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/request"
 	"net/http"
 	"net/url"
 
-	"github.com/nais/wonderwall/pkg/auth"
-	"github.com/nais/wonderwall/pkg/token"
+	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/request"
 )
 
 var (
@@ -16,17 +15,17 @@ var (
 	InvalidLocaleError        = errors.New("InvalidLocale")
 )
 
-func (h *Handler) LoginURL(r *http.Request, params *auth.Parameters) (string, error) {
-	u, err := url.Parse(h.Config.IDPorten.WellKnown.AuthorizationEndpoint)
+func (h *Handler) LoginURL(r *http.Request, params *openid.Parameters) (string, error) {
+	u, err := url.Parse(h.Provider.GetOpenIDConfiguration().AuthorizationEndpoint)
 	if err != nil {
 		return "", err
 	}
 
 	v := u.Query()
 	v.Add("response_type", "code")
-	v.Add("client_id", h.Config.IDPorten.ClientID)
-	v.Add("redirect_uri", h.Config.IDPorten.RedirectURI)
-	v.Add("scope", token.ScopeOpenID)
+	v.Add("client_id", h.Provider.GetClientConfiguration().GetClientID())
+	v.Add("redirect_uri", h.Provider.GetClientConfiguration().GetRedirectURI())
+	v.Add("scope", h.Provider.GetClientConfiguration().GetScopes().String())
 	v.Add("state", params.State)
 	v.Add("nonce", params.Nonce)
 	v.Add("response_mode", "query")
@@ -49,12 +48,13 @@ func (h *Handler) LoginURL(r *http.Request, params *auth.Parameters) (string, er
 }
 
 func (h *Handler) withSecurityLevel(r *http.Request, v url.Values) error {
-	if !h.Config.IDPorten.SecurityLevel.Enabled {
+	acrValues := h.Provider.GetClientConfiguration().GetACRValues()
+	if len(acrValues) == 0 {
 		return nil
 	}
 
-	fallback := h.Config.IDPorten.SecurityLevel.Value
-	supported := h.Config.IDPorten.WellKnown.ACRValuesSupported
+	fallback := acrValues
+	supported := h.Provider.GetOpenIDConfiguration().ACRValuesSupported
 
 	securityLevel, err := request.LoginURLParameter(r, request.SecurityLevelURLParameter, fallback, supported)
 	if err != nil {
@@ -66,12 +66,13 @@ func (h *Handler) withSecurityLevel(r *http.Request, v url.Values) error {
 }
 
 func (h *Handler) withLocale(r *http.Request, v url.Values) error {
-	if !h.Config.IDPorten.Locale.Enabled {
+	uiLocales := h.Provider.GetClientConfiguration().GetUILocales()
+	if len(uiLocales) == 0 {
 		return nil
 	}
 
-	fallback := h.Config.IDPorten.Locale.Value
-	supported := h.Config.IDPorten.WellKnown.UILocalesSupported
+	fallback := uiLocales
+	supported := h.Provider.GetOpenIDConfiguration().UILocalesSupported
 
 	locale, err := request.LoginURLParameter(r, request.LocaleURLParameter, fallback, supported)
 	if err != nil {
