@@ -1,10 +1,7 @@
 package config
 
 import (
-	"github.com/lestrrat-go/jwx/jwk"
 	flag "github.com/spf13/pflag"
-
-	"github.com/nais/wonderwall/pkg/scopes"
 )
 
 const (
@@ -36,52 +33,6 @@ const (
 	ProviderIDPorten Provider = "idporten"
 	ProviderOpenID   Provider = "openid"
 )
-
-type BaseConfig struct {
-	OpenID
-	clientJwk   jwk.Key
-	redirectURI string
-}
-
-func (in *BaseConfig) GetRedirectURI() string {
-	return in.redirectURI
-}
-
-func (in *BaseConfig) GetClientID() string {
-	return in.ClientID
-}
-
-func (in *BaseConfig) GetClientJWK() jwk.Key {
-	return in.clientJwk
-}
-
-func (in *BaseConfig) GetPostLogoutRedirectURI() string {
-	return in.PostLogoutRedirectURI
-}
-
-func (in *BaseConfig) GetScopes() scopes.Scopes {
-	return scopes.Defaults().WithAdditional(in.Scopes...)
-}
-
-func (in *BaseConfig) GetACRValues() string {
-	return in.ACRValues
-}
-
-func (in *BaseConfig) GetUILocales() string {
-	return in.UILocales
-}
-
-func (in *BaseConfig) GetWellKnownURL() string {
-	return in.WellKnownURL
-}
-
-func (c *Config) NewBaseConfig(clientJwk jwk.Key, redirectURI string) *BaseConfig {
-	return &BaseConfig{
-		OpenID:      c.OpenID,
-		clientJwk:   clientJwk,
-		redirectURI: redirectURI,
-	}
-}
 
 func openIDFlags() {
 	flag.String(OpenIDClientID, "", "Client ID for the OpenID client.")

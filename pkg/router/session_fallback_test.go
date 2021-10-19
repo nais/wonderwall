@@ -15,7 +15,7 @@ import (
 )
 
 func TestHandler_GetSessionFallback(t *testing.T) {
-	h := handler(mock.NewTestProvider())
+	h := newHandler(mock.NewTestProvider())
 
 	t.Run("request without fallback session cookies", func(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -55,7 +55,7 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 }
 
 func TestHandler_SetSessionFallback(t *testing.T) {
-	h := handler(mock.NewTestProvider())
+	h := newHandler(mock.NewTestProvider())
 
 	// request should set session cookies in response
 	writer := httptest.NewRecorder()
@@ -88,7 +88,7 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 }
 
 func TestHandler_DeleteSessionFallback(t *testing.T) {
-	h := handler(mock.NewTestProvider())
+	h := newHandler(mock.NewTestProvider())
 
 	writer := httptest.NewRecorder()
 	h.DeleteSessionFallback(writer)

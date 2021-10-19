@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/request"
+	"github.com/nais/wonderwall/pkg/router/request"
 )
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +29,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.setLoginCookie(w, &cookie.Login{
+	err = h.setLoginCookie(w, &openid.LoginCookie{
 		State:        params.State,
 		Nonce:        params.Nonce,
 		CodeVerifier: params.CodeVerifier,

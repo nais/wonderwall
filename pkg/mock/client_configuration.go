@@ -1,14 +1,10 @@
 package mock
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-
-	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 
-	"github.com/nais/wonderwall/pkg/scopes"
+	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/pkg/openid/scopes"
 )
 
 type TestClientConfiguration struct {
@@ -55,18 +51,10 @@ func (c TestClientConfiguration) GetWellKnownURL() string {
 }
 
 func clientConfiguration() TestClientConfiguration {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := crypto.NewJwk()
 	if err != nil {
 		panic(err)
 	}
-
-	key, err := jwk.New(privateKey)
-	if err != nil {
-		panic(err)
-	}
-	key.Set(jwk.AlgorithmKey, jwa.RS256)
-	key.Set(jwk.KeyTypeKey, jwa.RSA)
-	key.Set(jwk.KeyIDKey, uuid.New().String())
 
 	return TestClientConfiguration{
 		ClientID:              "client_id",
@@ -76,6 +64,6 @@ func clientConfiguration() TestClientConfiguration {
 		UILocales:             "nb",
 		ACRValues:             "Level4",
 		PostLogoutRedirectURI: "",
-		Scopes:                scopes.Defaults(),
+		Scopes:                scopes.DefaultScopes(),
 	}
 }

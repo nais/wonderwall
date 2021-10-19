@@ -54,7 +54,7 @@ func TestLoginURL(t *testing.T) {
 			assert.NoError(t, err)
 
 			provider := mock.NewTestProvider()
-			handler := handler(provider)
+			handler := newHandler(provider)
 			_, err = handler.LoginURL(req, params)
 
 			if test.error != nil {

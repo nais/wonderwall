@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/nais/wonderwall/pkg/cryptutil"
+	"github.com/nais/wonderwall/pkg/crypto"
 )
 
 type Store interface {
@@ -31,7 +31,7 @@ func (in *EncryptedData) UnmarshalBinary(bytes []byte) error {
 	return json.Unmarshal(bytes, in)
 }
 
-func (in *EncryptedData) Decrypt(crypter cryptutil.Crypter) (*Data, error) {
+func (in *EncryptedData) Decrypt(crypter crypto.Crypter) (*Data, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(in.Data)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func NewData(externalSessionID, accessToken, idToken string) *Data {
 	}
 }
 
-func (in *Data) Encrypt(crypter cryptutil.Crypter) (*EncryptedData, error) {
+func (in *Data) Encrypt(crypter crypto.Crypter) (*EncryptedData, error) {
 	bytes, err := json.Marshal(in)
 	if err != nil {
 		return nil, err

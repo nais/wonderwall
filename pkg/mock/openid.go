@@ -2,6 +2,8 @@ package mock
 
 import (
 	"net/http/httptest"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func IdentityProviderServer() (*httptest.Server, TestProvider) {
@@ -17,4 +19,12 @@ func IdentityProviderServer() (*httptest.Server, TestProvider) {
 	provider.OpenIDConfiguration.EndSessionEndpoint = server.URL + "/endsession"
 
 	return server, provider
+}
+
+func identityProviderRouter(ip *identityProviderHandler) chi.Router {
+	r := chi.NewRouter()
+	r.Get("/authorize", ip.Authorize)
+	r.Post("/token", ip.Token)
+	r.Get("/jwks", ip.Jwks)
+	return r
 }

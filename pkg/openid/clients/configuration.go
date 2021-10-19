@@ -1,12 +1,12 @@
-package openid
+package clients
 
 import (
 	"github.com/lestrrat-go/jwx/jwk"
 
-	"github.com/nais/wonderwall/pkg/scopes"
+	"github.com/nais/wonderwall/pkg/openid/scopes"
 )
 
-type ClientConfiguration interface {
+type Configuration interface {
 	GetClientID() string
 	GetClientJWK() jwk.Key
 	GetPostLogoutRedirectURI() string

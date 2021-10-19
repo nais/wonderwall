@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nais/wonderwall/pkg/cookie"
+	"github.com/nais/wonderwall/pkg/openid"
 )
 
 const (
@@ -25,13 +25,13 @@ func (h *Handler) GetSessionCookieName() string {
 	return SessionCookieNameTemplate
 }
 
-func (h *Handler) getLoginCookie(r *http.Request) (*cookie.Login, error) {
+func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
 	loginCookieJson, err := h.getEncryptedCookie(r, h.GetLoginCookieName())
 	if err != nil {
 		return nil, err
 	}
 
-	var loginCookie cookie.Login
+	var loginCookie openid.LoginCookie
 	err = json.Unmarshal([]byte(loginCookieJson), &loginCookie)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (h *Handler) getLoginCookie(r *http.Request) (*cookie.Login, error) {
 	return &loginCookie, nil
 }
 
-func (h *Handler) setLoginCookie(w http.ResponseWriter, loginCookie *cookie.Login) error {
+func (h *Handler) setLoginCookie(w http.ResponseWriter, loginCookie *openid.LoginCookie) error {
 	loginCookieJson, err := json.Marshal(loginCookie)
 	if err != nil {
 		return fmt.Errorf("marshalling login cookie: %w", err)

@@ -1,4 +1,4 @@
-package cryptutil
+package crypto
 
 import (
 	"bytes"
@@ -20,7 +20,7 @@ type Crypter interface {
 	Decrypt([]byte) ([]byte, error)
 }
 
-func New(key []byte) Crypter {
+func NewCrypter(key []byte) Crypter {
 	return &crypter{
 		key: key,
 	}

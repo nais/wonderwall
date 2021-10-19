@@ -1,4 +1,4 @@
-package provider
+package openid
 
 import (
 	"context"
@@ -8,26 +8,26 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/openid/clients"
 )
 
 type Provider interface {
-	GetClientConfiguration() openid.ClientConfiguration
-	GetOpenIDConfiguration() *openid.Configuration
+	GetClientConfiguration() clients.Configuration
+	GetOpenIDConfiguration() *Configuration
 	GetPublicJwkSet() *jwk.Set
 }
 
 type provider struct {
-	clientConfiguration openid.ClientConfiguration
-	configuration       *openid.Configuration
+	clientConfiguration clients.Configuration
+	configuration       *Configuration
 	jwkSet              *jwk.Set
 }
 
-func (p provider) GetClientConfiguration() openid.ClientConfiguration {
+func (p provider) GetClientConfiguration() clients.Configuration {
 	return p.clientConfiguration
 }
 
-func (p provider) GetOpenIDConfiguration() *openid.Configuration {
+func (p provider) GetOpenIDConfiguration() *Configuration {
 	return p.configuration
 }
 
@@ -51,13 +51,13 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("missing required config %s", config.Ingress)
 	}
 
-	redirectURI, err := openid.RedirectURI(ingress)
+	redirectURI, err := RedirectURI(ingress)
 	if err != nil {
 		return nil, fmt.Errorf("creating redirect URI from ingress: %w", err)
 	}
 
-	baseConfig := cfg.NewBaseConfig(clientJwk, redirectURI)
-	var clientConfig openid.ClientConfiguration
+	baseConfig := clients.NewBaseConfig(*cfg, clientJwk, redirectURI)
+	var clientConfig clients.Configuration
 	switch cfg.OpenID.Provider {
 	case config.ProviderIDPorten:
 		clientConfig = baseConfig.IDPorten()
@@ -77,7 +77,7 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("missing required config %s", config.OpenIDWellKnownURL)
 	}
 
-	configuration, err := openid.FetchWellKnownConfig(clientConfig)
+	configuration, err := FetchWellKnownConfig(clientConfig.GetWellKnownURL())
 	if err != nil {
 		return nil, fmt.Errorf("fetching well known config: %w", err)
 	}
@@ -106,7 +106,7 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 	}, nil
 }
 
-func printConfigs(clientCfg openid.ClientConfiguration, openIdCfg openid.Configuration) {
+func printConfigs(clientCfg clients.Configuration, openIdCfg Configuration) {
 	log.Info("🤔 openid client configuration 🤔")
 	log.Infof("acr values: '%s'", clientCfg.GetACRValues())
 	log.Infof("client id: '%s'", clientCfg.GetClientID())

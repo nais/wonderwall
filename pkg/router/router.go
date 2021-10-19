@@ -5,20 +5,20 @@ import (
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/middleware"
+	middleware2 "github.com/nais/wonderwall/pkg/router/middleware"
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 func New(handler *Handler) chi.Router {
 	r := chi.NewRouter()
-	r.Use(middleware.CorrelationIDHandler)
+	r.Use(middleware2.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)
-	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall")
+	prometheusMiddleware := middleware2.NewPrometheusMiddleware("wonderwall")
 
 	prefix := config.ParseIngress(handler.Config.Ingress)
 
 	r.Route(prefix+paths.OAuth2, func(r chi.Router) {
-		r.Use(middleware.LogEntryHandler(handler.httplogger))
+		r.Use(middleware2.LogEntryHandler(handler.Httplogger))
 		r.Use(prometheusMiddleware.Handler)
 		r.Use(chi_middleware.NoCache)
 		r.Get(paths.Login, handler.Login)

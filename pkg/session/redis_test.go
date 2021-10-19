@@ -12,14 +12,14 @@ import (
 	"github.com/nais/liberator/pkg/keygen"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nais/wonderwall/pkg/cryptutil"
+	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
 func TestRedis(t *testing.T) {
 	key, err := keygen.Keygen(32)
 	assert.NoError(t, err)
-	crypter := cryptutil.New(key)
+	crypter := crypto.NewCrypter(key)
 
 	data := session.NewData("myid", "accesstoken", "idtoken")
 

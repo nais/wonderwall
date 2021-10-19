@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/nais/wonderwall/pkg/request"
+	"github.com/nais/wonderwall/pkg/router/request"
 )
 
 // Logout triggers self-initiated for the current user

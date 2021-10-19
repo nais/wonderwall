@@ -1,6 +1,6 @@
-package cookie
+package openid
 
-type Login struct {
+type LoginCookie struct {
 	State        string `json:"state"`
 	Nonce        string `json:"nonce"`
 	CodeVerifier string `json:"code_verifier"`

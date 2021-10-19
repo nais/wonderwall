@@ -11,8 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
-	"github.com/nais/wonderwall/pkg/token"
 )
 
 // localSessionID prefixes the given `sid` with the given client ID to prevent key collisions.
@@ -71,7 +71,7 @@ func (h *Handler) getSessionLifetime(accessToken string) (time.Duration, error) 
 	return defaultSessionLifetime, nil
 }
 
-func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, externalSessionID string, tokens *oauth2.Token, idToken *token.IDToken) error {
+func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, externalSessionID string, tokens *oauth2.Token, idToken *openid.IDToken) error {
 	sessionID := h.localSessionID(externalSessionID)
 
 	sessionLifetime, err := h.getSessionLifetime(tokens.AccessToken)

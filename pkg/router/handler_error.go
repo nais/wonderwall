@@ -11,7 +11,7 @@ import (
 	"github.com/go-chi/httplog"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/nais/wonderwall/pkg/request"
+	"github.com/nais/wonderwall/pkg/router/request"
 )
 
 type ErrorPage struct {

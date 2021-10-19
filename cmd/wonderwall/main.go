@@ -18,10 +18,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/cryptutil"
+	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/logging"
 	"github.com/nais/wonderwall/pkg/metrics"
-	"github.com/nais/wonderwall/pkg/provider"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -65,20 +65,20 @@ func run() error {
 		}
 	}
 
-	prv, err := provider.NewProvider(cfg)
+	prv, err := openid.NewProvider(cfg)
 	if err != nil {
 		return err
 	}
 
-	crypt := cryptutil.New(key)
+	crypt := crypto.NewCrypter(key)
 	sessionStore := setupSessionStore(cfg)
 	httplogger := logging.NewHttpLogger(cfg)
-	handler, err := router.NewHandler(*cfg, crypt, httplogger, prv, sessionStore)
+	h, err := router.NewHandler(*cfg, crypt, httplogger, prv, sessionStore)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}
 
-	r := router.New(handler)
+	r := router.New(h)
 
 	go func() {
 		err := metrics.Handle(cfg.MetricsBindAddress)

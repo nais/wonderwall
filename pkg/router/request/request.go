@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
@@ -80,7 +79,7 @@ func RefererPath(r *http.Request) string {
 // It only handles the routes exposed by Wonderwall, i.e. `/oauth2/*`. As these routes
 // are related to the authentication flow, we default to redirecting back to the handled
 // `/oauth2/login` endpoint unless the original request attempted to reach the logout-flow.
-func RetryURI(r *http.Request, ingress string, loginCookie *cookie.Login) string {
+func RetryURI(r *http.Request, ingress string, loginCookie *openid.LoginCookie) string {
 	retryURI := r.URL.Path
 
 	prefix := config.ParseIngress(ingress)

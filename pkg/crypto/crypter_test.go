@@ -1,12 +1,12 @@
-package cryptutil_test
+package crypto_test
 
 import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/nais/wonderwall/pkg/cryptutil"
-
 	"github.com/stretchr/testify/assert"
+
+	"github.com/nais/wonderwall/pkg/crypto"
 )
 
 var (
@@ -33,7 +33,7 @@ func TestEncrypt(t *testing.T) {
 	var cur, prev []byte
 	var err error
 
-	crypter := cryptutil.New(key)
+	crypter := crypto.NewCrypter(key)
 
 	for i := ivIterations; i != 0; i-- {
 		cur, err = crypter.Encrypt(plaintext)
@@ -47,7 +47,7 @@ func TestEncrypt(t *testing.T) {
 
 // Test that encrypted messages can be decrypted.
 func TestDecrypt(t *testing.T) {
-	crypter := cryptutil.New(key)
+	crypter := crypto.NewCrypter(key)
 
 	ciphertext, err := crypter.Encrypt(plaintext)
 	assert.Nil(t, err)
@@ -58,7 +58,7 @@ func TestDecrypt(t *testing.T) {
 }
 
 func BenchmarkEncrypt(b *testing.B) {
-	crypter := cryptutil.New(key)
+	crypter := crypto.NewCrypter(key)
 
 	for n := 0; n < b.N; n++ {
 		crypter.Encrypt(plaintext)

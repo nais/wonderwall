@@ -9,9 +9,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"golang.org/x/oauth2"
 
-	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/provider"
-	"github.com/nais/wonderwall/pkg/token"
+	"github.com/nais/wonderwall/pkg/openid"
 )
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +39,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jwkSet := h.Provider.GetPublicJwkSet()
-	idToken, err := token.ParseIDToken(*jwkSet, tokens)
+	idToken, err := openid.ParseIDToken(*jwkSet, tokens)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: parsing id_token: %w", err))
 		return
@@ -65,15 +63,15 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *cookie.Login, code string) (*oauth2.Token, error) {
-	assertion, err := provider.ClientAssertion(h.Provider, time.Second*30)
+func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.LoginCookie, code string) (*oauth2.Token, error) {
+	clientAssertion, err := openid.ClientAssertion(h.Provider, time.Second*30)
 	if err != nil {
 		return nil, fmt.Errorf("creating client assertion: %w", err)
 	}
 
 	opts := []oauth2.AuthCodeOption{
 		oauth2.SetAuthURLParam("code_verifier", loginCookie.CodeVerifier),
-		oauth2.SetAuthURLParam("client_assertion", assertion),
+		oauth2.SetAuthURLParam("client_assertion", clientAssertion),
 		oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
 	}
 
@@ -85,7 +83,7 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *cookie.
 	return tokens, nil
 }
 
-func (h *Handler) validateIDToken(idToken *token.IDToken, loginCookie *cookie.Login) (string, error) {
+func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie) (string, error) {
 	validateOpts := []jwt.ValidateOption{
 		jwt.WithAudience(h.Provider.GetClientConfiguration().GetClientID()),
 		jwt.WithClaimValue("nonce", loginCookie.Nonce),

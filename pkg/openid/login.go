@@ -8,14 +8,14 @@ import (
 	"io"
 )
 
-type Parameters struct {
+type LoginParameters struct {
 	CodeVerifier  string
 	CodeChallenge string
 	Nonce         string
 	State         string
 }
 
-func GenerateLoginParameters() (*Parameters, error) {
+func GenerateLoginParameters() (*LoginParameters, error) {
 	codeVerifier := make([]byte, 64)
 	nonce := make([]byte, 32)
 	state := make([]byte, 32)
@@ -42,7 +42,7 @@ func GenerateLoginParameters() (*Parameters, error) {
 	hasher.Write(codeVerifier)
 	codeVerifierHash := hasher.Sum(nil)
 
-	return &Parameters{
+	return &LoginParameters{
 		CodeVerifier:  string(codeVerifier),
 		CodeChallenge: base64.RawURLEncoding.EncodeToString(codeVerifierHash),
 		Nonce:         base64.RawURLEncoding.EncodeToString(nonce),

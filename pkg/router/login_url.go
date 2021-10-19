@@ -7,7 +7,7 @@ import (
 	"net/url"
 
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/request"
+	request2 "github.com/nais/wonderwall/pkg/router/request"
 )
 
 var (
@@ -15,7 +15,7 @@ var (
 	InvalidLocaleError        = errors.New("InvalidLocale")
 )
 
-func (h *Handler) LoginURL(r *http.Request, params *openid.Parameters) (string, error) {
+func (h *Handler) LoginURL(r *http.Request, params *openid.LoginParameters) (string, error) {
 	u, err := url.Parse(h.Provider.GetOpenIDConfiguration().AuthorizationEndpoint)
 	if err != nil {
 		return "", err
@@ -56,7 +56,7 @@ func (h *Handler) withSecurityLevel(r *http.Request, v url.Values) error {
 	fallback := acrValues
 	supported := h.Provider.GetOpenIDConfiguration().ACRValuesSupported
 
-	securityLevel, err := request.LoginURLParameter(r, request.SecurityLevelURLParameter, fallback, supported)
+	securityLevel, err := request2.LoginURLParameter(r, request2.SecurityLevelURLParameter, fallback, supported)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (h *Handler) withLocale(r *http.Request, v url.Values) error {
 	fallback := uiLocales
 	supported := h.Provider.GetOpenIDConfiguration().UILocalesSupported
 
-	locale, err := request.LoginURLParameter(r, request.LocaleURLParameter, fallback, supported)
+	locale, err := request2.LoginURLParameter(r, request2.LocaleURLParameter, fallback, supported)
 	if err != nil {
 		return err
 	}

@@ -7,27 +7,27 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/cryptutil"
-	"github.com/nais/wonderwall/pkg/provider"
+	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
 type Handler struct {
 	Config        config.Config
-	Crypter       cryptutil.Crypter
+	Crypter       crypto.Crypter
 	OauthConfig   oauth2.Config
-	Provider      provider.Provider
+	Provider      openid.Provider
 	SecureCookies bool
 	Sessions      session.Store
 	lock          sync.Mutex
-	httplogger    zerolog.Logger
+	Httplogger    zerolog.Logger
 }
 
 func NewHandler(
 	cfg config.Config,
-	crypter cryptutil.Crypter,
+	crypter crypto.Crypter,
 	httplogger zerolog.Logger,
-	provider provider.Provider,
+	provider openid.Provider,
 	sessionStore session.Store,
 ) (*Handler, error) {
 	oauthConfig := oauth2.Config{
@@ -43,7 +43,7 @@ func NewHandler(
 	return &Handler{
 		Config:        cfg,
 		Crypter:       crypter,
-		httplogger:    httplogger,
+		Httplogger:    httplogger,
 		lock:          sync.Mutex{},
 		OauthConfig:   oauthConfig,
 		Provider:      provider,

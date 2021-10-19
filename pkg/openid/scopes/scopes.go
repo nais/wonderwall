@@ -24,6 +24,6 @@ func (s Scopes) WithAzureScope(clientID string) Scopes {
 	return append(s, fmt.Sprintf(AzureAPITemplate, clientID))
 }
 
-func Defaults() Scopes {
+func DefaultScopes() Scopes {
 	return []string{OpenID}
 }

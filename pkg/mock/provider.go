@@ -4,17 +4,18 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/nais/wonderwall/pkg/jwks"
+	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/openid/clients"
 )
 
 type TestProvider struct {
 	ClientConfiguration *TestClientConfiguration
 	OpenIDConfiguration *openid.Configuration
-	JwksPair            *jwks.Pair
+	JwksPair            *crypto.JwkSet
 }
 
-func (p TestProvider) GetClientConfiguration() openid.ClientConfiguration {
+func (p TestProvider) GetClientConfiguration() clients.Configuration {
 	return p.ClientConfiguration
 }
 
@@ -31,7 +32,7 @@ func (p TestProvider) PrivateJwkSet() *jwk.Set {
 }
 
 func NewTestProvider() TestProvider {
-	jwksPair, err := jwks.NewJwksPair()
+	jwksPair, err := crypto.NewJwkSet()
 	if err != nil {
 		log.Fatal(err)
 	}

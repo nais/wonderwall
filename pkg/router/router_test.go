@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/cryptutil"
+	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/mock"
-	"github.com/nais/wonderwall/pkg/provider"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -30,20 +30,20 @@ var cfg = config.Config{
 	SessionMaxLifetime: time.Hour,
 }
 
-func handler(provider provider.Provider) *router.Handler {
-	crypter := cryptutil.New([]byte(cfg.EncryptionKey))
+func newHandler(provider openid.Provider) *router.Handler {
+	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
 	sessionStore := session.NewMemory()
 
-	handler, err := router.NewHandler(cfg, crypter, zerolog.Logger{}, provider, sessionStore)
+	h, err := router.NewHandler(cfg, crypter, zerolog.Logger{}, provider, sessionStore)
 	if err != nil {
 		panic(err)
 	}
-	return handler.WithSecureCookie(false)
+	return h.WithSecureCookie(false)
 }
 
 func TestHandler_Login(t *testing.T) {
 	idpserver, idp := mock.IdentityProviderServer()
-	h := handler(idp)
+	h := newHandler(idp)
 	r := router.New(h)
 
 	jar, err := cookiejar.New(nil)
@@ -98,7 +98,7 @@ func TestHandler_Login(t *testing.T) {
 func TestHandler_Callback_and_Logout(t *testing.T) {
 	idpserver, idp := mock.IdentityProviderServer()
 
-	h := handler(idp)
+	h := newHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
 
@@ -188,7 +188,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 
 func TestHandler_FrontChannelLogout(t *testing.T) {
 	_, idp := mock.IdentityProviderServer()
-	h := handler(idp)
+	h := newHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
 

@@ -7,9 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/request"
+	"github.com/nais/wonderwall/pkg/router/request"
 )
 
 func TestCanonicalRedirectURL(t *testing.T) {
@@ -119,7 +118,7 @@ func TestRetryURI(t *testing.T) {
 		name        string
 		request     *http.Request
 		ingress     string
-		loginCookie *cookie.Login
+		loginCookie *openid.LoginCookie
 		want        string
 	}{
 		{
@@ -168,25 +167,25 @@ func TestRetryURI(t *testing.T) {
 		{
 			name:        "login with cookie referer",
 			request:     httpRequest("/oauth2/login"),
-			loginCookie: &cookie.Login{Referer: "/"},
+			loginCookie: &openid.LoginCookie{Referer: "/"},
 			want:        "/oauth2/login?redirect=/",
 		},
 		{
 			name:        "login with empty cookie referer",
 			request:     httpRequest("/oauth2/login"),
-			loginCookie: &cookie.Login{Referer: ""},
+			loginCookie: &openid.LoginCookie{Referer: ""},
 			want:        "/oauth2/login?redirect=/",
 		},
 		{
 			name:        "login with cookie referer takes precedence over referer header",
 			request:     httpRequest("/oauth2/login", "/api/me"),
-			loginCookie: &cookie.Login{Referer: "/api/headers"},
+			loginCookie: &openid.LoginCookie{Referer: "/api/headers"},
 			want:        "/oauth2/login?redirect=/api/headers",
 		},
 		{
 			name:        "login with cookie referer on non-default ingress",
 			request:     httpRequest("/oauth2/login"),
-			loginCookie: &cookie.Login{Referer: "/domene/api/me"},
+			loginCookie: &openid.LoginCookie{Referer: "/domene/api/me"},
 			ingress:     "https://test.nav.no/domene",
 			want:        "/domene/oauth2/login?redirect=/domene/api/me",
 		},
@@ -209,7 +208,7 @@ func TestRetryURI(t *testing.T) {
 		{
 			name:        "login with cookie referer takes precedence over redirect parameter",
 			request:     httpRequest("/oauth2/login?redirect=/other"),
-			loginCookie: &cookie.Login{Referer: "/domene/api/me"},
+			loginCookie: &openid.LoginCookie{Referer: "/domene/api/me"},
 			want:        "/oauth2/login?redirect=/domene/api/me",
 		},
 	} {
