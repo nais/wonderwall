@@ -29,13 +29,13 @@ type PrometheusMiddleware struct {
 }
 
 // NewPrometheusMiddleware returns a new PrometheusMiddleware handler.
-func NewPrometheusMiddleware(name string, buckets ...float64) *PrometheusMiddleware {
+func NewPrometheusMiddleware(name, provider string, buckets ...float64) *PrometheusMiddleware {
 	var m PrometheusMiddleware
 	m.reqs = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name:        reqsName,
 			Help:        "How many HTTP requests processed, partitioned by status code, method and HTTP path.",
-			ConstLabels: prometheus.Labels{"service": name},
+			ConstLabels: prometheus.Labels{"service": name, "provider": provider},
 		},
 		[]string{"code", "method", "path"},
 	)
@@ -46,7 +46,7 @@ func NewPrometheusMiddleware(name string, buckets ...float64) *PrometheusMiddlew
 	m.latency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:        latencyName,
 		Help:        "How long it took to process the request, partitioned by status code, method and HTTP path.",
-		ConstLabels: prometheus.Labels{"service": name},
+		ConstLabels: prometheus.Labels{"service": name, "provider": provider},
 		Buckets:     buckets,
 	},
 		[]string{"code", "method", "path"},
