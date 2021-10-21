@@ -24,33 +24,12 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 	})
 
 	t.Run("request with fallback session cookies", func(t *testing.T) {
-		// set up fallback session cookies
-		writer := httptest.NewRecorder()
-		expiresIn := time.Minute
-		data := session.NewData("sid", "access_token", "id_token")
-		err := h.SetSessionFallback(writer, data, expiresIn)
-		assert.NoError(t, err)
-
-		cookies := writer.Result().Cookies()
-
-		externalSessionIDCookie := getCookieFromJar(h.SessionFallbackExternalIDCookieName(), cookies)
-		assert.NotNil(t, externalSessionIDCookie)
-		idTokenCookie := getCookieFromJar(h.SessionFallbackIDTokenCookieName(), cookies)
-		assert.NotNil(t, idTokenCookie)
-		accessTokenCookie := getCookieFromJar(h.SessionFallbackAccessTokenCookieName(), cookies)
-		assert.NotNil(t, accessTokenCookie)
-
-		// make request with fallback session cookies set
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r.AddCookie(externalSessionIDCookie)
-		r.AddCookie(idTokenCookie)
-		r.AddCookie(accessTokenCookie)
-
+		r := makeRequestWithFallbackCookies(t)
 		sessionData, err := h.GetSessionFallback(r)
 		assert.NoError(t, err)
-		assert.Equal(t, data.ExternalSessionID, sessionData.ExternalSessionID)
-		assert.Equal(t, data.AccessToken, sessionData.AccessToken)
-		assert.Equal(t, data.IDToken, sessionData.IDToken)
+		assert.Equal(t, "sid", sessionData.ExternalSessionID)
+		assert.Equal(t, "access_token", sessionData.AccessToken)
+		assert.Equal(t, "id_token", sessionData.IDToken)
 	})
 }
 
@@ -90,17 +69,54 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 func TestHandler_DeleteSessionFallback(t *testing.T) {
 	h := newHandler(mock.NewTestProvider())
 
+	t.Run("expire cookies if they are set", func(t *testing.T) {
+		r := makeRequestWithFallbackCookies(t)
+		writer := httptest.NewRecorder()
+		h.DeleteSessionFallback(writer, r)
+		cookies := writer.Result().Cookies()
+
+		assert.NotEmpty(t, cookies)
+		assert.Len(t, cookies, 3)
+
+		assertCookieExpired(t, h.SessionFallbackExternalIDCookieName(), cookies)
+		assertCookieExpired(t, h.SessionFallbackIDTokenCookieName(), cookies)
+		assertCookieExpired(t, h.SessionFallbackAccessTokenCookieName(), cookies)
+	})
+
+	t.Run("skip expiring cookies if they are not set", func(t *testing.T) {
+		writer := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		h.DeleteSessionFallback(writer, r)
+		cookies := writer.Result().Cookies()
+
+		assert.Empty(t, cookies)
+	})
+}
+
+func makeRequestWithFallbackCookies(t *testing.T) *http.Request {
+	h := newHandler(mock.NewTestProvider())
 	writer := httptest.NewRecorder()
-	h.DeleteSessionFallback(writer)
+	expiresIn := time.Minute
+	data := session.NewData("sid", "access_token", "id_token")
+	err := h.SetSessionFallback(writer, data, expiresIn)
+	assert.NoError(t, err)
 
 	cookies := writer.Result().Cookies()
 
-	assert.NotEmpty(t, cookies)
-	assert.Len(t, cookies, 3)
+	externalSessionIDCookie := getCookieFromJar(h.SessionFallbackExternalIDCookieName(), cookies)
+	assert.NotNil(t, externalSessionIDCookie)
+	idTokenCookie := getCookieFromJar(h.SessionFallbackIDTokenCookieName(), cookies)
+	assert.NotNil(t, idTokenCookie)
+	accessTokenCookie := getCookieFromJar(h.SessionFallbackAccessTokenCookieName(), cookies)
+	assert.NotNil(t, accessTokenCookie)
 
-	assertCookieExpired(t, h.SessionFallbackExternalIDCookieName(), cookies)
-	assertCookieExpired(t, h.SessionFallbackIDTokenCookieName(), cookies)
-	assertCookieExpired(t, h.SessionFallbackAccessTokenCookieName(), cookies)
+	// make request with fallback session cookies set
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.AddCookie(externalSessionIDCookie)
+	r.AddCookie(idTokenCookie)
+	r.AddCookie(accessTokenCookie)
+
+	return r
 }
 
 func assertCookieExpired(t *testing.T, cookieName string, cookies []*http.Cookie) {

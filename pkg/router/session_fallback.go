@@ -1,6 +1,7 @@
 package router
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,15 +10,15 @@ import (
 )
 
 func (h *Handler) SessionFallbackExternalIDCookieName() string {
-	return h.GetSessionCookieName() + ".eid"
+	return h.GetSessionCookieName() + ".1"
 }
 
 func (h *Handler) SessionFallbackIDTokenCookieName() string {
-	return h.GetSessionCookieName() + ".id_token"
+	return h.GetSessionCookieName() + ".2"
 }
 
 func (h *Handler) SessionFallbackAccessTokenCookieName() string {
-	return h.GetSessionCookieName() + ".access_token"
+	return h.GetSessionCookieName() + ".3"
 }
 
 func (h *Handler) SetSessionFallback(w http.ResponseWriter, data *session.Data, expiresIn time.Duration) error {
@@ -58,8 +59,17 @@ func (h *Handler) GetSessionFallback(r *http.Request) (*session.Data, error) {
 	return session.NewData(externalSessionID, accessToken, idToken), nil
 }
 
-func (h *Handler) DeleteSessionFallback(w http.ResponseWriter) {
-	h.deleteCookie(w, h.SessionFallbackAccessTokenCookieName())
-	h.deleteCookie(w, h.SessionFallbackExternalIDCookieName())
-	h.deleteCookie(w, h.SessionFallbackIDTokenCookieName())
+func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) {
+	deleteIfNotFound := func(h *Handler, w http.ResponseWriter, cookieName string) {
+		_, err := r.Cookie(cookieName)
+		if errors.Is(err, http.ErrNoCookie) {
+			return
+		}
+
+		h.deleteCookie(w, cookieName)
+	}
+
+	deleteIfNotFound(h, w, h.SessionFallbackAccessTokenCookieName())
+	deleteIfNotFound(h, w, h.SessionFallbackExternalIDCookieName())
+	deleteIfNotFound(h, w, h.SessionFallbackIDTokenCookieName())
 }

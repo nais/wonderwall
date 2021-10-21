@@ -37,7 +37,7 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 			return nil, fmt.Errorf("decrypting session data: %w", err)
 		}
 
-		h.DeleteSessionFallback(w)
+		h.DeleteSessionFallback(w, r)
 		return sessionData, nil
 	}
 
@@ -45,12 +45,13 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 		return nil, fmt.Errorf("session not found in store: %w", err)
 	}
 
+	log.Warnf("get session: store is unavailable: %+v; using cookie fallback", err)
+
 	fallbackSessionData, err := h.GetSessionFallback(r)
 	if err != nil {
 		return nil, fmt.Errorf("fallback session not found: %w", err)
 	}
 
-	log.Warnf("get session: store is unavailable: %+v; using cookie fallback", err)
 	return fallbackSessionData, nil
 }
 
@@ -93,16 +94,17 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 
 	err = h.Sessions.Write(r.Context(), sessionID, encryptedSessionData, sessionLifetime)
 	if err == nil {
-		h.DeleteSessionFallback(w)
+		h.DeleteSessionFallback(w, r)
 		return nil
 	}
+
+	log.Warnf("create session: store is unavailable: %+v; using cookie fallback", err)
 
 	err = h.SetSessionFallback(w, sessionData, sessionLifetime)
 	if err != nil {
 		return fmt.Errorf("writing session to fallback store: %w", err)
 	}
 
-	log.Warnf("create session: store is unavailable: %+v; using cookie fallback", err)
 	return nil
 }
 
@@ -112,6 +114,6 @@ func (h *Handler) destroySession(w http.ResponseWriter, r *http.Request, session
 		return fmt.Errorf("deleting session from store: %w", err)
 	}
 
-	h.DeleteSessionFallback(w)
+	h.DeleteSessionFallback(w, r)
 	return nil
 }
