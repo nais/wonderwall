@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package session_test
 
 import (
@@ -8,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
 	"github.com/nais/liberator/pkg/keygen"
 	"github.com/stretchr/testify/assert"
@@ -26,9 +24,15 @@ func TestRedis(t *testing.T) {
 	encryptedData, err := data.Encrypt(crypter)
 	assert.NoError(t, err)
 
+	s, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+	defer s.Close()
+
 	client := redis.NewClient(&redis.Options{
 		Network: "tcp",
-		Addr:    "127.0.0.1:6379",
+		Addr:    s.Addr(),
 	})
 
 	sess := session.NewRedis(client)
