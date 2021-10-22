@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"time"
 
 	"github.com/nais/liberator/pkg/keygen"
+
+	"github.com/nais/wonderwall/pkg/config"
 )
 
 type crypter struct {
@@ -24,6 +27,24 @@ func NewCrypter(key []byte) Crypter {
 	return &crypter{
 		key: key,
 	}
+}
+
+func EncryptionKeyOrGenerate(cfg *config.Config) ([]byte, error) {
+	key, err := base64.StdEncoding.DecodeString(cfg.EncryptionKey)
+	if err != nil {
+		if len(cfg.EncryptionKey) > 0 {
+			return nil, fmt.Errorf("decode encryption key: %w", err)
+		}
+	}
+
+	if len(key) == 0 {
+		key, err = keygen.Keygen(32)
+		if err != nil {
+			return nil, fmt.Errorf("generate random encryption key: %w", err)
+		}
+	}
+
+	return key, nil
 }
 
 // Generate an initialization vector for encryption.
