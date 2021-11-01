@@ -1,11 +1,11 @@
 package clients
 
 type idporten struct {
-	*BaseConfig
+	*OpenIDConfig
 }
 
-func (in *BaseConfig) IDPorten() Configuration {
+func (in *OpenIDConfig) IDPorten() Configuration {
 	return &idporten{
-		BaseConfig: in,
+		OpenIDConfig: in,
 	}
 }

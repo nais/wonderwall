@@ -56,17 +56,17 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("creating redirect URI from ingress: %w", err)
 	}
 
-	baseConfig := clients.NewBaseConfig(*cfg, clientJwk, redirectURI)
+	openIDConfig := clients.NewOpenIDConfig(*cfg, clientJwk, redirectURI)
 	var clientConfig clients.Configuration
 	switch cfg.OpenID.Provider {
 	case config.ProviderIDPorten:
-		clientConfig = baseConfig.IDPorten()
+		clientConfig = openIDConfig.IDPorten()
 	case config.ProviderAzure:
-		clientConfig = baseConfig.Azure()
+		clientConfig = openIDConfig.Azure()
 	case "":
 		return nil, fmt.Errorf("missing required config %s", config.OpenIDProvider)
 	default:
-		clientConfig = baseConfig
+		clientConfig = openIDConfig
 	}
 
 	if len(clientConfig.GetClientID()) == 0 {

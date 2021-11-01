@@ -5,12 +5,12 @@ import (
 )
 
 type azure struct {
-	*BaseConfig
+	*OpenIDConfig
 }
 
-func (in *BaseConfig) Azure() Configuration {
+func (in *OpenIDConfig) Azure() Configuration {
 	return &azure{
-		BaseConfig: in,
+		OpenIDConfig: in,
 	}
 }
 

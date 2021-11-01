@@ -7,46 +7,46 @@ import (
 	"github.com/nais/wonderwall/pkg/openid/scopes"
 )
 
-type BaseConfig struct {
+type OpenIDConfig struct {
 	config.OpenID
 	clientJwk   jwk.Key
 	redirectURI string
 }
 
-func (in *BaseConfig) GetRedirectURI() string {
+func (in *OpenIDConfig) GetRedirectURI() string {
 	return in.redirectURI
 }
 
-func (in *BaseConfig) GetClientID() string {
+func (in *OpenIDConfig) GetClientID() string {
 	return in.ClientID
 }
 
-func (in *BaseConfig) GetClientJWK() jwk.Key {
+func (in *OpenIDConfig) GetClientJWK() jwk.Key {
 	return in.clientJwk
 }
 
-func (in *BaseConfig) GetPostLogoutRedirectURI() string {
+func (in *OpenIDConfig) GetPostLogoutRedirectURI() string {
 	return in.PostLogoutRedirectURI
 }
 
-func (in *BaseConfig) GetScopes() scopes.Scopes {
+func (in *OpenIDConfig) GetScopes() scopes.Scopes {
 	return scopes.DefaultScopes().WithAdditional(in.Scopes...)
 }
 
-func (in *BaseConfig) GetACRValues() string {
+func (in *OpenIDConfig) GetACRValues() string {
 	return in.ACRValues
 }
 
-func (in *BaseConfig) GetUILocales() string {
+func (in *OpenIDConfig) GetUILocales() string {
 	return in.UILocales
 }
 
-func (in *BaseConfig) GetWellKnownURL() string {
+func (in *OpenIDConfig) GetWellKnownURL() string {
 	return in.WellKnownURL
 }
 
-func NewBaseConfig(cfg config.Config, clientJwk jwk.Key, redirectURI string) *BaseConfig {
-	return &BaseConfig{
+func NewOpenIDConfig(cfg config.Config, clientJwk jwk.Key, redirectURI string) *OpenIDConfig {
+	return &OpenIDConfig{
 		OpenID:      cfg.OpenID,
 		clientJwk:   clientJwk,
 		redirectURI: redirectURI,
