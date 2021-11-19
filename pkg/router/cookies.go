@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	LoginCookieLifetime = 10 * time.Minute
+	LoginCookieLifetime = 60 * time.Minute
 
 	SessionCookieNameTemplate = "io.nais.wonderwall.session"
 	LoginCookieNameTemplate   = "io.nais.wonderwall.callback"
