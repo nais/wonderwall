@@ -50,10 +50,13 @@ func (l *requestLogger) NewLogEntry(r *http.Request) middleware.LogEntry {
 
 func requestLogFields(r *http.Request) map[string]interface{} {
 	requestFields := map[string]interface{}{
+		"cookies":       requestCookies(r),
+		"protocol":      r.Proto,
 		"requestMethod": r.Method,
 		"requestPath":   r.URL.Path,
-		"proto":         r.Proto,
+		"userAgent":     r.UserAgent(),
 	}
+
 	if reqID := middleware.GetReqID(r.Context()); reqID != "" {
 		requestFields["requestID"] = reqID
 	}
@@ -61,6 +64,24 @@ func requestLogFields(r *http.Request) map[string]interface{} {
 	return map[string]interface{}{
 		"httpRequest": requestFields,
 	}
+}
+
+type requestCookie struct {
+	Name    string `json:"name"`
+	IsEmpty bool   `json:"isEmpty"`
+}
+
+func requestCookies(r *http.Request) []requestCookie {
+	result := make([]requestCookie, 0)
+
+	for _, c := range r.Cookies() {
+		result = append(result, requestCookie{
+			Name:    c.Name,
+			IsEmpty: len(c.Value) <= 0,
+		})
+	}
+
+	return result
 }
 
 // limitBuffer is used to pipe response body information from the
