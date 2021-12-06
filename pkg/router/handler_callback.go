@@ -23,7 +23,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	if params.Get("error") != "" {
 		oauthError := params.Get("error")
 		oauthErrorDescription := params.Get("error_description")
-		h.Unauthorized(w, r, fmt.Errorf("callback: error from identity provider: %s: %s", oauthError, oauthErrorDescription))
+		h.InternalError(w, r, fmt.Errorf("callback: error from identity provider: %s: %s", oauthError, oauthErrorDescription))
 		return
 	}
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog"
+	"github.com/rs/zerolog"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/router/request"
@@ -33,9 +34,9 @@ func init() {
 	}
 }
 
-func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error) {
+func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level zerolog.Level) {
 	logger := httplog.LogEntry(r.Context())
-	logger.Error().Stack().Err(cause).Msgf("error in route: %+v", cause)
+	logger.WithLevel(level).Stack().Err(cause).Msgf("error in route: %+v", cause)
 
 	if len(h.Config.ErrorRedirectURI) > 0 {
 		err := h.customErrorRedirect(w, r, statusCode)
@@ -86,13 +87,13 @@ func (h *Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, st
 }
 
 func (h *Handler) InternalError(w http.ResponseWriter, r *http.Request, cause error) {
-	h.respondError(w, r, http.StatusInternalServerError, cause)
+	h.respondError(w, r, http.StatusInternalServerError, cause, zerolog.ErrorLevel)
 }
 
 func (h *Handler) BadRequest(w http.ResponseWriter, r *http.Request, cause error) {
-	h.respondError(w, r, http.StatusBadRequest, cause)
+	h.respondError(w, r, http.StatusBadRequest, cause, zerolog.ErrorLevel)
 }
 
 func (h *Handler) Unauthorized(w http.ResponseWriter, r *http.Request, cause error) {
-	h.respondError(w, r, http.StatusUnauthorized, cause)
+	h.respondError(w, r, http.StatusUnauthorized, cause, zerolog.WarnLevel)
 }
