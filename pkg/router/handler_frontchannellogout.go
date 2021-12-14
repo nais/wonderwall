@@ -1,7 +1,6 @@
 package router
 
 import (
-	"fmt"
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
@@ -9,12 +8,18 @@ import (
 
 // FrontChannelLogout triggers logout triggered by a third-party.
 func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
+	// Unconditionally return HTTP 200 OK
+	w.WriteHeader(http.StatusOK)
 
+	params := r.URL.Query()
 	sid := params.Get("sid")
 
+	// Unconditionally destroy all local references to the session.
+	h.deleteCookie(w, h.GetSessionCookieName())
+
 	if len(sid) == 0 {
-		h.BadRequest(w, r, fmt.Errorf("front-channel logout: sid not set in query parameter"))
+		log.Info("sid parameter not set in request; ignoring")
+		h.DeleteSessionFallback(w, r)
 		return
 	}
 
@@ -25,8 +30,4 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 		// Session is already destroyed at the OP and is highly unlikely to be used again.
 	}
-
-	// Unconditionally destroy all local references to the session.
-	h.deleteCookie(w, h.GetSessionCookieName())
-	w.WriteHeader(http.StatusOK)
 }
