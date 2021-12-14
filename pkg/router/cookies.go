@@ -101,7 +101,7 @@ func (h *Handler) deleteCookie(w http.ResponseWriter, key string) {
 		MaxAge:   -1,
 		Name:     key,
 		Path:     "/",
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteNoneMode,
 		Secure:   h.SecureCookies,
 	})
 }
