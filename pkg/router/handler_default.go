@@ -44,7 +44,6 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 func modifyRequest(dst, src *http.Request, upstreamHost string) {
 	// Delete incoming authentication
 	dst.Header.Del("authorization")
-	dst.Header.Del("X-Wonderwall-ID-Token")
 	// Instruct http.ReverseProxy to not modify X-Forwarded-For header
 	dst.Header["X-Forwarded-For"] = nil
 	// Request should go to correct host
@@ -58,5 +57,4 @@ func modifyRequest(dst, src *http.Request, upstreamHost string) {
 
 func withAuthentication(dst *http.Request, sessionData *session.Data) {
 	dst.Header.Add("authorization", "Bearer "+sessionData.AccessToken)
-	dst.Header.Add("X-Wonderwall-ID-Token", sessionData.IDToken)
 }
