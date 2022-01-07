@@ -28,7 +28,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	h.deleteCookie(w, h.GetSessionCookieName())
+	h.deleteCookie(w, SessionCookieName, h.Cookies)
 
 	v := u.Query()
 
@@ -37,9 +37,10 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		v.Add("post_logout_redirect_uri", postLogoutURI)
 	}
 
-	if len(idToken) != 0 {
+	if len(idToken) > 0 {
 		v.Add("id_token_hint", idToken)
 	}
+
 	u.RawQuery = v.Encode()
 
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)

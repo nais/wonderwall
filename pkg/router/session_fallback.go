@@ -10,29 +10,31 @@ import (
 )
 
 func (h *Handler) SessionFallbackExternalIDCookieName() string {
-	return h.GetSessionCookieName() + ".1"
+	return SessionCookieName + ".1"
 }
 
 func (h *Handler) SessionFallbackIDTokenCookieName() string {
-	return h.GetSessionCookieName() + ".2"
+	return SessionCookieName + ".2"
 }
 
 func (h *Handler) SessionFallbackAccessTokenCookieName() string {
-	return h.GetSessionCookieName() + ".3"
+	return SessionCookieName + ".3"
 }
 
 func (h *Handler) SetSessionFallback(w http.ResponseWriter, data *session.Data, expiresIn time.Duration) error {
-	err := h.setEncryptedCookie(w, h.SessionFallbackExternalIDCookieName(), data.ExternalSessionID, expiresIn)
+	opts := h.Cookies.WithExpiresIn(expiresIn)
+
+	err := h.setEncryptedCookie(w, h.SessionFallbackExternalIDCookieName(), data.ExternalSessionID, opts)
 	if err != nil {
 		return fmt.Errorf("setting session id fallback cookie: %w", err)
 	}
 
-	err = h.setEncryptedCookie(w, h.SessionFallbackAccessTokenCookieName(), data.AccessToken, expiresIn)
+	err = h.setEncryptedCookie(w, h.SessionFallbackAccessTokenCookieName(), data.AccessToken, opts)
 	if err != nil {
 		return fmt.Errorf("setting session id_token fallback cookie: %w", err)
 	}
 
-	err = h.setEncryptedCookie(w, h.SessionFallbackIDTokenCookieName(), data.IDToken, expiresIn)
+	err = h.setEncryptedCookie(w, h.SessionFallbackIDTokenCookieName(), data.IDToken, opts)
 	if err != nil {
 		return fmt.Errorf("setting session access_token fallback cookie: %w", err)
 	}
@@ -41,17 +43,17 @@ func (h *Handler) SetSessionFallback(w http.ResponseWriter, data *session.Data, 
 }
 
 func (h *Handler) GetSessionFallback(r *http.Request) (*session.Data, error) {
-	externalSessionID, err := h.getEncryptedCookie(r, h.SessionFallbackExternalIDCookieName())
+	externalSessionID, err := h.getDecryptedCookie(r, h.SessionFallbackExternalIDCookieName())
 	if err != nil {
 		return nil, fmt.Errorf("reading session ID from fallback cookie: %w", err)
 	}
 
-	idToken, err := h.getEncryptedCookie(r, h.SessionFallbackIDTokenCookieName())
+	idToken, err := h.getDecryptedCookie(r, h.SessionFallbackIDTokenCookieName())
 	if err != nil {
 		return nil, fmt.Errorf("reading id_token from fallback cookie: %w", err)
 	}
 
-	accessToken, err := h.getEncryptedCookie(r, h.SessionFallbackAccessTokenCookieName())
+	accessToken, err := h.getDecryptedCookie(r, h.SessionFallbackAccessTokenCookieName())
 	if err != nil {
 		return nil, fmt.Errorf("reading access_token from fallback cookie: %w", err)
 	}
@@ -66,7 +68,7 @@ func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		h.deleteCookie(w, cookieName)
+		h.deleteCookie(w, cookieName, h.Cookies)
 	}
 
 	deleteIfNotFound(h, w, h.SessionFallbackAccessTokenCookieName())

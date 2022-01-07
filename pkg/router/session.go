@@ -25,7 +25,7 @@ func (h *Handler) localSessionID(sid string) string {
 }
 
 func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (*session.Data, error) {
-	sessionID, err := h.getEncryptedCookie(r, h.GetSessionCookieName())
+	sessionID, err := h.getDecryptedCookie(r, SessionCookieName)
 	if err != nil {
 		return nil, fmt.Errorf("no session cookie: %w", err)
 	}
@@ -80,7 +80,9 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 		return fmt.Errorf("getting access token lifetime: %w", err)
 	}
 
-	err = h.setEncryptedCookie(w, h.GetSessionCookieName(), sessionID, sessionLifetime)
+	opts := h.Cookies.WithExpiresIn(sessionLifetime)
+
+	err = h.setEncryptedCookie(w, SessionCookieName, sessionID, opts)
 	if err != nil {
 		return fmt.Errorf("setting session cookie: %w", err)
 	}

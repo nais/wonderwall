@@ -38,7 +38,9 @@ func newHandler(provider openid.Provider) *router.Handler {
 	if err != nil {
 		panic(err)
 	}
-	return h.WithSecureCookie(false)
+
+	h.Cookies = h.Cookies.WithSecure(false)
+	return h
 }
 
 func TestHandler_Login(t *testing.T) {
@@ -65,7 +67,7 @@ func TestHandler_Login(t *testing.T) {
 	defer resp.Body.Close()
 
 	cookies := client.Jar.Cookies(loginURL)
-	loginCookie := getCookieFromJar(h.GetLoginCookieName(), cookies)
+	loginCookie := getCookieFromJar(router.LoginCookieName, cookies)
 	assert.NotNil(t, loginCookie)
 
 	location := resp.Header.Get("location")
@@ -122,8 +124,8 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	defer resp.Body.Close()
 
 	cookies := client.Jar.Cookies(loginURL)
-	sessionCookie := getCookieFromJar(h.GetSessionCookieName(), cookies)
-	loginCookie := getCookieFromJar(h.GetLoginCookieName(), cookies)
+	sessionCookie := getCookieFromJar(router.SessionCookieName, cookies)
+	loginCookie := getCookieFromJar(router.LoginCookieName, cookies)
 
 	assert.Nil(t, sessionCookie)
 	assert.NotNil(t, loginCookie)
@@ -150,8 +152,8 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	cookies = client.Jar.Cookies(callbackURL)
-	sessionCookie = getCookieFromJar(h.GetSessionCookieName(), cookies)
-	loginCookie = getCookieFromJar(h.GetLoginCookieName(), cookies)
+	sessionCookie = getCookieFromJar(router.SessionCookieName, cookies)
+	loginCookie = getCookieFromJar(router.LoginCookieName, cookies)
 
 	assert.NotNil(t, sessionCookie)
 	assert.Nil(t, loginCookie)
@@ -166,7 +168,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	defer resp.Body.Close()
 
 	cookies = client.Jar.Cookies(logoutURL)
-	sessionCookie = getCookieFromJar(h.GetSessionCookieName(), cookies)
+	sessionCookie = getCookieFromJar(router.SessionCookieName, cookies)
 
 	assert.Nil(t, sessionCookie)
 
@@ -232,7 +234,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	cookies := client.Jar.Cookies(callbackURL)
-	sessionCookie := getCookieFromJar(h.GetSessionCookieName(), cookies)
+	sessionCookie := getCookieFromJar(router.SessionCookieName, cookies)
 
 	assert.NotNil(t, sessionCookie)
 

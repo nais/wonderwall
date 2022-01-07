@@ -7,20 +7,21 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
 type Handler struct {
-	Config        config.Config
-	Crypter       crypto.Crypter
-	OauthConfig   oauth2.Config
-	Provider      openid.Provider
-	SecureCookies bool
-	Sessions      session.Store
-	lock          sync.Mutex
-	Httplogger    zerolog.Logger
+	Config      config.Config
+	Cookies     cookie.Options
+	Crypter     crypto.Crypter
+	OauthConfig oauth2.Config
+	Provider    openid.Provider
+	Sessions    session.Store
+	lock        sync.Mutex
+	Httplogger  zerolog.Logger
 }
 
 func NewHandler(
@@ -41,18 +42,13 @@ func NewHandler(
 	}
 
 	return &Handler{
-		Config:        cfg,
-		Crypter:       crypter,
-		Httplogger:    httplogger,
-		lock:          sync.Mutex{},
-		OauthConfig:   oauthConfig,
-		Provider:      provider,
-		Sessions:      sessionStore,
-		SecureCookies: true,
+		Config:      cfg,
+		Cookies:     cookie.DefaultOptions(),
+		Crypter:     crypter,
+		Httplogger:  httplogger,
+		lock:        sync.Mutex{},
+		OauthConfig: oauthConfig,
+		Provider:    provider,
+		Sessions:    sessionStore,
 	}, nil
-}
-
-func (h *Handler) WithSecureCookie(enabled bool) *Handler {
-	h.SecureCookies = enabled
-	return h
 }

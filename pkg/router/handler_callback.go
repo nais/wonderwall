@@ -57,8 +57,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// delete login cookie as we no longer need it
-	h.deleteCookie(w, h.GetLoginCookieName())
+	h.clearLoginCookie(w)
 
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
