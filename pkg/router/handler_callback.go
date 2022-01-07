@@ -57,7 +57,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.clearLoginCookie(w)
+	h.clearLoginCookies(w)
 
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }

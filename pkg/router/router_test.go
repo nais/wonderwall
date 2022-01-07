@@ -69,6 +69,8 @@ func TestHandler_Login(t *testing.T) {
 	cookies := client.Jar.Cookies(loginURL)
 	loginCookie := getCookieFromJar(router.LoginCookieName, cookies)
 	assert.NotNil(t, loginCookie)
+	loginLegacyCookie := getCookieFromJar(router.LoginLegacyCookieName, cookies)
+	assert.NotNil(t, loginLegacyCookie)
 
 	location := resp.Header.Get("location")
 	u, err := url.Parse(location)
@@ -126,9 +128,11 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	cookies := client.Jar.Cookies(loginURL)
 	sessionCookie := getCookieFromJar(router.SessionCookieName, cookies)
 	loginCookie := getCookieFromJar(router.LoginCookieName, cookies)
+	loginLegacyCookie := getCookieFromJar(router.LoginLegacyCookieName, cookies)
 
 	assert.Nil(t, sessionCookie)
 	assert.NotNil(t, loginCookie)
+	assert.NotNil(t, loginLegacyCookie)
 
 	// Get authorization URL
 	location := resp.Header.Get("location")
@@ -154,9 +158,11 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	cookies = client.Jar.Cookies(callbackURL)
 	sessionCookie = getCookieFromJar(router.SessionCookieName, cookies)
 	loginCookie = getCookieFromJar(router.LoginCookieName, cookies)
+	loginLegacyCookie = getCookieFromJar(router.LoginLegacyCookieName, cookies)
 
 	assert.NotNil(t, sessionCookie)
 	assert.Nil(t, loginCookie)
+	assert.Nil(t, loginLegacyCookie)
 
 	// Request self-initiated logout
 	logoutURL, err := url.Parse(server.URL + "/oauth2/logout")

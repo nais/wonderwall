@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/router/request"
@@ -53,7 +55,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
 	loginCookieJson, err := h.getDecryptedCookie(r, LoginCookieName)
 	if err != nil {
-		return nil, err
+		log.Warnf("failed to fetch login cookie; falling back to legacy cookie: %+v", err)
+		log.Debugf("debug: user-agent: %s", r.UserAgent())
+		loginCookieJson, err = h.getDecryptedCookie(r, LoginLegacyCookieName)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var loginCookie openid.LoginCookie
@@ -71,7 +78,9 @@ func (h *Handler) setLoginCookies(w http.ResponseWriter, loginCookie *openid.Log
 		return fmt.Errorf("marshalling login cookie: %w", err)
 	}
 
-	opts := h.Cookies.WithExpiresIn(LoginCookieLifetime)
+	opts := h.Cookies.
+		WithExpiresIn(LoginCookieLifetime).
+		WithSameSite(http.SameSiteNoneMode)
 	value := string(loginCookieJson)
 
 	err = h.setEncryptedCookie(w, LoginCookieName, value, opts)
@@ -79,10 +88,17 @@ func (h *Handler) setLoginCookies(w http.ResponseWriter, loginCookie *openid.Log
 		return err
 	}
 
+	// set a duplicate cookie without the SameSite value set for user agents that do not properly handle SameSite
+	err = h.setEncryptedCookie(w, LoginLegacyCookieName, value, opts.WithSameSite(http.SameSiteDefaultMode))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (h *Handler) clearLoginCookie(w http.ResponseWriter) {
+func (h *Handler) clearLoginCookies(w http.ResponseWriter) {
 	opts := h.Cookies
-	cookie.Clear(w, LoginCookieName, opts)
+	cookie.Clear(w, LoginCookieName, opts.WithSameSite(http.SameSiteNoneMode))
+	cookie.Clear(w, LoginLegacyCookieName, opts.WithSameSite(http.SameSiteDefaultMode))
 }
