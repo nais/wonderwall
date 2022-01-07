@@ -8,9 +8,6 @@ import (
 
 // FrontChannelLogout triggers logout triggered by a third-party.
 func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
-	// Unconditionally return HTTP 200 OK
-	w.WriteHeader(http.StatusOK)
-
 	params := r.URL.Query()
 	sid := params.Get("sid")
 
@@ -20,6 +17,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	if len(sid) == 0 {
 		log.Info("sid parameter not set in request; ignoring")
 		h.DeleteSessionFallback(w, r)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -30,4 +28,6 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 		// Session is already destroyed at the OP and is highly unlikely to be used again.
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
