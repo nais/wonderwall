@@ -52,11 +52,9 @@ func TestClear(t *testing.T) {
 		}
 	}
 
-	shouldExpireBefore := time.Now().Add(-7 * 24 * time.Hour)
-
 	assert.NotNil(t, result)
 	assert.True(t, result.Expires.Before(time.Now()))
-	assert.True(t, result.Expires.Before(shouldExpireBefore))
+	assert.True(t, result.Expires.Equal(time.Unix(0, 0)))
 	assert.Equal(t, -1, result.MaxAge)
 	assert.True(t, result.HttpOnly)
 	assert.Equal(t, name, result.Name)

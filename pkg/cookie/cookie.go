@@ -43,7 +43,7 @@ func (in Cookie) Decrypt(crypter crypto.Crypter) (string, error) {
 }
 
 func Clear(w http.ResponseWriter, name string, opts Options) {
-	expires := time.Now().Add(-7 * 24 * time.Hour)
+	expires := time.Unix(0, 0)
 	maxAge := -1
 
 	cookie := &http.Cookie{
