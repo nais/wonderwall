@@ -55,8 +55,11 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
 	loginCookieJson, err := h.getDecryptedCookie(r, LoginCookieName)
 	if err != nil {
-		log.Warnf("failed to fetch login cookie; falling back to legacy cookie: %+v", err)
-		log.Debugf("debug: user-agent: %s", r.UserAgent())
+		requestFields := map[string]interface{}{
+			"userAgent": r.UserAgent(),
+		}
+		log.WithField("httpRequest", requestFields).
+			Warnf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
 		loginCookieJson, err = h.getDecryptedCookie(r, LoginLegacyCookieName)
 		if err != nil {
 			return nil, err
