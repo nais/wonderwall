@@ -22,18 +22,18 @@ func (in *IDToken) Validate(opts ...jwt.ValidateOption) error {
 	return nil
 }
 
-func (in *IDToken) GetSID() (string, error) {
-	sid, ok := in.Token.Get("sid")
+func (in *IDToken) GetStringClaim(claim string) (string, error) {
+	gotClaim, ok := in.Token.Get(claim)
 	if !ok {
-		return "", fmt.Errorf("missing required 'sid' claim in id_token")
+		return "", fmt.Errorf("missing required '%s' claim in id_token", claim)
 	}
 
-	sidString, ok := sid.(string)
+	claimString, ok := gotClaim.(string)
 	if !ok {
-		return "", fmt.Errorf("'sid' claim is not a string")
+		return "", fmt.Errorf("'%s' claim is not a string", claim)
 	}
 
-	return sidString, nil
+	return claimString, nil
 }
 
 func ParseIDToken(jwks jwk.Set, token *oauth2.Token) (*IDToken, error) {

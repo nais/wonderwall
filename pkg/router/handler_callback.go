@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"net/http"
 	"time"
 
@@ -82,6 +83,11 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 	return tokens, nil
 }
 
+func (h *Handler) sidClaimRequired() bool {
+	config := h.Provider.GetOpenIDConfiguration()
+	return config.FrontchannelLogoutSupported && config.FrontchannelLogoutSessionSupported
+}
+
 func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie) (string, error) {
 	validateOpts := []jwt.ValidateOption{
 		jwt.WithAudience(h.Provider.GetClientConfiguration().GetClientID()),
@@ -103,7 +109,18 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 		return "", err
 	}
 
-	externalSessionID, err := idToken.GetSID()
+	var externalSessionID string
+
+	switch true {
+	case h.sidClaimRequired():
+		externalSessionID, err = idToken.GetStringClaim("sid")
+	case h.Provider.GetOpenIDConfiguration().FetchCheckSessionIframe():
+		externalSessionID, err = idToken.GetStringClaim("session_state")
+	default:
+		// generate external sid
+		externalSessionID = h.GenerateExternalSessionID()
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("getting external session ID from id_token: %w", err)
 	}
@@ -111,7 +128,6 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 	return externalSessionID, nil
 }
 
-func (h *Handler) sidClaimRequired() bool {
-	config := h.Provider.GetOpenIDConfiguration()
-	return config.FrontchannelLogoutSupported && config.FrontchannelLogoutSessionSupported
+func (h *Handler) GenerateExternalSessionID() string {
+	return fmt.Sprintf("%s:%s:%s", h.Config.OpenID.Provider, h.Provider.GetClientConfiguration().GetClientID(), uuid.New().String())
 }
