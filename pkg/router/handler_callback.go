@@ -88,7 +88,10 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 		jwt.WithClaimValue("nonce", loginCookie.Nonce),
 		jwt.WithIssuer(h.Provider.GetOpenIDConfiguration().Issuer),
 		jwt.WithAcceptableSkew(5 * time.Second),
-		jwt.WithRequiredClaim("sid"),
+	}
+
+	if h.sidClaimRequired() {
+		validateOpts = append(validateOpts, jwt.WithRequiredClaim("sid"))
 	}
 
 	if len(h.Provider.GetClientConfiguration().GetACRValues()) > 0 {
@@ -106,4 +109,9 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 	}
 
 	return externalSessionID, nil
+}
+
+func (h *Handler) sidClaimRequired() bool {
+	config := h.Provider.GetOpenIDConfiguration()
+	return config.FrontchannelLogoutSupported && config.FrontchannelLogoutSessionSupported
 }
