@@ -123,7 +123,7 @@ func (h *Handler) ExternalSessionId(idToken *openid.IDToken) (string, error) {
 	switch {
 	case openIDconfig.SidClaimRequired():
 		externalSessionID, err = idToken.GetStringClaim("sid")
-	case openIDconfig.FetchCheckSessionIframe():
+	case openIDconfig.GetCheckSessionIframe():
 		externalSessionID, err = idToken.GetStringClaim("session_state")
 	default:
 		externalSessionID = h.GenerateExternalSessionID()

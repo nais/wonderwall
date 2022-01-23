@@ -73,12 +73,8 @@ func (c *Configuration) FetchJwkSet(ctx context.Context) (*jwk.Set, error) {
 	return &jwkSet, nil
 }
 
-func (c *Configuration) FetchCheckSessionIframe() bool {
-	if c.CheckSessionIframe == "" {
-		return false
-	}
-
-	return true
+func (c *Configuration) GetCheckSessionIframe() bool {
+	return c.CheckSessionIframe != ""
 }
 
 func (c *Configuration) SidClaimRequired() bool {

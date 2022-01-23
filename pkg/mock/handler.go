@@ -188,7 +188,11 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	idToken.Set("acr", auth.AcrLevel)
 	idToken.Set("iat", time.Now().Unix())
 	idToken.Set("exp", time.Now().Unix()+expires)
-	idToken.Set("sid", sid)
+	if !ip.Provider.OpenIDConfiguration.GetCheckSessionIframe() {
+		idToken.Set("sid", sid)
+	} else {
+		idToken.Set("session_state", sid)
+	}
 
 	signedIdToken, err := ip.signToken(idToken)
 	if err != nil {

@@ -6,8 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func IdentityProviderServer() (*httptest.Server, TestProvider) {
-	provider := NewTestProvider()
+func IdentityProviderServer(provider TestProvider) (*httptest.Server, TestProvider) {
 	handler := newIdentityProviderHandler(provider)
 	router := identityProviderRouter(handler)
 	server := httptest.NewServer(router)
