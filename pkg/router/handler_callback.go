@@ -3,7 +3,6 @@ package router
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"net/http"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/xyproto/randomstring"
 )
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
@@ -83,24 +83,22 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 	return tokens, nil
 }
 
-func (h *Handler) sidClaimRequired() bool {
-	config := h.Provider.GetOpenIDConfiguration()
-	return config.FrontchannelLogoutSupported && config.FrontchannelLogoutSessionSupported
-}
-
 func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie) (string, error) {
+	openIDconfig := h.Provider.GetOpenIDConfiguration()
+	clientConfig := h.Provider.GetClientConfiguration()
+
 	validateOpts := []jwt.ValidateOption{
-		jwt.WithAudience(h.Provider.GetClientConfiguration().GetClientID()),
+		jwt.WithAudience(clientConfig.GetClientID()),
 		jwt.WithClaimValue("nonce", loginCookie.Nonce),
-		jwt.WithIssuer(h.Provider.GetOpenIDConfiguration().Issuer),
+		jwt.WithIssuer(openIDconfig.Issuer),
 		jwt.WithAcceptableSkew(5 * time.Second),
 	}
 
-	if h.sidClaimRequired() {
+	if openIDconfig.SidClaimRequired() {
 		validateOpts = append(validateOpts, jwt.WithRequiredClaim("sid"))
 	}
 
-	if len(h.Provider.GetClientConfiguration().GetACRValues()) > 0 {
+	if len(clientConfig.GetACRValues()) > 0 {
 		validateOpts = append(validateOpts, jwt.WithRequiredClaim("acr"))
 	}
 
@@ -109,18 +107,7 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 		return "", err
 	}
 
-	var externalSessionID string
-
-	switch true {
-	case h.sidClaimRequired():
-		externalSessionID, err = idToken.GetStringClaim("sid")
-	case h.Provider.GetOpenIDConfiguration().FetchCheckSessionIframe():
-		externalSessionID, err = idToken.GetStringClaim("session_state")
-	default:
-		// generate external sid
-		externalSessionID = h.GenerateExternalSessionID()
-	}
-
+	externalSessionID, err := h.ExternalSessionId(idToken)
 	if err != nil {
 		return "", fmt.Errorf("getting external session ID from id_token: %w", err)
 	}
@@ -128,6 +115,27 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 	return externalSessionID, nil
 }
 
+func (h *Handler) ExternalSessionId(idToken *openid.IDToken) (string, error) {
+	var openIDconfig = h.Provider.GetOpenIDConfiguration()
+	var externalSessionID string
+	var err error
+
+	switch {
+	case openIDconfig.SidClaimRequired():
+		externalSessionID, err = idToken.GetStringClaim("sid")
+	case openIDconfig.FetchCheckSessionIframe():
+		externalSessionID, err = idToken.GetStringClaim("session_state")
+	default:
+		externalSessionID = h.GenerateExternalSessionID()
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return externalSessionID, nil
+}
+
 func (h *Handler) GenerateExternalSessionID() string {
-	return fmt.Sprintf("%s:%s:%s", h.Config.OpenID.Provider, h.Provider.GetClientConfiguration().GetClientID(), uuid.New().String())
+	return randomstring.CookieFriendlyString(36)
 }

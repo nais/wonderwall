@@ -80,3 +80,7 @@ func (c *Configuration) FetchCheckSessionIframe() bool {
 
 	return true
 }
+
+func (c *Configuration) SidClaimRequired() bool {
+	return c.FrontchannelLogoutSupported && c.FrontchannelLogoutSessionSupported
+}
