@@ -15,13 +15,13 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-// localSessionID prefixes the given `sid` with the given client ID to prevent key collisions.
-// `sid` is a key that refers to the user's unique SSO session at the Identity Provider, and the same key is present
+// localSessionID prefixes the given `sid` or `session_state` with the given client ID to prevent key collisions.
+// `sid` or `session_state` is a key that refers to the user's unique SSO session at the Identity Provider, and the same key is present
 // in all tokens acquired by any Relying Party (such as Wonderwall) during that session.
-// Thus, we cannot assume that the value of `sid` to uniquely identify the pair of (user, application session)
+// Thus, we cannot assume that the value of `sid` or `session_state` to uniquely identify the pair of (user, application session)
 // if using a shared session store.
-func (h *Handler) localSessionID(sid string) string {
-	return fmt.Sprintf("%s:%s:%s", h.Config.OpenID.Provider, h.Provider.GetClientConfiguration().GetClientID(), sid)
+func (h *Handler) localSessionID(externalSessionID string) string {
+	return fmt.Sprintf("%s:%s:%s", h.Config.OpenID.Provider, h.Provider.GetClientConfiguration().GetClientID(), externalSessionID)
 }
 
 func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (*session.Data, error) {

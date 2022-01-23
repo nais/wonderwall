@@ -321,7 +321,7 @@ func TestHandler_FrontChannelLogoutWithCheckSessionIframe(t *testing.T) {
 	ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
 	assert.NoError(t, err)
 
-	sid, err := h.Crypter.Decrypt(ciphertext)
+	sessionState, err := h.Crypter.Decrypt(ciphertext)
 	assert.NoError(t, err)
 
 	frontchannelLogoutURL, err := url.Parse(server.URL)
@@ -330,7 +330,7 @@ func TestHandler_FrontChannelLogoutWithCheckSessionIframe(t *testing.T) {
 	frontchannelLogoutURL.Path = "/oauth2/logout/frontchannel"
 
 	values := url.Values{}
-	values.Add("sid", string(sid))
+	values.Add("session_state", string(sessionState))
 	values.Add("iss", idp.GetOpenIDConfiguration().Issuer)
 	frontchannelLogoutURL.RawQuery = values.Encode()
 
