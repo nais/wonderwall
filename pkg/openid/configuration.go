@@ -33,7 +33,7 @@ type Configuration struct {
 	RequestParameterSupported              bool      `json:"request_parameter_supported"`
 	RequestURIParameterSupported           bool      `json:"request_uri_parameter_supported"`
 	RequestObjectSigningAlgValuesSupported []string  `json:"request_object_signing_alg_values_supported"`
-	CheckSessionIframe                     string    `json:"check_session_iframe,omitempty"`
+	CheckSessionIframe                     string    `json:"check_session_iframe"`
 }
 
 type Supported []string
@@ -74,7 +74,8 @@ func (c *Configuration) FetchJwkSet(ctx context.Context) (*jwk.Set, error) {
 }
 
 func (c *Configuration) GetCheckSessionIframe() bool {
-	return c.CheckSessionIframe != ""
+	fmt.Println(len(c.CheckSessionIframe) > 0)
+	return len(c.CheckSessionIframe) > 0
 }
 
 func (c *Configuration) SidClaimRequired() bool {

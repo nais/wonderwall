@@ -36,8 +36,8 @@ func extractExternalSessionID(r *http.Request, paramKeys []string) string {
 	var sessionId = ""
 	for _, k := range paramKeys {
 		sessionId = params.Get(k)
-		if len(sessionId) == 0 {
-			continue
+		if len(sessionId) != 0 {
+			return sessionId
 		}
 	}
 	return sessionId
