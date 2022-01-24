@@ -31,11 +31,6 @@ func (p TestProvider) PrivateJwkSet() *jwk.Set {
 	return &p.JwksPair.Private
 }
 
-func (p TestProvider) WithCheckSessionIframe() TestProvider {
-	p.OpenIDConfiguration.CheckSessionIframe = "https://some-url/checksession"
-	return p
-}
-
 func NewTestProvider() TestProvider {
 	jwksPair, err := crypto.NewJwkSet()
 	if err != nil {
