@@ -74,7 +74,6 @@ func (c *Configuration) FetchJwkSet(ctx context.Context) (*jwk.Set, error) {
 }
 
 func (c *Configuration) GetCheckSessionIframe() bool {
-	fmt.Println(len(c.CheckSessionIframe) > 0)
 	return len(c.CheckSessionIframe) > 0
 }
 
