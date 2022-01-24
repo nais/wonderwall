@@ -6,7 +6,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func IdentityProviderServer(provider TestProvider) (*httptest.Server, TestProvider) {
+func IdentityProviderServer(iframe bool) (*httptest.Server, TestProvider) {
+	provider := NewTestProvider()
 	handler := newIdentityProviderHandler(provider)
 	router := identityProviderRouter(handler)
 	server := httptest.NewServer(router)
@@ -16,6 +17,10 @@ func IdentityProviderServer(provider TestProvider) (*httptest.Server, TestProvid
 	provider.OpenIDConfiguration.AuthorizationEndpoint = server.URL + "/authorize"
 	provider.OpenIDConfiguration.TokenEndpoint = server.URL + "/token"
 	provider.OpenIDConfiguration.EndSessionEndpoint = server.URL + "/endsession"
+
+	if iframe {
+		provider.OpenIDConfiguration.CheckSessionIframe = server.URL + "/checksession"
+	}
 
 	return server, provider
 }

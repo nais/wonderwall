@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -46,7 +47,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	externalSessionID, err := h.validateIDToken(idToken, loginCookie)
+	externalSessionID, err := h.validateIDToken(idToken, loginCookie, params)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: validating id_token: %w", err))
 		return
@@ -83,7 +84,7 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 	return tokens, nil
 }
 
-func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie) (string, error) {
+func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie, params url.Values) (string, error) {
 	openIDconfig := h.Provider.GetOpenIDConfiguration()
 	clientConfig := h.Provider.GetClientConfiguration()
 
@@ -107,7 +108,7 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 		return "", err
 	}
 
-	externalSessionID, err := h.ExternalSessionId(idToken)
+	externalSessionID, err := h.ExternalSessionId(idToken, params)
 	if err != nil {
 		return "", fmt.Errorf("getting external session ID from id_token: %w", err)
 	}
@@ -115,7 +116,7 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 	return externalSessionID, nil
 }
 
-func (h *Handler) ExternalSessionId(idToken *openid.IDToken) (string, error) {
+func (h *Handler) ExternalSessionId(idToken *openid.IDToken, params url.Values) (string, error) {
 	var openIDconfig = h.Provider.GetOpenIDConfiguration()
 	var externalSessionID string
 	var err error
@@ -124,7 +125,7 @@ func (h *Handler) ExternalSessionId(idToken *openid.IDToken) (string, error) {
 	case openIDconfig.SidClaimRequired():
 		externalSessionID, err = idToken.GetStringClaim("sid")
 	case openIDconfig.GetCheckSessionIframe():
-		externalSessionID, err = idToken.GetStringClaim("session_state")
+		externalSessionID, err = getSessionStateFrom(params)
 	default:
 		externalSessionID = h.GenerateExternalSessionID()
 	}
@@ -134,6 +135,15 @@ func (h *Handler) ExternalSessionId(idToken *openid.IDToken) (string, error) {
 	}
 
 	return externalSessionID, nil
+}
+
+func getSessionStateFrom(params url.Values) (string, error) {
+	var sessionStateKey = "session_state"
+	sessionState := params.Get(sessionStateKey)
+	if sessionState == "" {
+		return "", fmt.Errorf("missing required '%s' in params", sessionStateKey)
+	}
+	return sessionState, nil
 }
 
 func (h *Handler) GenerateExternalSessionID() string {

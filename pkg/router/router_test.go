@@ -44,7 +44,7 @@ func newHandler(provider openid.Provider) *router.Handler {
 }
 
 func TestHandler_Login(t *testing.T) {
-	idpserver, idp := mock.IdentityProviderServer(mock.NewTestProvider())
+	idpserver, idp := mock.IdentityProviderServer(false)
 	h := newHandler(idp)
 	r := router.New(h)
 
@@ -100,7 +100,7 @@ func TestHandler_Login(t *testing.T) {
 }
 
 func TestHandler_Callback_and_Logout(t *testing.T) {
-	idpserver, idp := mock.IdentityProviderServer(mock.NewTestProvider())
+	idpserver, idp := mock.IdentityProviderServer(false)
 
 	h := newHandler(idp)
 	r := router.New(h)
@@ -195,7 +195,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 }
 
 func TestHandler_FrontChannelLogout(t *testing.T) {
-	_, idp := mock.IdentityProviderServer(mock.NewTestProvider())
+	_, idp := mock.IdentityProviderServer(false)
 	h := newHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
@@ -268,7 +268,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 }
 
 func TestHandler_FrontChannelLogoutWithCheckSessionIframe(t *testing.T) {
-	_, idp := mock.IdentityProviderServer(mock.NewTestProvider().WithCheckSessionIframe())
+	_, idp := mock.IdentityProviderServer(true)
 	h := newHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
