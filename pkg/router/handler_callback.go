@@ -2,7 +2,10 @@ package router
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -11,7 +14,6 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/xyproto/randomstring"
 )
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
@@ -47,13 +49,13 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	externalSessionID, err := h.validateIDToken(idToken, loginCookie, params)
+	sessionID, err := h.validateIDToken(idToken, loginCookie, params)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: validating id_token: %w", err))
 		return
 	}
 
-	err = h.createSession(w, r, externalSessionID, tokens, idToken)
+	err = h.createSession(w, r, sessionID, tokens, idToken)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return
@@ -108,15 +110,15 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 		return "", err
 	}
 
-	externalSessionID, err := h.ExternalSessionId(idToken, params)
+	sessionID, err := h.SessionId(idToken, params)
 	if err != nil {
 		return "", fmt.Errorf("getting external session ID from id_token: %w", err)
 	}
 
-	return externalSessionID, nil
+	return sessionID, nil
 }
 
-func (h *Handler) ExternalSessionId(idToken *openid.IDToken, params url.Values) (string, error) {
+func (h *Handler) SessionId(idToken *openid.IDToken, params url.Values) (string, error) {
 	var openIDconfig = h.Provider.GetOpenIDConfiguration()
 	var externalSessionID string
 	var err error
@@ -127,7 +129,7 @@ func (h *Handler) ExternalSessionId(idToken *openid.IDToken, params url.Values) 
 	case openIDconfig.GetCheckSessionIframe():
 		externalSessionID, err = getSessionStateFrom(params)
 	default:
-		externalSessionID = h.GenerateExternalSessionID()
+		externalSessionID, err = h.GenerateSessionID()
 	}
 
 	if err != nil {
@@ -146,6 +148,13 @@ func getSessionStateFrom(params url.Values) (string, error) {
 	return sessionState, nil
 }
 
-func (h *Handler) GenerateExternalSessionID() string {
-	return randomstring.CookieFriendlyString(36)
+func (h *Handler) GenerateSessionID() (string, error) {
+	rawID := make([]byte, 64)
+
+	_, err := io.ReadFull(rand.Reader, rawID)
+	if err != nil {
+		return "", fmt.Errorf("generating session ID: %w", err)
+	}
+
+	return base64.RawURLEncoding.EncodeToString(rawID), nil
 }

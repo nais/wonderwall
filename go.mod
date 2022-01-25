@@ -16,7 +16,6 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.9.0
 	github.com/stretchr/testify v1.7.0
-	github.com/xyproto/randomstring v0.0.0-20211020123341-4731a123782f
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 )
 

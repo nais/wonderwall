@@ -20,8 +20,8 @@ import (
 // in all tokens acquired by any Relying Party (such as Wonderwall) during that session.
 // Thus, we cannot assume that the value of `sid` or `session_state` to uniquely identify the pair of (user, application session)
 // if using a shared session store.
-func (h *Handler) localSessionID(externalSessionID string) string {
-	return fmt.Sprintf("%s:%s:%s", h.Config.OpenID.Provider, h.Provider.GetClientConfiguration().GetClientID(), externalSessionID)
+func (h *Handler) localSessionID(sessionID string) string {
+	return fmt.Sprintf("%s:%s:%s", h.Config.OpenID.Provider, h.Provider.GetClientConfiguration().GetClientID(), sessionID)
 }
 
 func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (*session.Data, error) {
