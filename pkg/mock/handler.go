@@ -244,13 +244,17 @@ func (ip *identityProviderHandler) generateSessionState(state, originUrl string)
 	salt := "some-salt"
 	saltedString := fmt.Sprintf("%s %s %s %s", clientId, state, originUrl, salt)
 	session := NewSHA256([]byte(saltedString))
-	sessionState := fmt.Sprintf("%s.%s", session, NewSHA256([]byte(salt)))
+	sessionState := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s", session, NewSHA256([]byte(salt)))))
 	ip.SessionStates[clientId] = sessionState
-	return base64.StdEncoding.EncodeToString([]byte(sessionState))
+	return sessionState
 
 }
 
 func NewSHA256(data []byte) []byte {
 	hash := sha256.Sum256(data)
 	return hash[:]
+}
+
+func (ip *identityProviderHandler) GetCurrentSessionState(clientID string) string {
+	return ip.SessionStates[clientID]
 }

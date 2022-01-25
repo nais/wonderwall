@@ -7,6 +7,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,7 +45,7 @@ func newHandler(provider openid.Provider) *router.Handler {
 }
 
 func TestHandler_Login(t *testing.T) {
-	idpserver, idp := mock.IdentityProviderServer(false)
+	idpserver, idp, _ := mock.IdentityProviderServer(false)
 	h := newHandler(idp)
 	r := router.New(h)
 
@@ -100,7 +101,7 @@ func TestHandler_Login(t *testing.T) {
 }
 
 func TestHandler_Callback_and_Logout(t *testing.T) {
-	idpserver, idp := mock.IdentityProviderServer(false)
+	idpserver, idp, _ := mock.IdentityProviderServer(false)
 
 	h := newHandler(idp)
 	r := router.New(h)
@@ -195,7 +196,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 }
 
 func TestHandler_FrontChannelLogout(t *testing.T) {
-	_, idp := mock.IdentityProviderServer(false)
+	_, idp, _ := mock.IdentityProviderServer(false)
 	h := newHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
@@ -267,8 +268,8 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	defer resp.Body.Close()
 }
 
-func TestHandler_FrontChannelLogoutWithCheckSessionIframe(t *testing.T) {
-	_, idp := mock.IdentityProviderServer(true)
+func TestHandler_CheckSessionIframe(t *testing.T) {
+	_, idp, idpHandler := mock.IdentityProviderServer(true)
 	h := newHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
@@ -317,27 +318,14 @@ func TestHandler_FrontChannelLogoutWithCheckSessionIframe(t *testing.T) {
 
 	assert.NotNil(t, sessionCookie)
 
-	// Trigger front-channel logout
 	ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
 	assert.NoError(t, err)
 
 	sessionState, err := h.Crypter.Decrypt(ciphertext)
 	assert.NoError(t, err)
 
-	frontchannelLogoutURL, err := url.Parse(server.URL)
-	assert.NoError(t, err)
-
-	frontchannelLogoutURL.Path = "/oauth2/logout/frontchannel"
-
-	values := url.Values{}
-	values.Add("session_state", string(sessionState))
-	values.Add("iss", idp.GetOpenIDConfiguration().Issuer)
-	frontchannelLogoutURL.RawQuery = values.Encode()
-
-	resp, err = client.Get(frontchannelLogoutURL.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	defer resp.Body.Close()
+	idpSessionState := idpHandler.GetCurrentSessionState(idp.GetClientConfiguration().GetClientID())
+	assert.Equal(t, idpSessionState, strings.Split(string(sessionState), ":")[2])
 }
 
 func getCookieFromJar(name string, cookies []*http.Cookie) *http.Cookie {
