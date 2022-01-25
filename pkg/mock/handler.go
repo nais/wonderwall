@@ -14,16 +14,16 @@ import (
 )
 
 type identityProviderHandler struct {
-	Codes         map[string]authorizeRequest
-	Provider      TestProvider
-	Sessions      map[string]string
+	Codes    map[string]authorizeRequest
+	Provider TestProvider
+	Sessions map[string]string
 }
 
 func newIdentityProviderHandler(provider TestProvider) *identityProviderHandler {
 	return &identityProviderHandler{
-		Codes:         make(map[string]authorizeRequest),
-		Provider:      provider,
-		Sessions:      make(map[string]string),
+		Codes:    make(map[string]authorizeRequest),
+		Provider: provider,
+		Sessions: make(map[string]string),
 	}
 }
 
@@ -222,4 +222,3 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(token)
 }
-
