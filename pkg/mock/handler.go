@@ -255,6 +255,6 @@ func NewSHA256(data []byte) []byte {
 	return hash[:]
 }
 
-func (ip *identityProviderHandler) GetCurrentSessionState(clientID string) string {
-	return ip.SessionStates[clientID]
+func (ip *identityProviderHandler) GetClientID(sessionID string) string {
+	return ip.Sessions[sessionID]
 }

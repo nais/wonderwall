@@ -20,6 +20,9 @@ func IdentityProviderServer(iframe bool) (*httptest.Server, TestProvider, *ident
 
 	if iframe {
 		provider.OpenIDConfiguration.CheckSessionIframe = server.URL + "/checksession"
+	} else {
+		provider.OpenIDConfiguration.FrontchannelLogoutSupported = true
+		provider.OpenIDConfiguration.FrontchannelLogoutSessionSupported = true
 	}
 
 	return server, provider, handler

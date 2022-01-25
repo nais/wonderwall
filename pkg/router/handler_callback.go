@@ -120,23 +120,23 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 
 func (h *Handler) SessionId(idToken *openid.IDToken, params url.Values) (string, error) {
 	var openIDconfig = h.Provider.GetOpenIDConfiguration()
-	var externalSessionID string
+	var sessionID string
 	var err error
 
 	switch {
 	case openIDconfig.SidClaimRequired():
-		externalSessionID, err = idToken.GetStringClaim("sid")
+		sessionID, err = idToken.GetStringClaim("sid")
 	case openIDconfig.GetCheckSessionIframe():
-		externalSessionID, err = getSessionStateFrom(params)
+		sessionID, err = getSessionStateFrom(params)
 	default:
-		externalSessionID, err = h.GenerateSessionID()
+		sessionID, err = h.GenerateSessionID()
 	}
 
 	if err != nil {
 		return "", err
 	}
 
-	return externalSessionID, nil
+	return sessionID, nil
 }
 
 func getSessionStateFrom(params url.Values) (string, error) {

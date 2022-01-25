@@ -196,7 +196,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 }
 
 func TestHandler_FrontChannelLogout(t *testing.T) {
-	_, idp, _ := mock.IdentityProviderServer(false)
+	_, idp, idpHandler := mock.IdentityProviderServer(false)
 	h := newHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
@@ -251,6 +251,9 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 
 	sid, err := h.Crypter.Decrypt(ciphertext)
 	assert.NoError(t, err)
+
+	clientID := idpHandler.GetClientID(parseSessionID(sid))
+	assert.Equal(t, idp.GetClientConfiguration().GetClientID(), clientID)
 
 	frontchannelLogoutURL, err := url.Parse(server.URL)
 	assert.NoError(t, err)
@@ -324,8 +327,8 @@ func TestHandler_CheckSessionIframe(t *testing.T) {
 	sessionState, err := h.Crypter.Decrypt(ciphertext)
 	assert.NoError(t, err)
 
-	idpSessionState := idpHandler.GetCurrentSessionState(idp.GetClientConfiguration().GetClientID())
-	assert.Equal(t, idpSessionState, strings.Split(string(sessionState), ":")[2])
+	clientID := idpHandler.GetClientID(parseSessionID(sessionState))
+	assert.Equal(t, idp.GetClientConfiguration().GetClientID(), clientID)
 }
 
 func getCookieFromJar(name string, cookies []*http.Cookie) *http.Cookie {
@@ -336,4 +339,8 @@ func getCookieFromJar(name string, cookies []*http.Cookie) *http.Cookie {
 	}
 
 	return nil
+}
+
+func parseSessionID(sessionID []byte) string {
+	return strings.Split(string(sessionID), ":")[2]
 }
