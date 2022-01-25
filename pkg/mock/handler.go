@@ -1,8 +1,6 @@
 package mock
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -19,7 +17,6 @@ type identityProviderHandler struct {
 	Codes         map[string]authorizeRequest
 	Provider      TestProvider
 	Sessions      map[string]string
-	SessionStates map[string]string
 }
 
 func newIdentityProviderHandler(provider TestProvider) *identityProviderHandler {
@@ -27,7 +24,6 @@ func newIdentityProviderHandler(provider TestProvider) *identityProviderHandler 
 		Codes:         make(map[string]authorizeRequest),
 		Provider:      provider,
 		Sessions:      make(map[string]string),
-		SessionStates: make(map[string]string),
 	}
 }
 
@@ -44,7 +40,6 @@ type tokenResponse struct {
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int64  `json:"expires_in"`
 	IDToken      string `json:"id_token"`
-	SessionState string `json:"session_state"`
 }
 
 func (ip *identityProviderHandler) signToken(token jwt.Token) (string, error) {
@@ -95,7 +90,8 @@ func (ip *identityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	v.Set("code", code)
 	v.Set("state", state)
 	if ip.Provider.GetOpenIDConfiguration().SessionStateRequired() {
-		v.Set("session_state", ip.generateSessionState(state, fmt.Sprintf("%s://%s", u.Scheme, u.Host)))
+		sessionID := uuid.New().String()
+		v.Set("session_state", sessionID)
 	}
 
 	u.RawQuery = v.Encode()
@@ -172,9 +168,6 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		v := url.Values{}
 		v.Set("error", "Unauthenticated")
 		v.Set("error_description", "invalid client assertion")
-		if ip.Provider.GetOpenIDConfiguration().SessionStateRequired() {
-			v.Set("session_state", ip.SessionStates[clientID])
-		}
 		v.Encode()
 		w.Write([]byte(fmt.Sprintf(v.Encode()+"%+v", err)))
 		return
@@ -193,7 +186,8 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	sid := uuid.New().String()
+	sessionID := uuid.New().String()
+	ip.Sessions[sessionID] = clientID
 
 	idToken := jwt.New()
 	idToken.Set("sub", sub)
@@ -206,9 +200,8 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	idToken.Set("exp", time.Now().Unix()+expires)
 
 	// If the sid claim should be in token and in active session
-	if !ip.Provider.OpenIDConfiguration.SessionStateRequired() || !ip.Provider.OpenIDConfiguration.SidClaimRequired() {
-		idToken.Set("sid", sid)
-		ip.Sessions[sid] = clientID
+	if ip.Provider.OpenIDConfiguration.SidClaimRequired() {
+		idToken.Set("sid", sessionID)
 	}
 
 	signedIdToken, err := ip.signToken(idToken)
@@ -225,36 +218,8 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		ExpiresIn:   expires,
 	}
 
-	if ip.Provider.OpenIDConfiguration.SessionStateRequired() {
-		sessionState := ip.SessionStates[clientID]
-		token.SessionState = sessionState
-		ip.Sessions[sessionState] = clientID
-	}
-
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(token)
 }
 
-func (ip *identityProviderHandler) generateSessionState(state, originUrl string) string {
-	// Here, the session_state is calculated in this particular way,
-	// but it is entirely up to the OP how to do it under the
-	// requirements defined in this specification.
-	clientId := ip.Provider.ClientConfiguration.GetClientID()
-	salt := "some-salt"
-	saltedString := fmt.Sprintf("%s %s %s %s", clientId, state, originUrl, salt)
-	session := NewSHA256([]byte(saltedString))
-	sessionState := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s", session, NewSHA256([]byte(salt)))))
-	ip.SessionStates[clientId] = sessionState
-	return sessionState
-
-}
-
-func NewSHA256(data []byte) []byte {
-	hash := sha256.Sum256(data)
-	return hash[:]
-}
-
-func (ip *identityProviderHandler) GetClientID(sessionID string) string {
-	return ip.Sessions[sessionID]
-}

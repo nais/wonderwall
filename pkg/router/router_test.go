@@ -7,7 +7,6 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -45,7 +44,7 @@ func newHandler(provider openid.Provider) *router.Handler {
 }
 
 func TestHandler_Login(t *testing.T) {
-	idpserver, idp, _ := mock.IdentityProviderServer(false)
+	idpserver, idp := mock.IdentityProviderServer()
 	h := newHandler(idp)
 	r := router.New(h)
 
@@ -101,7 +100,7 @@ func TestHandler_Login(t *testing.T) {
 }
 
 func TestHandler_Callback_and_Logout(t *testing.T) {
-	idpserver, idp, _ := mock.IdentityProviderServer(false)
+	idpserver, idp := mock.IdentityProviderServer()
 
 	h := newHandler(idp)
 	r := router.New(h)
@@ -196,7 +195,9 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 }
 
 func TestHandler_FrontChannelLogout(t *testing.T) {
-	_, idp, idpHandler := mock.IdentityProviderServer(false)
+	_, idp := mock.IdentityProviderServer()
+	idp.WithFrontChannelLogoutSupport()
+
 	h := newHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
@@ -252,9 +253,6 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	sid, err := h.Crypter.Decrypt(ciphertext)
 	assert.NoError(t, err)
 
-	clientID := idpHandler.GetClientID(parseSessionID(sid))
-	assert.Equal(t, idp.GetClientConfiguration().GetClientID(), clientID)
-
 	frontchannelLogoutURL, err := url.Parse(server.URL)
 	assert.NoError(t, err)
 
@@ -271,8 +269,9 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	defer resp.Body.Close()
 }
 
-func TestHandler_CheckSessionIframe(t *testing.T) {
-	_, idp, idpHandler := mock.IdentityProviderServer(true)
+func TestHandler_SessionStateRequired(t *testing.T) {
+	idpServer, idp := mock.IdentityProviderServer()
+	idp.WithCheckSessionIFrameSupport(idpServer.URL + "/checksession")
 	h := newHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
@@ -311,24 +310,9 @@ func TestHandler_CheckSessionIframe(t *testing.T) {
 	callbackURL, err := url.Parse(location)
 	assert.NoError(t, err)
 
-	// Follow redirect to callback
-	resp, err = client.Get(callbackURL.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-
-	cookies := client.Jar.Cookies(callbackURL)
-	sessionCookie := getCookieFromJar(router.SessionCookieName, cookies)
-
-	assert.NotNil(t, sessionCookie)
-
-	ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
-	assert.NoError(t, err)
-
-	sessionState, err := h.Crypter.Decrypt(ciphertext)
-	assert.NoError(t, err)
-
-	clientID := idpHandler.GetClientID(parseSessionID(sessionState))
-	assert.Equal(t, idp.GetClientConfiguration().GetClientID(), clientID)
+	params := callbackURL.Query()
+	sessionState := params.Get("session_state")
+	assert.NotEmpty(t, sessionState)
 }
 
 func getCookieFromJar(name string, cookies []*http.Cookie) *http.Cookie {
@@ -339,8 +323,4 @@ func getCookieFromJar(name string, cookies []*http.Cookie) *http.Cookie {
 	}
 
 	return nil
-}
-
-func parseSessionID(sessionID []byte) string {
-	return strings.Split(string(sessionID), ":")[2]
 }

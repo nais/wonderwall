@@ -6,7 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func IdentityProviderServer(iframe bool) (*httptest.Server, TestProvider, *identityProviderHandler) {
+func IdentityProviderServer() (*httptest.Server, TestProvider) {
 	provider := NewTestProvider()
 	handler := newIdentityProviderHandler(provider)
 	router := identityProviderRouter(handler)
@@ -18,14 +18,7 @@ func IdentityProviderServer(iframe bool) (*httptest.Server, TestProvider, *ident
 	provider.OpenIDConfiguration.TokenEndpoint = server.URL + "/token"
 	provider.OpenIDConfiguration.EndSessionEndpoint = server.URL + "/endsession"
 
-	if iframe {
-		provider.OpenIDConfiguration.CheckSessionIframe = server.URL + "/checksession"
-	} else {
-		provider.OpenIDConfiguration.FrontchannelLogoutSupported = true
-		provider.OpenIDConfiguration.FrontchannelLogoutSessionSupported = true
-	}
-
-	return server, provider, handler
+	return server, provider
 }
 
 func identityProviderRouter(ip *identityProviderHandler) chi.Router {
