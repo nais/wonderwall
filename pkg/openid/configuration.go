@@ -73,7 +73,7 @@ func (c *Configuration) FetchJwkSet(ctx context.Context) (*jwk.Set, error) {
 	return &jwkSet, nil
 }
 
-func (c *Configuration) GetCheckSessionIframe() bool {
+func (c *Configuration) SessionStateRequired() bool {
 	return len(c.CheckSessionIframe) > 0
 }
 

@@ -94,7 +94,7 @@ func (ip *identityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	v := url.Values{}
 	v.Set("code", code)
 	v.Set("state", state)
-	if ip.Provider.GetOpenIDConfiguration().GetCheckSessionIframe() {
+	if ip.Provider.GetOpenIDConfiguration().SessionStateRequired() {
 		v.Set("session_state", ip.generateSessionState(state, fmt.Sprintf("%s://%s", u.Scheme, u.Host)))
 	}
 
@@ -172,7 +172,7 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		v := url.Values{}
 		v.Set("error", "Unauthenticated")
 		v.Set("error_description", "invalid client assertion")
-		if ip.Provider.GetOpenIDConfiguration().GetCheckSessionIframe() {
+		if ip.Provider.GetOpenIDConfiguration().SessionStateRequired() {
 			v.Set("session_state", ip.SessionStates[clientID])
 		}
 		v.Encode()
@@ -206,7 +206,7 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	idToken.Set("exp", time.Now().Unix()+expires)
 
 	// If the sid claim should be in token and in active session
-	if !ip.Provider.OpenIDConfiguration.GetCheckSessionIframe() || !ip.Provider.OpenIDConfiguration.SidClaimRequired() {
+	if !ip.Provider.OpenIDConfiguration.SessionStateRequired() || !ip.Provider.OpenIDConfiguration.SidClaimRequired() {
 		idToken.Set("sid", sid)
 		ip.Sessions[sid] = clientID
 	}
@@ -225,7 +225,7 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		ExpiresIn:   expires,
 	}
 
-	if ip.Provider.OpenIDConfiguration.GetCheckSessionIframe() {
+	if ip.Provider.OpenIDConfiguration.SessionStateRequired() {
 		sessionState := ip.SessionStates[clientID]
 		token.SessionState = sessionState
 		ip.Sessions[sessionState] = clientID

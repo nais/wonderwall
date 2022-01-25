@@ -2,10 +2,7 @@ package router
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -49,9 +46,15 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID, err := h.validateIDToken(idToken, loginCookie, params)
+	err = h.validateIDToken(idToken, loginCookie, params)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: validating id_token: %w", err))
+		return
+	}
+
+	sessionID, err := SessionID(h.Provider.GetOpenIDConfiguration(), idToken, params)
+	if err != nil {
+		h.InternalError(w, r, fmt.Errorf("callback: generating session ID: %w", err))
 		return
 	}
 
@@ -86,7 +89,7 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 	return tokens, nil
 }
 
-func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie, params url.Values) (string, error) {
+func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie, params url.Values) error {
 	openIDconfig := h.Provider.GetOpenIDConfiguration()
 	clientConfig := h.Provider.GetClientConfiguration()
 
@@ -105,56 +108,5 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 		validateOpts = append(validateOpts, jwt.WithRequiredClaim("acr"))
 	}
 
-	err := idToken.Validate(validateOpts...)
-	if err != nil {
-		return "", err
-	}
-
-	sessionID, err := h.SessionId(idToken, params)
-	if err != nil {
-		return "", fmt.Errorf("getting external session ID from id_token: %w", err)
-	}
-
-	return sessionID, nil
-}
-
-func (h *Handler) SessionId(idToken *openid.IDToken, params url.Values) (string, error) {
-	var openIDconfig = h.Provider.GetOpenIDConfiguration()
-	var sessionID string
-	var err error
-
-	switch {
-	case openIDconfig.SidClaimRequired():
-		sessionID, err = idToken.GetStringClaim("sid")
-	case openIDconfig.GetCheckSessionIframe():
-		sessionID, err = getSessionStateFrom(params)
-	default:
-		sessionID, err = h.GenerateSessionID()
-	}
-
-	if err != nil {
-		return "", err
-	}
-
-	return sessionID, nil
-}
-
-func getSessionStateFrom(params url.Values) (string, error) {
-	var sessionStateKey = "session_state"
-	sessionState := params.Get(sessionStateKey)
-	if sessionState == "" {
-		return "", fmt.Errorf("missing required '%s' in params", sessionStateKey)
-	}
-	return sessionState, nil
-}
-
-func (h *Handler) GenerateSessionID() (string, error) {
-	rawID := make([]byte, 64)
-
-	_, err := io.ReadFull(rand.Reader, rawID)
-	if err != nil {
-		return "", fmt.Errorf("generating session ID: %w", err)
-	}
-
-	return base64.RawURLEncoding.EncodeToString(rawID), nil
+	return idToken.Validate(validateOpts...)
 }
