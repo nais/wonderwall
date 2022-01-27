@@ -15,22 +15,31 @@ const (
 )
 
 func SessionID(cfg *openid.Configuration, idToken *openid.IDToken, params url.Values) (string, error) {
-	var sessionID string
-	var err error
-
-	switch {
-	case cfg.SidClaimRequired():
-		sessionID, err = idToken.GetStringClaim("sid")
-	case cfg.SessionStateRequired():
-		sessionID, err = getSessionStateFrom(params)
-	default:
-		sessionID, err = generateSessionID()
+	// 1. check for 'sid' claim in id_token
+	sessionID, err := idToken.GetStringClaim("sid")
+	if err == nil {
+		return sessionID, nil
 	}
-
-	if err != nil {
+	// 1a. error if sid claim is required according to openid config
+	if err != nil && cfg.SidClaimRequired() {
 		return "", err
 	}
 
+	// 2. check for session_state in callback params
+	sessionID, err = getSessionStateFrom(params)
+	if err == nil {
+		return sessionID, nil
+	}
+	// 2a. error if session_state is required according to openid config
+	if err != nil && cfg.SessionStateRequired() {
+		return "", err
+	}
+
+	// 3. generate ID if all else fails
+	sessionID, err = generateSessionID()
+	if err != nil {
+		return "", err
+	}
 	return sessionID, nil
 }
 
