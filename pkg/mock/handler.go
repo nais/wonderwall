@@ -89,6 +89,10 @@ func (ip *identityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	v := url.Values{}
 	v.Set("code", code)
 	v.Set("state", state)
+	if ip.Provider.GetOpenIDConfiguration().SessionStateRequired() {
+		sessionID := uuid.New().String()
+		v.Set("session_state", sessionID)
+	}
 
 	u.RawQuery = v.Encode()
 
@@ -130,7 +134,6 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	expires := int64(1200)
 
 	sub := uuid.New().String()
-	sid := uuid.New().String()
 
 	clientID := r.PostForm.Get("client_id")
 	if len(clientID) == 0 {
@@ -167,7 +170,11 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	_, err = jwt.Parse([]byte(clientAssertion), opts...)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(fmt.Sprintf("invalid client assertion: %+v", err)))
+		v := url.Values{}
+		v.Set("error", "Unauthenticated")
+		v.Set("error_description", "invalid client assertion")
+		v.Encode()
+		w.Write([]byte(fmt.Sprintf(v.Encode()+"%+v", err)))
 		return
 	}
 
@@ -184,6 +191,9 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	sessionID := uuid.New().String()
+	ip.Sessions[sessionID] = clientID
+
 	idToken := jwt.New()
 	idToken.Set("sub", sub)
 	idToken.Set("iss", ip.Provider.GetOpenIDConfiguration().Issuer)
@@ -193,7 +203,11 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	idToken.Set("acr", auth.AcrLevel)
 	idToken.Set("iat", time.Now().Unix())
 	idToken.Set("exp", time.Now().Unix()+expires)
-	idToken.Set("sid", sid)
+
+	// If the sid claim should be in token and in active session
+	if ip.Provider.OpenIDConfiguration.SidClaimRequired() {
+		idToken.Set("sid", sessionID)
+	}
 
 	signedIdToken, err := ip.signToken(idToken)
 	if err != nil {
@@ -218,7 +232,6 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	ip.Sessions[sid] = clientID
 	token := &tokenResponse{
 		AccessToken:  signedAccessToken,
 		TokenType:    "Bearer",

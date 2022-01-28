@@ -196,6 +196,8 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 
 func TestHandler_FrontChannelLogout(t *testing.T) {
 	_, idp := mock.IdentityProviderServer()
+	idp.WithFrontChannelLogoutSupport()
+
 	h := newHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
@@ -265,6 +267,52 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	defer resp.Body.Close()
+}
+
+func TestHandler_SessionStateRequired(t *testing.T) {
+	idpServer, idp := mock.IdentityProviderServer()
+	idp.WithCheckSessionIFrameSupport(idpServer.URL + "/checksession")
+	h := newHandler(idp)
+	r := router.New(h)
+	server := httptest.NewServer(r)
+
+	idp.ClientConfiguration.RedirectURI = server.URL + "/oauth2/callback"
+	idp.ClientConfiguration.PostLogoutRedirectURI = server.URL
+
+	jar, err := cookiejar.New(nil)
+	assert.NoError(t, err)
+
+	client := server.Client()
+	client.Jar = jar
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	// First, run /oauth2/login to set cookies
+	resp, err := client.Get(server.URL + "/oauth2/login")
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	defer resp.Body.Close()
+
+	// Get authorization URL
+	location := resp.Header.Get("location")
+	u, err := url.Parse(location)
+	assert.NoError(t, err)
+
+	// Follow redirect to authorize with idporten
+	resp, err = client.Get(u.String())
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	defer resp.Body.Close()
+
+	// Get callback URL after successful auth
+	location = resp.Header.Get("location")
+	callbackURL, err := url.Parse(location)
+	assert.NoError(t, err)
+
+	params := callbackURL.Query()
+	sessionState := params.Get("session_state")
+	assert.NotEmpty(t, sessionState)
 }
 
 func getCookieFromJar(name string, cookies []*http.Cookie) *http.Cookie {

@@ -31,6 +31,17 @@ func (p TestProvider) PrivateJwkSet() *jwk.Set {
 	return &p.JwksPair.Private
 }
 
+func (p TestProvider) WithFrontChannelLogoutSupport() TestProvider {
+	p.OpenIDConfiguration.FrontchannelLogoutSupported = true
+	p.OpenIDConfiguration.FrontchannelLogoutSessionSupported = true
+	return p
+}
+
+func (p TestProvider) WithCheckSessionIFrameSupport(url string) TestProvider {
+	p.OpenIDConfiguration.CheckSessionIframe = url
+	return p
+}
+
 func NewTestProvider() TestProvider {
 	jwksPair, err := crypto.NewJwkSet()
 	if err != nil {
