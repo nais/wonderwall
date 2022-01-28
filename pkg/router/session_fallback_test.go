@@ -30,6 +30,7 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 		assert.Equal(t, "sid", sessionData.ExternalSessionID)
 		assert.Equal(t, "access_token", sessionData.AccessToken)
 		assert.Equal(t, "id_token", sessionData.IDToken)
+		assert.Equal(t, "refresh_token", sessionData.RefreshToken)
 	})
 }
 
@@ -39,7 +40,7 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 	// request should set session cookies in response
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
-	data := session.NewData("sid", "access_token", "id_token")
+	data := session.NewData("sid", "access_token", "id_token", "refresh_token")
 	err := h.SetSessionFallback(writer, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -61,6 +62,10 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 			cookieName: h.SessionFallbackAccessTokenCookieName(),
 			want:       "access_token",
 		},
+		{
+			cookieName: h.SessionFallbackRefreshTokenCookieName(),
+			want:       "refresh_token",
+		},
 	} {
 		assertCookieExists(t, h, test.cookieName, test.want, cookies)
 	}
@@ -76,11 +81,12 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 		cookies := writer.Result().Cookies()
 
 		assert.NotEmpty(t, cookies)
-		assert.Len(t, cookies, 3)
+		assert.Len(t, cookies, 4)
 
 		assertCookieExpired(t, h.SessionFallbackExternalIDCookieName(), cookies)
 		assertCookieExpired(t, h.SessionFallbackIDTokenCookieName(), cookies)
 		assertCookieExpired(t, h.SessionFallbackAccessTokenCookieName(), cookies)
+		assertCookieExpired(t, h.SessionFallbackRefreshTokenCookieName(), cookies)
 	})
 
 	t.Run("skip expiring cookies if they are not set", func(t *testing.T) {
@@ -97,7 +103,7 @@ func makeRequestWithFallbackCookies(t *testing.T) *http.Request {
 	h := newHandler(mock.NewTestProvider())
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
-	data := session.NewData("sid", "access_token", "id_token")
+	data := session.NewData("sid", "access_token", "id_token", "refresh_token")
 	err := h.SetSessionFallback(writer, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -109,12 +115,15 @@ func makeRequestWithFallbackCookies(t *testing.T) *http.Request {
 	assert.NotNil(t, idTokenCookie)
 	accessTokenCookie := getCookieFromJar(h.SessionFallbackAccessTokenCookieName(), cookies)
 	assert.NotNil(t, accessTokenCookie)
+	refreshTokenCookie := getCookieFromJar(h.SessionFallbackRefreshTokenCookieName(), cookies)
+	assert.NotNil(t, refreshTokenCookie)
 
 	// make request with fallback session cookies set
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.AddCookie(externalSessionIDCookie)
 	r.AddCookie(idTokenCookie)
 	r.AddCookie(accessTokenCookie)
+	r.AddCookie(refreshTokenCookie)
 
 	return r
 }

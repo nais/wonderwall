@@ -107,6 +107,11 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if r.PostForm.Get("grant_type") == "refresh_token" {
+		ip.refreshToken(w, r)
+		return
+	}
+
 	code := r.PostForm.Get("code")
 
 	if len(code) == 0 {
@@ -197,15 +202,109 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	refreshExpires := int64(3600)
+
+	refreshToken := jwt.New()
+	refreshToken.Set("sub", sub)
+	refreshToken.Set("iss", ip.Provider.GetOpenIDConfiguration().Issuer)
+	refreshToken.Set("acr", auth.AcrLevel)
+	refreshToken.Set("iat", time.Now().Unix())
+	refreshToken.Set("exp", time.Now().Unix()+refreshExpires)
+
+	signedRefreshToken, err := ip.signToken(refreshToken)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("could not sign refresh token: " + err.Error()))
+		return
+	}
+
 	ip.Sessions[sid] = clientID
 	token := &tokenResponse{
-		AccessToken: signedAccessToken,
-		TokenType:   "Bearer",
-		IDToken:     signedIdToken,
-		ExpiresIn:   expires,
+		AccessToken:  signedAccessToken,
+		TokenType:    "Bearer",
+		IDToken:      signedIdToken,
+		ExpiresIn:    expires,
+		RefreshToken: signedRefreshToken,
 	}
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(token)
+}
+
+func (ip *identityProviderHandler) refreshToken(w http.ResponseWriter, r *http.Request) {
+	refreshToken := r.PostForm.Get("refresh_token")
+
+	fmt.Println(r.PostForm)
+
+	if len(refreshToken) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing client_secret"))
+		return
+	}
+
+	opts := []jwt.ParseOption{
+		// slackness
+		jwt.WithValidate(false),
+	}
+
+	token, err := jwt.Parse([]byte(refreshToken), opts...)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("parsing refresh_token: %v", err)))
+		return
+	}
+
+	accessTokenExpires := int64(1200)
+	signedAccessToken, err := ip.signToken(
+		createToken(token.Subject(), ip.Provider.GetOpenIDConfiguration().Issuer, accessTokenExpires),
+	)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("could not sign access token: " + err.Error()))
+		return
+	}
+
+	if token.Expiration().Before(time.Now().UTC()) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("refresh token expired")))
+		return
+	}
+
+	if token.Subject() != ip.Provider.GetClientConfiguration().GetClientID() {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("refresh token invalid: %v", err)))
+		return
+	}
+
+	signedRefreshToken, err := ip.signToken(
+		createToken(ip.Provider.GetClientConfiguration().GetClientID(), ip.Provider.GetOpenIDConfiguration().Issuer, token.Expiration().Sub(time.Now()).Milliseconds()),
+	)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("could not sign refresh token: " + err.Error()))
+		return
+	}
+
+	tokenResponse := &tokenResponse{
+		AccessToken:  signedAccessToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    accessTokenExpires,
+		RefreshToken: signedRefreshToken,
+	}
+
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tokenResponse)
+	return
+}
+
+func createToken(sub, iss string, expires int64) jwt.Token {
+	token := jwt.New()
+	token.Set("sub", sub)
+	token.Set("iss", iss)
+	token.Set("iat", time.Now().Unix())
+	token.Set("exp", time.Now().Unix()+expires)
+
+	return token
 }

@@ -38,6 +38,11 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 		}
 
 		h.DeleteSessionFallback(w, r)
+
+		if err := h.RefreshSession(r.Context(), sessionData, w, r); err != nil {
+			return nil, err
+		}
+
 		return sessionData, nil
 	}
 
@@ -72,7 +77,7 @@ func (h *Handler) getSessionLifetime(accessToken string) (time.Duration, error) 
 	return defaultSessionLifetime, nil
 }
 
-func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, externalSessionID string, tokens *oauth2.Token, idToken *openid.IDToken) error {
+func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, externalSessionID string, tokens *oauth2.Token, idToken openid.Token) error {
 	sessionID := h.localSessionID(externalSessionID)
 
 	sessionLifetime, err := h.getSessionLifetime(tokens.AccessToken)
@@ -87,7 +92,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 		return fmt.Errorf("setting session cookie: %w", err)
 	}
 
-	sessionData := session.NewData(externalSessionID, tokens.AccessToken, idToken.Raw)
+	sessionData := session.NewData(externalSessionID, tokens.AccessToken, idToken.GetRaw(), tokens.RefreshToken)
 
 	encryptedSessionData, err := sessionData.Encrypt(h.Crypter)
 	if err != nil {

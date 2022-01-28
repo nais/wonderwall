@@ -82,13 +82,15 @@ type Data struct {
 	ExternalSessionID string `json:"external_session_id"`
 	AccessToken       string `json:"access_token"`
 	IDToken           string `json:"id_token"`
+	RefreshToken      string `json:"refresh_token"`
 }
 
-func NewData(externalSessionID, accessToken, idToken string) *Data {
+func NewData(externalSessionID, accessToken, idToken, refreshToken string) *Data {
 	return &Data{
 		ExternalSessionID: externalSessionID,
 		AccessToken:       accessToken,
 		IDToken:           idToken,
+		RefreshToken:      refreshToken,
 	}
 }
 

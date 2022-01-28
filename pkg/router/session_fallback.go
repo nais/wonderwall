@@ -21,6 +21,10 @@ func (h *Handler) SessionFallbackAccessTokenCookieName() string {
 	return SessionCookieName + ".3"
 }
 
+func (h *Handler) SessionFallbackRefreshTokenCookieName() string {
+	return SessionCookieName + ".4"
+}
+
 func (h *Handler) SetSessionFallback(w http.ResponseWriter, data *session.Data, expiresIn time.Duration) error {
 	opts := h.Cookies.WithExpiresIn(expiresIn)
 
@@ -37,6 +41,11 @@ func (h *Handler) SetSessionFallback(w http.ResponseWriter, data *session.Data, 
 	err = h.setEncryptedCookie(w, h.SessionFallbackIDTokenCookieName(), data.IDToken, opts)
 	if err != nil {
 		return fmt.Errorf("setting session access_token fallback cookie: %w", err)
+	}
+
+	err = h.setEncryptedCookie(w, h.SessionFallbackRefreshTokenCookieName(), data.RefreshToken, opts)
+	if err != nil {
+		return fmt.Errorf("setting session refresh_token fallback cookie: %w", err)
 	}
 
 	return nil
@@ -58,11 +67,19 @@ func (h *Handler) GetSessionFallback(r *http.Request) (*session.Data, error) {
 		return nil, fmt.Errorf("reading access_token from fallback cookie: %w", err)
 	}
 
-	return session.NewData(externalSessionID, accessToken, idToken), nil
+	refreshToken, err := h.getDecryptedCookie(r, h.SessionFallbackRefreshTokenCookieName())
+	if err != nil {
+		return nil, fmt.Errorf("reading refresh_token from fallback cookie: %w", err)
+	}
+
+	return session.NewData(externalSessionID, accessToken, idToken, refreshToken), nil
 }
 
 func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) {
 	deleteIfNotFound := func(h *Handler, w http.ResponseWriter, cookieName string) {
+		if r == nil {
+			return
+		}
 		_, err := r.Cookie(cookieName)
 		if errors.Is(err, http.ErrNoCookie) {
 			return
@@ -74,4 +91,5 @@ func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) 
 	deleteIfNotFound(h, w, h.SessionFallbackAccessTokenCookieName())
 	deleteIfNotFound(h, w, h.SessionFallbackExternalIDCookieName())
 	deleteIfNotFound(h, w, h.SessionFallbackIDTokenCookieName())
+	deleteIfNotFound(h, w, h.SessionFallbackRefreshTokenCookieName())
 }

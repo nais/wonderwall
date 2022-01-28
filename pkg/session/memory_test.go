@@ -17,7 +17,7 @@ func TestMemory(t *testing.T) {
 	assert.NoError(t, err)
 	crypter := crypto.NewCrypter(key)
 
-	data := session.NewData("myid", "accesstoken", "idtoken")
+	data := session.NewData("myid", "accesstoken", "idtoken", "refresh_token")
 
 	encryptedData, err := data.Encrypt(crypter)
 	assert.NoError(t, err)

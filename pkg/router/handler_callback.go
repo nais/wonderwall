@@ -82,7 +82,7 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 	return tokens, nil
 }
 
-func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie) (string, error) {
+func (h *Handler) validateIDToken(idToken openid.Token, loginCookie *openid.LoginCookie) (string, error) {
 	validateOpts := []jwt.ValidateOption{
 		jwt.WithAudience(h.Provider.GetClientConfiguration().GetClientID()),
 		jwt.WithClaimValue("nonce", loginCookie.Nonce),
@@ -100,7 +100,7 @@ func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.L
 		return "", err
 	}
 
-	externalSessionID, err := idToken.GetSID()
+	externalSessionID, err := idToken.GetStringClaim("sid")
 	if err != nil {
 		return "", fmt.Errorf("getting external session ID from id_token: %w", err)
 	}
