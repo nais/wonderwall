@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -45,13 +46,19 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	externalSessionID, err := h.validateIDToken(idToken, loginCookie)
+	err = h.validateIDToken(idToken, loginCookie, params)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: validating id_token: %w", err))
 		return
 	}
 
-	err = h.createSession(w, r, externalSessionID, tokens, idToken)
+	sessionID, err := SessionID(h.Provider.GetOpenIDConfiguration(), idToken, params)
+	if err != nil {
+		h.InternalError(w, r, fmt.Errorf("callback: generating session ID: %w", err))
+		return
+	}
+
+	err = h.createSession(w, r, sessionID, tokens, idToken)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return
@@ -82,28 +89,24 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 	return tokens, nil
 }
 
-func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie) (string, error) {
+func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie, params url.Values) error {
+	openIDconfig := h.Provider.GetOpenIDConfiguration()
+	clientConfig := h.Provider.GetClientConfiguration()
+
 	validateOpts := []jwt.ValidateOption{
-		jwt.WithAudience(h.Provider.GetClientConfiguration().GetClientID()),
+		jwt.WithAudience(clientConfig.GetClientID()),
 		jwt.WithClaimValue("nonce", loginCookie.Nonce),
-		jwt.WithIssuer(h.Provider.GetOpenIDConfiguration().Issuer),
+		jwt.WithIssuer(openIDconfig.Issuer),
 		jwt.WithAcceptableSkew(5 * time.Second),
-		jwt.WithRequiredClaim("sid"),
 	}
 
-	if len(h.Provider.GetClientConfiguration().GetACRValues()) > 0 {
+	if openIDconfig.SidClaimRequired() {
+		validateOpts = append(validateOpts, jwt.WithRequiredClaim("sid"))
+	}
+
+	if len(clientConfig.GetACRValues()) > 0 {
 		validateOpts = append(validateOpts, jwt.WithRequiredClaim("acr"))
 	}
 
-	err := idToken.Validate(validateOpts...)
-	if err != nil {
-		return "", err
-	}
-
-	externalSessionID, err := idToken.GetSID()
-	if err != nil {
-		return "", fmt.Errorf("getting external session ID from id_token: %w", err)
-	}
-
-	return externalSessionID, nil
+	return idToken.Validate(validateOpts...)
 }
