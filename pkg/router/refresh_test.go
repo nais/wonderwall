@@ -42,36 +42,63 @@ func TestHandler_RefreshTest(t *testing.T) {
 	_, idp := mock.IdentityProviderServer()
 	h := newHandler(idp)
 
-	expires := int64(20000)
+	for _, test := range []struct {
+		name                string
+		accessTokenExpires  int64
+		refreshTokenExpires int64
+		sessionMaxLifeTime  time.Duration
+		refreshToggle       bool
+	}{
+		{
+			name:                "Expired access token should be updated with refresh token",
+			accessTokenExpires:  int64(2 * time.Second),
+			refreshTokenExpires: int64(4 * time.Second),
+			sessionMaxLifeTime:  10 * time.Second,
+			refreshToggle:       true,
+		},
+		{
+			name:                "Access token not expired should not be updated",
+			accessTokenExpires:  int64(15 * time.Second),
+			refreshTokenExpires: int64(45 * time.Second),
+			sessionMaxLifeTime:  20 * time.Second,
+			refreshToggle:       true,
+		},
+		{
+			name:                "Refresh toggle not activated, should not refresh tokens",
+			accessTokenExpires:  int64(15 * time.Second),
+			refreshTokenExpires: int64(45 * time.Second),
+			sessionMaxLifeTime:  20 * time.Second,
+		},
+	} {
+		h.Config.SessionMaxLifetime = test.sessionMaxLifeTime
 
-	accessToken := jwt.New()
-	accessToken.Set("sub", "client_id")
-	accessToken.Set("iss", idp.GetOpenIDConfiguration().Issuer)
-	accessToken.Set("acr", idp.ClientConfiguration.GetACRValues())
-	accessToken.Set("iat", time.Now().Unix())
-	accessToken.Set("exp", time.Now().Unix()+expires)
-	signedAccessToken, err := signToken(idp, accessToken)
-	assert.NoError(t, err)
+		accessToken := getToken(t, idp, test.accessTokenExpires)
+		refreshToken := getToken(t, idp, test.refreshTokenExpires)
 
-	refreshToken := jwt.New()
-	refreshToken.Set("sub", "client_id")
-	refreshToken.Set("iss", idp.GetOpenIDConfiguration().Issuer)
-	refreshToken.Set("iat", time.Now().Unix())
-	refreshToken.Set("exp", time.Now().Unix()+expires)
-	signedRefreshToken, err := signToken(idp, refreshToken)
-	assert.NoError(t, err)
+		sessionData := &session.Data{
+			ExternalSessionID: "session_id",
+			AccessToken:       accessToken,
+			IDToken:           "id_token",
+			RefreshToken:      refreshToken,
+		}
 
-	sessionData := &session.Data{
-		ExternalSessionID: "session_id",
-		AccessToken:       signedAccessToken,
-		IDToken:           "id_token",
-		RefreshToken:      signedRefreshToken,
+		sessionLifeTime, _ := h.getSessionLifetime(sessionData.AccessToken)
+
+		previousAccessToken := sessionData.AccessToken
+		previousRefreshToken := sessionData.RefreshToken
+
+		if IsUpdate(sessionLifeTime) {
+			err := h.RefreshSession(context.Background(), sessionData, nil, nil)
+			assert.NoError(t, err)
+			assert.NotEqual(t, previousAccessToken, sessionData.AccessToken)
+			assert.NotEqual(t, previousRefreshToken, sessionData.RefreshToken)
+		}
+
+		err := h.RefreshSession(context.Background(), sessionData, nil, nil)
+		assert.NoError(t, err)
+		assert.Equal(t, previousAccessToken, sessionData.AccessToken)
+		assert.Equal(t, previousRefreshToken, sessionData.RefreshToken)
 	}
-
-	h.Config.SessionMaxLifetime = 10 * time.Second
-
-	err = h.RefreshSession(context.Background(), sessionData, nil, nil)
-	assert.NoError(t, err)
 }
 
 func signToken(idp mock.TestProvider, token jwt.Token) (string, error) {
@@ -87,4 +114,17 @@ func signToken(idp mock.TestProvider, token jwt.Token) (string, error) {
 	}
 
 	return string(signedToken), nil
+}
+
+func getToken(t *testing.T, idp mock.TestProvider, expires int64) string {
+	accessToken := jwt.New()
+	accessToken.Set("sub", "client_id")
+	accessToken.Set("iss", idp.GetOpenIDConfiguration().Issuer)
+	accessToken.Set("acr", idp.ClientConfiguration.GetACRValues())
+	accessToken.Set("iat", time.Now().Unix())
+	accessToken.Set("exp", time.Now().Unix()+expires)
+	signedAccessToken, err := signToken(idp, accessToken)
+	assert.NoError(t, err)
+
+	return signedAccessToken
 }

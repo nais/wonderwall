@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const expiryReserve = 10 * time.Second
+var ExpiryReserve = 10 * time.Second
 
 func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w http.ResponseWriter, r *http.Request) error {
 	// No session nor token nor enabled = no refresh session
@@ -26,7 +26,7 @@ func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w h
 
 	}
 
-	if sessionLifeTime > expiryReserve {
+	if !IsUpdate(sessionLifeTime) {
 		return nil
 	}
 
@@ -35,6 +35,10 @@ func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w h
 	}
 
 	return nil
+}
+
+func IsUpdate(dur1 time.Duration) bool {
+	return dur1 < ExpiryReserve
 }
 
 func (h *Handler) ReClaimRefreshToken(ctx context.Context, session *session.Data, w http.ResponseWriter, r *http.Request) error {
