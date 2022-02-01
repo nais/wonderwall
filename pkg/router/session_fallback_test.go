@@ -40,7 +40,7 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 	// request should set session cookies in response
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
-	data := session.NewData("sid", "access_token", "id_token", "refresh_token")
+	data := session.NewData("sid", "access_token", "id_token", "refresh_token", 0)
 	err := h.SetSessionFallback(writer, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -81,12 +81,13 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 		cookies := writer.Result().Cookies()
 
 		assert.NotEmpty(t, cookies)
-		assert.Len(t, cookies, 4)
+		assert.Len(t, cookies, 5)
 
 		assertCookieExpired(t, h.SessionFallbackExternalIDCookieName(), cookies)
 		assertCookieExpired(t, h.SessionFallbackIDTokenCookieName(), cookies)
 		assertCookieExpired(t, h.SessionFallbackAccessTokenCookieName(), cookies)
 		assertCookieExpired(t, h.SessionFallbackRefreshTokenCookieName(), cookies)
+		assertCookieExpired(t, h.SessionFallbackTimesToRefreshCookieName(), cookies)
 	})
 
 	t.Run("skip expiring cookies if they are not set", func(t *testing.T) {
@@ -103,7 +104,7 @@ func makeRequestWithFallbackCookies(t *testing.T) *http.Request {
 	h := newHandler(mock.NewTestProvider())
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
-	data := session.NewData("sid", "access_token", "id_token", "refresh_token")
+	data := session.NewData("sid", "access_token", "id_token", "refresh_token", 0)
 	err := h.SetSessionFallback(writer, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -117,6 +118,8 @@ func makeRequestWithFallbackCookies(t *testing.T) *http.Request {
 	assert.NotNil(t, accessTokenCookie)
 	refreshTokenCookie := getCookieFromJar(h.SessionFallbackRefreshTokenCookieName(), cookies)
 	assert.NotNil(t, refreshTokenCookie)
+	timesToRefreshCookie := getCookieFromJar(h.SessionFallbackTimesToRefreshCookieName(), cookies)
+	assert.NotNil(t, refreshTokenCookie)
 
 	// make request with fallback session cookies set
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -124,6 +127,7 @@ func makeRequestWithFallbackCookies(t *testing.T) *http.Request {
 	r.AddCookie(idTokenCookie)
 	r.AddCookie(accessTokenCookie)
 	r.AddCookie(refreshTokenCookie)
+	r.AddCookie(timesToRefreshCookie)
 
 	return r
 }

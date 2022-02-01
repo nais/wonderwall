@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/nais/wonderwall/pkg/session"
@@ -23,6 +24,10 @@ func (h *Handler) SessionFallbackAccessTokenCookieName() string {
 
 func (h *Handler) SessionFallbackRefreshTokenCookieName() string {
 	return SessionCookieName + ".4"
+}
+
+func (h *Handler) SessionFallbackTimesToRefreshCookieName() string {
+	return SessionCookieName + ".5"
 }
 
 func (h *Handler) SetSessionFallback(w http.ResponseWriter, data *session.Data, expiresIn time.Duration) error {
@@ -46,6 +51,12 @@ func (h *Handler) SetSessionFallback(w http.ResponseWriter, data *session.Data, 
 	err = h.setEncryptedCookie(w, h.SessionFallbackRefreshTokenCookieName(), data.RefreshToken, opts)
 	if err != nil {
 		return fmt.Errorf("setting session refresh_token fallback cookie: %w", err)
+	}
+
+	timesToRefreshString := strconv.Itoa(int(data.TimesToRefresh))
+	err = h.setEncryptedCookie(w, h.SessionFallbackTimesToRefreshCookieName(), timesToRefreshString, opts)
+	if err != nil {
+		return fmt.Errorf("setting session times to refresh fallback cookie: %w", err)
 	}
 
 	return nil
@@ -72,7 +83,17 @@ func (h *Handler) GetSessionFallback(r *http.Request) (*session.Data, error) {
 		return nil, fmt.Errorf("reading refresh_token from fallback cookie: %w", err)
 	}
 
-	return session.NewData(externalSessionID, accessToken, idToken, refreshToken), nil
+	timesToRefreshString, err := h.getDecryptedCookie(r, h.SessionFallbackTimesToRefreshCookieName())
+	if err != nil {
+		return nil, fmt.Errorf("reading refresh times from fallback cookie: %w", err)
+	}
+
+	timesToRefreshInt, err := strconv.Atoi(timesToRefreshString)
+	if err != nil {
+		return nil, fmt.Errorf("converting refresh times from string: %w", err)
+	}
+
+	return session.NewData(externalSessionID, accessToken, idToken, refreshToken, int64(timesToRefreshInt)), nil
 }
 
 func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) {
@@ -92,4 +113,5 @@ func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) 
 	deleteIfNotFound(h, w, h.SessionFallbackExternalIDCookieName())
 	deleteIfNotFound(h, w, h.SessionFallbackIDTokenCookieName())
 	deleteIfNotFound(h, w, h.SessionFallbackRefreshTokenCookieName())
+	deleteIfNotFound(h, w, h.SessionFallbackTimesToRefreshCookieName())
 }

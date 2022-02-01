@@ -47,6 +47,7 @@ func TestHandler_RefreshTest(t *testing.T) {
 		accessTokenExpires  int64
 		refreshTokenExpires int64
 		sessionMaxLifeTime  time.Duration
+		timesToRefresh      int64
 		refreshToggle       bool
 	}{
 		{
@@ -55,6 +56,7 @@ func TestHandler_RefreshTest(t *testing.T) {
 			refreshTokenExpires: int64(4 * time.Second),
 			sessionMaxLifeTime:  10 * time.Second,
 			refreshToggle:       true,
+			timesToRefresh:      1,
 		},
 		{
 			name:                "Access token not expired should not be updated",
@@ -62,12 +64,14 @@ func TestHandler_RefreshTest(t *testing.T) {
 			refreshTokenExpires: int64(45 * time.Second),
 			sessionMaxLifeTime:  20 * time.Second,
 			refreshToggle:       true,
+			timesToRefresh:      1,
 		},
 		{
 			name:                "Refresh toggle not activated, should not refresh tokens",
 			accessTokenExpires:  int64(15 * time.Second),
 			refreshTokenExpires: int64(45 * time.Second),
 			sessionMaxLifeTime:  20 * time.Second,
+			timesToRefresh:      1,
 		},
 	} {
 		h.Config.SessionMaxLifetime = test.sessionMaxLifeTime
@@ -80,6 +84,7 @@ func TestHandler_RefreshTest(t *testing.T) {
 			AccessToken:       accessToken,
 			IDToken:           "id_token",
 			RefreshToken:      refreshToken,
+			TimesToRefresh:    test.timesToRefresh,
 		}
 
 		sessionLifeTime, _ := h.getSessionLifetime(sessionData.AccessToken)
@@ -87,7 +92,7 @@ func TestHandler_RefreshTest(t *testing.T) {
 		previousAccessToken := sessionData.AccessToken
 		previousRefreshToken := sessionData.RefreshToken
 
-		if IsUpdate(sessionLifeTime) {
+		if shouldRefresh(sessionLifeTime, sessionData) {
 			err := h.RefreshSession(context.Background(), sessionData, nil, nil)
 			assert.NoError(t, err)
 			assert.NotEqual(t, previousAccessToken, sessionData.AccessToken)

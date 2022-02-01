@@ -12,11 +12,9 @@ import (
 	"time"
 )
 
-var ExpiryReserve = 10 * time.Second
-
 func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w http.ResponseWriter, r *http.Request) error {
 	// No session nor token nor enabled = no refresh session
-	if session == nil || session.RefreshToken == "" || !h.Config.RefreshToken {
+	if session == nil || len(session.RefreshToken) == 0 || !h.Config.RefreshToken {
 		return nil
 	}
 
@@ -26,7 +24,10 @@ func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w h
 
 	}
 
-	if !IsUpdate(sessionLifeTime) {
+	if !shouldRefresh(sessionLifeTime, session) {
+		if session.TimesToRefresh == 0 {
+			h.Logout(w, r)
+		}
 		return nil
 	}
 
@@ -37,8 +38,13 @@ func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w h
 	return nil
 }
 
-func IsUpdate(dur1 time.Duration) bool {
-	return dur1 < ExpiryReserve
+// should be handled with concurrent, if several of pods try to do this update
+func shouldRefresh(sessionLifeTime time.Duration, session *session.Data) bool {
+	if session.TimesToRefresh > 0 && sessionLifeTime < 10*time.Second {
+		session.TimesToRefresh = session.TimesToRefresh - 1
+		return true
+	}
+	return false
 }
 
 func (h *Handler) ReClaimRefreshToken(ctx context.Context, session *session.Data, w http.ResponseWriter, r *http.Request) error {
