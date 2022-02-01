@@ -22,7 +22,7 @@ func (h *Handler) SessionFallbackAccessTokenCookieName() string {
 }
 
 func (h *Handler) SetSessionFallback(w http.ResponseWriter, data *session.Data, expiresIn time.Duration) error {
-	opts := h.Cookies.WithExpiresIn(expiresIn)
+	opts := h.CookieOptions.WithExpiresIn(expiresIn)
 
 	err := h.setEncryptedCookie(w, h.SessionFallbackExternalIDCookieName(), data.ExternalSessionID, opts)
 	if err != nil {
@@ -68,7 +68,7 @@ func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		h.deleteCookie(w, cookieName, h.Cookies)
+		h.deleteCookie(w, cookieName, h.CookieOptions)
 	}
 
 	deleteIfNotFound(h, w, h.SessionFallbackAccessTokenCookieName())

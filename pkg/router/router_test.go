@@ -39,7 +39,7 @@ func newHandler(provider openid.Provider) *router.Handler {
 		panic(err)
 	}
 
-	h.Cookies = h.Cookies.WithSecure(false)
+	h.CookieOptions = h.CookieOptions.WithSecure(false)
 	return h
 }
 

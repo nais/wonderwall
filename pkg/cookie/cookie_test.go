@@ -34,6 +34,13 @@ func TestMake(t *testing.T) {
 	assert.Equal(t, opts.SameSite, result.SameSite)
 	assert.Equal(t, opts.Secure, result.Secure)
 	assert.Equal(t, "/", result.Path)
+	assert.Empty(t, result.Domain)
+}
+
+func TestMakeWithDomain(t *testing.T) {
+	opts := cookie.DefaultOptions().WithDomain(".some.domain")
+	result := cookie.Make("some-cookie", "some-value", opts)
+	assert.Equal(t, ".some.domain", result.Domain)
 }
 
 func TestClear(t *testing.T) {
@@ -62,6 +69,26 @@ func TestClear(t *testing.T) {
 	assert.Equal(t, opts.SameSite, result.SameSite)
 	assert.Equal(t, opts.Secure, result.Secure)
 	assert.Equal(t, "/", result.Path)
+}
+
+func TestClearWithDomain(t *testing.T) {
+	opts := cookie.DefaultOptions().WithDomain(".some.domain")
+	name := "some-cookie"
+
+	writer := httptest.NewRecorder()
+	cookie.Clear(writer, name, opts)
+
+	cookies := writer.Result().Cookies()
+
+	var result *http.Cookie
+	for _, c := range cookies {
+		if c.Name == name {
+			result = c
+		}
+	}
+
+	assert.NotNil(t, result)
+	assert.Equal(t, "some.domain", result.Domain)
 }
 
 func TestCookie_Encrypt(t *testing.T) {

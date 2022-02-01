@@ -28,7 +28,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	h.deleteCookie(w, SessionCookieName, h.Cookies)
+	h.deleteCookie(w, SessionCookieName, h.CookieOptions)
+
+	if h.Config.Features.Loginstatus.Enabled {
+		h.Loginstatus.ClearCookie(w, h.CookieOptions)
+	}
 
 	v := u.Query()
 

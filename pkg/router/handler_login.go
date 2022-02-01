@@ -81,7 +81,7 @@ func (h *Handler) setLoginCookies(w http.ResponseWriter, loginCookie *openid.Log
 		return fmt.Errorf("marshalling login cookie: %w", err)
 	}
 
-	opts := h.Cookies.
+	opts := h.CookieOptions.
 		WithExpiresIn(LoginCookieLifetime).
 		WithSameSite(http.SameSiteNoneMode)
 	value := string(loginCookieJson)
@@ -101,7 +101,7 @@ func (h *Handler) setLoginCookies(w http.ResponseWriter, loginCookie *openid.Log
 }
 
 func (h *Handler) clearLoginCookies(w http.ResponseWriter) {
-	opts := h.Cookies
+	opts := h.CookieOptions
 	cookie.Clear(w, LoginCookieName, opts.WithSameSite(http.SameSiteNoneMode))
 	cookie.Clear(w, LoginLegacyCookieName, opts.WithSameSite(http.SameSiteDefaultMode))
 }

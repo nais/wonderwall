@@ -80,7 +80,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, external
 		return fmt.Errorf("getting access token lifetime: %w", err)
 	}
 
-	opts := h.Cookies.WithExpiresIn(sessionLifetime)
+	opts := h.CookieOptions.WithExpiresIn(sessionLifetime)
 
 	err = h.setEncryptedCookie(w, SessionCookieName, sessionID, opts)
 	if err != nil {

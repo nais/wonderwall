@@ -64,6 +64,16 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.Config.Features.Loginstatus.Enabled {
+		token, err := h.Loginstatus.ExchangeToken(r.Context(), tokens.AccessToken)
+		if err != nil {
+			h.InternalError(w, r, fmt.Errorf("callback: exchanging loginstatus token: %w", err))
+			return
+		}
+
+		h.Loginstatus.SetCookie(w, token, h.CookieOptions)
+	}
+
 	h.clearLoginCookies(w)
 
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)

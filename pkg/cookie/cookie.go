@@ -56,6 +56,10 @@ func Clear(w http.ResponseWriter, name string, opts Options) {
 		Secure:   opts.Secure,
 	}
 
+	if len(opts.Domain) > 0 {
+		cookie.Domain = opts.Domain
+	}
+
 	http.SetCookie(w, cookie)
 }
 
@@ -81,6 +85,10 @@ func Make(name, value string, opts Options) *Cookie {
 		SameSite: opts.SameSite,
 		Secure:   opts.Secure,
 		Value:    value,
+	}
+
+	if len(opts.Domain) > 0 {
+		cookie.Domain = opts.Domain
 	}
 
 	return &Cookie{cookie}
