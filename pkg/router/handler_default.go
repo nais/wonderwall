@@ -12,10 +12,20 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	isAuthenticated := false
 
 	sessionData, err := h.getSessionFromCookie(w, r)
-	if err == nil && sessionData != nil && len(sessionData.AccessToken) > 0 {
+
+	hasSessionData := err == nil && sessionData != nil
+	hasAccessToken := hasSessionData && len(sessionData.AccessToken) > 0
+	if hasAccessToken {
 		// add authentication if session cookie and token checks out
 		isAuthenticated = true
-	} else if h.Config.AutoLogin {
+
+		// force new authentication if loginstatus is enabled and cookie isn't set
+		if h.Config.Features.Loginstatus.Enabled && !h.Loginstatus.HasCookie(r) {
+			isAuthenticated = false
+		}
+	}
+
+	if !isAuthenticated && h.Config.AutoLogin {
 		r.Header.Add("Referer", r.URL.String())
 		h.Login(w, r)
 		return

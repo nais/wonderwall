@@ -3,6 +3,7 @@ package loginstatus
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -19,6 +20,7 @@ const (
 type Client interface {
 	ExchangeToken(ctx context.Context, accessToken string) (*TokenResponse, error)
 	SetCookie(w http.ResponseWriter, token *TokenResponse, opts cookie.Options)
+	HasCookie(r *http.Request) bool
 	ClearCookie(w http.ResponseWriter, opts cookie.Options)
 }
 
@@ -73,6 +75,14 @@ func (c client) SetCookie(w http.ResponseWriter, token *TokenResponse, opts cook
 
 	newCookie := cookie.Make(name, token.AccessToken, opts)
 	cookie.Set(w, newCookie)
+}
+
+func (c client) HasCookie(r *http.Request) bool {
+	_, err := r.Cookie(c.config.CookieName)
+	if errors.Is(err, http.ErrNoCookie) {
+		return false
+	}
+	return true
 }
 
 func (c client) ClearCookie(w http.ResponseWriter, opts cookie.Options) {

@@ -115,6 +115,23 @@ func TestClient_ClearCookie(t *testing.T) {
 	assert.Equal(t, "/", result.Path)
 }
 
+func TestClient_HasCookie(t *testing.T) {
+	cfg := newCfg("https://some-server")
+	opts := cookie.DefaultOptions()
+
+	c := cookie.Make(cfg.CookieName, "some-value", opts)
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.AddCookie(c.Cookie)
+
+	client := loginstatus.NewClient(cfg, http.DefaultClient)
+	actual := client.HasCookie(r)
+	assert.True(t, actual)
+
+	r = httptest.NewRequest(http.MethodGet, "/", nil)
+	actual = client.HasCookie(r)
+	assert.False(t, actual)
+}
+
 func newCfg(serverURL string) config.Loginstatus {
 	return config.Loginstatus{
 		Enabled:           true,
