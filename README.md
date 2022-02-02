@@ -52,28 +52,33 @@ openid.client-id -> WONDERWALL_OPENID_CLIENT_ID
 The following flags are available:
 
 ```shell
---auto-login                               Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.
---bind-address string                      Listen address for public connections. (default "127.0.0.1:3000")
---encryption-key string                    Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
---error-redirect-uri string                URI to redirect user to on errors for custom error handling.
---ingress string                           Ingress used to access the main application.
---log-format string                        Log format, either 'json' or 'text'. (default "json")
---log-level string                         Logging verbosity level. (default "debug")
---metrics-bind-address string              Listen address for metrics only. (default "127.0.0.1:3001")
---openid.acr-values string                 Space separated string that configures the default security level (acr_values) parameter for authorization requests.
---openid.client-id string                  Client ID for the OpenID client.
---openid.client-jwk string                 JWK containing the private key for the OpenID client in string format.
---openid.post-logout-redirect-uri string   URI for redirecting the user after successful logout at the Identity Provider.
---openid.provider string                   Provider configuration to load and use, either 'openid', 'azure', 'idporten'. (default "openid")
---openid.scopes strings                    List of additional scopes (other than 'openid') that should be used during the login flow.
---openid.ui-locales string                 Space-separated string that configures the default UI locale (ui_locales) parameter for OAuth2 consent screen.
---openid.well-known-url string             URI to the well-known OpenID Configuration metadata document.
---redis.address string                     Address of Redis. An empty value will use in-memory session storage.
---redis.password string                    Password for Redis.
---redis.tls                                Whether or not to use TLS for connecting to Redis. (default true)
---redis.username string                    Username for Redis.
---session-max-lifetime duration            Max lifetime for user sessions. (default 1h0m0s)
---upstream-host string                     Address of upstream host. (default "127.0.0.1:8080")
+--auto-login                                       Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.
+--bind-address string                              Listen address for public connections. (default "127.0.0.1:3000")
+--encryption-key string                            Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
+--error-redirect-uri string                        URI to redirect user to on errors for custom error handling.
+--features.loginstatus.cookie-domain string        The domain that the cookie should be set for.
+--features.loginstatus.cookie-name string          The name of the cookie.
+--features.loginstatus.enabled                     Feature toggle for Loginstatus, a separate service that should provide an opaque token to indicate that a user has been authenticated previously, e.g. by another application in another subdomain.
+--features.loginstatus.resource-indicator string   The resource indicator that should be included in the authorization request to get an audience-restricted token that Loginstatus accepts. Empty means no resource indicator.
+--features.loginstatus.token-url string            The URL to the Loginstatus service that returns an opaque token.
+--ingress string                                   Ingress used to access the main application.
+--log-format string                                Log format, either 'json' or 'text'. (default "json")
+--log-level string                                 Logging verbosity level. (default "debug")
+--metrics-bind-address string                      Listen address for metrics only. (default "127.0.0.1:3001")
+--openid.acr-values string                         Space separated string that configures the default security level (acr_values) parameter for authorization requests.
+--openid.client-id string                          Client ID for the OpenID client.
+--openid.client-jwk string                         JWK containing the private key for the OpenID client in string format.
+--openid.post-logout-redirect-uri string           URI for redirecting the user after successful logout at the Identity Provider.
+--openid.provider string                           Provider configuration to load and use, either 'openid', 'azure', 'idporten'. (default "openid")
+--openid.scopes strings                            List of additional scopes (other than 'openid') that should be used during the login flow.
+--openid.ui-locales string                         Space-separated string that configures the default UI locale (ui_locales) parameter for OAuth2 consent screen.
+--openid.well-known-url string                     URI to the well-known OpenID Configuration metadata document.
+--redis.address string                             Address of Redis. An empty value will use in-memory session storage.
+--redis.password string                            Password for Redis.
+--redis.tls                                        Whether or not to use TLS for connecting to Redis. (default true)
+--redis.username string                            Username for Redis.
+--session-max-lifetime duration                    Max lifetime for user sessions. (default 1h0m0s)
+--upstream-host string                             Address of upstream host. (default "127.0.0.1:8080")
 ```
 
 At minimum, the following configuration must be provided:
