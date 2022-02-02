@@ -4,15 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/lestrrat-go/jwx/jwt"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
 
-	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
+	"github.com/nais/wonderwall/pkg/token"
 )
 
 // localSessionID prefixes the given `sid` or `session_state` with the given client ID to prevent key collisions.
@@ -55,39 +54,34 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 	return fallbackSessionData, nil
 }
 
-func (h *Handler) getSessionLifetime(accessToken string) (time.Duration, error) {
+func (h *Handler) getSessionLifetime(accessToken *token.AccessToken) time.Duration {
 	defaultSessionLifetime := h.Config.SessionMaxLifetime
 
-	tok, err := jwt.Parse([]byte(accessToken))
-	if err != nil {
-		return 0, err
-	}
-
-	tokenDuration := tok.Expiration().Sub(time.Now())
+	tokenDuration := accessToken.Token.Expiration().Sub(time.Now())
 
 	if tokenDuration <= defaultSessionLifetime {
-		return tokenDuration, nil
+		return tokenDuration
 	}
 
-	return defaultSessionLifetime, nil
+	return defaultSessionLifetime
 }
 
-func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, externalSessionID string, tokens *oauth2.Token, idToken *openid.IDToken) error {
-	sessionID := h.localSessionID(externalSessionID)
-
-	sessionLifetime, err := h.getSessionLifetime(tokens.AccessToken)
+func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *token.Tokens, params url.Values) error {
+	externalSessionID, err := NewSessionID(h.Provider.GetOpenIDConfiguration(), tokens.IDToken, params)
 	if err != nil {
-		return fmt.Errorf("getting access token lifetime: %w", err)
+		return fmt.Errorf("generating session ID: %w", err)
 	}
 
+	sessionLifetime := h.getSessionLifetime(tokens.AccessToken)
 	opts := h.CookieOptions.WithExpiresIn(sessionLifetime)
 
+	sessionID := h.localSessionID(externalSessionID)
 	err = h.setEncryptedCookie(w, SessionCookieName, sessionID, opts)
 	if err != nil {
 		return fmt.Errorf("setting session cookie: %w", err)
 	}
 
-	sessionData := session.NewData(externalSessionID, tokens.AccessToken, idToken.Raw)
+	sessionData := session.NewData(externalSessionID, tokens.AccessToken.Raw, tokens.IDToken.Raw)
 
 	encryptedSessionData, err := sessionData.Encrypt(h.Crypter)
 	if err != nil {

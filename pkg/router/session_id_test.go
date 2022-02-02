@@ -10,13 +10,14 @@ import (
 
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/router"
+	"github.com/nais/wonderwall/pkg/token"
 )
 
 func TestSessionID(t *testing.T) {
 	for _, test := range []struct {
 		name       string
 		config     *openid.Configuration
-		idToken    *openid.IDToken
+		idToken    *token.IDToken
 		params     url.Values
 		want       string
 		exactMatch bool
@@ -97,7 +98,7 @@ func TestSessionID(t *testing.T) {
 			exactMatch: true,
 		},
 	} {
-		actual, err := router.SessionID(test.config, test.idToken, test.params)
+		actual, err := router.NewSessionID(test.config, test.idToken, test.params)
 
 		t.Run(test.name, func(t *testing.T) {
 			if test.expectErr {
@@ -135,7 +136,7 @@ func params(key, value string) url.Values {
 	return values
 }
 
-func newIDToken(extraClaims map[string]string) *openid.IDToken {
+func newIDToken(extraClaims map[string]string) *token.IDToken {
 	idToken := jwt.New()
 	idToken.Set("sub", "test")
 	idToken.Set("iss", "test")
@@ -154,18 +155,15 @@ func newIDToken(extraClaims map[string]string) *openid.IDToken {
 		panic(err)
 	}
 
-	return &openid.IDToken{
-		Raw:   string(serialized),
-		Token: idToken,
-	}
+	return token.NewIDToken(string(serialized), idToken)
 }
 
-func idTokenWithSid(sid string) *openid.IDToken {
+func idTokenWithSid(sid string) *token.IDToken {
 	return newIDToken(map[string]string{
 		"sid": sid,
 	})
 }
 
-func idToken() *openid.IDToken {
+func idToken() *token.IDToken {
 	return newIDToken(nil)
 }
