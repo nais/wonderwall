@@ -9,8 +9,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
+	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/token"
 )
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +41,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	jwkSet := h.Provider.GetPublicJwkSet()
 
-	tokens, err := token.ParseTokens(rawTokens, *jwkSet)
+	tokens, err := jwt.ParseOauth2Token(rawTokens, *jwkSet)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: parsing tokens: %w", err))
 		return
@@ -94,7 +94,7 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 	return tokens, nil
 }
 
-func logSuccessfulLogin(tokens *token.Tokens, referer string) {
+func logSuccessfulLogin(tokens *jwt.Tokens, referer string) {
 	fields := log.Fields{
 		"redirect_to": referer,
 		"jti":         tokens.JwtIDs(),

@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwt"
+	jwtlib "github.com/lestrrat-go/jwx/jwt"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
-	"github.com/nais/wonderwall/pkg/token"
 )
 
 func TestHandler_GetSessionFallback(t *testing.T) {
@@ -105,7 +105,7 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 	})
 }
 
-func makeRequestWithFallbackCookies(t *testing.T, h *router.Handler, tokens *token.Tokens) *http.Request {
+func makeRequestWithFallbackCookies(t *testing.T, h *router.Handler, tokens *jwt.Tokens) *http.Request {
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
 	data := session.NewData("sid", tokens)
@@ -150,7 +150,7 @@ func assertCookieExists(t *testing.T, h *router.Handler, cookieName, expectedVal
 	assert.Equal(t, expectedValue, string(plainbytes))
 }
 
-func makeTokens(provider mock.TestProvider) *token.Tokens {
+func makeTokens(provider mock.TestProvider) *jwt.Tokens {
 	jwks := *provider.PrivateJwkSet()
 
 	signer, ok := jwks.Get(0)
@@ -158,30 +158,30 @@ func makeTokens(provider mock.TestProvider) *token.Tokens {
 		log.Fatalf("getting signer")
 	}
 
-	idToken := jwt.New()
+	idToken := jwtlib.New()
 	idToken.Set("jti", "id-token-jti")
-	signedIdToken, err := jwt.Sign(idToken, jwa.RS256, signer)
+	signedIdToken, err := jwtlib.Sign(idToken, jwa.RS256, signer)
 	if err != nil {
 		log.Fatalf("signing id_token: %+v", err)
 	}
-	parsedIdToken, err := jwt.Parse(signedIdToken)
+	parsedIdToken, err := jwtlib.Parse(signedIdToken)
 	if err != nil {
 		log.Fatalf("parsing signed id_token: %+v", err)
 	}
 
-	accessToken := jwt.New()
+	accessToken := jwtlib.New()
 	accessToken.Set("jti", "access-token-jti")
-	signedAccessToken, err := jwt.Sign(accessToken, jwa.RS256, signer)
+	signedAccessToken, err := jwtlib.Sign(accessToken, jwa.RS256, signer)
 	if err != nil {
 		log.Fatalf("signing access_token: %+v", err)
 	}
-	parsedAccessToken, err := jwt.Parse(signedAccessToken)
+	parsedAccessToken, err := jwtlib.Parse(signedAccessToken)
 	if err != nil {
 		log.Fatalf("parsing signed access_token: %+v", err)
 	}
 
-	return &token.Tokens{
-		IDToken:     token.NewIDToken(string(signedIdToken), parsedIdToken),
-		AccessToken: token.NewAccessToken(string(signedAccessToken), parsedAccessToken),
+	return &jwt.Tokens{
+		IDToken:     jwt.NewIDToken(string(signedIdToken), parsedIdToken),
+		AccessToken: jwt.NewAccessToken(string(signedAccessToken), parsedAccessToken),
 	}
 }

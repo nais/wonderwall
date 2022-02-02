@@ -11,8 +11,8 @@ import (
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/session"
-	"github.com/nais/wonderwall/pkg/token"
 )
 
 // localSessionID prefixes the given `sid` or `session_state` with the given client ID to prevent key collisions.
@@ -64,7 +64,7 @@ func (h *Handler) getSession(ctx context.Context, sessionID string) (*session.Da
 	return sessionData, nil
 }
 
-func (h *Handler) getSessionLifetime(accessToken *token.AccessToken) time.Duration {
+func (h *Handler) getSessionLifetime(accessToken *jwt.AccessToken) time.Duration {
 	defaultSessionLifetime := h.Config.SessionMaxLifetime
 
 	tokenDuration := accessToken.Token.Expiration().Sub(time.Now())
@@ -76,7 +76,7 @@ func (h *Handler) getSessionLifetime(accessToken *token.AccessToken) time.Durati
 	return defaultSessionLifetime
 }
 
-func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *token.Tokens, params url.Values) error {
+func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *jwt.Tokens, params url.Values) error {
 	externalSessionID, err := NewSessionID(h.Provider.GetOpenIDConfiguration(), tokens.IDToken, params)
 	if err != nil {
 		return fmt.Errorf("generating session ID: %w", err)

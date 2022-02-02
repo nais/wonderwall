@@ -11,7 +11,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/token"
+	"github.com/nais/wonderwall/pkg/jwt"
 )
 
 const (
@@ -19,7 +19,7 @@ const (
 )
 
 type Client interface {
-	ExchangeToken(ctx context.Context, accessToken *token.AccessToken) (*TokenResponse, error)
+	ExchangeToken(ctx context.Context, accessToken *jwt.AccessToken) (*TokenResponse, error)
 	SetCookie(w http.ResponseWriter, token *TokenResponse, opts cookie.Options)
 	HasCookie(r *http.Request) bool
 	ClearCookie(w http.ResponseWriter, opts cookie.Options)
@@ -47,7 +47,7 @@ type client struct {
 	httpClient *http.Client
 }
 
-func (c client) ExchangeToken(ctx context.Context, accessToken *token.AccessToken) (*TokenResponse, error) {
+func (c client) ExchangeToken(ctx context.Context, accessToken *jwt.AccessToken) (*TokenResponse, error) {
 	req, err := request(ctx, c.config.TokenURL, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("creating request %w", err)
@@ -99,7 +99,7 @@ func (c client) cookieOptions(opts cookie.Options) cookie.Options {
 		WithSameSite(SameSiteMode)
 }
 
-func request(ctx context.Context, url string, token *token.AccessToken) (*http.Request, error) {
+func request(ctx context.Context, url string, token *jwt.AccessToken) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err

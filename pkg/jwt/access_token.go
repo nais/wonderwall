@@ -1,4 +1,4 @@
-package token
+package jwt
 
 import (
 	"github.com/lestrrat-go/jwx/jwk"
@@ -28,7 +28,7 @@ func NewAccessToken(raw string, token jwt.Token) *AccessToken {
 }
 
 func ParseAccessToken(raw string, jwks jwk.Set) (*AccessToken, error) {
-	accessToken, err := ParseJwt(raw, jwks)
+	accessToken, err := Parse(raw, jwks)
 	if err != nil {
 		return nil, err
 	}

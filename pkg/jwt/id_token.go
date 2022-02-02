@@ -1,4 +1,4 @@
-package token
+package jwt
 
 import (
 	"time"
@@ -58,7 +58,7 @@ func NewIDToken(raw string, token jwt.Token) *IDToken {
 }
 
 func ParseIDToken(raw string, jwks jwk.Set) (*IDToken, error) {
-	idToken, err := ParseJwt(raw, jwks)
+	idToken, err := Parse(raw, jwks)
 	if err != nil {
 		return nil, err
 	}
