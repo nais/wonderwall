@@ -3,7 +3,6 @@ package token
 import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
-	"golang.org/x/oauth2"
 )
 
 type AccessToken struct {
@@ -28,11 +27,11 @@ func NewAccessToken(raw string, token jwt.Token) *AccessToken {
 	}
 }
 
-func ParseAccessToken(tokens *oauth2.Token, jwks jwk.Set) (*AccessToken, error) {
-	accessToken, err := ParseJwt(tokens.AccessToken, jwks)
+func ParseAccessToken(raw string, jwks jwk.Set) (*AccessToken, error) {
+	accessToken, err := ParseJwt(raw, jwks)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewAccessToken(tokens.AccessToken, accessToken), nil
+	return NewAccessToken(raw, accessToken), nil
 }

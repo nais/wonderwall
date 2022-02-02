@@ -1,12 +1,10 @@
 package token
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
-	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/openid"
 )
@@ -59,12 +57,7 @@ func NewIDToken(raw string, token jwt.Token) *IDToken {
 	}
 }
 
-func ParseIDToken(tokens *oauth2.Token, jwks jwk.Set) (*IDToken, error) {
-	raw, ok := tokens.Extra("id_token").(string)
-	if !ok {
-		return nil, fmt.Errorf("missing id_token in token response")
-	}
-
+func ParseIDToken(raw string, jwks jwk.Set) (*IDToken, error) {
 	idToken, err := ParseJwt(raw, jwks)
 	if err != nil {
 		return nil, err

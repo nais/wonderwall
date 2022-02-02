@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nais/wonderwall/pkg/session"
+	"github.com/nais/wonderwall/pkg/token"
 )
 
 func (h *Handler) SessionFallbackExternalIDCookieName() string {
@@ -58,7 +59,13 @@ func (h *Handler) GetSessionFallback(r *http.Request) (*session.Data, error) {
 		return nil, fmt.Errorf("reading access_token from fallback cookie: %w", err)
 	}
 
-	return session.NewData(externalSessionID, accessToken, idToken), nil
+	jwkSet := h.Provider.GetPublicJwkSet()
+	tokens, err := token.ParseTokensFromStrings(idToken, accessToken, *jwkSet)
+	if err != nil {
+		return nil, fmt.Errorf("parsing tokens: %w", err)
+	}
+
+	return session.NewData(externalSessionID, tokens), nil
 }
 
 func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) {

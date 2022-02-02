@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -29,13 +30,8 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 		return nil, fmt.Errorf("no session cookie: %w", err)
 	}
 
-	encryptedSessionData, err := h.Sessions.Read(r.Context(), sessionID)
+	sessionData, err := h.getSession(r.Context(), sessionID)
 	if err == nil {
-		sessionData, err := encryptedSessionData.Decrypt(h.Crypter)
-		if err != nil {
-			return nil, fmt.Errorf("decrypting session data: %w", err)
-		}
-
 		h.DeleteSessionFallback(w, r)
 		return sessionData, nil
 	}
@@ -52,6 +48,20 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 	}
 
 	return fallbackSessionData, nil
+}
+
+func (h *Handler) getSession(ctx context.Context, sessionID string) (*session.Data, error) {
+	encryptedSessionData, err := h.Sessions.Read(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("reading session data from store: %w", err)
+	}
+
+	sessionData, err := encryptedSessionData.Decrypt(h.Crypter)
+	if err != nil {
+		return nil, fmt.Errorf("decrypting session data: %w", err)
+	}
+
+	return sessionData, nil
 }
 
 func (h *Handler) getSessionLifetime(accessToken *token.AccessToken) time.Duration {
@@ -81,7 +91,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 		return fmt.Errorf("setting session cookie: %w", err)
 	}
 
-	sessionData := session.NewData(externalSessionID, tokens.AccessToken.Raw, tokens.IDToken.Raw)
+	sessionData := session.NewData(externalSessionID, tokens)
 
 	encryptedSessionData, err := sessionData.Encrypt(h.Crypter)
 	if err != nil {

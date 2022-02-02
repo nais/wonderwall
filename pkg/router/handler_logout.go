@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/url"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/nais/wonderwall/pkg/router/request"
 )
 
@@ -18,14 +20,16 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	var idToken string
 
-	sess, err := h.getSessionFromCookie(w, r)
-	if err == nil && sess != nil {
-		idToken = sess.IDToken
-		err = h.destroySession(w, r, h.localSessionID(sess.ExternalSessionID))
+	sessionData, err := h.getSessionFromCookie(w, r)
+	if err == nil && sessionData != nil {
+		idToken = sessionData.IDToken
+		err = h.destroySession(w, r, h.localSessionID(sessionData.ExternalSessionID))
 		if err != nil {
 			h.InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
 			return
 		}
+
+		log.WithField("jti", sessionData.JwtIDs).Infof("successful logout")
 	}
 
 	h.deleteCookie(w, SessionCookieName, h.CookieOptions)

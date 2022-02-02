@@ -26,11 +26,17 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionID := h.localSessionID(sid)
-
-	err := h.destroySession(w, r, sessionID)
+	sessionData, err := h.getSession(r.Context(), sessionID)
 	if err != nil {
-		log.Error(err)
+		log.Errorf("get session: %+v", err)
+	}
+
+	err = h.destroySession(w, r, sessionID)
+	if err != nil {
+		log.Errorf("destroying session: %+v", err)
 		// Session is already destroyed at the OP and is highly unlikely to be used again.
+	} else if sessionData != nil {
+		log.WithField("jti", sessionData.JwtIDs).Infof("successful front-channel logout")
 	}
 
 	w.WriteHeader(http.StatusOK)

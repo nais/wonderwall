@@ -7,11 +7,13 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
+	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nais/liberator/pkg/keygen"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/session"
+	"github.com/nais/wonderwall/pkg/token"
 )
 
 func TestRedis(t *testing.T) {
@@ -19,7 +21,17 @@ func TestRedis(t *testing.T) {
 	assert.NoError(t, err)
 	crypter := crypto.NewCrypter(key)
 
-	data := session.NewData("myid", "accesstoken", "idtoken")
+	idToken := jwt.New()
+	idToken.Set("jti", "id-token-jti")
+
+	accessToken := jwt.New()
+	accessToken.Set("jti", "access-token-jti")
+
+	tokens := &token.Tokens{
+		IDToken:     token.NewIDToken("id_token", idToken),
+		AccessToken: token.NewAccessToken("access_token", accessToken),
+	}
+	data := session.NewData("myid", tokens)
 
 	encryptedData, err := data.Encrypt(crypter)
 	assert.NoError(t, err)

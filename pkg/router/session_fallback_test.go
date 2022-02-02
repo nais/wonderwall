@@ -7,15 +7,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jwt"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
+	"github.com/nais/wonderwall/pkg/token"
 )
 
 func TestHandler_GetSessionFallback(t *testing.T) {
-	h := newHandler(mock.NewTestProvider())
+	p := mock.NewTestProvider()
+	h := newHandler(p)
+	tokens := makeTokens(p)
 
 	t.Run("request without fallback session cookies", func(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -24,22 +30,26 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 	})
 
 	t.Run("request with fallback session cookies", func(t *testing.T) {
-		r := makeRequestWithFallbackCookies(t)
+		r := makeRequestWithFallbackCookies(t, h, tokens)
 		sessionData, err := h.GetSessionFallback(r)
 		assert.NoError(t, err)
 		assert.Equal(t, "sid", sessionData.ExternalSessionID)
-		assert.Equal(t, "access_token", sessionData.AccessToken)
-		assert.Equal(t, "id_token", sessionData.IDToken)
+		assert.Equal(t, tokens.AccessToken.Raw, sessionData.AccessToken)
+		assert.Equal(t, tokens.IDToken.Raw, sessionData.IDToken)
+		assert.Equal(t, "id-token-jti", sessionData.JwtIDs.IDToken)
+		assert.Equal(t, "access-token-jti", sessionData.JwtIDs.AccessToken)
 	})
 }
 
 func TestHandler_SetSessionFallback(t *testing.T) {
-	h := newHandler(mock.NewTestProvider())
+	provider := mock.NewTestProvider()
+	h := newHandler(provider)
 
 	// request should set session cookies in response
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
-	data := session.NewData("sid", "access_token", "id_token")
+	tokens := makeTokens(provider)
+	data := session.NewData("sid", tokens)
 	err := h.SetSessionFallback(writer, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -55,11 +65,11 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 		},
 		{
 			cookieName: h.SessionFallbackIDTokenCookieName(),
-			want:       "id_token",
+			want:       tokens.IDToken.Raw,
 		},
 		{
 			cookieName: h.SessionFallbackAccessTokenCookieName(),
-			want:       "access_token",
+			want:       tokens.AccessToken.Raw,
 		},
 	} {
 		assertCookieExists(t, h, test.cookieName, test.want, cookies)
@@ -67,10 +77,12 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 }
 
 func TestHandler_DeleteSessionFallback(t *testing.T) {
-	h := newHandler(mock.NewTestProvider())
+	p := mock.NewTestProvider()
+	h := newHandler(p)
+	tokens := makeTokens(p)
 
 	t.Run("expire cookies if they are set", func(t *testing.T) {
-		r := makeRequestWithFallbackCookies(t)
+		r := makeRequestWithFallbackCookies(t, h, tokens)
 		writer := httptest.NewRecorder()
 		h.DeleteSessionFallback(writer, r)
 		cookies := writer.Result().Cookies()
@@ -93,11 +105,10 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 	})
 }
 
-func makeRequestWithFallbackCookies(t *testing.T) *http.Request {
-	h := newHandler(mock.NewTestProvider())
+func makeRequestWithFallbackCookies(t *testing.T, h *router.Handler, tokens *token.Tokens) *http.Request {
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
-	data := session.NewData("sid", "access_token", "id_token")
+	data := session.NewData("sid", tokens)
 	err := h.SetSessionFallback(writer, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -137,4 +148,40 @@ func assertCookieExists(t *testing.T, h *router.Handler, cookieName, expectedVal
 	plainbytes, err := h.Crypter.Decrypt(ciphertext)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedValue, string(plainbytes))
+}
+
+func makeTokens(provider mock.TestProvider) *token.Tokens {
+	jwks := *provider.PrivateJwkSet()
+
+	signer, ok := jwks.Get(0)
+	if !ok {
+		log.Fatalf("getting signer")
+	}
+
+	idToken := jwt.New()
+	idToken.Set("jti", "id-token-jti")
+	signedIdToken, err := jwt.Sign(idToken, jwa.RS256, signer)
+	if err != nil {
+		log.Fatalf("signing id_token: %+v", err)
+	}
+	parsedIdToken, err := jwt.Parse(signedIdToken)
+	if err != nil {
+		log.Fatalf("parsing signed id_token: %+v", err)
+	}
+
+	accessToken := jwt.New()
+	accessToken.Set("jti", "access-token-jti")
+	signedAccessToken, err := jwt.Sign(accessToken, jwa.RS256, signer)
+	if err != nil {
+		log.Fatalf("signing access_token: %+v", err)
+	}
+	parsedAccessToken, err := jwt.Parse(signedAccessToken)
+	if err != nil {
+		log.Fatalf("parsing signed access_token: %+v", err)
+	}
+
+	return &token.Tokens{
+		IDToken:     token.NewIDToken(string(signedIdToken), parsedIdToken),
+		AccessToken: token.NewAccessToken(string(signedAccessToken), parsedAccessToken),
+	}
 }
