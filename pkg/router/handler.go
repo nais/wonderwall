@@ -14,14 +14,20 @@ import (
 )
 
 type Handler struct {
-	Config      config.Config
-	Cookies     cookie.Options
-	Crypter     crypto.Crypter
-	OauthConfig oauth2.Config
-	Provider    openid.Provider
-	Sessions    session.Store
-	lock        sync.Mutex
-	Httplogger  zerolog.Logger
+	Config       config.Config
+	Cookies      cookie.Options
+	Crypter      crypto.Crypter
+	OauthConfig  oauth2.Config
+	Provider     openid.Provider
+	Sessions     session.Store
+	Httplogger   zerolog.Logger
+	lock         sync.Mutex
+	tokenRestore TokenRestore
+}
+
+type TokenRestore struct {
+	ActiveSession bool
+	lock          sync.Mutex
 }
 
 func NewHandler(
@@ -50,5 +56,9 @@ func NewHandler(
 		OauthConfig: oauthConfig,
 		Provider:    provider,
 		Sessions:    sessionStore,
+		tokenRestore: TokenRestore{
+			ActiveSession: true,
+			lock:          sync.Mutex{},
+		},
 	}, nil
 }

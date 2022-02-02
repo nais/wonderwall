@@ -18,14 +18,17 @@ func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w h
 		return nil
 	}
 
+	// only 1 pod can do this, unlock on any return.
+	h.tokenRestore.lock.Lock()
+	defer h.tokenRestore.lock.Unlock()
 	sessionLifeTime, err := h.getSessionLifetime(session.AccessToken)
 	if err != nil {
-		return fmt.Errorf("session (access_token) life time: %v", err)
-
+		return fmt.Errorf("session access_token life time: %v", err)
 	}
 
 	if !shouldRefresh(sessionLifeTime, session) {
-		if session.TimesToRefresh == 0 {
+		if session.TimesToRefresh == 0 && h.tokenRestore.ActiveSession {
+			h.tokenRestore.ActiveSession = false
 			h.Logout(w, r)
 		}
 		return nil
@@ -34,17 +37,11 @@ func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w h
 	if err := h.ReClaimRefreshToken(ctx, session, w, r); err != nil {
 		return fmt.Errorf("unable to refresh token: %v", err)
 	}
-
 	return nil
 }
 
-// should be handled with concurrent, if several of pods try to do this update
 func shouldRefresh(sessionLifeTime time.Duration, session *session.Data) bool {
-	if session.TimesToRefresh > 0 && sessionLifeTime < 10*time.Second {
-		session.TimesToRefresh = session.TimesToRefresh - 1
-		return true
-	}
-	return false
+	return session.TimesToRefresh > 0 && sessionLifeTime < 10*time.Second
 }
 
 func (h *Handler) ReClaimRefreshToken(ctx context.Context, session *session.Data, w http.ResponseWriter, r *http.Request) error {
@@ -62,10 +59,7 @@ func (h *Handler) ReClaimRefreshToken(ctx context.Context, session *session.Data
 		return fmt.Errorf("refresh token request: %v", err)
 	}
 
-	bin, err := token.NewRefreshedTokenBin(rt, session.RefreshToken, session.AccessToken)
-	if err != nil {
-		return fmt.Errorf("refresh token request: %v", err)
-	}
+	bin := token.NewTokenBin(rt, session.RefreshToken, session.AccessToken)
 
 	if bin.AccessToken.Refreshed() {
 		session.AccessToken = bin.AccessToken.GetRaw()
@@ -78,6 +72,7 @@ func (h *Handler) ReClaimRefreshToken(ctx context.Context, session *session.Data
 	}
 
 	if bin.Refreshed() {
+		session.TimesToRefresh = session.TimesToRefresh - 1
 		if err := h.refreshSession(ctx, session, w, r); err != nil {
 			return fmt.Errorf("updating session: %v", err)
 		}

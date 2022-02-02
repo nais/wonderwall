@@ -11,7 +11,7 @@ type TokenBin struct {
 	Expiry       time.Time
 }
 
-func NewRefreshedTokenBin(tokenResponse *oauth2.Token, currentRefreshToken, currentAccessToken string) (*TokenBin, error) {
+func NewTokenBin(tokenResponse *oauth2.Token, currentRefreshToken, currentAccessToken string) *TokenBin {
 	return &TokenBin{
 		RefreshToken: &refreshToken{
 			otherToken: currentRefreshToken,
@@ -24,7 +24,7 @@ func NewRefreshedTokenBin(tokenResponse *oauth2.Token, currentRefreshToken, curr
 			rawToken:   tokenResponse.AccessToken,
 		},
 		Expiry: tokenResponse.Expiry,
-	}, nil
+	}
 }
 
 func (in *TokenBin) Refreshed() bool {
