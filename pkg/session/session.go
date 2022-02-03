@@ -89,8 +89,8 @@ type Data struct {
 func NewData(externalSessionID string, tokens *jwt.Tokens) *Data {
 	return &Data{
 		ExternalSessionID: externalSessionID,
-		AccessToken:       tokens.AccessToken.Raw,
-		IDToken:           tokens.IDToken.Raw,
+		AccessToken:       tokens.AccessToken.GetSerialized(),
+		IDToken:           tokens.IDToken.GetSerialized(),
 		JwtIDs:            tokens.JwtIDs(),
 	}
 }

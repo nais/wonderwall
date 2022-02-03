@@ -105,7 +105,7 @@ func request(ctx context.Context, url string, token *jwt.AccessToken) (*http.Req
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.Raw))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.GetSerialized()))
 	req.Header.Set("Accept", "application/json")
 
 	return req, nil

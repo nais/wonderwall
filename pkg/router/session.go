@@ -67,7 +67,7 @@ func (h *Handler) getSession(ctx context.Context, sessionID string) (*session.Da
 func (h *Handler) getSessionLifetime(accessToken *jwt.AccessToken) time.Duration {
 	defaultSessionLifetime := h.Config.SessionMaxLifetime
 
-	tokenDuration := accessToken.Token.Expiration().Sub(time.Now())
+	tokenDuration := accessToken.GetExpiration().Sub(time.Now())
 
 	if tokenDuration <= defaultSessionLifetime {
 		return tokenDuration

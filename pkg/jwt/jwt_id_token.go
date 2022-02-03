@@ -10,21 +10,11 @@ import (
 )
 
 type IDToken struct {
-	Raw   string
-	Token jwt.Token
-	Type  Type
-}
-
-func (in *IDToken) GetJtiClaim() string {
-	return GetStringClaimOrEmpty(in.Token, JtiClaim)
+	Token
 }
 
 func (in *IDToken) GetSidClaim() (string, error) {
 	return in.GetStringClaim(SidClaim)
-}
-
-func (in *IDToken) GetStringClaim(claim string) (string, error) {
-	return GetStringClaim(in.Token, claim)
 }
 
 func (in *IDToken) Validate(provider openid.Provider, nonce string) error {
@@ -46,14 +36,12 @@ func (in *IDToken) Validate(provider openid.Provider, nonce string) error {
 		opts = append(opts, jwt.WithRequiredClaim("acr"))
 	}
 
-	return jwt.Validate(in.Token, opts...)
+	return jwt.Validate(in.GetToken(), opts...)
 }
 
-func NewIDToken(raw string, token jwt.Token) *IDToken {
+func NewIDToken(raw string, jwtToken jwt.Token) *IDToken {
 	return &IDToken{
-		Raw:   raw,
-		Token: token,
-		Type:  TypeIDToken,
+		NewToken(raw, jwtToken),
 	}
 }
 

@@ -34,8 +34,8 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 		sessionData, err := h.GetSessionFallback(r)
 		assert.NoError(t, err)
 		assert.Equal(t, "sid", sessionData.ExternalSessionID)
-		assert.Equal(t, tokens.AccessToken.Raw, sessionData.AccessToken)
-		assert.Equal(t, tokens.IDToken.Raw, sessionData.IDToken)
+		assert.Equal(t, tokens.AccessToken.GetSerialized(), sessionData.AccessToken)
+		assert.Equal(t, tokens.IDToken.GetSerialized(), sessionData.IDToken)
 		assert.Equal(t, "id-token-jti", sessionData.JwtIDs.IDToken)
 		assert.Equal(t, "access-token-jti", sessionData.JwtIDs.AccessToken)
 	})
@@ -65,11 +65,11 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 		},
 		{
 			cookieName: h.SessionFallbackIDTokenCookieName(),
-			want:       tokens.IDToken.Raw,
+			want:       tokens.IDToken.GetSerialized(),
 		},
 		{
 			cookieName: h.SessionFallbackAccessTokenCookieName(),
-			want:       tokens.AccessToken.Raw,
+			want:       tokens.AccessToken.GetSerialized(),
 		},
 	} {
 		assertCookieExists(t, h, test.cookieName, test.want, cookies)

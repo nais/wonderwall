@@ -2,30 +2,43 @@ package jwt
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
 )
 
-func Parse(raw string, jwks jwk.Set) (jwt.Token, error) {
-	parseOpts := []jwt.ParseOption{
-		jwt.WithKeySet(jwks),
-		jwt.InferAlgorithmFromKey(true),
-	}
-	token, err := jwt.ParseString(raw, parseOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("parsing jwt: %w", err)
-	}
-
-	return token, nil
+type Token interface {
+	GetExpiration() time.Time
+	GetJtiClaim() string
+	GetSerialized() string
+	GetStringClaim(claim string) (string, error)
+	GetToken() jwt.Token
 }
 
-func GetStringClaim(token jwt.Token, claim string) (string, error) {
-	if token == nil {
+type token struct {
+	serialized string
+	token      jwt.Token
+}
+
+func (in *token) GetExpiration() time.Time {
+	return in.token.Expiration()
+}
+
+func (in *token) GetJtiClaim() string {
+	return in.GetStringClaimOrEmpty(JtiClaim)
+}
+
+func (in *token) GetSerialized() string {
+	return in.serialized
+}
+
+func (in *token) GetStringClaim(claim string) (string, error) {
+	if in.token == nil {
 		return "", fmt.Errorf("token is nil")
 	}
 
-	gotClaim, ok := token.Get(claim)
+	gotClaim, ok := in.token.Get(claim)
 	if !ok {
 		return "", fmt.Errorf("missing required '%s' claim in id_token", claim)
 	}
@@ -38,11 +51,35 @@ func GetStringClaim(token jwt.Token, claim string) (string, error) {
 	return claimString, nil
 }
 
-func GetStringClaimOrEmpty(token jwt.Token, claim string) string {
-	str, err := GetStringClaim(token, claim)
+func (in *token) GetStringClaimOrEmpty(claim string) string {
+	str, err := in.GetStringClaim(claim)
 	if err != nil {
 		return ""
 	}
 
 	return str
+}
+
+func (in *token) GetToken() jwt.Token {
+	return in.token
+}
+
+func NewToken(raw string, jwtToken jwt.Token) Token {
+	return &token{
+		serialized: raw,
+		token:      jwtToken,
+	}
+}
+
+func Parse(raw string, jwks jwk.Set) (jwt.Token, error) {
+	parseOpts := []jwt.ParseOption{
+		jwt.WithKeySet(jwks),
+		jwt.InferAlgorithmFromKey(true),
+	}
+	token, err := jwt.ParseString(raw, parseOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("parsing jwt: %w", err)
+	}
+
+	return token, nil
 }
