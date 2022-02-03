@@ -29,7 +29,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.WithField("jti", sessionData.JwtIDs).Infof("successful logout")
+		log.WithField("claims", sessionData.Claims).Infof("successful logout")
 	}
 
 	h.deleteCookie(w, SessionCookieName, h.CookieOptions)

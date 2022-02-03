@@ -14,6 +14,7 @@ type Token interface {
 	GetSerialized() string
 	GetStringClaim(claim string) (string, error)
 	GetToken() jwt.Token
+	GetUtiClaim() string
 }
 
 type token struct {
@@ -62,6 +63,10 @@ func (in *token) GetStringClaimOrEmpty(claim string) string {
 
 func (in *token) GetToken() jwt.Token {
 	return in.token
+}
+
+func (in *token) GetUtiClaim() string {
+	return in.GetStringClaimOrEmpty(UtiClaim)
 }
 
 func NewToken(raw string, jwtToken jwt.Token) Token {

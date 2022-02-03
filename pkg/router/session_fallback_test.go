@@ -36,8 +36,8 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 		assert.Equal(t, "sid", sessionData.ExternalSessionID)
 		assert.Equal(t, tokens.AccessToken.GetSerialized(), sessionData.AccessToken)
 		assert.Equal(t, tokens.IDToken.GetSerialized(), sessionData.IDToken)
-		assert.Equal(t, "id-token-jti", sessionData.JwtIDs.IDToken)
-		assert.Equal(t, "access-token-jti", sessionData.JwtIDs.AccessToken)
+		assert.Equal(t, "id-token-jti", sessionData.Claims.IDTokenJti)
+		assert.Equal(t, "access-token-jti", sessionData.Claims.AccessTokenJti)
 	})
 }
 

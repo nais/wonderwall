@@ -36,7 +36,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("destroying session: %+v", err)
 		// Session is already destroyed at the OP and is highly unlikely to be used again.
 	} else if sessionData != nil {
-		log.WithField("jti", sessionData.JwtIDs).Infof("successful front-channel logout")
+		log.WithField("claims", sessionData.Claims).Infof("successful front-channel logout")
 	}
 
 	w.WriteHeader(http.StatusOK)

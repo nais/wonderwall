@@ -12,10 +12,12 @@ type Tokens struct {
 	AccessToken *AccessToken
 }
 
-func (in *Tokens) JwtIDs() IDs {
-	return IDs{
-		IDToken:     in.IDToken.GetJtiClaim(),
-		AccessToken: in.AccessToken.GetJtiClaim(),
+func (in *Tokens) Claims() Claims {
+	return Claims{
+		IDTokenJti:     in.IDToken.GetJtiClaim(),
+		IDTokenUti:     in.IDToken.GetUtiClaim(),
+		AccessTokenJti: in.AccessToken.GetJtiClaim(),
+		AccessTokenUti: in.AccessToken.GetUtiClaim(),
 	}
 }
 

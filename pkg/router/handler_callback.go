@@ -97,7 +97,7 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 func logSuccessfulLogin(tokens *jwt.Tokens, referer string) {
 	fields := log.Fields{
 		"redirect_to": referer,
-		"jti":         tokens.JwtIDs(),
+		"claims":      tokens.Claims(),
 	}
 
 	log.WithFields(fields).Info("successful login")
