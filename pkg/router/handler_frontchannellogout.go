@@ -19,7 +19,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(sid) == 0 {
-		log.Info("sid parameter not set in request; ignoring")
+		log.Info("front-channel logout: sid parameter not set in request; ignoring")
 		h.DeleteSessionFallback(w, r)
 		w.WriteHeader(http.StatusOK)
 		return
@@ -28,12 +28,12 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	sessionID := h.localSessionID(sid)
 	sessionData, err := h.getSession(r.Context(), sessionID)
 	if err != nil {
-		log.Errorf("get session: %+v", err)
+		log.Errorf("front-channel logout: getting session (user might already be logged out): %+v", err)
 	}
 
 	err = h.destroySession(w, r, sessionID)
 	if err != nil {
-		log.Errorf("destroying session: %+v", err)
+		log.Errorf("front-channel logout: destroying session: %+v", err)
 		// Session is already destroyed at the OP and is highly unlikely to be used again.
 	} else if sessionData != nil {
 		log.WithField("claims", sessionData.Claims).Infof("successful front-channel logout")
