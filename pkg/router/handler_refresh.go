@@ -3,11 +3,9 @@ package router
 import (
 	"context"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/token"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
 	"net/http"
 	"time"
 )
@@ -45,21 +43,15 @@ func shouldRefresh(sessionLifeTime time.Duration, session *session.Data) bool {
 }
 
 func (h *Handler) ReClaimRefreshToken(ctx context.Context, session *session.Data, w http.ResponseWriter, r *http.Request) error {
-	clientAssertion, err := openid.ClientAssertion(h.Provider, time.Second*30)
+	rClient, err := token.NewRefreshClient(ctx, h.OauthConfig, h.Provider, session.RefreshToken)
 	if err != nil {
-		return fmt.Errorf("creating client assertion: %w", err)
+		return fmt.Errorf("refresh client setup: %v", err)
 	}
 
-	h.OauthConfig.ClientSecret = clientAssertion
-	src := oauth2.ReuseTokenSource(nil,
-		h.OauthConfig.TokenSource(ctx, &oauth2.Token{RefreshToken: session.RefreshToken}))
-
-	rt, err := src.Token()
+	bin, err := rClient.Token(session.RefreshToken, session.AccessToken)
 	if err != nil {
 		return fmt.Errorf("refresh token request: %v", err)
 	}
-
-	bin := token.NewTokenBin(rt, session.RefreshToken, session.AccessToken)
 
 	if bin.AccessToken.Refreshed() {
 		session.AccessToken = bin.AccessToken.GetRaw()
