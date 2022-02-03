@@ -24,10 +24,6 @@ type Config struct {
 	OpenID OpenID `json:"openid"`
 	Redis  Redis  `json:"redis"`
 
-	Features Features `json:"features"`
-}
-
-type Features struct {
 	Loginstatus Loginstatus `json:"loginstatus"`
 }
 
@@ -56,11 +52,11 @@ const (
 	SessionMaxLifetime = "session-max-lifetime"
 	UpstreamHost       = "upstream-host"
 
-	FeaturesLoginstatusEnabled           = "features.loginstatus.enabled"
-	FeaturesLoginstatusCookieDomain      = "features.loginstatus.cookie-domain"
-	FeaturesLoginstatusCookieName        = "features.loginstatus.cookie-name"
-	FeaturesLoginstatusResourceIndicator = "features.loginstatus.resource-indicator"
-	FeaturesLoginstatusTokenURL          = "features.loginstatus.token-url"
+	LoginstatusEnabled           = "loginstatus.enabled"
+	LoginstatusCookieDomain      = "loginstatus.cookie-domain"
+	LoginstatusCookieName        = "loginstatus.cookie-name"
+	LoginstatusResourceIndicator = "loginstatus.resource-indicator"
+	LoginstatusTokenURL          = "loginstatus.token-url"
 )
 
 func Initialize() (*Config, error) {
@@ -78,11 +74,11 @@ func Initialize() (*Config, error) {
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 
-	flag.Bool(FeaturesLoginstatusEnabled, false, "Feature toggle for Loginstatus, a separate service that should provide an opaque token to indicate that a user has been authenticated previously, e.g. by another application in another subdomain.")
-	flag.String(FeaturesLoginstatusCookieDomain, "", "The domain that the cookie should be set for.")
-	flag.String(FeaturesLoginstatusCookieName, "", "The name of the cookie.")
-	flag.String(FeaturesLoginstatusResourceIndicator, "", "The resource indicator that should be included in the authorization request to get an audience-restricted token that Loginstatus accepts. Empty means no resource indicator.")
-	flag.String(FeaturesLoginstatusTokenURL, "", "The URL to the Loginstatus service that returns an opaque token.")
+	flag.Bool(LoginstatusEnabled, false, "Feature toggle for Loginstatus, a separate service that should provide an opaque token to indicate that a user has been authenticated previously, e.g. by another application in another subdomain.")
+	flag.String(LoginstatusCookieDomain, "", "The domain that the cookie should be set for.")
+	flag.String(LoginstatusCookieName, "", "The name of the cookie.")
+	flag.String(LoginstatusResourceIndicator, "", "The resource indicator that should be included in the authorization request to get an audience-restricted token that Loginstatus accepts. Empty means no resource indicator.")
+	flag.String(LoginstatusTokenURL, "", "The URL to the Loginstatus service that returns an opaque token.")
 
 	redisFlags()
 	openIDFlags()

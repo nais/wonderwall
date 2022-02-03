@@ -59,7 +59,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.Config.Features.Loginstatus.Enabled {
+	if h.Config.Loginstatus.Enabled {
 		loginstatusToken, err := h.Loginstatus.ExchangeToken(r.Context(), tokens.AccessToken)
 		if err != nil {
 			h.InternalError(w, r, fmt.Errorf("callback: exchanging loginstatus token: %w", err))

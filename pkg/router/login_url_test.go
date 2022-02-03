@@ -103,8 +103,8 @@ func TestLoginURL_WithResourceIndicator(t *testing.T) {
 	provider := mock.NewTestProvider()
 	provider.OpenIDConfiguration.AuthorizationEndpoint = "https://provider/authorize"
 	handler := newHandler(provider)
-	handler.Config.Features.Loginstatus.Enabled = true
-	handler.Config.Features.Loginstatus.ResourceIndicator = "https://some-resource"
+	handler.Config.Loginstatus.Enabled = true
+	handler.Config.Loginstatus.ResourceIndicator = "https://some-resource"
 	result, err := handler.LoginURL(req, params)
 
 	assert.NotEmpty(t, result)

@@ -20,7 +20,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 		isAuthenticated = true
 
 		// force new authentication if loginstatus is enabled and cookie isn't set
-		if h.Config.Features.Loginstatus.Enabled && !h.Loginstatus.HasCookie(r) {
+		if h.Config.Loginstatus.Enabled && !h.Loginstatus.HasCookie(r) {
 			isAuthenticated = false
 		}
 	}

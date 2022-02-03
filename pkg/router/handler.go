@@ -43,7 +43,7 @@ func NewHandler(
 		RedirectURL: provider.GetClientConfiguration().GetRedirectURI(),
 		Scopes:      provider.GetClientConfiguration().GetScopes(),
 	}
-	loginstatusClient := loginstatus.NewClient(cfg.Features.Loginstatus, http.DefaultClient)
+	loginstatusClient := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
 
 	return &Handler{
 		Config:        cfg,

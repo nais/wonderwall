@@ -32,8 +32,8 @@ func (h *Handler) LoginURL(r *http.Request, params *openid.LoginParameters) (str
 	v.Add("code_challenge", params.CodeChallenge)
 	v.Add("code_challenge_method", "S256")
 
-	if h.Config.Features.Loginstatus.NeedsResourceIndicator() {
-		v.Add("resource", h.Config.Features.Loginstatus.ResourceIndicator)
+	if h.Config.Loginstatus.NeedsResourceIndicator() {
+		v.Add("resource", h.Config.Loginstatus.ResourceIndicator)
 	}
 
 	err = h.withSecurityLevel(r, v)

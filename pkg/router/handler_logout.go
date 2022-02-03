@@ -34,7 +34,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	h.deleteCookie(w, SessionCookieName, h.CookieOptions)
 
-	if h.Config.Features.Loginstatus.Enabled {
+	if h.Config.Loginstatus.Enabled {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
 	}
 
