@@ -67,6 +67,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Loginstatus.SetCookie(w, loginstatusToken, h.CookieOptions)
+		log.Info("callback: successfully fetched loginstatus token")
 	}
 
 	h.clearLoginCookies(w)
@@ -100,5 +101,5 @@ func logSuccessfulLogin(tokens *jwt.Tokens, referer string) {
 		"claims":      tokens.Claims(),
 	}
 
-	log.WithFields(fields).Info("successful login")
+	log.WithFields(fields).Info("callback: successful login")
 }

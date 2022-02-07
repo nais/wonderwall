@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/nais/wonderwall/pkg/session"
 )
 
@@ -22,6 +24,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 		// force new authentication if loginstatus is enabled and cookie isn't set
 		if h.Config.Loginstatus.Enabled && !h.Loginstatus.HasCookie(r) {
 			isAuthenticated = false
+			log.Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
 		}
 	}
 
