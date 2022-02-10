@@ -7,10 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
+	logentry "github.com/nais/wonderwall/pkg/router/middleware"
 	"github.com/nais/wonderwall/pkg/router/request"
 )
 
@@ -55,11 +54,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
 	loginCookieJson, err := h.getDecryptedCookie(r, LoginCookieName)
 	if err != nil {
-		requestFields := map[string]interface{}{
-			"userAgent": r.UserAgent(),
-		}
-		log.WithField("httpRequest", requestFields).
-			Warnf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
+		log := logentry.LogEntry(r.Context())
+		log.Info().Msgf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
+
 		loginCookieJson, err = h.getDecryptedCookie(r, LoginLegacyCookieName)
 		if err != nil {
 			return nil, err
@@ -69,7 +66,7 @@ func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
 	var loginCookie openid.LoginCookie
 	err = json.Unmarshal([]byte(loginCookieJson), &loginCookie)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshalling: %w", err)
 	}
 
 	return &loginCookie, nil

@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -38,14 +40,74 @@ func LogEntryHandler(logger zerolog.Logger) func(next http.Handler) http.Handler
 	}
 }
 
+func LogEntry(ctx context.Context) zerolog.Logger {
+	entry := ctx.Value(middleware.LogEntryCtxKey).(*requestLoggerEntry)
+	return entry.Logger
+}
+
 type requestLogger struct {
 	Logger zerolog.Logger
 }
 
 func (l *requestLogger) NewLogEntry(r *http.Request) middleware.LogEntry {
-	entry := &httplog.RequestLoggerEntry{}
+	entry := &requestLoggerEntry{}
 	entry.Logger = l.Logger.With().Fields(requestLogFields(r)).Logger()
 	return entry
+}
+
+type requestLoggerEntry struct {
+	Logger zerolog.Logger
+	msg    string
+}
+
+func (l *requestLoggerEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
+	msg := fmt.Sprintf("response: HTTP %d (%s)", status, statusLabel(status))
+	if l.msg != "" {
+		msg = fmt.Sprintf("%s - %s", msg, l.msg)
+	}
+
+	responseLog := map[string]interface{}{
+		"status":  status,
+		"bytes":   bytes,
+		"elapsed": float64(elapsed.Nanoseconds()) / 1000000.0, // in milliseconds
+	}
+
+	l.Logger.Info().Fields(map[string]interface{}{
+		"httpResponse": responseLog,
+	}).Msgf(msg)
+}
+
+func (l *requestLoggerEntry) Panic(v interface{}, stack []byte) {
+	stacktrace := "#"
+	if httplog.DefaultOptions.JSON {
+		stacktrace = string(stack)
+	}
+
+	l.Logger = l.Logger.With().
+		Str("stacktrace", stacktrace).
+		Str("panic", fmt.Sprintf("%+v", v)).
+		Logger()
+
+	l.msg = fmt.Sprintf("%+v", v)
+
+	if !httplog.DefaultOptions.JSON {
+		middleware.PrintPrettyStack(v)
+	}
+}
+
+func statusLabel(status int) string {
+	switch {
+	case status >= 100 && status < 300:
+		return "OK"
+	case status >= 300 && status < 400:
+		return "Redirect"
+	case status >= 400 && status < 500:
+		return "Client Error"
+	case status >= 500:
+		return "Server Error"
+	default:
+		return "Unknown"
+	}
 }
 
 func requestLogFields(r *http.Request) map[string]interface{} {

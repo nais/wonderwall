@@ -8,10 +8,10 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/httplog"
 	"github.com/rs/zerolog"
 	log "github.com/sirupsen/logrus"
 
+	logentry "github.com/nais/wonderwall/pkg/router/middleware"
 	"github.com/nais/wonderwall/pkg/router/request"
 )
 
@@ -35,7 +35,7 @@ func init() {
 }
 
 func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level zerolog.Level) {
-	logger := httplog.LogEntry(r.Context())
+	logger := logentry.LogEntry(r.Context())
 	logger.WithLevel(level).Stack().Err(cause).Msgf("error in route: %+v", cause)
 
 	if len(h.Config.ErrorRedirectURI) > 0 {
@@ -95,5 +95,9 @@ func (h *Handler) BadRequest(w http.ResponseWriter, r *http.Request, cause error
 }
 
 func (h *Handler) Unauthorized(w http.ResponseWriter, r *http.Request, cause error) {
-	h.respondError(w, r, http.StatusUnauthorized, cause, zerolog.WarnLevel)
+	h.UnauthorizedWithLevel(w, r, cause, zerolog.WarnLevel)
+}
+
+func (h *Handler) UnauthorizedWithLevel(w http.ResponseWriter, r *http.Request, cause error, level zerolog.Level) {
+	h.respondError(w, r, http.StatusUnauthorized, cause, level)
 }
