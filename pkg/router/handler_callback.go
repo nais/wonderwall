@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwt"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
+	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/openid"
 )
 
@@ -33,39 +33,45 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokens, err := h.codeExchangeForToken(r.Context(), loginCookie, params.Get("code"))
+	rawTokens, err := h.codeExchangeForToken(r.Context(), loginCookie, params.Get("code"))
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: exchanging code: %w", err))
 		return
 	}
 
 	jwkSet := h.Provider.GetPublicJwkSet()
-	idToken, err := openid.ParseIDToken(*jwkSet, tokens)
+
+	tokens, err := jwt.ParseOauth2Token(rawTokens, *jwkSet)
 	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("callback: parsing id_token: %w", err))
+		h.InternalError(w, r, fmt.Errorf("callback: parsing tokens: %w", err))
 		return
 	}
 
-	err = h.validateIDToken(idToken, loginCookie, params)
+	err = tokens.IDToken.Validate(h.Provider, loginCookie.Nonce)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: validating id_token: %w", err))
 		return
 	}
 
-	sessionID, err := SessionID(h.Provider.GetOpenIDConfiguration(), idToken, params)
-	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("callback: generating session ID: %w", err))
-		return
-	}
-
-	err = h.createSession(w, r, sessionID, tokens, idToken)
+	err = h.createSession(w, r, tokens, params)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return
 	}
 
-	h.clearLoginCookies(w)
+	if h.Config.Loginstatus.Enabled {
+		loginstatusToken, err := h.Loginstatus.ExchangeToken(r.Context(), tokens.AccessToken)
+		if err != nil {
+			h.InternalError(w, r, fmt.Errorf("callback: exchanging loginstatus token: %w", err))
+			return
+		}
 
+		h.Loginstatus.SetCookie(w, loginstatusToken, h.CookieOptions)
+		log.Info("callback: successfully fetched loginstatus token")
+	}
+
+	h.clearLoginCookies(w)
+	logSuccessfulLogin(tokens, loginCookie.Referer)
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 
@@ -89,24 +95,11 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 	return tokens, nil
 }
 
-func (h *Handler) validateIDToken(idToken *openid.IDToken, loginCookie *openid.LoginCookie, params url.Values) error {
-	openIDconfig := h.Provider.GetOpenIDConfiguration()
-	clientConfig := h.Provider.GetClientConfiguration()
-
-	validateOpts := []jwt.ValidateOption{
-		jwt.WithAudience(clientConfig.GetClientID()),
-		jwt.WithClaimValue("nonce", loginCookie.Nonce),
-		jwt.WithIssuer(openIDconfig.Issuer),
-		jwt.WithAcceptableSkew(5 * time.Second),
+func logSuccessfulLogin(tokens *jwt.Tokens, referer string) {
+	fields := log.Fields{
+		"redirect_to": referer,
+		"claims":      tokens.Claims(),
 	}
 
-	if openIDconfig.SidClaimRequired() {
-		validateOpts = append(validateOpts, jwt.WithRequiredClaim("sid"))
-	}
-
-	if len(clientConfig.GetACRValues()) > 0 {
-		validateOpts = append(validateOpts, jwt.WithRequiredClaim("acr"))
-	}
-
-	return idToken.Validate(validateOpts...)
+	log.WithFields(fields).Info("callback: successful login")
 }

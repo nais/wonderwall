@@ -1,17 +1,17 @@
 package router
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/lestrrat-go/jwx/jwt"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
 
-	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
@@ -30,13 +30,8 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 		return nil, fmt.Errorf("no session cookie: %w", err)
 	}
 
-	encryptedSessionData, err := h.Sessions.Read(r.Context(), sessionID)
+	sessionData, err := h.getSession(r.Context(), sessionID)
 	if err == nil {
-		sessionData, err := encryptedSessionData.Decrypt(h.Crypter)
-		if err != nil {
-			return nil, fmt.Errorf("decrypting session data: %w", err)
-		}
-
 		h.DeleteSessionFallback(w, r)
 
 		if err := h.RefreshSession(r.Context(), sessionData, w, r); err != nil {
@@ -60,45 +55,48 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 	return fallbackSessionData, nil
 }
 
-func (h *Handler) getSessionLifetime(accessToken string) (time.Duration, error) {
-	defaultSessionLifetime := h.Config.SessionMaxLifetime
-
-	tok, err := jwt.Parse([]byte(accessToken))
+func (h *Handler) getSession(ctx context.Context, sessionID string) (*session.Data, error) {
+	encryptedSessionData, err := h.Sessions.Read(ctx, sessionID)
 	if err != nil {
-		return 0, err
+		return nil, fmt.Errorf("reading session data from store: %w", err)
 	}
 
-	tokenDuration := tok.Expiration().Sub(time.Now())
-
-	if tokenDuration <= defaultSessionLifetime {
-		return tokenDuration, nil
+	sessionData, err := encryptedSessionData.Decrypt(h.Crypter)
+	if err != nil {
+		return nil, fmt.Errorf("decrypting session data: %w", err)
 	}
 
-	return defaultSessionLifetime, nil
+	return sessionData, nil
 }
 
-func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, externalSessionID string, tokens *oauth2.Token, idToken *openid.IDToken) error {
-	sessionID := h.localSessionID(externalSessionID)
+func (h *Handler) getSessionLifetime(accessToken *jwt.AccessToken) time.Duration {
+	defaultSessionLifetime := h.Config.SessionMaxLifetime
 
-	sessionLifetime, err := h.getSessionLifetime(tokens.AccessToken)
-	if err != nil {
-		return fmt.Errorf("getting access token lifetime: %w", err)
+	tokenDuration := accessToken.GetExpiration().Sub(time.Now())
+
+	if tokenDuration <= defaultSessionLifetime {
+		return tokenDuration
 	}
 
-	opts := h.Cookies.WithExpiresIn(sessionLifetime)
+	return defaultSessionLifetime
+}
 
+func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *jwt.Tokens, params url.Values) error {
+	externalSessionID, err := NewSessionID(h.Provider.GetOpenIDConfiguration(), tokens.IDToken, params)
+	if err != nil {
+		return fmt.Errorf("generating session ID: %w", err)
+	}
+
+	sessionLifetime := h.getSessionLifetime(tokens.AccessToken)
+	opts := h.CookieOptions.WithExpiresIn(sessionLifetime)
+
+	sessionID := h.localSessionID(externalSessionID)
 	err = h.setEncryptedCookie(w, SessionCookieName, sessionID, opts)
 	if err != nil {
 		return fmt.Errorf("setting session cookie: %w", err)
 	}
 
-	sessionData := session.NewData(
-		externalSessionID,
-		tokens.AccessToken,
-		idToken.Raw,
-		tokens.RefreshToken,
-		h.sessionsToRefresh(sessionLifetime),
-	)
+	sessionData := session.NewData(externalSessionID, tokens, h.sessionsToRefresh(sessionLifetime))
 
 	encryptedSessionData, err := sessionData.Encrypt(h.Crypter)
 	if err != nil {

@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwt"
+	jw "github.com/lestrrat-go/jwx/jwt"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
@@ -34,7 +35,7 @@ func newHandler(provider openid.Provider) *Handler {
 		panic(err)
 	}
 
-	h.Cookies = h.Cookies.WithSecure(false)
+	h.CookieOptions = h.CookieOptions.WithSecure(false)
 	return h
 }
 
@@ -87,7 +88,9 @@ func TestHandler_RefreshTest(t *testing.T) {
 			TimesToRefresh:    test.timesToRefresh,
 		}
 
-		sessionLifeTime, _ := h.getSessionLifetime(sessionData.AccessToken)
+		aToken, err := jwt.ParseAccessToken(sessionData.AccessToken, *h.Provider.GetPublicJwkSet())
+		assert.NoError(t, err)
+		sessionLifeTime := h.getSessionLifetime(aToken)
 
 		previousAccessToken := sessionData.AccessToken
 		previousRefreshToken := sessionData.RefreshToken
@@ -99,21 +102,21 @@ func TestHandler_RefreshTest(t *testing.T) {
 			assert.NotEqual(t, previousRefreshToken, sessionData.RefreshToken)
 		}
 
-		err := h.RefreshSession(context.Background(), sessionData, nil, nil)
+		err = h.RefreshSession(context.Background(), sessionData, nil, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, previousAccessToken, sessionData.AccessToken)
 		assert.Equal(t, previousRefreshToken, sessionData.RefreshToken)
 	}
 }
 
-func signToken(idp mock.TestProvider, token jwt.Token) (string, error) {
+func signToken(idp mock.TestProvider, token jw.Token) (string, error) {
 	privateJwkSet := *idp.PrivateJwkSet()
 	signer, ok := privateJwkSet.Get(0)
 	if !ok {
 		return "", fmt.Errorf("could not get signer")
 	}
 
-	signedToken, err := jwt.Sign(token, jwa.RS256, signer)
+	signedToken, err := jw.Sign(token, jwa.RS256, signer)
 	if err != nil {
 		return "", err
 	}
@@ -122,7 +125,7 @@ func signToken(idp mock.TestProvider, token jwt.Token) (string, error) {
 }
 
 func getToken(t *testing.T, idp mock.TestProvider, expires int64) string {
-	accessToken := jwt.New()
+	accessToken := jw.New()
 	accessToken.Set("sub", "client_id")
 	accessToken.Set("iss", idp.GetOpenIDConfiguration().Issuer)
 	accessToken.Set("acr", idp.ClientConfiguration.GetACRValues())

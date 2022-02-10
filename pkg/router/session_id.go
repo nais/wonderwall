@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 
+	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/openid"
 )
 
@@ -14,9 +15,9 @@ const (
 	SessionStateParamKey = "session_state"
 )
 
-func SessionID(cfg *openid.Configuration, idToken *openid.IDToken, params url.Values) (string, error) {
+func NewSessionID(cfg *openid.Configuration, idToken *jwt.IDToken, params url.Values) (string, error) {
 	// 1. check for 'sid' claim in id_token
-	sessionID, err := idToken.GetStringClaim("sid")
+	sessionID, err := idToken.GetSidClaim()
 	if err == nil {
 		return sessionID, nil
 	}

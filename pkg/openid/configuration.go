@@ -52,6 +52,7 @@ func FetchWellKnownConfig(wellKnownURL string) (*Configuration, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetching well known configuration: %w", err)
 	}
+	defer response.Body.Close()
 
 	var cfg Configuration
 	if err := json.NewDecoder(response.Body).Decode(&cfg); err != nil {

@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"fmt"
+	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/token"
 	log "github.com/sirupsen/logrus"
@@ -19,11 +20,12 @@ func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w h
 	// only 1 pod can do this, unlock on any return.
 	h.tokenRestore.lock.Lock()
 	defer h.tokenRestore.lock.Unlock()
-	sessionLifeTime, err := h.getSessionLifetime(session.AccessToken)
+	accessToken, err := jwt.ParseAccessToken(session.AccessToken, *h.Provider.GetPublicJwkSet())
 	if err != nil {
-		return fmt.Errorf("session access_token life time: %v", err)
+		return fmt.Errorf("parse access token from session: %v", err)
 	}
 
+	sessionLifeTime := h.getSessionLifetime(accessToken)
 	if !shouldRefresh(sessionLifeTime, session) {
 		if session.TimesToRefresh == 0 && h.tokenRestore.ActiveSession {
 			h.tokenRestore.ActiveSession = false
@@ -74,7 +76,12 @@ func (h *Handler) ReClaimRefreshToken(ctx context.Context, session *session.Data
 }
 
 func (h *Handler) refreshSession(ctx context.Context, session *session.Data, w http.ResponseWriter, r *http.Request) error {
-	sessionLifeTime, err := h.getSessionLifetime(session.AccessToken)
+	accessToken, err := jwt.ParseAccessToken(session.AccessToken, *h.Provider.GetPublicJwkSet())
+	if err != nil {
+		return fmt.Errorf("parse access token from session: %v", err)
+	}
+
+	sessionLifeTime := h.getSessionLifetime(accessToken)
 	if err != nil {
 		return fmt.Errorf("session (access_token) life time: %v", err)
 	}

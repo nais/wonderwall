@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/nais/wonderwall/pkg/session"
 )
 
@@ -12,10 +14,21 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	isAuthenticated := false
 
 	sessionData, err := h.getSessionFromCookie(w, r)
-	if err == nil && sessionData != nil && len(sessionData.AccessToken) > 0 {
+
+	hasSessionData := err == nil && sessionData != nil
+	hasAccessToken := hasSessionData && len(sessionData.AccessToken) > 0
+	if hasAccessToken {
 		// add authentication if session cookie and token checks out
 		isAuthenticated = true
-	} else if h.Config.AutoLogin {
+
+		// force new authentication if loginstatus is enabled and cookie isn't set
+		if h.Config.Loginstatus.Enabled && !h.Loginstatus.HasCookie(r) {
+			isAuthenticated = false
+			log.Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
+		}
+	}
+
+	if !isAuthenticated && h.Config.AutoLogin {
 		r.Header.Add("Referer", r.URL.String())
 		h.Login(w, r)
 		return

@@ -16,6 +16,7 @@ func TestDefaultOptions(t *testing.T) {
 	assert.Equal(t, http.SameSiteLaxMode, opts.SameSite)
 	assert.True(t, opts.Secure)
 	assert.Empty(t, opts.ExpiresIn)
+	assert.Empty(t, opts.Domain)
 }
 
 func TestOptions_WithExpiresIn(t *testing.T) {
@@ -60,4 +61,19 @@ func TestOptions_WithSecure(t *testing.T) {
 
 	assert.False(t, opts.Secure, "original options should be unchanged")
 	assert.True(t, newOpts.Secure, "copy of options should have new value")
+}
+
+func TestOptions_WithDomain(t *testing.T) {
+	domain := ".some.domain"
+	opts := cookie.Options{}.WithDomain(domain)
+
+	assert.Equal(t, ".some.domain", opts.Domain)
+
+	opts = cookie.Options{
+		Domain: ".domain",
+	}
+	newOpts := opts.WithDomain(".some.other.domain")
+
+	assert.Equal(t, ".domain", opts.Domain, "original options should be unchanged")
+	assert.Equal(t, ".some.other.domain", newOpts.Domain, "copy of options should have new value")
 }

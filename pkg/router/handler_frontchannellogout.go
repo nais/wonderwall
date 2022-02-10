@@ -12,21 +12,31 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	sid := params.Get("sid")
 
 	// Unconditionally destroy all local references to the session.
-	h.deleteCookie(w, SessionCookieName, h.Cookies)
+	h.deleteCookie(w, SessionCookieName, h.CookieOptions)
+
+	if h.Config.Loginstatus.Enabled {
+		h.Loginstatus.ClearCookie(w, h.CookieOptions)
+	}
 
 	if len(sid) == 0 {
-		log.Info("sid parameter not set in request; ignoring")
+		log.Info("front-channel logout: sid parameter not set in request; ignoring")
 		h.DeleteSessionFallback(w, r)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	sessionID := h.localSessionID(sid)
-
-	err := h.destroySession(w, r, sessionID)
+	sessionData, err := h.getSession(r.Context(), sessionID)
 	if err != nil {
-		log.Error(err)
+		log.Errorf("front-channel logout: getting session (user might already be logged out): %+v", err)
+	}
+
+	err = h.destroySession(w, r, sessionID)
+	if err != nil {
+		log.Errorf("front-channel logout: destroying session: %+v", err)
 		// Session is already destroyed at the OP and is highly unlikely to be used again.
+	} else if sessionData != nil {
+		log.WithField("claims", sessionData.Claims).Infof("front-channel logout: successful logout")
 	}
 
 	w.WriteHeader(http.StatusOK)

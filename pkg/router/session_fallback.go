@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
@@ -31,7 +32,7 @@ func (h *Handler) SessionFallbackTimesToRefreshCookieName() string {
 }
 
 func (h *Handler) SetSessionFallback(w http.ResponseWriter, data *session.Data, expiresIn time.Duration) error {
-	opts := h.Cookies.WithExpiresIn(expiresIn)
+	opts := h.CookieOptions.WithExpiresIn(expiresIn)
 
 	err := h.setEncryptedCookie(w, h.SessionFallbackExternalIDCookieName(), data.ExternalSessionID, opts)
 	if err != nil {
@@ -93,7 +94,13 @@ func (h *Handler) GetSessionFallback(r *http.Request) (*session.Data, error) {
 		return nil, fmt.Errorf("converting refresh times from string: %w", err)
 	}
 
-	return session.NewData(externalSessionID, accessToken, idToken, refreshToken, int64(timesToRefreshInt)), nil
+	jwkSet := h.Provider.GetPublicJwkSet()
+	tokens, err := jwt.ParseTokensFromStrings(idToken, accessToken, refreshToken, *jwkSet)
+	if err != nil {
+		return nil, fmt.Errorf("parsing tokens: %w", err)
+	}
+
+	return session.NewData(externalSessionID, tokens, int64(timesToRefreshInt)), nil
 }
 
 func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +113,7 @@ func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		h.deleteCookie(w, cookieName, h.Cookies)
+		h.deleteCookie(w, cookieName, h.CookieOptions)
 	}
 
 	deleteIfNotFound(h, w, h.SessionFallbackAccessTokenCookieName())

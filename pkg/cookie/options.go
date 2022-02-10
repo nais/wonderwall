@@ -7,6 +7,7 @@ import (
 
 type Options struct {
 	ExpiresIn time.Duration
+	Domain    string
 	SameSite  http.SameSite
 	Secure    bool
 }
@@ -16,6 +17,11 @@ func DefaultOptions() Options {
 		SameSite: http.SameSiteLaxMode,
 		Secure:   true,
 	}
+}
+
+func (o Options) WithDomain(domain string) Options {
+	o.Domain = domain
+	return o
 }
 
 func (o Options) WithSameSite(sameSite http.SameSite) Options {

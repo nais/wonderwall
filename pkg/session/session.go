@@ -11,6 +11,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/pkg/jwt"
 )
 
 type Store interface {
@@ -79,19 +80,21 @@ func (in *EncryptedData) Decrypt(crypter crypto.Crypter) (*Data, error) {
 }
 
 type Data struct {
-	ExternalSessionID string `json:"external_session_id"`
-	AccessToken       string `json:"access_token"`
-	IDToken           string `json:"id_token"`
-	RefreshToken      string `json:"refresh_token"`
-	TimesToRefresh    int64  `json:"times_to_refresh"`
+	ExternalSessionID string     `json:"external_session_id"`
+	AccessToken       string     `json:"access_token"`
+	IDToken           string     `json:"id_token"`
+	Claims            jwt.Claims `json:"claims"`
+	RefreshToken      string     `json:"refresh_token"`
+	TimesToRefresh    int64      `json:"times_to_refresh"`
 }
 
-func NewData(externalSessionID, accessToken, idToken, refreshToken string, timesToRefresh int64) *Data {
+func NewData(externalSessionID string, tokens *jwt.Tokens, timesToRefresh int64) *Data {
 	return &Data{
 		ExternalSessionID: externalSessionID,
-		AccessToken:       accessToken,
-		IDToken:           idToken,
-		RefreshToken:      refreshToken,
+		AccessToken:       tokens.AccessToken.GetSerialized(),
+		IDToken:           tokens.IDToken.GetSerialized(),
+		Claims:            tokens.Claims(),
+		RefreshToken:      tokens.RefreshToken.GetSerialized(),
 		TimesToRefresh:    timesToRefresh,
 	}
 }

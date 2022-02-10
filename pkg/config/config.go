@@ -24,6 +24,20 @@ type Config struct {
 
 	OpenID OpenID `json:"openid"`
 	Redis  Redis  `json:"redis"`
+
+	Loginstatus Loginstatus `json:"loginstatus"`
+}
+
+type Loginstatus struct {
+	Enabled           bool   `json:"enabled"`
+	CookieDomain      string `json:"cookie-domain"`
+	CookieName        string `json:"cookie-name"`
+	ResourceIndicator string `json:"resource-indicator"`
+	TokenURL          string `json:"token-url"`
+}
+
+func (in Loginstatus) NeedsResourceIndicator() bool {
+	return in.Enabled && len(in.ResourceIndicator) > 0
 }
 
 const (
@@ -39,6 +53,12 @@ const (
 	SessionMaxLifetime = "session-max-lifetime"
 	RefreshToken       = "refresh-token"
 	UpstreamHost       = "upstream-host"
+
+	LoginstatusEnabled           = "loginstatus.enabled"
+	LoginstatusCookieDomain      = "loginstatus.cookie-domain"
+	LoginstatusCookieName        = "loginstatus.cookie-name"
+	LoginstatusResourceIndicator = "loginstatus.resource-indicator"
+	LoginstatusTokenURL          = "loginstatus.token-url"
 )
 
 func Initialize() (*Config, error) {
@@ -56,6 +76,12 @@ func Initialize() (*Config, error) {
 	flag.Bool(RefreshToken, false, "Refresh token enabled.")
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
+
+	flag.Bool(LoginstatusEnabled, false, "Feature toggle for Loginstatus, a separate service that should provide an opaque token to indicate that a user has been authenticated previously, e.g. by another application in another subdomain.")
+	flag.String(LoginstatusCookieDomain, "", "The domain that the cookie should be set for.")
+	flag.String(LoginstatusCookieName, "", "The name of the cookie.")
+	flag.String(LoginstatusResourceIndicator, "", "The resource indicator that should be included in the authorization request to get an audience-restricted token that Loginstatus accepts. Empty means no resource indicator.")
+	flag.String(LoginstatusTokenURL, "", "The URL to the Loginstatus service that returns an opaque token.")
 
 	redisFlags()
 	openIDFlags()

@@ -6,8 +6,25 @@ env:
   image_base: ghcr.io/${{ github.repository }}
 
 jobs:
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v2
+      - name: Extract version of Go to use
+        run: echo "GOVERSION=$(cat go.mod | grep -w "go" | awk ' { print $2 } ' | grep -w "^[^v]")" >> $GITHUB_ENV
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GOVERSION }}
+      - name: Test Go
+        run: |
+          make test
   build-and-deploy:
+    needs:
+      - test
     name: Build, push and deploy
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
