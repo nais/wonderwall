@@ -28,7 +28,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	sessionID := h.localSessionID(sid)
 	sessionData, err := h.getSession(r.Context(), sessionID)
 	if err != nil {
-		log.Infof("front-channel logout: getting session (user might already be logged out): %+v", err)
+		log.Warnf("front-channel logout: getting session (user might already be logged out): %+v", err)
 	}
 
 	err = h.destroySession(w, r, sessionID)

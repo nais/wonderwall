@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/rs/zerolog"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
@@ -20,12 +19,9 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		msg := "callback: fetching login cookie"
 		if errors.Is(err, http.ErrNoCookie) {
-			msg += ": fallback cookie not found"
-			msg += "; user might have blocked all cookies or the callback route was accessed before the login route"
-			h.UnauthorizedWithLevel(w, r, fmt.Errorf("%s: %w", msg, err), zerolog.InfoLevel)
-		} else {
-			h.Unauthorized(w, r, fmt.Errorf("%s: %w", msg, err))
+			msg += ": fallback cookie not found (user might have blocked all cookies, or the callback route was accessed before the login route)"
 		}
+		h.Unauthorized(w, r, fmt.Errorf("%s: %w", msg, err))
 		return
 	}
 
@@ -38,7 +34,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if params.Get("state") != loginCookie.State {
-		h.Unauthorized(w, r, fmt.Errorf("callback: state parameter mismatch"))
+		h.Unauthorized(w, r, fmt.Errorf("callback: state parameter mismatch (possible csrf)"))
 		return
 	}
 

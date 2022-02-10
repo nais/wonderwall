@@ -95,9 +95,5 @@ func (h *Handler) BadRequest(w http.ResponseWriter, r *http.Request, cause error
 }
 
 func (h *Handler) Unauthorized(w http.ResponseWriter, r *http.Request, cause error) {
-	h.UnauthorizedWithLevel(w, r, cause, zerolog.WarnLevel)
-}
-
-func (h *Handler) UnauthorizedWithLevel(w http.ResponseWriter, r *http.Request, cause error, level zerolog.Level) {
-	h.respondError(w, r, http.StatusUnauthorized, cause, level)
+	h.respondError(w, r, http.StatusUnauthorized, cause, zerolog.WarnLevel)
 }
