@@ -72,7 +72,7 @@ func (l *requestLoggerEntry) Write(status, bytes int, header http.Header, elapse
 		"elapsed": float64(elapsed.Nanoseconds()) / 1000000.0, // in milliseconds
 	}
 
-	l.Logger.Info().Fields(map[string]interface{}{
+	l.Logger.WithLevel(statusLevel(status)).Fields(map[string]interface{}{
 		"httpResponse": responseLog,
 	}).Msgf(msg)
 }
@@ -92,6 +92,15 @@ func (l *requestLoggerEntry) Panic(v interface{}, stack []byte) {
 
 	if !httplog.DefaultOptions.JSON {
 		middleware.PrintPrettyStack(v)
+	}
+}
+
+func statusLevel(status int) zerolog.Level {
+	switch {
+	case status >= 400:
+		return zerolog.InfoLevel
+	default:
+		return zerolog.DebugLevel
 	}
 }
 
