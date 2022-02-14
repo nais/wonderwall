@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -16,7 +17,11 @@ import (
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	loginCookie, err := h.getLoginCookie(r)
 	if err != nil {
-		h.Unauthorized(w, r, fmt.Errorf("callback: fetching login cookie: %w", err))
+		msg := "callback: fetching login cookie"
+		if errors.Is(err, http.ErrNoCookie) {
+			msg += ": fallback cookie not found (user might have blocked all cookies, or the callback route was accessed before the login route)"
+		}
+		h.Unauthorized(w, r, fmt.Errorf("%s: %w", msg, err))
 		return
 	}
 
@@ -29,7 +34,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if params.Get("state") != loginCookie.State {
-		h.Unauthorized(w, r, fmt.Errorf("callback: state parameter mismatch"))
+		h.Unauthorized(w, r, fmt.Errorf("callback: state parameter mismatch (possible csrf)"))
 		return
 	}
 

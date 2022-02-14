@@ -164,8 +164,10 @@
     <div class="content">
         <h1 class="typo-innholdstittel">Det har dessverre skjedd en feil i forbindelse med innlogging</h1>
         <p class="typo-normal">
-            <a class="navLink" href="https://www.nav.no">Trykk her</a> for å gå tilbake til nav.no
-            eller <a class="navLink" href="{{.RetryURI}}">trykk her</a> for å prøve igjen.
+            <a class="navLink" href="{{.RetryURI}}">Trykk her for å prøve igjen.</a>
+        </p>
+        <p class="typo-normal">
+            <a class="navLink" href="https://www.nav.no">Trykk her for å gå tilbake til nav.no.</a>
         </p>
         <p class="typo-normal">
             Request ID: {{.CorrelationID}}
