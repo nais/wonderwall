@@ -23,6 +23,7 @@ type Client interface {
 	SetCookie(w http.ResponseWriter, token *TokenResponse, opts cookie.Options)
 	HasCookie(r *http.Request) bool
 	ClearCookie(w http.ResponseWriter, opts cookie.Options)
+	CookieOptions(opts cookie.Options) cookie.Options
 }
 
 func NewClient(config config.Loginstatus, httpClient *http.Client) Client {
@@ -71,7 +72,7 @@ func (c client) SetCookie(w http.ResponseWriter, token *TokenResponse, opts cook
 	name := c.config.CookieName
 	expiresIn := time.Duration(token.ExpiresIn) * time.Second
 
-	opts = c.cookieOptions(opts).
+	opts = c.CookieOptions(opts).
 		WithExpiresIn(expiresIn)
 
 	newCookie := cookie.Make(name, token.AccessToken, opts)
@@ -88,15 +89,16 @@ func (c client) HasCookie(r *http.Request) bool {
 
 func (c client) ClearCookie(w http.ResponseWriter, opts cookie.Options) {
 	cookieName := c.config.CookieName
-	opts = c.cookieOptions(opts)
+	opts = c.CookieOptions(opts)
 
 	cookie.Clear(w, cookieName, opts)
 }
 
-func (c client) cookieOptions(opts cookie.Options) cookie.Options {
+func (c client) CookieOptions(opts cookie.Options) cookie.Options {
 	domain := c.config.CookieDomain
 	return opts.WithDomain(domain).
-		WithSameSite(SameSiteMode)
+		WithSameSite(SameSiteMode).
+		WithPath("/")
 }
 
 func request(ctx context.Context, url string, token *jwt.AccessToken) (*http.Request, error) {

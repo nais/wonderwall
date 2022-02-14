@@ -17,6 +17,8 @@ import (
 	"github.com/nais/wonderwall/pkg/loginstatus"
 )
 
+var cookieOpts = cookie.DefaultOptions().WithPath("/some/path")
+
 func TestClient_ExchangeToken(t *testing.T) {
 	server := httptest.NewServer(loginstatusHandler())
 	httpclient := server.Client()
@@ -58,10 +60,11 @@ func TestClient_SetCookie(t *testing.T) {
 		ExpiresIn:   3599,
 	}
 	cfg := newCfg("https://some-server")
-	opts := cookie.DefaultOptions()
+
+	client := loginstatus.NewClient(cfg, http.DefaultClient)
+	opts := client.CookieOptions(cookieOpts)
 
 	writer := httptest.NewRecorder()
-	client := loginstatus.NewClient(cfg, http.DefaultClient)
 	client.SetCookie(writer, tokenResponse, opts)
 
 	cookies := writer.Result().Cookies()
@@ -88,10 +91,10 @@ func TestClient_SetCookie(t *testing.T) {
 
 func TestClient_ClearCookie(t *testing.T) {
 	cfg := newCfg("https://some-server")
-	opts := cookie.DefaultOptions()
+	client := loginstatus.NewClient(cfg, http.DefaultClient)
+	opts := client.CookieOptions(cookieOpts)
 
 	writer := httptest.NewRecorder()
-	client := loginstatus.NewClient(cfg, http.DefaultClient)
 	client.ClearCookie(writer, opts)
 
 	cookies := writer.Result().Cookies()
@@ -118,19 +121,58 @@ func TestClient_ClearCookie(t *testing.T) {
 
 func TestClient_HasCookie(t *testing.T) {
 	cfg := newCfg("https://some-server")
-	opts := cookie.DefaultOptions()
+	client := loginstatus.NewClient(cfg, http.DefaultClient)
+	opts := client.CookieOptions(cookieOpts)
 
 	c := cookie.Make(cfg.CookieName, "some-value", opts)
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.AddCookie(c.Cookie)
 
-	client := loginstatus.NewClient(cfg, http.DefaultClient)
 	actual := client.HasCookie(r)
 	assert.True(t, actual)
 
 	r = httptest.NewRequest(http.MethodGet, "/", nil)
 	actual = client.HasCookie(r)
 	assert.False(t, actual)
+}
+
+func TestClient_CookieOptions(t *testing.T) {
+	cfg := newCfg("https://some-server")
+	client := loginstatus.NewClient(cfg, http.DefaultClient)
+
+	for _, test := range []struct {
+		name string
+		opts cookie.Options
+	}{
+		{
+			name: "default cookie options",
+			opts: cookie.DefaultOptions(),
+		},
+		{
+			name: "override domain",
+			opts: cookie.DefaultOptions().WithDomain(".some.other.domain"),
+		},
+		{
+			name: "override path",
+			opts: cookie.DefaultOptions().WithPath("/some/path"),
+		},
+		{
+			name: "override samesite",
+			opts: cookie.DefaultOptions().WithSameSite(http.SameSiteStrictMode),
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			opts := client.CookieOptions(test.opts)
+
+			assert.Empty(t, opts.ExpiresIn)
+			assert.True(t, opts.Secure)
+
+			// options below should never be overridden regardless of input
+			assert.Equal(t, cfg.CookieDomain, opts.Domain)
+			assert.Equal(t, "/", opts.Path)
+			assert.Equal(t, http.SameSiteDefaultMode, opts.SameSite)
+		})
+	}
 }
 
 func newCfg(serverURL string) config.Loginstatus {

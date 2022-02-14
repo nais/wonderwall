@@ -45,9 +45,12 @@ func NewHandler(
 	}
 	loginstatusClient := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
 
+	cookiePath := config.ParseIngress(cfg.Ingress)
+	cookieOpts := cookie.DefaultOptions().WithPath(cookiePath)
+
 	return &Handler{
 		Config:        cfg,
-		CookieOptions: cookie.DefaultOptions(),
+		CookieOptions: cookieOpts,
 		Crypter:       crypter,
 		Httplogger:    httplogger,
 		lock:          sync.Mutex{},
