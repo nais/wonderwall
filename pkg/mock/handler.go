@@ -99,8 +99,9 @@ func (ip *identityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }
 
-func (ip *identityProviderHandler) Jwks(w http.ResponseWriter, _ *http.Request) {
-	json.NewEncoder(w).Encode(ip.Provider.GetPublicJwkSet())
+func (ip *identityProviderHandler) Jwks(w http.ResponseWriter, r *http.Request) {
+	jwks, _ := ip.Provider.GetPublicJwkSet(r.Context())
+	json.NewEncoder(w).Encode(jwks)
 }
 
 func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request) {

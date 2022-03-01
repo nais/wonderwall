@@ -3,6 +3,8 @@ package openid
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	log "github.com/sirupsen/logrus"
@@ -11,16 +13,27 @@ import (
 	"github.com/nais/wonderwall/pkg/openid/clients"
 )
 
+const (
+	JwkMinimumRefreshInterval = 5 * time.Second
+)
+
 type Provider interface {
 	GetClientConfiguration() clients.Configuration
 	GetOpenIDConfiguration() *Configuration
-	GetPublicJwkSet() *jwk.Set
+	GetPublicJwkSet(ctx context.Context) (*jwk.Set, error)
+	RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error)
 }
 
 type provider struct {
 	clientConfiguration clients.Configuration
 	configuration       *Configuration
-	jwkSet              *jwk.Set
+	jwks                *jwk.AutoRefresh
+	jwksLock            *jwksLock
+}
+
+type jwksLock struct {
+	lastRefresh time.Time
+	sync.Mutex
 }
 
 func (p provider) GetClientConfiguration() clients.Configuration {
@@ -31,11 +44,38 @@ func (p provider) GetOpenIDConfiguration() *Configuration {
 	return p.configuration
 }
 
-func (p provider) GetPublicJwkSet() *jwk.Set {
-	return p.jwkSet
+func (p provider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
+	url := p.configuration.JwksURI
+	set, err := p.jwks.Fetch(ctx, url)
+	if err != nil {
+		return nil, fmt.Errorf("provider: fetching jwks: %w", err)
+	}
+
+	return &set, nil
 }
 
-func NewProvider(cfg *config.Config) (Provider, error) {
+func (p provider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
+	p.jwksLock.Lock()
+	defer p.jwksLock.Unlock()
+
+	// redirect to cache if recently refreshed to avoid overwhelming provider
+	diff := time.Now().Sub(p.jwksLock.lastRefresh)
+	if diff < JwkMinimumRefreshInterval {
+		return p.GetPublicJwkSet(ctx)
+	}
+
+	p.jwksLock.lastRefresh = time.Now()
+
+	url := p.configuration.JwksURI
+	set, err := p.jwks.Refresh(ctx, url)
+	if err != nil {
+		return nil, fmt.Errorf("provider: refreshing jwks: %w", err)
+	}
+
+	return &set, nil
+}
+
+func NewProvider(ctx context.Context, cfg *config.Config) (Provider, error) {
 	clientJwkString := cfg.OpenID.ClientJWK
 	if len(clientJwkString) == 0 {
 		return nil, fmt.Errorf("missing required config %s", config.OpenIDClientJWK)
@@ -94,15 +134,19 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("identity provider does not support '%s=%s'", config.OpenIDUILocales, acrValues)
 	}
 
-	jwkSet, err := configuration.FetchJwkSet(context.Background())
+	uri := configuration.JwksURI
+	jwksAutoRefresh := jwk.NewAutoRefresh(ctx)
+	jwksAutoRefresh.Configure(uri)
+	_, err = jwksAutoRefresh.Fetch(ctx, uri)
 	if err != nil {
-		return nil, fmt.Errorf("fetching jwk set: %w", err)
+		return nil, fmt.Errorf("initial fetch of jwks from provider: %w", err)
 	}
 
 	return &provider{
 		clientConfiguration: clientConfig,
 		configuration:       configuration,
-		jwkSet:              jwkSet,
+		jwks:                jwksAutoRefresh,
+		jwksLock:            &jwksLock{},
 	}, nil
 }
 

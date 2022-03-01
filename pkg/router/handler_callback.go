@@ -44,10 +44,16 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jwkSet := h.Provider.GetPublicJwkSet()
+	jwkSet, err := h.Provider.GetPublicJwkSet(r.Context())
+	if err != nil {
+		h.InternalError(w, r, fmt.Errorf("callback: getting jwks: %w", err))
+		return
+	}
 
 	tokens, err := jwt.ParseOauth2Token(rawTokens, *jwkSet)
 	if err != nil {
+		// JWKS might not be up-to-date, so we'll want to force a refresh for the next attempt
+		_, _ = h.Provider.RefreshPublicJwkSet(r.Context())
 		h.InternalError(w, r, fmt.Errorf("callback: parsing tokens: %w", err))
 		return
 	}

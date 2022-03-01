@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/nais/liberator/pkg/conftools"
@@ -46,7 +47,9 @@ func run() error {
 		return err
 	}
 
-	prv, err := openid.NewProvider(cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	prv, err := openid.NewProvider(ctx, cfg)
 	if err != nil {
 		return err
 	}

@@ -1,12 +1,9 @@
 package openid
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"github.com/lestrrat-go/jwx/jwk"
 )
 
 type Configuration struct {
@@ -60,18 +57,6 @@ func FetchWellKnownConfig(wellKnownURL string) (*Configuration, error) {
 	}
 
 	return &cfg, nil
-}
-
-func (c *Configuration) FetchJwkSet(ctx context.Context) (*jwk.Set, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	jwkSet, err := jwk.Fetch(ctx, c.JwksURI)
-	if err != nil {
-		return nil, fmt.Errorf("fetching jwks: %w", err)
-	}
-
-	return &jwkSet, nil
 }
 
 func (c *Configuration) SessionStateRequired() bool {
