@@ -8,7 +8,7 @@ require (
 	github.com/go-chi/httplog v0.2.1
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/google/uuid v1.3.0
-	github.com/lestrrat-go/jwx v1.2.19
+	github.com/lestrrat-go/jwx v1.2.20
 	github.com/nais/liberator v0.0.0-20210809103005-edb0141d646d
 	github.com/prometheus/client_golang v1.12.1
 	github.com/rs/zerolog v1.26.1
@@ -50,7 +50,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da // indirect
-	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect
+	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
 	golang.org/x/text v0.3.7 // indirect
