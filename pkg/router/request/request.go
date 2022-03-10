@@ -18,25 +18,35 @@ var (
 
 // CanonicalRedirectURL constructs a redirect URL that points back to the application.
 func CanonicalRedirectURL(r *http.Request) string {
+	// 1. default
 	redirectURL := "/"
 
+	// 2. Referer header is set
 	referer := RefererPath(r)
 	if len(referer) > 0 {
 		redirectURL = referer
 	}
 
+	// 3. redirect parameter is set
 	override := r.URL.Query().Get(RedirectURLParameter)
-	if len(override) > 0 {
-		referer, err := url.Parse(override)
-		if err == nil {
-			// strip scheme and host to avoid cross-domain redirects
-			referer.Scheme = ""
-			referer.Host = ""
-			redirectURL = referer.String()
-		}
+	if len(override) <= 0 {
+		return redirectURL
 	}
 
-	return redirectURL
+	overrideUrl, err := url.Parse(override)
+	if err != nil {
+		return redirectURL
+	}
+
+	// strip scheme and host to avoid cross-domain redirects
+	overrideUrl.Scheme = ""
+	overrideUrl.Host = ""
+	overrideString := overrideUrl.String()
+	if len(overrideString) <= 0 {
+		return "/"
+	}
+
+	return overrideString
 }
 
 // LoginURLParameter attempts to get a given parameter from the given HTTP request, falling back if none found.

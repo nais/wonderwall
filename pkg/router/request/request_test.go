@@ -23,10 +23,47 @@ func TestCanonicalRedirectURL(t *testing.T) {
 	assert.Equal(t, "/foo/bar/baz", request.CanonicalRedirectURL(r))
 
 	// If redirect parameter is set, use that
-	v := &url.Values{}
-	v.Set("redirect", "https://google.com/path/to/redirect?val1=foo&val2=bar")
-	r.URL.RawQuery = v.Encode()
-	assert.Equal(t, "/path/to/redirect?val1=foo&val2=bar", request.CanonicalRedirectURL(r))
+	t.Run("redirect parameter", func(t *testing.T) {
+		for _, test := range []struct {
+			name     string
+			value    string
+			expected string
+		}{
+			{
+				name:     "complete url with parameters",
+				value:    "https://google.com/path/to/redirect?val1=foo&val2=bar",
+				expected: "/path/to/redirect?val1=foo&val2=bar",
+			},
+			{
+				name:     "root url with trailing slash",
+				value:    "https://google.com/",
+				expected: "/",
+			},
+			{
+				name:     "root url without trailing slash",
+				value:    "https://google.com",
+				expected: "/",
+			},
+			{
+				name:     "url path with trailing slash",
+				value:    "https://google.com/path/",
+				expected: "/path/",
+			},
+			{
+				name:     "url path without trailing slash",
+				value:    "https://google.com/path",
+				expected: "/path",
+			},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				v := &url.Values{}
+				v.Set("redirect", test.value)
+				r.URL.RawQuery = v.Encode()
+				assert.Equal(t, test.expected, request.CanonicalRedirectURL(r))
+			})
+		}
+	})
+
 }
 
 func TestLoginURLParameter(t *testing.T) {
