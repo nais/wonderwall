@@ -3,7 +3,7 @@ module github.com/nais/wonderwall
 go 1.17
 
 require (
-	github.com/alicebob/miniredis/v2 v2.16.0
+	github.com/alicebob/miniredis/v2 v2.19.0
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-chi/httplog v0.2.1
 	github.com/go-redis/redis/v8 v8.11.4
