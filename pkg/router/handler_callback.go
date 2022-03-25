@@ -15,6 +15,9 @@ import (
 )
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
+	// unconditionally clear login cookie
+	h.clearLoginCookies(w)
+
 	loginCookie, err := h.getLoginCookie(r)
 	if err != nil {
 		msg := "callback: fetching login cookie"
@@ -33,8 +36,10 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if params.Get("state") != loginCookie.State {
-		h.Unauthorized(w, r, fmt.Errorf("callback: state parameter mismatch (possible csrf)"))
+	expectedState := loginCookie.State
+	actualState := params.Get("state")
+	if expectedState != actualState {
+		h.Unauthorized(w, r, fmt.Errorf("callback: state parameter mismatch (possible csrf): expected %s, got %s", expectedState, actualState))
 		return
 	}
 
@@ -81,7 +86,6 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		log.Info("callback: successfully fetched loginstatus token")
 	}
 
-	h.clearLoginCookies(w)
 	logSuccessfulLogin(tokens, loginCookie.Referer)
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }

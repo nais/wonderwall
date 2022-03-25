@@ -123,6 +123,7 @@ func requestLogFields(r *http.Request) map[string]interface{} {
 	requestFields := map[string]interface{}{
 		"cookies":       requestCookies(r),
 		"protocol":      r.Proto,
+		"referer":       r.Referer(),
 		"requestMethod": r.Method,
 		"requestPath":   r.URL.Path,
 		"userAgent":     r.UserAgent(),
