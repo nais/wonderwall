@@ -2,43 +2,66 @@
 
 ![anyway here's wonderwall](https://i.imgur.com/NhRLEej.png)
 
-`wonderwall` is an application that implements _OpenID Connect_ (OIDC) in a way that makes it easy to plug into
-Kubernetes as a sidecar. As such, this is OIDC as a sidecar, or OaaS, or to explain the joke: Oasis - Wonderwall
+`wonderwall` is an application that implements an _OpenID Connect_ (OIDC) relying party/client in a way that makes it 
+easy to plug into Kubernetes as a sidecar. As such, this is OIDC as a sidecar, or OaaS, or to explain the joke: 
+Oasis - Wonderwall
 
 ## Features
 
-Wonderwall currently implements a client that
-follows [ID-porten's preferred setup](https://docs.digdir.no/oidc_guide_idporten.html):
+Wonderwall aims to be compliant with OAuth 2.1, and supports the following:
 
-- OpenID Connect Authorization Code Flow with mandatory use of PKCE, state and nonce - aiming to be compliant with OAuth
-  2.1.
-- Validation of `id_token` in accordance with the OpenID Connect Core specifications.
-- Client authentication with the authorization server as
+- OpenID Connect Authorization Code Flow with mandatory use of PKCE, state and nonce
+- Client authentication using client assertions (`private_key_jwt`) as
   per [RFC 7523, Section 2.2](https://datatracker.ietf.org/doc/html/rfc7523).
-- Support for [RP-initiated logout](https://openid.net/specs/openid-connect-rpinitiated-1_0.html).
-- Support for [front-channel logout](https://openid.net/specs/openid-connect-frontchannel-1_0.html).
+- [RP-initiated logout](https://openid.net/specs/openid-connect-rpinitiated-1_0.html).
+- [Front-channel logout](https://openid.net/specs/openid-connect-frontchannel-1_0.html).
 
 Wonderwall functions as an optionally intercepting reverse proxy that proxies requests to a downstream host.
 
 By default, it does not actually intercept any requests other than to remove the `Authorization` header if the user
 agent does not have a valid session with Wonderwall.
 
+## Overview
+
+The image below shows the overall architecture of an application when using Wonderwall as a sidecar:
+
+![Wonderwall architecture](docs/assets/wonderwall-architecture.png)
+
+The sequence diagram below shows the default behavior of Wonderwall:
+
+![Wonderwall sequence diagram](docs/assets/wonderwall-sequence.png)
+
+Generally speaking, the recommended approach when using the Wonderwall sidecar is to put it in front of
+your backend-for-frontend server that serves your frontend. Otherwise, you might run into issues with the cookie
+configuration and allowed redirects - these are both effectively restricted to only match the domain and path for your
+application's ingress.
+
 ## Endpoints
 
 Wonderwall exposes and owns these endpoints (which means they will never be proxied downstream):
 
-* `/oauth2/login` redirects the user to the Identity Provider to perform the OpenID Connect Authorization Code Flow.
-* `/oauth2/callback` handles callbacks from Identity Provider as part of the OpenID Connect Authorization Code Flow.
-* `/oauth2/logout` triggers self-initiated/RP-initiated logout.
-* `/oauth2/logout/frontchannel` implements front-channel logout.
+| Path                          | Description                                                                                |
+|-------------------------------|--------------------------------------------------------------------------------------------|
+| `/oauth2/login`               | Initiates the OpenID Connect Authorization Code flow                                       |
+| `/oauth2/callback`            | Handles the callback from the identity provider                                            |
+| `/oauth2/logout`              | Initiates local and global/single-logout                                                   |
+| `/oauth2/logout/frontchannel` | Handles global logout request (initiated by identity provider on behalf of another client) |
 
 ## Usage
 
-In order to initiate authenticated user sessions, the user must be redirected to the `/oauth2/login` endpoint, which
-performs the OIDC Auth Code flow. The user will then be redirected back to the downstream application, with
-the `Authorization` header containing a `Bearer`
-access token. As long as the user has an active session with Wonderwall, all further requests to the downstream
-application will have the `Authorization` header set.
+If the user does _not_ have a valid local session with the sidecar, the request will be proxied as-is without
+modifications to the upstream host.
+
+In order to obtain a local session, the user must be redirected to the `/oauth2/login` endpoint, which performs the
+OpenID Connect Authorization Code Flow.
+
+If the user successfully completed the login flow, the sidecar creates and stores a session. A corresponding session 
+cookie is created and set before finally redirecting user agent to the application. All requests that 
+are forwarded to the application container will now contain an `Authorization` header with the user's `access_token`
+as a Bearer token.
+
+Do note that cookies are set for the most specific subdomain and path (if any) defined in the `ingress` configuration
+variable.
 
 ### Configuration
 
