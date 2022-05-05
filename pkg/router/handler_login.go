@@ -49,14 +49,20 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fields := map[string]interface{}{
+		"redirect_to": redirect,
+	}
+	logger := logentry.LogEntry(r.Context()).With().Fields(fields).Logger()
+	logger.Info().Msg("login: redirecting to identity provider")
+
 	http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
 	loginCookieJson, err := h.getDecryptedCookie(r, LoginCookieName)
 	if err != nil {
-		log := logentry.LogEntry(r.Context())
-		log.Info().Msgf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
+		logger := logentry.LogEntry(r.Context())
+		logger.Info().Msgf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
 
 		loginCookieJson, err = h.getDecryptedCookie(r, LoginLegacyCookieName)
 		if err != nil {

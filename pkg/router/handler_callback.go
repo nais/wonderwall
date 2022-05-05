@@ -12,6 +12,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/openid"
+	logentry "github.com/nais/wonderwall/pkg/router/middleware"
 )
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +87,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		log.Info("callback: successfully fetched loginstatus token")
 	}
 
-	logSuccessfulLogin(tokens, loginCookie.Referer)
+	logSuccessfulLogin(r, tokens, loginCookie.Referer)
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 
@@ -110,11 +111,12 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 	return tokens, nil
 }
 
-func logSuccessfulLogin(tokens *jwt.Tokens, referer string) {
-	fields := log.Fields{
+func logSuccessfulLogin(r *http.Request, tokens *jwt.Tokens, referer string) {
+	fields := map[string]interface{}{
 		"redirect_to": referer,
 		"claims":      tokens.Claims(),
 	}
 
-	log.WithFields(fields).Info("callback: successful login")
+	logger := logentry.LogEntry(r.Context()).With().Fields(fields).Logger()
+	logger.Info().Msg("callback: successful login")
 }
