@@ -37,11 +37,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	redirect := request.CanonicalRedirectURL(r, h.Config.Ingress)
 	err = h.setLoginCookies(w, &openid.LoginCookie{
 		State:        params.State,
 		Nonce:        params.Nonce,
 		CodeVerifier: params.CodeVerifier,
-		Referer:      request.CanonicalRedirectURL(r),
+		Referer:      redirect,
 	})
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))

@@ -17,36 +17,64 @@ var (
 )
 
 // CanonicalRedirectURL constructs a redirect URL that points back to the application.
-func CanonicalRedirectURL(r *http.Request) string {
-	// 1. default
-	redirectURL := "/"
+func CanonicalRedirectURL(r *http.Request, ingress string) string {
+	// 1. Default
+	defaultPath := defaultRedirectURL(ingress)
+	redirect := defaultPath
 
 	// 2. Referer header is set
-	referer := RefererPath(r)
+	referer := refererPath(r)
 	if len(referer) > 0 {
-		redirectURL = referer
+		redirect = referer
 	}
 
-	// 3. redirect parameter is set
-	override := r.URL.Query().Get(RedirectURLParameter)
-	if len(override) <= 0 {
-		return redirectURL
+	// 3. Redirect parameter is set
+	redirectParam, found := parseRedirectParam(r)
+	if found {
+		redirect = redirectParam
 	}
 
-	overrideUrl, err := url.Parse(override)
+	// 4. Ensure that empty path redirections falls back to the ingress' context path if applicable
+	if len(redirect) == 0 {
+		redirect = defaultPath
+	}
+
+	return redirect
+}
+
+func defaultRedirectURL(ingress string) string {
+	defaultPath := "/"
+	ingressPath := config.ParseIngress(ingress)
+
+	if len(ingressPath) > 0 {
+		defaultPath = ingressPath
+	}
+
+	return defaultPath
+}
+
+func parseRedirectParam(r *http.Request) (string, bool) {
+	redirectParam := r.URL.Query().Get(RedirectURLParameter)
+	if len(redirectParam) <= 0 {
+		return "", false
+	}
+
+	redirectParamURL, err := url.Parse(redirectParam)
 	if err != nil {
-		return redirectURL
+		return "", false
 	}
 
 	// strip scheme and host to avoid cross-domain redirects
-	overrideUrl.Scheme = ""
-	overrideUrl.Host = ""
-	overrideString := overrideUrl.String()
-	if len(overrideString) <= 0 {
-		return "/"
+	redirectParamURL.Scheme = ""
+	redirectParamURL.Host = ""
+
+	redirectParamURLString := redirectParamURL.String()
+
+	if len(redirectParamURLString) == 0 {
+		redirectParamURLString = "/"
 	}
 
-	return overrideString
+	return redirectParamURLString, true
 }
 
 // LoginURLParameter attempts to get a given parameter from the given HTTP request, falling back if none found.
@@ -74,15 +102,17 @@ func PostLogoutRedirectURI(r *http.Request, fallback string) string {
 	return fallback
 }
 
-func RefererPath(r *http.Request) string {
-	result := ""
-
-	referer, err := url.Parse(r.Referer())
-	if err == nil && len(referer.Path) > 0 {
-		result = referer.Path
+func refererPath(r *http.Request) string {
+	if len(r.Referer()) == 0 {
+		return ""
 	}
 
-	return result
+	referer, err := url.Parse(r.Referer())
+	if err != nil {
+		return ""
+	}
+
+	return referer.Path
 }
 
 // RetryURI returns a URI that should retry the desired route that failed.
@@ -91,34 +121,14 @@ func RefererPath(r *http.Request) string {
 // `/oauth2/login` endpoint unless the original request attempted to reach the logout-flow.
 func RetryURI(r *http.Request, ingress string, loginCookie *openid.LoginCookie) string {
 	retryURI := r.URL.Path
-
 	prefix := config.ParseIngress(ingress)
 
 	if strings.HasSuffix(retryURI, paths.OAuth2+paths.Logout) || strings.HasSuffix(retryURI, paths.OAuth2+paths.FrontChannelLogout) {
 		return prefix + retryURI
 	}
 
-	// 1. Default
-	redirect := "/"
+	redirect := CanonicalRedirectURL(r, ingress)
 
-	// 2. Ingress has path prefix
-	if len(prefix) > 0 {
-		redirect = prefix
-	}
-
-	// 3. Referer header is set
-	referer := RefererPath(r)
-	if len(referer) > 0 {
-		redirect = referer
-	}
-
-	// 4. Redirect parameter is set
-	redirectURLFromParam, err := url.Parse(r.URL.Query().Get(RedirectURLParameter))
-	if err == nil && len(redirectURLFromParam.Path) > 0 {
-		redirect = redirectURLFromParam.Path
-	}
-
-	// 5. Login cookie exists and referer is set
 	if loginCookie != nil && len(loginCookie.Referer) > 0 {
 		redirect = loginCookie.Referer
 	}
