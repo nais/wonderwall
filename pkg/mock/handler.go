@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
 type identityProviderHandler struct {
@@ -44,12 +44,12 @@ type tokenResponse struct {
 
 func (ip *identityProviderHandler) signToken(token jwt.Token) (string, error) {
 	privateJwkSet := *ip.Provider.PrivateJwkSet()
-	signer, ok := privateJwkSet.Get(0)
+	signer, ok := privateJwkSet.Key(0)
 	if !ok {
 		return "", fmt.Errorf("could not get signer")
 	}
 
-	signedToken, err := jwt.Sign(token, jwa.RS256, signer)
+	signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, signer))
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +147,7 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 
 	clientJwk := ip.Provider.GetClientConfiguration().GetClientJWK()
 	clientJwkSet := jwk.NewSet()
-	clientJwkSet.Add(clientJwk)
+	clientJwkSet.AddKey(clientJwk)
 	publicClientJwkSet, err := jwk.PublicSetOf(clientJwkSet)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

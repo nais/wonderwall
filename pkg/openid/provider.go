@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -27,7 +27,7 @@ type Provider interface {
 type provider struct {
 	clientConfiguration clients.Configuration
 	configuration       *Configuration
-	jwks                *jwk.AutoRefresh
+	jwksCache           *jwk.Cache
 	jwksLock            *jwksLock
 }
 
@@ -46,7 +46,7 @@ func (p provider) GetOpenIDConfiguration() *Configuration {
 
 func (p provider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 	url := p.configuration.JwksURI
-	set, err := p.jwks.Fetch(ctx, url)
+	set, err := p.jwksCache.Get(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("provider: fetching jwks: %w", err)
 	}
@@ -67,7 +67,7 @@ func (p provider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 	p.jwksLock.lastRefresh = time.Now()
 
 	url := p.configuration.JwksURI
-	set, err := p.jwks.Refresh(ctx, url)
+	set, err := p.jwksCache.Refresh(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("provider: refreshing jwks: %w", err)
 	}
@@ -135,9 +135,15 @@ func NewProvider(ctx context.Context, cfg *config.Config) (Provider, error) {
 	}
 
 	uri := configuration.JwksURI
-	jwksAutoRefresh := jwk.NewAutoRefresh(ctx)
-	jwksAutoRefresh.Configure(uri)
-	_, err = jwksAutoRefresh.Fetch(ctx, uri)
+	cache := jwk.NewCache(ctx)
+
+	err = cache.Register(uri)
+	if err != nil {
+		return nil, fmt.Errorf("registering jwks provider uri to cache: %w", err)
+	}
+
+	// trigger initial fetch and cache of jwk set
+	_, err = cache.Refresh(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("initial fetch of jwks from provider: %w", err)
 	}
@@ -145,7 +151,7 @@ func NewProvider(ctx context.Context, cfg *config.Config) (Provider, error) {
 	return &provider{
 		clientConfiguration: clientConfig,
 		configuration:       configuration,
-		jwks:                jwksAutoRefresh,
+		jwksCache:           cache,
 		jwksLock:            &jwksLock{},
 	}, nil
 }

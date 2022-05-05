@@ -3,7 +3,7 @@ package mock
 import (
 	"context"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/crypto"

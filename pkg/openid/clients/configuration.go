@@ -1,7 +1,7 @@
 package clients
 
 import (
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 
 	"github.com/nais/wonderwall/pkg/openid/scopes"
 )

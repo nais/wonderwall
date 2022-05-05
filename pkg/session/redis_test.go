@@ -7,7 +7,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
-	jwtlib "github.com/lestrrat-go/jwx/jwt"
+	jwtlib "github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nais/liberator/pkg/keygen"
 	"github.com/stretchr/testify/assert"
 

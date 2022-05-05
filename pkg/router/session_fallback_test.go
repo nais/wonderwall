@@ -1,14 +1,15 @@
 package router_test
 
 import (
+	"context"
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	jwtlib "github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	jwtlib "github.com/lestrrat-go/jwx/v2/jwt"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
@@ -152,30 +153,37 @@ func assertCookieExists(t *testing.T, h *router.Handler, cookieName, expectedVal
 
 func makeTokens(provider mock.TestProvider) *jwt.Tokens {
 	jwks := *provider.PrivateJwkSet()
+	jwksPublic, err := provider.GetPublicJwkSet(context.TODO())
+	if err != nil {
+		log.Fatalf("getting public jwk set: %+v", err)
+	}
 
-	signer, ok := jwks.Get(0)
+	signer, ok := jwks.Key(0)
 	if !ok {
 		log.Fatalf("getting signer")
 	}
 
 	idToken := jwtlib.New()
 	idToken.Set("jti", "id-token-jti")
-	signedIdToken, err := jwtlib.Sign(idToken, jwa.RS256, signer)
+
+	signedIdToken, err := jwtlib.Sign(idToken, jwtlib.WithKey(jwa.RS256, signer))
 	if err != nil {
 		log.Fatalf("signing id_token: %+v", err)
 	}
-	parsedIdToken, err := jwtlib.Parse(signedIdToken)
+
+	parsedIdToken, err := jwtlib.Parse(signedIdToken, jwtlib.WithKeySet(*jwksPublic))
 	if err != nil {
 		log.Fatalf("parsing signed id_token: %+v", err)
 	}
 
 	accessToken := jwtlib.New()
 	accessToken.Set("jti", "access-token-jti")
-	signedAccessToken, err := jwtlib.Sign(accessToken, jwa.RS256, signer)
+
+	signedAccessToken, err := jwtlib.Sign(accessToken, jwtlib.WithKey(jwa.RS256, signer))
 	if err != nil {
 		log.Fatalf("signing access_token: %+v", err)
 	}
-	parsedAccessToken, err := jwtlib.Parse(signedAccessToken)
+	parsedAccessToken, err := jwtlib.Parse(signedAccessToken, jwtlib.WithKeySet(*jwksPublic))
 	if err != nil {
 		log.Fatalf("parsing signed access_token: %+v", err)
 	}

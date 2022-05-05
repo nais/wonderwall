@@ -4,8 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
 func NewJwk() (jwk.Key, error) {
@@ -14,7 +14,7 @@ func NewJwk() (jwk.Key, error) {
 		panic(err)
 	}
 
-	key, err := jwk.New(privateKey)
+	key, err := jwk.FromRaw(privateKey)
 	if err != nil {
 		return nil, err
 	}

@@ -4,8 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
+)
+
+const (
+	AcceptableClockSkew = 10 * time.Second
 )
 
 type Token interface {
@@ -78,8 +83,10 @@ func NewToken(raw string, jwtToken jwt.Token) Token {
 
 func Parse(raw string, jwks jwk.Set) (jwt.Token, error) {
 	parseOpts := []jwt.ParseOption{
-		jwt.WithKeySet(jwks),
-		jwt.InferAlgorithmFromKey(true),
+		jwt.WithKeySet(jwks,
+			jws.WithInferAlgorithmFromKey(true),
+		),
+		jwt.WithAcceptableSkew(AcceptableClockSkew),
 	}
 	token, err := jwt.ParseString(raw, parseOpts...)
 	if err != nil {
