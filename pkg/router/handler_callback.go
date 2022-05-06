@@ -7,12 +7,19 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/jwt"
+	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid"
 	logentry "github.com/nais/wonderwall/pkg/router/middleware"
+)
+
+const (
+	retryBaseDuration = 50 * time.Millisecond
+	retryMaxDuration  = 1 * time.Second
 )
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
@@ -77,13 +84,13 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.Config.Loginstatus.Enabled {
-		loginstatusToken, err := h.Loginstatus.ExchangeToken(r.Context(), tokens.AccessToken)
+		tokenResponse, err := h.getLoginstatusToken(r.Context(), tokens)
 		if err != nil {
 			h.InternalError(w, r, fmt.Errorf("callback: exchanging loginstatus token: %w", err))
 			return
 		}
 
-		h.Loginstatus.SetCookie(w, loginstatusToken, h.CookieOptions)
+		h.Loginstatus.SetCookie(w, tokenResponse, h.CookieOptions)
 		log.Info("callback: successfully fetched loginstatus token")
 	}
 
@@ -92,23 +99,53 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.LoginCookie, code string) (*oauth2.Token, error) {
-	clientAssertion, err := openid.ClientAssertion(h.Provider, time.Second*30)
-	if err != nil {
-		return nil, fmt.Errorf("creating client assertion: %w", err)
-	}
+	var tokens *oauth2.Token
+	err := retry.Do(ctx, backoff(), func(ctx context.Context) error {
+		clientAssertion, err := openid.ClientAssertion(h.Provider, time.Second*30)
+		if err != nil {
+			return fmt.Errorf("creating client assertion: %w", err)
+		}
 
-	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("code_verifier", loginCookie.CodeVerifier),
-		oauth2.SetAuthURLParam("client_assertion", clientAssertion),
-		oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
-	}
+		opts := []oauth2.AuthCodeOption{
+			oauth2.SetAuthURLParam("code_verifier", loginCookie.CodeVerifier),
+			oauth2.SetAuthURLParam("client_assertion", clientAssertion),
+			oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
+		}
 
-	tokens, err := h.OauthConfig.Exchange(ctx, code, opts...)
+		tokens, err = h.OauthConfig.Exchange(ctx, code, opts...)
+		if err != nil {
+			log.Warnf("callback: exchanging authorization code for token; retrying: %+v", err)
+			return retry.RetryableError(err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("exchanging code for token: %w", err)
+		return nil, err
 	}
 
 	return tokens, nil
+}
+
+func (h *Handler) getLoginstatusToken(ctx context.Context, tokens *jwt.Tokens) (*loginstatus.TokenResponse, error) {
+	var tokenResponse *loginstatus.TokenResponse
+
+	err := retry.Do(ctx, backoff(), func(ctx context.Context) error {
+		var err error
+
+		tokenResponse, err = h.Loginstatus.ExchangeToken(ctx, tokens.AccessToken)
+		if err != nil {
+			log.Warnf("callback: exchanging loginstatus token; retrying: %+v", err)
+			return retry.RetryableError(err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return tokenResponse, nil
 }
 
 func logSuccessfulLogin(r *http.Request, tokens *jwt.Tokens, referer string) {
@@ -119,4 +156,10 @@ func logSuccessfulLogin(r *http.Request, tokens *jwt.Tokens, referer string) {
 
 	logger := logentry.LogEntry(r.Context()).With().Fields(fields).Logger()
 	logger.Info().Msg("callback: successful login")
+}
+
+func backoff() retry.Backoff {
+	b := retry.NewFibonacci(retryBaseDuration)
+	b = retry.WithMaxDuration(retryMaxDuration, b)
+	return b
 }
