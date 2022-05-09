@@ -81,7 +81,7 @@ func TestLoginURL(t *testing.T) {
 
 				assert.ElementsMatch(t, query["response_type"], []string{"code"})
 				assert.ElementsMatch(t, query["client_id"], []string{provider.ClientConfiguration.ClientID})
-				assert.ElementsMatch(t, query["redirect_uri"], []string{provider.ClientConfiguration.RedirectURI})
+				assert.ElementsMatch(t, query["redirect_uri"], []string{provider.ClientConfiguration.CallbackURI})
 				assert.ElementsMatch(t, query["scope"], []string{provider.ClientConfiguration.GetScopes().String()})
 				assert.ElementsMatch(t, query["state"], []string{params.State})
 				assert.ElementsMatch(t, query["nonce"], []string{params.Nonce})

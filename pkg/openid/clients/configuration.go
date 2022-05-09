@@ -10,7 +10,8 @@ type Configuration interface {
 	GetClientID() string
 	GetClientJWK() jwk.Key
 	GetPostLogoutRedirectURI() string
-	GetRedirectURI() string
+	GetCallbackURI() string
+	GetLogoutCallbackURI() string
 	GetScopes() scopes.Scopes
 	GetACRValues() string
 	GetUILocales() string

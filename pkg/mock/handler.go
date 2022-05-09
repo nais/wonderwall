@@ -223,3 +223,27 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(token)
 }
+
+func (ip *identityProviderHandler) EndSession(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	state := query.Get("state")
+	postLogoutRedirectURI := query.Get("post_logout_redirect_uri")
+
+	if state == "" || postLogoutRedirectURI == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing required parameters"))
+		return
+	}
+
+	u, err := url.Parse(postLogoutRedirectURI)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("couldn't parse post_logout_redirect_uri"))
+		return
+	}
+	v := url.Values{}
+	v.Set("state", state)
+
+	u.RawQuery = v.Encode()
+	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
+}

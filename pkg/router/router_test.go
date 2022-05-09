@@ -81,7 +81,7 @@ func TestHandler_Login(t *testing.T) {
 	assert.Equal(t, idp.GetClientConfiguration().GetACRValues(), u.Query().Get("acr_values"))
 	assert.Equal(t, idp.GetClientConfiguration().GetUILocales(), u.Query().Get("ui_locales"))
 	assert.Equal(t, idp.GetClientConfiguration().GetClientID(), u.Query().Get("client_id"))
-	assert.Equal(t, idp.GetClientConfiguration().GetRedirectURI(), u.Query().Get("redirect_uri"))
+	assert.Equal(t, idp.GetClientConfiguration().GetCallbackURI(), u.Query().Get("redirect_uri"))
 	assert.NotEmpty(t, u.Query().Get("state"))
 	assert.NotEmpty(t, u.Query().Get("nonce"))
 	assert.NotEmpty(t, u.Query().Get("code_challenge"))
@@ -106,8 +106,9 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	r := router.New(h)
 	server := httptest.NewServer(r)
 
-	idp.ClientConfiguration.RedirectURI = server.URL + "/oauth2/callback"
+	idp.ClientConfiguration.CallbackURI = server.URL + "/oauth2/callback"
 	idp.ClientConfiguration.PostLogoutRedirectURI = server.URL
+	idp.ClientConfiguration.LogoutCallbackURI = server.URL + "/oauth2/logout/callback"
 
 	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)
@@ -175,8 +176,10 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 
 	cookies = client.Jar.Cookies(logoutURL)
 	sessionCookie = getCookieFromJar(router.SessionCookieName, cookies)
+	logoutCookie := getCookieFromJar(router.LogoutCookieName, cookies)
 
 	assert.Nil(t, sessionCookie)
+	assert.NotNil(t, logoutCookie)
 
 	// Get endsession endpoint after local logout
 	location = resp.Header.Get("location")
@@ -187,11 +190,48 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.NoError(t, err)
 
 	endsessionParams := endsessionURL.Query()
-
+	expectedState := endsessionParams["state"]
 	assert.Equal(t, idpserverURL.Host, endsessionURL.Host)
 	assert.Equal(t, "/endsession", endsessionURL.Path)
-	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{idp.GetClientConfiguration().GetPostLogoutRedirectURI()})
+	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{idp.GetClientConfiguration().GetLogoutCallbackURI()})
 	assert.NotEmpty(t, endsessionParams["id_token_hint"])
+	assert.NotEmpty(t, expectedState)
+
+	// Follow redirect to endsession endpoint at identity provider
+	resp, err = client.Get(endsessionURL.String())
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	defer resp.Body.Close()
+
+	// Get post-logout redirect URI after successful logout at identity provider
+	location = resp.Header.Get("location")
+	logoutCallbackURI, err := url.Parse(location)
+	assert.NoError(t, err)
+	assert.Contains(t, logoutCallbackURI.String(), idp.ClientConfiguration.GetLogoutCallbackURI())
+	logoutCallbackParams := endsessionURL.Query()
+	actualState := logoutCallbackParams["state"]
+
+	assert.Equal(t, "/oauth2/logout/callback", logoutCallbackURI.Path)
+	assert.NotEmpty(t, actualState)
+	assert.Equal(t, expectedState, actualState)
+
+	// Follow redirect back to logout callback
+	resp, err = client.Get(logoutCallbackURI.String())
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+
+	// Get post-logout redirect URI after redirect back to logout callback
+	location = resp.Header.Get("location")
+	postLogoutRedirectURI, err := url.Parse(location)
+	assert.NoError(t, err)
+	assert.Equal(t, idp.ClientConfiguration.GetPostLogoutRedirectURI(), postLogoutRedirectURI.String())
+
+	cookies = client.Jar.Cookies(logoutCallbackURI)
+	sessionCookie = getCookieFromJar(router.SessionCookieName, cookies)
+	logoutCookie = getCookieFromJar(router.LogoutCookieName, cookies)
+
+	assert.Nil(t, sessionCookie)
+	assert.Nil(t, logoutCookie)
 }
 
 func TestHandler_FrontChannelLogout(t *testing.T) {
@@ -202,7 +242,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	r := router.New(h)
 	server := httptest.NewServer(r)
 
-	idp.ClientConfiguration.RedirectURI = server.URL + "/oauth2/callback"
+	idp.ClientConfiguration.CallbackURI = server.URL + "/oauth2/callback"
 	idp.ClientConfiguration.PostLogoutRedirectURI = server.URL
 
 	jar, err := cookiejar.New(nil)
@@ -276,7 +316,7 @@ func TestHandler_SessionStateRequired(t *testing.T) {
 	r := router.New(h)
 	server := httptest.NewServer(r)
 
-	idp.ClientConfiguration.RedirectURI = server.URL + "/oauth2/callback"
+	idp.ClientConfiguration.CallbackURI = server.URL + "/oauth2/callback"
 	idp.ClientConfiguration.PostLogoutRedirectURI = server.URL
 
 	jar, err := cookiejar.New(nil)

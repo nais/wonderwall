@@ -10,7 +10,8 @@ import (
 type TestClientConfiguration struct {
 	ClientID              string
 	ClientJWK             jwk.Key
-	RedirectURI           string
+	CallbackURI           string
+	LogoutCallbackURI     string
 	PostLogoutRedirectURI string
 	Scopes                scopes.Scopes
 	ACRValues             string
@@ -18,8 +19,8 @@ type TestClientConfiguration struct {
 	WellKnownURL          string
 }
 
-func (c TestClientConfiguration) GetRedirectURI() string {
-	return c.RedirectURI
+func (c TestClientConfiguration) GetCallbackURI() string {
+	return c.CallbackURI
 }
 
 func (c TestClientConfiguration) GetClientID() string {
@@ -28,6 +29,10 @@ func (c TestClientConfiguration) GetClientID() string {
 
 func (c TestClientConfiguration) GetClientJWK() jwk.Key {
 	return c.ClientJWK
+}
+
+func (c TestClientConfiguration) GetLogoutCallbackURI() string {
+	return c.LogoutCallbackURI
 }
 
 func (c TestClientConfiguration) GetPostLogoutRedirectURI() string {
@@ -59,7 +64,8 @@ func clientConfiguration() TestClientConfiguration {
 	return TestClientConfiguration{
 		ClientID:              "client_id",
 		ClientJWK:             key,
-		RedirectURI:           "http://localhost/callback",
+		CallbackURI:           "http://localhost/callback",
+		LogoutCallbackURI:     "http://localhost/logout/callback",
 		WellKnownURL:          "",
 		UILocales:             "nb",
 		ACRValues:             "Level4",

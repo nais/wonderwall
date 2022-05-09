@@ -40,7 +40,7 @@ func NewHandler(
 			AuthURL:  provider.GetOpenIDConfiguration().AuthorizationEndpoint,
 			TokenURL: provider.GetOpenIDConfiguration().TokenEndpoint,
 		},
-		RedirectURL: provider.GetClientConfiguration().GetRedirectURI(),
+		RedirectURL: provider.GetClientConfiguration().GetCallbackURI(),
 		Scopes:      provider.GetClientConfiguration().GetScopes(),
 	}
 	loginstatusClient := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)

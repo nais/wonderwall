@@ -93,15 +93,6 @@ func LoginURLParameter(r *http.Request, parameter, fallback string, supported op
 	return value, fmt.Errorf("%w: invalid value for %s=%s", InvalidLoginParameterError, parameter, value)
 }
 
-func PostLogoutRedirectURI(r *http.Request, fallback string) string {
-	value := r.URL.Query().Get(PostLogoutRedirectURIParameter)
-
-	if len(value) > 0 {
-		return value
-	}
-	return fallback
-}
-
 func refererPath(r *http.Request) string {
 	if len(r.Referer()) == 0 {
 		return ""

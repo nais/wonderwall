@@ -11,6 +11,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/openid/clients"
+	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 const (
@@ -91,12 +92,17 @@ func NewProvider(ctx context.Context, cfg *config.Config) (Provider, error) {
 		return nil, fmt.Errorf("missing required config %s", config.Ingress)
 	}
 
-	redirectURI, err := RedirectURI(ingress)
+	callbackURI, err := RedirectURI(ingress, paths.Callback)
 	if err != nil {
-		return nil, fmt.Errorf("creating redirect URI from ingress: %w", err)
+		return nil, fmt.Errorf("creating callback URI from ingress: %w", err)
 	}
 
-	openIDConfig := clients.NewOpenIDConfig(*cfg, clientJwk, redirectURI)
+	logoutCallbackURI, err := RedirectURI(ingress, paths.LogoutCallback)
+	if err != nil {
+		return nil, fmt.Errorf("creating logout callback URI from ingress: %w", err)
+	}
+
+	openIDConfig := clients.NewOpenIDConfig(*cfg, clientJwk, callbackURI, logoutCallbackURI)
 	var clientConfig clients.Configuration
 	switch cfg.OpenID.Provider {
 	case config.ProviderIDPorten:
@@ -161,7 +167,8 @@ func printConfigs(clientCfg clients.Configuration, openIdCfg Configuration) {
 	log.Infof("acr values: '%s'", clientCfg.GetACRValues())
 	log.Infof("client id: '%s'", clientCfg.GetClientID())
 	log.Infof("post-logout redirect uri: '%s'", clientCfg.GetPostLogoutRedirectURI())
-	log.Infof("redirect uri: '%s'", clientCfg.GetRedirectURI())
+	log.Infof("callback uri: '%s'", clientCfg.GetCallbackURI())
+	log.Infof("logout callback uri: '%s'", clientCfg.GetLogoutCallbackURI())
 	log.Infof("scopes: '%s'", clientCfg.GetScopes())
 	log.Infof("ui locales: '%s'", clientCfg.GetUILocales())
 
