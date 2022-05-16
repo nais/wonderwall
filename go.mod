@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/lestrrat-go/jwx/v2 v2.0.1
 	github.com/nais/liberator v0.0.0-20220505083635-84398d40ee40
-	github.com/prometheus/client_golang v1.12.1
+	github.com/prometheus/client_golang v1.12.2
 	github.com/rs/zerolog v1.26.1
 	github.com/sethvargo/go-retry v0.2.3
 	github.com/sirupsen/logrus v1.8.1
