@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
 type identityProviderHandler struct {
@@ -44,12 +44,12 @@ type tokenResponse struct {
 
 func (ip *identityProviderHandler) signToken(token jwt.Token) (string, error) {
 	privateJwkSet := *ip.Provider.PrivateJwkSet()
-	signer, ok := privateJwkSet.Get(0)
+	signer, ok := privateJwkSet.Key(0)
 	if !ok {
 		return "", fmt.Errorf("could not get signer")
 	}
 
-	signedToken, err := jwt.Sign(token, jwa.RS256, signer)
+	signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, signer))
 	if err != nil {
 		return "", err
 	}
@@ -99,8 +99,9 @@ func (ip *identityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }
 
-func (ip *identityProviderHandler) Jwks(w http.ResponseWriter, _ *http.Request) {
-	json.NewEncoder(w).Encode(ip.Provider.GetPublicJwkSet())
+func (ip *identityProviderHandler) Jwks(w http.ResponseWriter, r *http.Request) {
+	jwks, _ := ip.Provider.GetPublicJwkSet(r.Context())
+	json.NewEncoder(w).Encode(jwks)
 }
 
 func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request) {
@@ -151,7 +152,7 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 
 	clientJwk := ip.Provider.GetClientConfiguration().GetClientJWK()
 	clientJwkSet := jwk.NewSet()
-	clientJwkSet.Add(clientJwk)
+	clientJwkSet.AddKey(clientJwk)
 	publicClientJwkSet, err := jwk.PublicSetOf(clientJwkSet)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -320,4 +321,28 @@ func createToken(sub, iss string, expires int64) jwt.Token {
 	token.Set("exp", time.Now().Unix()+expires)
 
 	return token
+}
+
+func (ip *identityProviderHandler) EndSession(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	state := query.Get("state")
+	postLogoutRedirectURI := query.Get("post_logout_redirect_uri")
+
+	if state == "" || postLogoutRedirectURI == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing required parameters"))
+		return
+	}
+
+	u, err := url.Parse(postLogoutRedirectURI)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("couldn't parse post_logout_redirect_uri"))
+		return
+	}
+	v := url.Values{}
+	v.Set("state", state)
+
+	u.RawQuery = v.Encode()
+	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }

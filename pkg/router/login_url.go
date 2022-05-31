@@ -24,7 +24,7 @@ func (h *Handler) LoginURL(r *http.Request, params *openid.LoginParameters) (str
 	v := u.Query()
 	v.Add("response_type", "code")
 	v.Add("client_id", h.Provider.GetClientConfiguration().GetClientID())
-	v.Add("redirect_uri", h.Provider.GetClientConfiguration().GetRedirectURI())
+	v.Add("redirect_uri", h.Provider.GetClientConfiguration().GetCallbackURI())
 	v.Add("scope", h.Provider.GetClientConfiguration().GetScopes().String())
 	v.Add("state", params.State)
 	v.Add("nonce", params.Nonce)

@@ -43,6 +43,36 @@ func TestMakeWithDomain(t *testing.T) {
 	assert.Equal(t, ".some.domain", result.Domain)
 }
 
+func TestMakeWithPath(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		path string
+		want string
+	}{
+		{
+			name: "path with multiple subpaths",
+			path: "/some/path",
+			want: "/some/path",
+		},
+		{
+			name: "empty path",
+			path: "",
+			want: "/",
+		},
+		{
+			name: "root path",
+			path: "/",
+			want: "/",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			opts := cookie.DefaultOptions().WithPath(test.path)
+			result := cookie.Make("some-cookie", "some-value", opts)
+			assert.Equal(t, test.want, result.Path)
+		})
+	}
+}
+
 func TestClear(t *testing.T) {
 	opts := cookie.DefaultOptions()
 	name := "some-name"
@@ -89,6 +119,50 @@ func TestClearWithDomain(t *testing.T) {
 
 	assert.NotNil(t, result)
 	assert.Equal(t, "some.domain", result.Domain)
+}
+
+func TestClearWithPath(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		path string
+		want string
+	}{
+		{
+			name: "path with multiple subpaths",
+			path: "/some/path",
+			want: "/some/path",
+		},
+		{
+			name: "empty path",
+			path: "",
+			want: "/",
+		},
+		{
+			name: "root path",
+			path: "/",
+			want: "/",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			opts := cookie.DefaultOptions().WithPath(test.path)
+			name := "some-cookie"
+
+			writer := httptest.NewRecorder()
+			cookie.Clear(writer, name, opts)
+
+			cookies := writer.Result().Cookies()
+
+			var result *http.Cookie
+			for _, c := range cookies {
+				if c.Name == name {
+					result = c
+				}
+			}
+
+			assert.NotNil(t, result)
+			assert.Equal(t, test.want, result.Path)
+		})
+	}
 }
 
 func TestCookie_Encrypt(t *testing.T) {

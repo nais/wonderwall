@@ -5,5 +5,6 @@ const (
 	Login              = "/login"
 	Callback           = "/callback"
 	Logout             = "/logout"
+	LogoutCallback     = "/logout/callback"
 	FrontChannelLogout = "/logout/frontchannel"
 )

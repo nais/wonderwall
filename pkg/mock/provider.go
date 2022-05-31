@@ -1,7 +1,9 @@
 package mock
 
 import (
-	"github.com/lestrrat-go/jwx/jwk"
+	"context"
+
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/crypto"
@@ -23,8 +25,12 @@ func (p TestProvider) GetOpenIDConfiguration() *openid.Configuration {
 	return p.OpenIDConfiguration
 }
 
-func (p TestProvider) GetPublicJwkSet() *jwk.Set {
-	return &p.JwksPair.Public
+func (p TestProvider) GetPublicJwkSet(_ context.Context) (*jwk.Set, error) {
+	return &p.JwksPair.Public, nil
+}
+
+func (p TestProvider) RefreshPublicJwkSet(_ context.Context) (*jwk.Set, error) {
+	return &p.JwksPair.Public, nil
 }
 
 func (p TestProvider) PrivateJwkSet() *jwk.Set {

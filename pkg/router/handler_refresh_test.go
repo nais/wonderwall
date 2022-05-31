@@ -3,15 +3,15 @@ package router
 import (
 	"context"
 	"fmt"
-	"github.com/lestrrat-go/jwx/jwa"
-	jw "github.com/lestrrat-go/jwx/jwt"
+	jw "github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
-	"github.com/nais/wonderwall/pkg/jwt"
+	jwt "github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/rs/zerolog"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -42,6 +42,7 @@ func newHandler(provider openid.Provider) *Handler {
 func TestHandler_RefreshTest(t *testing.T) {
 	_, idp := mock.IdentityProviderServer()
 	h := newHandler(idp)
+	ctx := context.Background()
 
 	for _, test := range []struct {
 		name                string
@@ -82,13 +83,18 @@ func TestHandler_RefreshTest(t *testing.T) {
 
 		sessionData := &session.Data{
 			ExternalSessionID: "session_id",
-			AccessToken:       accessToken,
+			AccessToken:       string(accessToken),
 			IDToken:           "id_token",
-			RefreshToken:      refreshToken,
+			RefreshToken:      string(refreshToken),
 			TimesToRefresh:    test.timesToRefresh,
 		}
 
-		aToken, err := jwt.ParseAccessToken(sessionData.AccessToken, *h.Provider.GetPublicJwkSet())
+		publicKeys, err := h.Provider.GetPublicJwkSet(ctx)
+		if err != nil {
+			fmt.Printf("public keys: %v", err)
+		}
+
+		aToken, err := jwt.ParseAccessToken(sessionData.AccessToken, *publicKeys)
 		assert.NoError(t, err)
 		sessionLifeTime := h.getSessionLifetime(aToken)
 
@@ -109,22 +115,22 @@ func TestHandler_RefreshTest(t *testing.T) {
 	}
 }
 
-func signToken(idp mock.TestProvider, token jw.Token) (string, error) {
+func signToken(idp mock.TestProvider, token jw.Token) ([]byte, error) {
 	privateJwkSet := *idp.PrivateJwkSet()
-	signer, ok := privateJwkSet.Get(0)
+	signer, ok := privateJwkSet.Key(0)
 	if !ok {
-		return "", fmt.Errorf("could not get signer")
+		return nil, fmt.Errorf("could not get signer")
 	}
 
-	signedToken, err := jw.Sign(token, jwa.RS256, signer)
+	signedToken, err := jw.Sign(token, jw.WithKey(signer.Algorithm(), signer))
 	if err != nil {
-		return "", err
+		log.Fatalf("signing id_token: %+v", err)
 	}
 
-	return string(signedToken), nil
+	return signedToken, nil
 }
 
-func getToken(t *testing.T, idp mock.TestProvider, expires int64) string {
+func getToken(t *testing.T, idp mock.TestProvider, expires int64) []byte {
 	accessToken := jw.New()
 	accessToken.Set("sub", "client_id")
 	accessToken.Set("iss", idp.GetOpenIDConfiguration().Issuer)

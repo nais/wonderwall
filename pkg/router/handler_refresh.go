@@ -20,7 +20,13 @@ func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w h
 	// only 1 pod can do this, unlock on any return.
 	h.tokenRestore.lock.Lock()
 	defer h.tokenRestore.lock.Unlock()
-	accessToken, err := jwt.ParseAccessToken(session.AccessToken, *h.Provider.GetPublicJwkSet())
+
+	publicKeys, err := h.Provider.GetPublicJwkSet(ctx)
+	if err != nil {
+		return fmt.Errorf("public keys: %v", err)
+	}
+
+	accessToken, err := jwt.ParseAccessToken(session.AccessToken, *publicKeys)
 	if err != nil {
 		return fmt.Errorf("parse access token from session: %v", err)
 	}
@@ -76,7 +82,12 @@ func (h *Handler) ReClaimRefreshToken(ctx context.Context, session *session.Data
 }
 
 func (h *Handler) refreshSession(ctx context.Context, session *session.Data, w http.ResponseWriter, r *http.Request) error {
-	accessToken, err := jwt.ParseAccessToken(session.AccessToken, *h.Provider.GetPublicJwkSet())
+	publicKeys, err := h.Provider.GetPublicJwkSet(ctx)
+	if err != nil {
+		return fmt.Errorf("public keys: %v", err)
+	}
+
+	accessToken, err := jwt.ParseAccessToken(session.AccessToken, *publicKeys)
 	if err != nil {
 		return fmt.Errorf("parse access token from session: %v", err)
 	}

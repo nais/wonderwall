@@ -49,7 +49,7 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 
 	fallbackSessionData, err := h.GetSessionFallback(r)
 	if err != nil {
-		return nil, fmt.Errorf("fallback session not found: %w", err)
+		return nil, fmt.Errorf("getting fallback session: %w", err)
 	}
 
 	return fallbackSessionData, nil

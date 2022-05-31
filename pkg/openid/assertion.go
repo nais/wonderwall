@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
 func ClientAssertion(provider Provider, expiration time.Duration) (string, error) {
@@ -33,7 +32,7 @@ func ClientAssertion(provider Provider, expiration time.Duration) (string, error
 		}
 	}
 
-	encoded, err := jwt.Sign(tok, jwa.SignatureAlgorithm(key.Algorithm()), key)
+	encoded, err := jwt.Sign(tok, jwt.WithKey(key.Algorithm(), key))
 	if err != nil {
 		return "", fmt.Errorf("signing client assertion: %w", err)
 	}

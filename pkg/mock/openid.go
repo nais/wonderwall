@@ -26,5 +26,6 @@ func identityProviderRouter(ip *identityProviderHandler) chi.Router {
 	r.Get("/authorize", ip.Authorize)
 	r.Post("/token", ip.Token)
 	r.Get("/jwks", ip.Jwks)
+	r.Get("/endsession", ip.EndSession)
 	return r
 }

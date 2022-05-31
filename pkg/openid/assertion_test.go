@@ -4,8 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/mock"
@@ -27,8 +26,7 @@ func TestAssertion(t *testing.T) {
 	publicKey, err := key.PublicKey()
 	assert.NoError(t, err)
 	opts := []jwt.ParseOption{
-		jwt.WithValidate(true),
-		jwt.WithVerify(jwa.SignatureAlgorithm(publicKey.Algorithm()), publicKey),
+		jwt.WithKey(publicKey.Algorithm(), publicKey),
 		jwt.WithRequiredClaim(jwt.IssuedAtKey),
 		jwt.WithRequiredClaim(jwt.ExpirationKey),
 		jwt.WithRequiredClaim(jwt.JwtIDKey),

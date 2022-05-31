@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	jwtlib "github.com/lestrrat-go/jwx/jwt"
+	jwtlib "github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nais/liberator/pkg/keygen"
 	"github.com/stretchr/testify/assert"
 

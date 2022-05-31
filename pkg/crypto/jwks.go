@@ -1,7 +1,7 @@
 package crypto
 
 import (
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
 type JwkSet struct {
@@ -16,7 +16,7 @@ func NewJwkSet() (*JwkSet, error) {
 	}
 
 	privateKeys := jwk.NewSet()
-	privateKeys.Add(key)
+	privateKeys.AddKey(key)
 
 	publicKeys, err := jwk.PublicSetOf(privateKeys)
 	if err != nil {

@@ -41,8 +41,13 @@ func LogEntryHandler(logger zerolog.Logger) func(next http.Handler) http.Handler
 }
 
 func LogEntry(ctx context.Context) zerolog.Logger {
-	entry := ctx.Value(middleware.LogEntryCtxKey).(*requestLoggerEntry)
-	return entry.Logger
+	val := ctx.Value(middleware.LogEntryCtxKey)
+	entry, ok := val.(*requestLoggerEntry)
+	if ok {
+		return entry.Logger
+	}
+
+	return httplog.NewLogger("wonderwall")
 }
 
 type requestLogger struct {
@@ -123,6 +128,7 @@ func requestLogFields(r *http.Request) map[string]interface{} {
 	requestFields := map[string]interface{}{
 		"cookies":       requestCookies(r),
 		"protocol":      r.Proto,
+		"referer":       r.Referer(),
 		"requestMethod": r.Method,
 		"requestPath":   r.URL.Path,
 		"userAgent":     r.UserAgent(),

@@ -15,18 +15,89 @@ func TestCanonicalRedirectURL(t *testing.T) {
 	r, err := http.NewRequest("GET", "http://localhost:8080/oauth2/login", nil)
 	assert.NoError(t, err)
 
-	// Default URL is /
-	assert.Equal(t, "/", request.CanonicalRedirectURL(r))
+	t.Run("default redirect", func(t *testing.T) {
+		for _, test := range []struct {
+			name     string
+			ingress  string
+			expected string
+		}{
+			{
+				name:     "root with trailing slash",
+				ingress:  "http://localhost:8080/",
+				expected: "/",
+			},
+			{
+				name:     "root without trailing slash",
+				ingress:  "http://localhost:8080",
+				expected: "/",
+			},
+			{
+				name:     "path with trailing slash",
+				ingress:  "http://localhost:8080/path/",
+				expected: "/path",
+			},
+			{
+				name:     "path without trailing slash",
+				ingress:  "http://localhost:8080/path",
+				expected: "/path",
+			},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				assert.Equal(t, test.expected, request.CanonicalRedirectURL(r, test.ingress))
+			})
+		}
+	})
+
+	// Default path is /some-path
+	ingress := "http://localhost:8080/some-path"
 
 	// HTTP Referer header is 2nd priority
-	r.Header.Set("referer", "http://localhost:8080/foo/bar/baz?gnu=notunix")
-	assert.Equal(t, "/foo/bar/baz", request.CanonicalRedirectURL(r))
+	t.Run("Referer header is set", func(t *testing.T) {
+		r.Header.Set("referer", "http://localhost:8080/foo/bar/baz?gnu=notunix")
+		assert.Equal(t, "/foo/bar/baz", request.CanonicalRedirectURL(r, ingress))
+	})
 
 	// If redirect parameter is set, use that
-	v := &url.Values{}
-	v.Set("redirect", "https://google.com/path/to/redirect?val1=foo&val2=bar")
-	r.URL.RawQuery = v.Encode()
-	assert.Equal(t, "/path/to/redirect?val1=foo&val2=bar", request.CanonicalRedirectURL(r))
+	t.Run("redirect parameter is set", func(t *testing.T) {
+		for _, test := range []struct {
+			name     string
+			value    string
+			expected string
+		}{
+			{
+				name:     "complete url with parameters",
+				value:    "http://localhost:8080/path/to/redirect?val1=foo&val2=bar",
+				expected: "/path/to/redirect?val1=foo&val2=bar",
+			},
+			{
+				name:     "root url with trailing slash",
+				value:    "http://localhost:8080/",
+				expected: "/",
+			},
+			{
+				name:     "root url without trailing slash",
+				value:    "http://localhost:8080",
+				expected: "/",
+			},
+			{
+				name:     "url path with trailing slash",
+				value:    "http://localhost:8080/path/",
+				expected: "/path/",
+			},
+			{
+				name:     "url path without trailing slash",
+				value:    "http://localhost:8080/path",
+				expected: "/path",
+			},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				v := &url.Values{}
+				v.Set("redirect", test.value)
+				r.URL.RawQuery = v.Encode()
+				assert.Equal(t, test.expected, request.CanonicalRedirectURL(r, ingress))
+			})
+		}
+	})
 }
 
 func TestLoginURLParameter(t *testing.T) {
@@ -165,6 +236,17 @@ func TestRetryURI(t *testing.T) {
 			want:    "/domene/oauth2/login?redirect=/api/me",
 		},
 		{
+			name:    "login with root referer",
+			request: httpRequest("/oauth2/login", "/"),
+			want:    "/oauth2/login?redirect=/",
+		},
+		{
+			name:    "login with root referer on non-default ingress",
+			request: httpRequest("/oauth2/login", "/"),
+			ingress: "https://test.nav.no/domene",
+			want:    "/domene/oauth2/login?redirect=/",
+		},
+		{
 			name:        "login with cookie referer",
 			request:     httpRequest("/oauth2/login"),
 			loginCookie: &openid.LoginCookie{Referer: "/"},
@@ -195,6 +277,11 @@ func TestRetryURI(t *testing.T) {
 			want:    "/oauth2/login?redirect=/api/me",
 		},
 		{
+			name:    "login with redirect parameter set and query parameters",
+			request: httpRequest("/oauth2/login?redirect=/api/me?a=b%26c=d"),
+			want:    "/oauth2/login?redirect=/api/me?a=b&c=d",
+		},
+		{
 			name:    "login with redirect parameter set on non-default ingress",
 			request: httpRequest("/oauth2/login?redirect=/api/me"),
 			ingress: "https://test.nav.no/domene",
@@ -204,6 +291,33 @@ func TestRetryURI(t *testing.T) {
 			name:    "login with redirect parameter set takes precedence over referer header",
 			request: httpRequest("/oauth2/login?redirect=/other", "/api/me"),
 			want:    "/oauth2/login?redirect=/other",
+		},
+		{
+			name:    "login with redirect parameter set to relative root takes precedence over referer header",
+			request: httpRequest("/oauth2/login?redirect=/", "/api/me"),
+			want:    "/oauth2/login?redirect=/",
+		},
+		{
+			name:    "login with redirect parameter set to relative root on non-default ingress takes precedence over referer header",
+			request: httpRequest("/oauth2/login?redirect=/", "/api/me"),
+			ingress: "https://test.nav.no/domene",
+			want:    "/domene/oauth2/login?redirect=/",
+		},
+		{
+			name:    "login with redirect parameter set to absolute url takes precedence over referer header",
+			request: httpRequest("/oauth2/login?redirect=http://localhost:8080", "/api/me"),
+			want:    "/oauth2/login?redirect=/",
+		},
+		{
+			name:    "login with redirect parameter set to absolute url with trailing slash takes precedence over referer header",
+			request: httpRequest("/oauth2/login?redirect=http://localhost:8080/", "/api/me"),
+			want:    "/oauth2/login?redirect=/",
+		},
+		{
+			name:    "login with redirect parameter set to absolute url on non-default ingress takes precedence over referer header",
+			request: httpRequest("/oauth2/login?redirect=http://localhost:8080/", "/api/me"),
+			ingress: "https://test.nav.no/domene",
+			want:    "/domene/oauth2/login?redirect=/",
 		},
 		{
 			name:        "login with cookie referer takes precedence over redirect parameter",

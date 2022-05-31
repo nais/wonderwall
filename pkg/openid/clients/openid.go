@@ -1,7 +1,7 @@
 package clients
 
 import (
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
@@ -9,12 +9,13 @@ import (
 
 type OpenIDConfig struct {
 	config.OpenID
-	clientJwk   jwk.Key
-	redirectURI string
+	clientJwk         jwk.Key
+	callbackURI       string
+	logoutCallbackURI string
 }
 
-func (in *OpenIDConfig) GetRedirectURI() string {
-	return in.redirectURI
+func (in *OpenIDConfig) GetCallbackURI() string {
+	return in.callbackURI
 }
 
 func (in *OpenIDConfig) GetClientID() string {
@@ -23,6 +24,10 @@ func (in *OpenIDConfig) GetClientID() string {
 
 func (in *OpenIDConfig) GetClientJWK() jwk.Key {
 	return in.clientJwk
+}
+
+func (in *OpenIDConfig) GetLogoutCallbackURI() string {
+	return in.logoutCallbackURI
 }
 
 func (in *OpenIDConfig) GetPostLogoutRedirectURI() string {
@@ -45,10 +50,11 @@ func (in *OpenIDConfig) GetWellKnownURL() string {
 	return in.WellKnownURL
 }
 
-func NewOpenIDConfig(cfg config.Config, clientJwk jwk.Key, redirectURI string) *OpenIDConfig {
+func NewOpenIDConfig(cfg config.Config, clientJwk jwk.Key, callbackURI, logoutCallbackURI string) *OpenIDConfig {
 	return &OpenIDConfig{
-		OpenID:      cfg.OpenID,
-		clientJwk:   clientJwk,
-		redirectURI: redirectURI,
+		OpenID:            cfg.OpenID,
+		clientJwk:         clientJwk,
+		callbackURI:       callbackURI,
+		logoutCallbackURI: logoutCallbackURI,
 	}
 }

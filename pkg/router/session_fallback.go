@@ -94,9 +94,15 @@ func (h *Handler) GetSessionFallback(r *http.Request) (*session.Data, error) {
 		return nil, fmt.Errorf("converting refresh times from string: %w", err)
 	}
 
-	jwkSet := h.Provider.GetPublicJwkSet()
+	jwkSet, err := h.Provider.GetPublicJwkSet(r.Context())
+	if err != nil {
+		return nil, fmt.Errorf("callback: getting jwks: %w", err)
+	}
+
 	tokens, err := jwt.ParseTokensFromStrings(idToken, accessToken, refreshToken, *jwkSet)
 	if err != nil {
+		// JWKS might not be up-to-date, so we'll want to force a refresh for the next attempt
+		_, _ = h.Provider.RefreshPublicJwkSet(r.Context())
 		return nil, fmt.Errorf("parsing tokens: %w", err)
 	}
 

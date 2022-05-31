@@ -60,6 +60,10 @@ func Clear(w http.ResponseWriter, name string, opts Options) {
 		cookie.Domain = opts.Domain
 	}
 
+	if len(opts.Path) > 0 {
+		cookie.Path = opts.Path
+	}
+
 	http.SetCookie(w, cookie)
 }
 
@@ -89,6 +93,10 @@ func Make(name, value string, opts Options) *Cookie {
 
 	if len(opts.Domain) > 0 {
 		cookie.Domain = opts.Domain
+	}
+
+	if len(opts.Path) > 0 {
+		cookie.Path = opts.Path
 	}
 
 	return &Cookie{cookie}

@@ -8,7 +8,7 @@ import (
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
-func RedirectURI(ingress string) (string, error) {
+func RedirectURI(ingress, redirectPath string) (string, error) {
 	if len(ingress) == 0 {
 		return "", fmt.Errorf("ingress cannot be empty")
 	}
@@ -18,6 +18,6 @@ func RedirectURI(ingress string) (string, error) {
 		return "", err
 	}
 
-	base.Path = path.Join(base.Path, paths.OAuth2, paths.Callback)
+	base.Path = path.Join(base.Path, paths.OAuth2, redirectPath)
 	return base.String(), nil
 }

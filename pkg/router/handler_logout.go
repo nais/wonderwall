@@ -1,13 +1,17 @@
 package router
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/go-redis/redis/v8"
 
-	"github.com/nais/wonderwall/pkg/router/request"
+	"github.com/nais/wonderwall/pkg/openid"
+	logentry "github.com/nais/wonderwall/pkg/router/middleware"
+	"github.com/nais/wonderwall/pkg/strings"
 )
 
 // Logout triggers self-initiated for the current user
@@ -26,12 +30,16 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err == nil && sessionData != nil {
 		idToken = sessionData.IDToken
 		err = h.destroySession(w, r, h.localSessionID(sessionData.ExternalSessionID))
-		if err != nil {
+		if err != nil && !errors.Is(err, redis.Nil) {
 			h.InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
 			return
 		}
 
-		log.WithField("claims", sessionData.Claims).Infof("logout: successful logout")
+		fields := map[string]interface{}{
+			"claims": sessionData.Claims,
+		}
+		logger := logentry.LogEntry(r.Context()).With().Fields(fields).Logger()
+		logger.Info().Msg("logout: successful local logout")
 	}
 
 	h.deleteCookie(w, SessionCookieName, h.CookieOptions)
@@ -40,12 +48,21 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
 	}
 
-	v := u.Query()
-
-	postLogoutURI := request.PostLogoutRedirectURI(r, h.Provider.GetClientConfiguration().GetPostLogoutRedirectURI())
-	if len(postLogoutURI) > 0 {
-		v.Add("post_logout_redirect_uri", postLogoutURI)
+	logoutCookie, err := h.logoutCookie()
+	if err != nil {
+		h.InternalError(w, r, fmt.Errorf("logout: generating logout cookie: %w", err))
+		return
 	}
+
+	err = h.setLogoutCookie(w, logoutCookie)
+	if err != nil {
+		h.InternalError(w, r, fmt.Errorf("logout: setting logout cookie: %w", err))
+		return
+	}
+
+	v := u.Query()
+	v.Add("post_logout_redirect_uri", h.Provider.GetClientConfiguration().GetLogoutCallbackURI())
+	v.Add("state", logoutCookie.State)
 
 	if len(idToken) > 0 {
 		v.Add("id_token_hint", idToken)
@@ -53,5 +70,41 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	u.RawQuery = v.Encode()
 
+	fields := map[string]interface{}{
+		"redirect_to": logoutCookie.RedirectTo,
+	}
+	logger := logentry.LogEntry(r.Context()).With().Fields(fields).Logger()
+	logger.Info().Msg("logout: redirecting to identity provider")
+
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
+}
+
+func (h *Handler) logoutCookie() (*openid.LogoutCookie, error) {
+	state, err := strings.GenerateBase64(32)
+	if err != nil {
+		return nil, fmt.Errorf("generating state: %w", err)
+	}
+
+	return &openid.LogoutCookie{
+		State:      state,
+		RedirectTo: h.Provider.GetClientConfiguration().GetPostLogoutRedirectURI(),
+	}, nil
+}
+
+func (h *Handler) setLogoutCookie(w http.ResponseWriter, logoutCookie *openid.LogoutCookie) error {
+	logoutCookieJson, err := json.Marshal(logoutCookie)
+	if err != nil {
+		return fmt.Errorf("marshalling login cookie: %w", err)
+	}
+
+	opts := h.CookieOptions.
+		WithExpiresIn(LogoutCookieLifetime)
+	value := string(logoutCookieJson)
+
+	err = h.setEncryptedCookie(w, LogoutCookieName, value, opts)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

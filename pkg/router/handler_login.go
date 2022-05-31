@@ -37,16 +37,23 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	redirect := request.CanonicalRedirectURL(r, h.Config.Ingress)
 	err = h.setLoginCookies(w, &openid.LoginCookie{
 		State:        params.State,
 		Nonce:        params.Nonce,
 		CodeVerifier: params.CodeVerifier,
-		Referer:      request.CanonicalRedirectURL(r),
+		Referer:      redirect,
 	})
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
 		return
 	}
+
+	fields := map[string]interface{}{
+		"redirect_to": redirect,
+	}
+	logger := logentry.LogEntry(r.Context()).With().Fields(fields).Logger()
+	logger.Info().Msg("login: redirecting to identity provider")
 
 	http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
 }
@@ -54,8 +61,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
 	loginCookieJson, err := h.getDecryptedCookie(r, LoginCookieName)
 	if err != nil {
-		log := logentry.LogEntry(r.Context())
-		log.Info().Msgf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
+		logger := logentry.LogEntry(r.Context())
+		logger.Info().Msgf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
 
 		loginCookieJson, err = h.getDecryptedCookie(r, LoginLegacyCookieName)
 		if err != nil {

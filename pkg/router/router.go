@@ -25,6 +25,7 @@ func New(handler *Handler) chi.Router {
 		r.Get(paths.Callback, handler.Callback)
 		r.Get(paths.Logout, handler.Logout)
 		r.Get(paths.FrontChannelLogout, handler.FrontChannelLogout)
+		r.Get(paths.LogoutCallback, handler.LogoutCallback)
 	})
 	r.HandleFunc("/*", handler.Default)
 	return r
