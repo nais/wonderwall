@@ -25,11 +25,15 @@ func TestMemory(t *testing.T) {
 	accessToken := jwtlib.New()
 	accessToken.Set("jti", "access-token-jti")
 
+	refreshToken := jwtlib.New()
+	refreshToken.Set("jti", "refresh-token-jti")
+
 	tokens := &jwt.Tokens{
-		IDToken:     jwt.NewIDToken("id_token", idToken),
-		AccessToken: jwt.NewAccessToken("access_token", accessToken),
+		IDToken:      jwt.NewIDToken("id_token", idToken),
+		AccessToken:  jwt.NewAccessToken("access_token", accessToken),
+		RefreshToken: jwt.NewRefreshTokenToken("refresh_token", refreshToken),
 	}
-	data := session.NewData("myid", tokens)
+	data := session.NewData("myid", tokens, 1)
 
 	encryptedData, err := data.Encrypt(crypter)
 	assert.NoError(t, err)

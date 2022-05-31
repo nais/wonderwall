@@ -37,6 +37,7 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 		assert.Equal(t, "sid", sessionData.ExternalSessionID)
 		assert.Equal(t, tokens.AccessToken.GetSerialized(), sessionData.AccessToken)
 		assert.Equal(t, tokens.IDToken.GetSerialized(), sessionData.IDToken)
+		assert.Equal(t, tokens.RefreshToken.GetSerialized(), sessionData.RefreshToken)
 		assert.Equal(t, "id-token-jti", sessionData.Claims.IDTokenJti)
 		assert.Equal(t, "access-token-jti", sessionData.Claims.AccessTokenJti)
 	})
@@ -50,7 +51,7 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
 	tokens := makeTokens(provider)
-	data := session.NewData("sid", tokens)
+	data := session.NewData("sid", tokens, 0)
 	err := h.SetSessionFallback(writer, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -72,6 +73,10 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 			cookieName: h.SessionFallbackAccessTokenCookieName(),
 			want:       tokens.AccessToken.GetSerialized(),
 		},
+		{
+			cookieName: h.SessionFallbackRefreshTokenCookieName(),
+			want:       tokens.RefreshToken.GetSerialized(),
+		},
 	} {
 		assertCookieExists(t, h, test.cookieName, test.want, cookies)
 	}
@@ -89,11 +94,13 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 		cookies := writer.Result().Cookies()
 
 		assert.NotEmpty(t, cookies)
-		assert.Len(t, cookies, 3)
+		assert.Len(t, cookies, 5)
 
 		assertCookieExpired(t, h.SessionFallbackExternalIDCookieName(), cookies)
 		assertCookieExpired(t, h.SessionFallbackIDTokenCookieName(), cookies)
 		assertCookieExpired(t, h.SessionFallbackAccessTokenCookieName(), cookies)
+		assertCookieExpired(t, h.SessionFallbackRefreshTokenCookieName(), cookies)
+		assertCookieExpired(t, h.SessionFallbackTimesToRefreshCookieName(), cookies)
 	})
 
 	t.Run("skip expiring cookies if they are not set", func(t *testing.T) {
@@ -109,7 +116,7 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 func makeRequestWithFallbackCookies(t *testing.T, h *router.Handler, tokens *jwt.Tokens) *http.Request {
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
-	data := session.NewData("sid", tokens)
+	data := session.NewData("sid", tokens, 0)
 	err := h.SetSessionFallback(writer, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -121,12 +128,18 @@ func makeRequestWithFallbackCookies(t *testing.T, h *router.Handler, tokens *jwt
 	assert.NotNil(t, idTokenCookie)
 	accessTokenCookie := getCookieFromJar(h.SessionFallbackAccessTokenCookieName(), cookies)
 	assert.NotNil(t, accessTokenCookie)
+	refreshTokenCookie := getCookieFromJar(h.SessionFallbackRefreshTokenCookieName(), cookies)
+	assert.NotNil(t, refreshTokenCookie)
+	timesToRefreshCookie := getCookieFromJar(h.SessionFallbackTimesToRefreshCookieName(), cookies)
+	assert.NotNil(t, refreshTokenCookie)
 
 	// make request with fallback session cookies set
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.AddCookie(externalSessionIDCookie)
 	r.AddCookie(idTokenCookie)
 	r.AddCookie(accessTokenCookie)
+	r.AddCookie(refreshTokenCookie)
+	r.AddCookie(timesToRefreshCookie)
 
 	return r
 }
@@ -183,13 +196,29 @@ func makeTokens(provider mock.TestProvider) *jwt.Tokens {
 	if err != nil {
 		log.Fatalf("signing access_token: %+v", err)
 	}
+
 	parsedAccessToken, err := jwtlib.Parse(signedAccessToken, jwtlib.WithKeySet(*jwksPublic))
 	if err != nil {
 		log.Fatalf("parsing signed access_token: %+v", err)
 	}
 
+	refreshToken := jwtlib.New()
+
+	accessToken.Set("jti", "access-token-jti")
+
+	signedRefreshToken, err := jwtlib.Sign(refreshToken, jwtlib.WithKey(jwa.RS256, signer))
+	if err != nil {
+		log.Fatalf("signing refresh_token: %+v", err)
+	}
+
+	parsedRefreshToken, err := jwtlib.Parse(signedRefreshToken, jwtlib.WithKeySet(*jwksPublic))
+	if err != nil {
+		log.Fatalf("parsing signed refresh_token: %+v", err)
+	}
+
 	return &jwt.Tokens{
-		IDToken:     jwt.NewIDToken(string(signedIdToken), parsedIdToken),
-		AccessToken: jwt.NewAccessToken(string(signedAccessToken), parsedAccessToken),
+		IDToken:      jwt.NewIDToken(string(signedIdToken), parsedIdToken),
+		AccessToken:  jwt.NewAccessToken(string(signedAccessToken), parsedAccessToken),
+		RefreshToken: jwt.NewRefreshTokenToken(string(signedRefreshToken), parsedRefreshToken),
 	}
 }

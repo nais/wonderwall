@@ -1,0 +1,62 @@
+package refresh
+
+import (
+	"golang.org/x/oauth2"
+	"time"
+)
+
+type TokenCollector struct {
+	RefreshToken *refreshToken
+	AccessToken  *accessToken
+	Expiry       time.Time
+}
+
+func NewTokenCollector(tokenResponse *oauth2.Token, currentRefreshToken, currentAccessToken string) *TokenCollector {
+	return &TokenCollector{
+		RefreshToken: &refreshToken{
+			otherToken: currentRefreshToken,
+			refresh:    false,
+			rawToken:   tokenResponse.RefreshToken,
+		},
+		AccessToken: &accessToken{
+			otherToken: currentAccessToken,
+			refresh:    false,
+			rawToken:   tokenResponse.AccessToken,
+		},
+		Expiry: tokenResponse.Expiry,
+	}
+}
+
+func (in *TokenCollector) Refreshed() bool {
+	return in.RefreshToken.refresh || in.AccessToken.refresh
+}
+
+type refreshToken struct {
+	otherToken string
+	refresh    bool
+	rawToken   string
+}
+
+func (in *accessToken) Refreshed() bool {
+	in.refresh = in.rawToken != in.otherToken
+	return in.refresh
+}
+
+func (in *accessToken) GetRaw() string {
+	return in.rawToken
+}
+
+type accessToken struct {
+	otherToken string
+	refresh    bool
+	rawToken   string
+}
+
+func (in *refreshToken) Refreshed() bool {
+	in.refresh = in.rawToken != in.otherToken
+	return in.refresh
+}
+
+func (in *refreshToken) GetRaw() string {
+	return in.rawToken
+}

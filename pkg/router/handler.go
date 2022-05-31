@@ -25,6 +25,12 @@ type Handler struct {
 	Sessions      session.Store
 	lock          sync.Mutex
 	Httplogger    zerolog.Logger
+	tokenRestore  TokenRestore
+}
+
+type TokenRestore struct {
+	ActiveSession bool
+	lock          sync.Mutex
 }
 
 func NewHandler(
@@ -58,5 +64,9 @@ func NewHandler(
 		OauthConfig:   oauthConfig,
 		Provider:      provider,
 		Sessions:      sessionStore,
+		tokenRestore: TokenRestore{
+			ActiveSession: true,
+			lock:          sync.Mutex{},
+		},
 	}, nil
 }

@@ -18,7 +18,9 @@ type Config struct {
 	EncryptionKey      string        `json:"encryption-key"`
 	ErrorRedirectURI   string        `json:"error-redirect-uri"`
 	Ingress            string        `json:"ingress"`
+	RefreshToken       bool          `json:"refresh-token"`
 	SessionMaxLifetime time.Duration `json:"session-max-lifetime"`
+	SessionClockSkew   time.Duration `json:"session-clock-skew"`
 	UpstreamHost       string        `json:"upstream-host"`
 
 	OpenID OpenID `json:"openid"`
@@ -50,6 +52,7 @@ const (
 	ErrorRedirectURI   = "error-redirect-uri"
 	Ingress            = "ingress"
 	SessionMaxLifetime = "session-max-lifetime"
+	RefreshToken       = "refresh-token"
 	UpstreamHost       = "upstream-host"
 
 	LoginstatusEnabled           = "loginstatus.enabled"
@@ -71,6 +74,7 @@ func Initialize() (*Config, error) {
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
 	flag.String(Ingress, "", "Ingress used to access the main application.")
+	flag.Bool(RefreshToken, false, "Refresh token enabled.")
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 

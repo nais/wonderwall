@@ -24,6 +24,8 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	var idToken string
 
+	// do not want to refresh a logout
+	h.Config.RefreshToken = false
 	sessionData, err := h.getSessionFromCookie(w, r)
 	if err == nil && sessionData != nil {
 		idToken = sessionData.IDToken

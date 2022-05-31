@@ -84,14 +84,18 @@ type Data struct {
 	AccessToken       string     `json:"access_token"`
 	IDToken           string     `json:"id_token"`
 	Claims            jwt.Claims `json:"claims"`
+	RefreshToken      string     `json:"refresh_token"`
+	TimesToRefresh    int64      `json:"times_to_refresh"`
 }
 
-func NewData(externalSessionID string, tokens *jwt.Tokens) *Data {
+func NewData(externalSessionID string, tokens *jwt.Tokens, timesToRefresh int64) *Data {
 	return &Data{
 		ExternalSessionID: externalSessionID,
 		AccessToken:       tokens.AccessToken.GetSerialized(),
 		IDToken:           tokens.IDToken.GetSerialized(),
 		Claims:            tokens.Claims(),
+		RefreshToken:      tokens.RefreshToken.GetSerialized(),
+		TimesToRefresh:    timesToRefresh,
 	}
 }
 
