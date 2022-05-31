@@ -1,4 +1,4 @@
-package token
+package refresh
 
 import (
 	"context"
@@ -8,11 +8,11 @@ import (
 	"time"
 )
 
-type RefreshClient struct {
+type Client struct {
 	TokenSource oauth2.TokenSource
 }
 
-func NewRefreshClient(ctx context.Context, config oauth2.Config, provider openid.Provider, currRefreshToken string) (*RefreshClient, error) {
+func NewRefreshClient(ctx context.Context, config oauth2.Config, provider openid.Provider, currRefreshToken string) (*Client, error) {
 	clientAssertion, err := openid.ClientAssertion(provider, time.Second*30)
 	if err != nil {
 		return nil, fmt.Errorf("creating client assertion: %w", err)
@@ -24,19 +24,19 @@ func NewRefreshClient(ctx context.Context, config oauth2.Config, provider openid
 		RefreshToken: currRefreshToken,
 	}
 
-	return &RefreshClient{
+	return &Client{
 		TokenSource: oauth2.ReuseTokenSource(nil,
 			config.TokenSource(ctx, cfg),
 		),
 	}, nil
 }
 
-func (in *RefreshClient) Token(refreshToken, accessToken string) (*TokenBin, error) {
+func (in *Client) Token(refreshToken, accessToken string) (*TokenCollector, error) {
 	rt, err := in.TokenSource.Token()
 
 	if err != nil {
 		return nil, fmt.Errorf("refresh token request: %v", err)
 	}
 
-	return NewTokenBin(rt, refreshToken, accessToken), nil
+	return NewTokenCollector(rt, refreshToken, accessToken), nil
 }

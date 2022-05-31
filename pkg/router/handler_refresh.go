@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/nais/wonderwall/pkg/jwt"
+	"github.com/nais/wonderwall/pkg/refresh"
 	"github.com/nais/wonderwall/pkg/session"
-	"github.com/nais/wonderwall/pkg/token"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"
@@ -51,7 +51,7 @@ func (h *Handler) shouldRefresh(sessionLifeTime time.Duration, session *session.
 }
 
 func (h *Handler) ReClaimRefreshToken(ctx context.Context, session *session.Data, w http.ResponseWriter, r *http.Request) error {
-	rClient, err := token.NewRefreshClient(ctx, h.OauthConfig, h.Provider, session.RefreshToken)
+	rClient, err := refresh.NewRefreshClient(ctx, h.OauthConfig, h.Provider, session.RefreshToken)
 	if err != nil {
 		return fmt.Errorf("refresh client setup: %v", err)
 	}

@@ -1,18 +1,18 @@
-package token
+package refresh
 
 import (
 	"golang.org/x/oauth2"
 	"time"
 )
 
-type TokenBin struct {
+type TokenCollector struct {
 	RefreshToken *refreshToken
 	AccessToken  *accessToken
 	Expiry       time.Time
 }
 
-func NewTokenBin(tokenResponse *oauth2.Token, currentRefreshToken, currentAccessToken string) *TokenBin {
-	return &TokenBin{
+func NewTokenCollector(tokenResponse *oauth2.Token, currentRefreshToken, currentAccessToken string) *TokenCollector {
+	return &TokenCollector{
 		RefreshToken: &refreshToken{
 			otherToken: currentRefreshToken,
 			refresh:    false,
@@ -27,7 +27,7 @@ func NewTokenBin(tokenResponse *oauth2.Token, currentRefreshToken, currentAccess
 	}
 }
 
-func (in *TokenBin) Refreshed() bool {
+func (in *TokenCollector) Refreshed() bool {
 	return in.RefreshToken.refresh || in.AccessToken.refresh
 }
 
