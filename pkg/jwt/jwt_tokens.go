@@ -52,7 +52,7 @@ func ParseTokensFromStrings(idToken, accessToken, refreshToken string, jwks jwk.
 
 	parsedRefreshTokenToken, err := ParseRefreshTokenToken(refreshToken, jwks)
 	if err != nil {
-		return nil, fmt.Errorf("access_token: %w", err)
+		return nil, fmt.Errorf("refresh_token: %w", err)
 	}
 
 	return NewTokens(parsedIdToken, parsedAccessToken, parsedRefreshTokenToken), nil
