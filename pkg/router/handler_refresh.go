@@ -32,7 +32,7 @@ func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w h
 	}
 
 	sessionLifeTime := h.getSessionLifetime(accessToken)
-	if !shouldRefresh(sessionLifeTime, session) {
+	if !h.shouldRefresh(sessionLifeTime, session) {
 		if session.TimesToRefresh == 0 && h.tokenRestore.ActiveSession {
 			h.tokenRestore.ActiveSession = false
 			h.Logout(w, r)
@@ -46,8 +46,8 @@ func (h *Handler) RefreshSession(ctx context.Context, session *session.Data, w h
 	return nil
 }
 
-func shouldRefresh(sessionLifeTime time.Duration, session *session.Data) bool {
-	return session.TimesToRefresh > 0 && sessionLifeTime < 10*time.Second
+func (h *Handler) shouldRefresh(sessionLifeTime time.Duration, session *session.Data) bool {
+	return session.TimesToRefresh > 0 && sessionLifeTime < h.Config.SessionClockSkew*time.Second
 }
 
 func (h *Handler) ReClaimRefreshToken(ctx context.Context, session *session.Data, w http.ResponseWriter, r *http.Request) error {

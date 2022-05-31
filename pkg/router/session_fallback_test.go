@@ -196,12 +196,14 @@ func makeTokens(provider mock.TestProvider) *jwt.Tokens {
 	if err != nil {
 		log.Fatalf("signing access_token: %+v", err)
 	}
+
 	parsedAccessToken, err := jwtlib.Parse(signedAccessToken, jwtlib.WithKeySet(*jwksPublic))
 	if err != nil {
 		log.Fatalf("parsing signed access_token: %+v", err)
 	}
 
 	refreshToken := jwtlib.New()
+
 	accessToken.Set("jti", "access-token-jti")
 
 	signedRefreshToken, err := jwtlib.Sign(refreshToken, jwtlib.WithKey(jwa.RS256, signer))

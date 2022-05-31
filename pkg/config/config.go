@@ -20,6 +20,7 @@ type Config struct {
 	Ingress            string        `json:"ingress"`
 	RefreshToken       bool          `json:"refresh-token"`
 	SessionMaxLifetime time.Duration `json:"session-max-lifetime"`
+	SessionClockSkew   time.Duration `json:"session-clock-skew"`
 	UpstreamHost       string        `json:"upstream-host"`
 
 	OpenID OpenID `json:"openid"`

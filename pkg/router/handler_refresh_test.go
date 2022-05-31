@@ -101,7 +101,7 @@ func TestHandler_RefreshTest(t *testing.T) {
 		previousAccessToken := sessionData.AccessToken
 		previousRefreshToken := sessionData.RefreshToken
 
-		if shouldRefresh(sessionLifeTime, sessionData) {
+		if h.shouldRefresh(sessionLifeTime, sessionData) {
 			err := h.RefreshSession(context.Background(), sessionData, nil, nil)
 			assert.NoError(t, err)
 			assert.NotEqual(t, previousAccessToken, sessionData.AccessToken)
