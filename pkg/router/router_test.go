@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid"
@@ -67,9 +68,9 @@ func TestHandler_Login(t *testing.T) {
 	defer resp.Body.Close()
 
 	cookies := client.Jar.Cookies(loginURL)
-	loginCookie := getCookieFromJar(router.LoginCookieName, cookies)
+	loginCookie := getCookieFromJar(cookie.Login, cookies)
 	assert.NotNil(t, loginCookie)
-	loginLegacyCookie := getCookieFromJar(router.LoginLegacyCookieName, cookies)
+	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
 	assert.NotNil(t, loginLegacyCookie)
 
 	location := resp.Header.Get("location")
@@ -127,9 +128,9 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	defer resp.Body.Close()
 
 	cookies := client.Jar.Cookies(loginURL)
-	sessionCookie := getCookieFromJar(router.SessionCookieName, cookies)
-	loginCookie := getCookieFromJar(router.LoginCookieName, cookies)
-	loginLegacyCookie := getCookieFromJar(router.LoginLegacyCookieName, cookies)
+	sessionCookie := getCookieFromJar(cookie.Session, cookies)
+	loginCookie := getCookieFromJar(cookie.Login, cookies)
+	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
 
 	assert.Nil(t, sessionCookie)
 	assert.NotNil(t, loginCookie)
@@ -157,9 +158,9 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	cookies = client.Jar.Cookies(callbackURL)
-	sessionCookie = getCookieFromJar(router.SessionCookieName, cookies)
-	loginCookie = getCookieFromJar(router.LoginCookieName, cookies)
-	loginLegacyCookie = getCookieFromJar(router.LoginLegacyCookieName, cookies)
+	sessionCookie = getCookieFromJar(cookie.Session, cookies)
+	loginCookie = getCookieFromJar(cookie.Login, cookies)
+	loginLegacyCookie = getCookieFromJar(cookie.LoginLegacy, cookies)
 
 	assert.NotNil(t, sessionCookie)
 	assert.Nil(t, loginCookie)
@@ -175,8 +176,8 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	defer resp.Body.Close()
 
 	cookies = client.Jar.Cookies(logoutURL)
-	sessionCookie = getCookieFromJar(router.SessionCookieName, cookies)
-	logoutCookie := getCookieFromJar(router.LogoutCookieName, cookies)
+	sessionCookie = getCookieFromJar(cookie.Session, cookies)
+	logoutCookie := getCookieFromJar(cookie.Logout, cookies)
 
 	assert.Nil(t, sessionCookie)
 	assert.NotNil(t, logoutCookie)
@@ -227,8 +228,8 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.Equal(t, idp.ClientConfiguration.GetPostLogoutRedirectURI(), postLogoutRedirectURI.String())
 
 	cookies = client.Jar.Cookies(logoutCallbackURI)
-	sessionCookie = getCookieFromJar(router.SessionCookieName, cookies)
-	logoutCookie = getCookieFromJar(router.LogoutCookieName, cookies)
+	sessionCookie = getCookieFromJar(cookie.Session, cookies)
+	logoutCookie = getCookieFromJar(cookie.Logout, cookies)
 
 	assert.Nil(t, sessionCookie)
 	assert.Nil(t, logoutCookie)
@@ -282,7 +283,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	cookies := client.Jar.Cookies(callbackURL)
-	sessionCookie := getCookieFromJar(router.SessionCookieName, cookies)
+	sessionCookie := getCookieFromJar(cookie.Session, cookies)
 
 	assert.NotNil(t, sessionCookie)
 

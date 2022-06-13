@@ -11,6 +11,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -25,7 +26,7 @@ func (h *Handler) localSessionID(sessionID string) string {
 }
 
 func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (*session.Data, error) {
-	sessionID, err := h.getDecryptedCookie(r, SessionCookieName)
+	sessionID, err := h.getDecryptedCookie(r, cookie.Session)
 	if err != nil {
 		return nil, fmt.Errorf("no session cookie: %w", err)
 	}
@@ -86,7 +87,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 	opts := h.CookieOptions.WithExpiresIn(sessionLifetime)
 
 	sessionID := h.localSessionID(externalSessionID)
-	err = h.setEncryptedCookie(w, SessionCookieName, sessionID, opts)
+	err = h.setEncryptedCookie(w, cookie.Session, sessionID, opts)
 	if err != nil {
 		return fmt.Errorf("setting session cookie: %w", err)
 	}

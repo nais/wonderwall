@@ -12,6 +12,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog"
 	"github.com/rs/zerolog"
+
+	"github.com/nais/wonderwall/pkg/cookie"
 )
 
 // LogEntryHandler is copied verbatim from httplog package to replace with our own requestLogger implementation.
@@ -152,6 +154,10 @@ func requestCookies(r *http.Request) []requestCookie {
 	result := make([]requestCookie, 0)
 
 	for _, c := range r.Cookies() {
+		if !isRelevantCookie(c.Name) {
+			continue
+		}
+
 		result = append(result, requestCookie{
 			Name:    c.Name,
 			IsEmpty: len(c.Value) <= 0,
@@ -159,6 +165,18 @@ func requestCookies(r *http.Request) []requestCookie {
 	}
 
 	return result
+}
+
+func isRelevantCookie(name string) bool {
+	switch name {
+	case cookie.Session,
+		cookie.Login,
+		cookie.LoginLegacy,
+		cookie.Logout:
+		return true
+	}
+
+	return false
 }
 
 // limitBuffer is used to pipe response body information from the

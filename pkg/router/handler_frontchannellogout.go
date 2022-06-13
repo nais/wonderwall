@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/nais/wonderwall/pkg/cookie"
 )
 
 // FrontChannelLogout triggers logout triggered by a third-party.
@@ -12,7 +14,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	sid := params.Get("sid")
 
 	// Unconditionally destroy all local references to the session.
-	h.deleteCookie(w, SessionCookieName, h.CookieOptions)
+	h.deleteCookie(w, cookie.Session, h.CookieOptions)
 
 	if h.Config.Loginstatus.Enabled {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)

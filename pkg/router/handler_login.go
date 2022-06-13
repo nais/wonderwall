@@ -59,12 +59,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
-	loginCookieJson, err := h.getDecryptedCookie(r, LoginCookieName)
+	loginCookieJson, err := h.getDecryptedCookie(r, cookie.Login)
 	if err != nil {
 		logger := logentry.LogEntry(r.Context())
 		logger.Info().Msgf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
 
-		loginCookieJson, err = h.getDecryptedCookie(r, LoginLegacyCookieName)
+		loginCookieJson, err = h.getDecryptedCookie(r, cookie.LoginLegacy)
 		if err != nil {
 			return nil, err
 		}
@@ -90,13 +90,13 @@ func (h *Handler) setLoginCookies(w http.ResponseWriter, loginCookie *openid.Log
 		WithSameSite(http.SameSiteNoneMode)
 	value := string(loginCookieJson)
 
-	err = h.setEncryptedCookie(w, LoginCookieName, value, opts)
+	err = h.setEncryptedCookie(w, cookie.Login, value, opts)
 	if err != nil {
 		return err
 	}
 
 	// set a duplicate cookie without the SameSite value set for user agents that do not properly handle SameSite
-	err = h.setEncryptedCookie(w, LoginLegacyCookieName, value, opts.WithSameSite(http.SameSiteDefaultMode))
+	err = h.setEncryptedCookie(w, cookie.LoginLegacy, value, opts.WithSameSite(http.SameSiteDefaultMode))
 	if err != nil {
 		return err
 	}
@@ -106,6 +106,6 @@ func (h *Handler) setLoginCookies(w http.ResponseWriter, loginCookie *openid.Log
 
 func (h *Handler) clearLoginCookies(w http.ResponseWriter) {
 	opts := h.CookieOptions
-	cookie.Clear(w, LoginCookieName, opts.WithSameSite(http.SameSiteNoneMode))
-	cookie.Clear(w, LoginLegacyCookieName, opts.WithSameSite(http.SameSiteDefaultMode))
+	cookie.Clear(w, cookie.Login, opts.WithSameSite(http.SameSiteNoneMode))
+	cookie.Clear(w, cookie.LoginLegacy, opts.WithSameSite(http.SameSiteDefaultMode))
 }

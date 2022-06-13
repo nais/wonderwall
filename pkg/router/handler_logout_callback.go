@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
 	logentry "github.com/nais/wonderwall/pkg/router/middleware"
 )
@@ -16,7 +17,7 @@ const (
 
 // LogoutCallback handles the callback from the self-initiated logout for the current user
 func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
-	h.deleteCookie(w, LogoutCookieName, h.CookieOptions)
+	h.deleteCookie(w, cookie.Logout, h.CookieOptions)
 
 	logger := logentry.LogEntry(r.Context())
 
@@ -48,7 +49,7 @@ func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getLogoutCookie(r *http.Request) (*openid.LogoutCookie, error) {
-	logoutCookieJson, err := h.getDecryptedCookie(r, LogoutCookieName)
+	logoutCookieJson, err := h.getDecryptedCookie(r, cookie.Logout)
 	if err != nil {
 		return nil, err
 	}

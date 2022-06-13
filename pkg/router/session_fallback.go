@@ -6,20 +6,21 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
 func (h *Handler) SessionFallbackExternalIDCookieName() string {
-	return SessionCookieName + ".1"
+	return cookie.Session + ".1"
 }
 
 func (h *Handler) SessionFallbackIDTokenCookieName() string {
-	return SessionCookieName + ".2"
+	return cookie.Session + ".2"
 }
 
 func (h *Handler) SessionFallbackAccessTokenCookieName() string {
-	return SessionCookieName + ".3"
+	return cookie.Session + ".3"
 }
 
 func (h *Handler) SetSessionFallback(w http.ResponseWriter, data *session.Data, expiresIn time.Duration) error {

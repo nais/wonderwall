@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
 	logentry "github.com/nais/wonderwall/pkg/router/middleware"
 	"github.com/nais/wonderwall/pkg/strings"
@@ -40,7 +41,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		logger.Info().Msg("logout: successful local logout")
 	}
 
-	h.deleteCookie(w, SessionCookieName, h.CookieOptions)
+	h.deleteCookie(w, cookie.Session, h.CookieOptions)
 
 	if h.Config.Loginstatus.Enabled {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
@@ -99,7 +100,7 @@ func (h *Handler) setLogoutCookie(w http.ResponseWriter, logoutCookie *openid.Lo
 		WithExpiresIn(LogoutCookieLifetime)
 	value := string(logoutCookieJson)
 
-	err = h.setEncryptedCookie(w, LogoutCookieName, value, opts)
+	err = h.setEncryptedCookie(w, cookie.Logout, value, opts)
 	if err != nil {
 		return err
 	}

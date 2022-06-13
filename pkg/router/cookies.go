@@ -6,13 +6,6 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 )
 
-const (
-	SessionCookieName     = "io.nais.wonderwall.session"
-	LoginCookieName       = "io.nais.wonderwall.callback"
-	LoginLegacyCookieName = "io.nais.wonderwall.callback.legacy"
-	LogoutCookieName      = "io.nais.wonderwall.logout"
-)
-
 func (h *Handler) setEncryptedCookie(w http.ResponseWriter, key string, plaintext string, opts cookie.Options) error {
 	encryptedCookie, err := cookie.Make(key, plaintext, opts).Encrypt(h.Crypter)
 	if err != nil {
