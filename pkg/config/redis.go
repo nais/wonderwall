@@ -23,10 +23,11 @@ type Redis struct {
 
 func (r *Redis) Client() (*redis.Client, error) {
 	opts := &redis.Options{
-		Network:  "tcp",
-		Addr:     r.Address,
-		Username: r.Username,
-		Password: r.Password,
+		Network:      "tcp",
+		Addr:         r.Address,
+		Username:     r.Username,
+		Password:     r.Password,
+		MinIdleConns: 1,
 	}
 
 	if r.TLS {
