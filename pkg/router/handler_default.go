@@ -63,9 +63,6 @@ func modifyRequest(dst, src *http.Request, upstreamHost string) {
 	dst.Host = src.Host
 	dst.URL.Host = upstreamHost
 	dst.URL.Scheme = "http"
-	dst.RequestURI = ""
-	// Attach request body from original request
-	dst.Body = src.Body
 }
 
 func withAuthentication(dst *http.Request, sessionData *session.Data) {
