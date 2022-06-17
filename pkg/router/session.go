@@ -66,10 +66,10 @@ func (h *Handler) getSession(ctx context.Context, sessionID string) (*session.Da
 	return sessionData, nil
 }
 
-func (h *Handler) getSessionLifetime(accessToken *jwt.AccessToken) time.Duration {
+func (h *Handler) getSessionLifetime(tokenExpiry time.Time) time.Duration {
 	defaultSessionLifetime := h.Config.SessionMaxLifetime
 
-	tokenDuration := accessToken.GetExpiration().Sub(time.Now())
+	tokenDuration := tokenExpiry.Sub(time.Now())
 
 	if tokenDuration <= defaultSessionLifetime {
 		return tokenDuration
@@ -84,7 +84,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 		return fmt.Errorf("generating session ID: %w", err)
 	}
 
-	sessionLifetime := h.getSessionLifetime(tokens.AccessToken)
+	sessionLifetime := h.getSessionLifetime(rawTokens.Expiry)
 	opts := h.CookieOptions.WithExpiresIn(sessionLifetime)
 
 	sessionID := h.localSessionID(externalSessionID)
