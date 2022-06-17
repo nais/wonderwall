@@ -93,7 +93,8 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 		return fmt.Errorf("setting session cookie: %w", err)
 	}
 
-	sessionData := session.NewData(externalSessionID, tokens, rawTokens.RefreshToken)
+	sessionMetadata := session.NewMetadata(time.Now().Add(sessionLifetime))
+	sessionData := session.NewData(externalSessionID, tokens, rawTokens.RefreshToken, sessionMetadata)
 
 	encryptedSessionData, err := sessionData.Encrypt(h.Crypter)
 	if err != nil {

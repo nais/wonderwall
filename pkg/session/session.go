@@ -85,16 +85,41 @@ type Data struct {
 	IDToken           string     `json:"id_token"`
 	RefreshToken      string     `json:"refresh_token"`
 	Claims            jwt.Claims `json:"claims"`
+	Metadata          Metadata   `json:"metadata"`
 }
 
-func NewData(externalSessionID string, tokens *jwt.Tokens, refreshToken string) *Data {
-	return &Data{
+type Metadata struct {
+	CreatedAt   int64 `json:"created_at"`
+	RefreshedAt int64 `json:"refreshed_at"`
+	ExpiresAt   int64 `json:"expires_at"`
+}
+
+func NewMetadata(expiresAt time.Time) *Metadata {
+	return &Metadata{
+		CreatedAt:   time.Now().Unix(),
+		RefreshedAt: time.Now().Unix(),
+		ExpiresAt:   expiresAt.Unix(),
+	}
+}
+
+func (in *Metadata) UpdateRefreshedAt() {
+	in.RefreshedAt = time.Now().Unix()
+}
+
+func NewData(externalSessionID string, tokens *jwt.Tokens, refreshToken string, metadata *Metadata) *Data {
+	data := &Data{
 		ExternalSessionID: externalSessionID,
 		AccessToken:       tokens.AccessToken.GetSerialized(),
 		IDToken:           tokens.IDToken.GetSerialized(),
 		RefreshToken:      refreshToken,
 		Claims:            tokens.Claims(),
 	}
+
+	if metadata != nil {
+		data.Metadata = *metadata
+	}
+
+	return data
 }
 
 func (in *Data) Encrypt(crypter crypto.Crypter) (*EncryptedData, error) {
