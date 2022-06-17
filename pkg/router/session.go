@@ -79,7 +79,7 @@ func (h *Handler) getSessionLifetime(tokenExpiry time.Time) time.Duration {
 }
 
 func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *jwt.Tokens, rawTokens *oauth2.Token, params url.Values) error {
-	externalSessionID, err := NewSessionID(h.Provider.GetOpenIDConfiguration(), tokens.IDToken, params)
+	externalSessionID, err := session.NewSessionID(h.Provider.GetOpenIDConfiguration(), tokens.IDToken, params)
 	if err != nil {
 		return fmt.Errorf("generating session ID: %w", err)
 	}

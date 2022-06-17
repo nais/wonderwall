@@ -1,4 +1,4 @@
-package router_test
+package session_test
 
 import (
 	"net/url"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/router"
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 func TestSessionID(t *testing.T) {
@@ -98,7 +98,7 @@ func TestSessionID(t *testing.T) {
 			exactMatch: true,
 		},
 	} {
-		actual, err := router.NewSessionID(test.config, test.idToken, test.params)
+		actual, err := session.NewSessionID(test.config, test.idToken, test.params)
 
 		t.Run(test.name, func(t *testing.T) {
 			if test.expectErr {
