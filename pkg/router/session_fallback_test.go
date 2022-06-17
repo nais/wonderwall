@@ -26,13 +26,15 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 
 	t.Run("request without fallback session cookies", func(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		_, err := h.GetSessionFallback(r)
+		w := httptest.NewRecorder()
+		_, err := h.GetSessionFallback(w, r)
 		assert.Error(t, err)
 	})
 
 	t.Run("request with fallback session cookies", func(t *testing.T) {
 		r := makeRequestWithFallbackCookies(t, h, tokens)
-		sessionData, err := h.GetSessionFallback(r)
+		w := httptest.NewRecorder()
+		sessionData, err := h.GetSessionFallback(w, r)
 		assert.NoError(t, err)
 		assert.Equal(t, "sid", sessionData.ExternalSessionID)
 		assert.Equal(t, tokens.AccessToken.GetSerialized(), sessionData.AccessToken)
@@ -52,7 +54,7 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 	expiresIn := time.Minute
 	tokens := makeTokens(provider)
 	data := session.NewData("sid", tokens, "", nil)
-	err := h.SetSessionFallback(writer, data, expiresIn)
+	err := h.SetSessionFallback(writer, nil, data, expiresIn)
 	assert.NoError(t, err)
 
 	cookies := writer.Result().Cookies()
@@ -62,15 +64,15 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 		want       string
 	}{
 		{
-			cookieName: h.SessionFallbackExternalIDCookieName(),
+			cookieName: "wonderwall-1",
 			want:       "sid",
 		},
 		{
-			cookieName: h.SessionFallbackIDTokenCookieName(),
+			cookieName: "wonderwall-2",
 			want:       tokens.IDToken.GetSerialized(),
 		},
 		{
-			cookieName: h.SessionFallbackAccessTokenCookieName(),
+			cookieName: "wonderwall-3",
 			want:       tokens.AccessToken.GetSerialized(),
 		},
 	} {
@@ -92,9 +94,9 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 		assert.NotEmpty(t, cookies)
 		assert.Len(t, cookies, 3)
 
-		assertCookieExpired(t, h.SessionFallbackExternalIDCookieName(), cookies)
-		assertCookieExpired(t, h.SessionFallbackIDTokenCookieName(), cookies)
-		assertCookieExpired(t, h.SessionFallbackAccessTokenCookieName(), cookies)
+		assertCookieExpired(t, "wonderwall-1", cookies)
+		assertCookieExpired(t, "wonderwall-2", cookies)
+		assertCookieExpired(t, "wonderwall-3", cookies)
 	})
 
 	t.Run("skip expiring cookies if they are not set", func(t *testing.T) {
@@ -111,16 +113,16 @@ func makeRequestWithFallbackCookies(t *testing.T, h *router.Handler, tokens *jwt
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
 	data := session.NewData("sid", tokens, "", nil)
-	err := h.SetSessionFallback(writer, data, expiresIn)
+	err := h.SetSessionFallback(writer, nil, data, expiresIn)
 	assert.NoError(t, err)
 
 	cookies := writer.Result().Cookies()
 
-	externalSessionIDCookie := getCookieFromJar(h.SessionFallbackExternalIDCookieName(), cookies)
+	externalSessionIDCookie := getCookieFromJar("wonderwall-1", cookies)
 	assert.NotNil(t, externalSessionIDCookie)
-	idTokenCookie := getCookieFromJar(h.SessionFallbackIDTokenCookieName(), cookies)
+	idTokenCookie := getCookieFromJar("wonderwall-2", cookies)
 	assert.NotNil(t, idTokenCookie)
-	accessTokenCookie := getCookieFromJar(h.SessionFallbackAccessTokenCookieName(), cookies)
+	accessTokenCookie := getCookieFromJar("wonderwall-3", cookies)
 	assert.NotNil(t, accessTokenCookie)
 
 	// make request with fallback session cookies set
