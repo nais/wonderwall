@@ -39,6 +39,7 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 		assert.Equal(t, tokens.IDToken.GetSerialized(), sessionData.IDToken)
 		assert.Equal(t, "id-token-jti", sessionData.Claims.IDTokenJti)
 		assert.Equal(t, "access-token-jti", sessionData.Claims.AccessTokenJti)
+		assert.Empty(t, sessionData.RefreshToken)
 	})
 }
 
@@ -50,7 +51,7 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
 	tokens := makeTokens(provider)
-	data := session.NewData("sid", tokens)
+	data := session.NewData("sid", tokens, "")
 	err := h.SetSessionFallback(writer, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -109,7 +110,7 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 func makeRequestWithFallbackCookies(t *testing.T, h *router.Handler, tokens *jwt.Tokens) *http.Request {
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
-	data := session.NewData("sid", tokens)
+	data := session.NewData("sid", tokens, "")
 	err := h.SetSessionFallback(writer, data, expiresIn)
 	assert.NoError(t, err)
 

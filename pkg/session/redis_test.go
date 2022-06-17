@@ -31,7 +31,9 @@ func TestRedis(t *testing.T) {
 		IDToken:     jwt.NewIDToken("id_token", idToken),
 		AccessToken: jwt.NewAccessToken("access_token", accessToken),
 	}
-	data := session.NewData("myid", tokens)
+	refreshToken := "some-refresh-token"
+
+	data := session.NewData("myid", tokens, refreshToken)
 
 	encryptedData, err := data.Encrypt(crypter)
 	assert.NoError(t, err)

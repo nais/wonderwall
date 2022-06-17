@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/jwt"
@@ -77,7 +78,7 @@ func (h *Handler) getSessionLifetime(accessToken *jwt.AccessToken) time.Duration
 	return defaultSessionLifetime
 }
 
-func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *jwt.Tokens, params url.Values) error {
+func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *jwt.Tokens, rawTokens *oauth2.Token, params url.Values) error {
 	externalSessionID, err := NewSessionID(h.Provider.GetOpenIDConfiguration(), tokens.IDToken, params)
 	if err != nil {
 		return fmt.Errorf("generating session ID: %w", err)
@@ -92,7 +93,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 		return fmt.Errorf("setting session cookie: %w", err)
 	}
 
-	sessionData := session.NewData(externalSessionID, tokens)
+	sessionData := session.NewData(externalSessionID, tokens, rawTokens.RefreshToken)
 
 	encryptedSessionData, err := sessionData.Encrypt(h.Crypter)
 	if err != nil {

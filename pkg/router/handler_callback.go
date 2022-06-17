@@ -77,7 +77,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.createSession(w, r, tokens, params)
+	err = h.createSession(w, r, tokens, rawTokens, params)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return

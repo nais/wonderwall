@@ -72,7 +72,7 @@ func (h *Handler) GetSessionFallback(r *http.Request) (*session.Data, error) {
 		return nil, fmt.Errorf("parsing tokens: %w", err)
 	}
 
-	return session.NewData(externalSessionID, tokens), nil
+	return session.NewData(externalSessionID, tokens, ""), nil
 }
 
 func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) {
