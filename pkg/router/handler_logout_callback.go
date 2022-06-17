@@ -17,7 +17,7 @@ const (
 
 // LogoutCallback handles the callback from the self-initiated logout for the current user
 func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
-	h.deleteCookie(w, cookie.Logout, h.CookieOptions)
+	cookie.Clear(w, cookie.Logout, h.CookieOptions)
 
 	logger := logentry.LogEntry(r.Context())
 
@@ -49,7 +49,7 @@ func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getLogoutCookie(r *http.Request) (*openid.LogoutCookie, error) {
-	logoutCookieJson, err := h.getDecryptedCookie(r, cookie.Logout)
+	logoutCookieJson, err := cookie.GetDecrypted(r, cookie.Logout, h.Crypter)
 	if err != nil {
 		return nil, err
 	}

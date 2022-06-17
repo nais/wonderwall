@@ -41,7 +41,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		logger.Info().Msg("logout: successful local logout")
 	}
 
-	h.deleteCookie(w, cookie.Session, h.CookieOptions)
+	cookie.Clear(w, cookie.Session, h.CookieOptions)
 
 	if h.Config.Loginstatus.Enabled {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
@@ -100,7 +100,7 @@ func (h *Handler) setLogoutCookie(w http.ResponseWriter, logoutCookie *openid.Lo
 		WithExpiresIn(LogoutCookieLifetime)
 	value := string(logoutCookieJson)
 
-	err = h.setEncryptedCookie(w, cookie.Logout, value, opts)
+	err = cookie.EncryptAndSet(w, cookie.Logout, value, opts, h.Crypter)
 	if err != nil {
 		return err
 	}

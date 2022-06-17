@@ -27,7 +27,7 @@ func (h *Handler) localSessionID(sessionID string) string {
 }
 
 func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (*session.Data, error) {
-	sessionID, err := h.getDecryptedCookie(r, cookie.Session)
+	sessionID, err := cookie.GetDecrypted(r, cookie.Session, h.Crypter)
 	if err != nil {
 		return nil, fmt.Errorf("no session cookie: %w", err)
 	}
@@ -88,7 +88,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 	opts := h.CookieOptions.WithExpiresIn(sessionLifetime)
 
 	sessionID := h.localSessionID(externalSessionID)
-	err = h.setEncryptedCookie(w, cookie.Session, sessionID, opts)
+	err = cookie.EncryptAndSet(w, cookie.Session, sessionID, opts, h.Crypter)
 	if err != nil {
 		return fmt.Errorf("setting session cookie: %w", err)
 	}

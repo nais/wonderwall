@@ -83,6 +83,15 @@ func Get(r *http.Request, key string) (*Cookie, error) {
 	return &Cookie{cookie}, nil
 }
 
+func GetDecrypted(r *http.Request, key string, crypter crypto.Crypter) (string, error) {
+	encryptedCookie, err := Get(r, key)
+	if err != nil {
+		return "", err
+	}
+
+	return encryptedCookie.Decrypt(crypter)
+}
+
 func Make(name, value string, opts Options) *Cookie {
 	expires := time.Now().Add(opts.ExpiresIn)
 	maxAge := int(opts.ExpiresIn.Seconds())
@@ -111,4 +120,14 @@ func Make(name, value string, opts Options) *Cookie {
 
 func Set(w http.ResponseWriter, cookie *Cookie) {
 	http.SetCookie(w, cookie.Cookie)
+}
+
+func EncryptAndSet(w http.ResponseWriter, key, value string, opts Options, crypter crypto.Crypter) error {
+	encryptedCookie, err := Make(key, value, opts).Encrypt(crypter)
+	if err != nil {
+		return err
+	}
+
+	Set(w, encryptedCookie)
+	return nil
 }
