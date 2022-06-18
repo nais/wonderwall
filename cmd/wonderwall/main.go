@@ -49,7 +49,7 @@ func run() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	prv, err := openid.NewProvider(ctx, cfg)
+	provider, err := openid.NewProvider(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func run() error {
 	crypt := crypto.NewCrypter(key)
 	sessionStore := session.NewStore(cfg)
 	httplogger := logging.NewHttpLogger(cfg)
-	h, err := router.NewHandler(*cfg, crypt, httplogger, prv, sessionStore)
+	h, err := router.NewHandler(*cfg, crypt, httplogger, provider, sessionStore)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}
