@@ -10,7 +10,6 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
 	logentry "github.com/nais/wonderwall/pkg/router/middleware"
-	"github.com/nais/wonderwall/pkg/router/request"
 )
 
 const (
@@ -18,44 +17,30 @@ const (
 )
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	params, err := openid.GenerateLoginParameters()
+	login, err := h.Client.Login(r)
 	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("login: generating login parameters: %w", err))
-		return
-	}
-
-	loginURL, err := h.LoginURL(r, params)
-	if err != nil {
-		cause := fmt.Errorf("login: creating login URL: %w", err)
-
-		if errors.Is(err, InvalidSecurityLevelError) || errors.Is(err, InvalidLocaleError) {
-			h.BadRequest(w, r, cause)
+		if errors.Is(err, openid.InvalidSecurityLevelError) || errors.Is(err, openid.InvalidLocaleError) {
+			h.BadRequest(w, r, err)
 		} else {
-			h.InternalError(w, r, cause)
+			h.InternalError(w, r, err)
 		}
 
 		return
 	}
 
-	redirect := request.CanonicalRedirectURL(r, h.Config.Ingress)
-	err = h.setLoginCookies(w, &openid.LoginCookie{
-		State:        params.State,
-		Nonce:        params.Nonce,
-		CodeVerifier: params.CodeVerifier,
-		Referer:      redirect,
-	})
+	err = h.setLoginCookies(w, login.Cookie())
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
 		return
 	}
 
 	fields := map[string]interface{}{
-		"redirect_to": redirect,
+		"redirect_after_login": login.CanonicalRedirect(),
 	}
-	logger := logentry.LogEntry(r.Context()).With().Fields(fields).Logger()
+	logger := logentry.LogEntryWithFields(r.Context(), fields)
 	logger.Info().Msg("login: redirecting to identity provider")
 
-	http.Redirect(w, r, loginURL, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, login.AuthCodeURL(), http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {

@@ -8,45 +8,17 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
-	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/mock"
-	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/router"
-	"github.com/nais/wonderwall/pkg/session"
 )
-
-var cfg = config.Config{
-	EncryptionKey: `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq`, // 256 bits AES
-	Ingress:       "/",
-	OpenID: config.OpenID{
-		Provider: "test",
-	},
-	SessionMaxLifetime: time.Hour,
-}
-
-func newHandler(provider openid.Provider) *router.Handler {
-	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
-	sessionStore := session.NewMemory()
-
-	h, err := router.NewHandler(cfg, crypter, zerolog.Logger{}, provider, sessionStore)
-	if err != nil {
-		panic(err)
-	}
-
-	h.CookieOptions = h.CookieOptions.WithSecure(false)
-	return h
-}
 
 func TestHandler_Login(t *testing.T) {
 	idpserver, idp := mock.IdentityProviderServer()
-	h := newHandler(idp)
+	h := mock.NewHandler(idp)
 	r := router.New(h)
 
 	jar, err := cookiejar.New(nil)
@@ -103,13 +75,14 @@ func TestHandler_Login(t *testing.T) {
 func TestHandler_Callback_and_Logout(t *testing.T) {
 	idpserver, idp := mock.IdentityProviderServer()
 
-	h := newHandler(idp)
+	h := mock.NewHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
 
 	idp.ClientConfiguration.CallbackURI = server.URL + "/oauth2/callback"
 	idp.ClientConfiguration.PostLogoutRedirectURI = server.URL
 	idp.ClientConfiguration.LogoutCallbackURI = server.URL + "/oauth2/logout/callback"
+	h.Client = mock.NewClient(idp)
 
 	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)
@@ -239,12 +212,13 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	_, idp := mock.IdentityProviderServer()
 	idp.WithFrontChannelLogoutSupport()
 
-	h := newHandler(idp)
+	h := mock.NewHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
 
 	idp.ClientConfiguration.CallbackURI = server.URL + "/oauth2/callback"
 	idp.ClientConfiguration.PostLogoutRedirectURI = server.URL
+	h.Client = mock.NewClient(idp)
 
 	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)
@@ -313,12 +287,13 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 func TestHandler_SessionStateRequired(t *testing.T) {
 	idpServer, idp := mock.IdentityProviderServer()
 	idp.WithCheckSessionIFrameSupport(idpServer.URL + "/checksession")
-	h := newHandler(idp)
+	h := mock.NewHandler(idp)
 	r := router.New(h)
 	server := httptest.NewServer(r)
 
 	idp.ClientConfiguration.CallbackURI = server.URL + "/oauth2/callback"
 	idp.ClientConfiguration.PostLogoutRedirectURI = server.URL
+	h.Client = mock.NewClient(idp)
 
 	jar, err := cookiejar.New(nil)
 	assert.NoError(t, err)

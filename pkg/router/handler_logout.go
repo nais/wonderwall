@@ -17,12 +17,6 @@ import (
 
 // Logout triggers self-initiated for the current user
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	u, err := url.Parse(h.Provider.GetOpenIDConfiguration().EndSessionEndpoint)
-	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("logout: parsing end session endpoint: %w", err))
-		return
-	}
-
 	var idToken string
 
 	sessionData, err := h.getSessionFromCookie(w, r)
@@ -37,7 +31,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		fields := map[string]interface{}{
 			"claims": sessionData.Claims,
 		}
-		logger := logentry.LogEntry(r.Context()).With().Fields(fields).Logger()
+		logger := logentry.LogEntryWithFields(r.Context(), fields)
 		logger.Info().Msg("logout: successful local logout")
 	}
 
@@ -45,6 +39,12 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	if h.Config.Loginstatus.Enabled {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
+	}
+
+	u, err := url.Parse(h.Provider.GetOpenIDConfiguration().EndSessionEndpoint)
+	if err != nil {
+		h.InternalError(w, r, fmt.Errorf("logout: parsing end session endpoint: %w", err))
+		return
 	}
 
 	logoutCookie, err := h.logoutCookie()
@@ -72,7 +72,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	fields := map[string]interface{}{
 		"redirect_to": logoutCookie.RedirectTo,
 	}
-	logger := logentry.LogEntry(r.Context()).With().Fields(fields).Logger()
+	logger := logentry.LogEntryWithFields(r.Context(), fields)
 	logger.Info().Msg("logout: redirecting to identity provider")
 
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)

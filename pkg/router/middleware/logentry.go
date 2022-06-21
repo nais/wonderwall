@@ -52,6 +52,10 @@ func LogEntry(ctx context.Context) zerolog.Logger {
 	return httplog.NewLogger("wonderwall")
 }
 
+func LogEntryWithFields(ctx context.Context, fields any) zerolog.Logger {
+	return LogEntry(ctx).With().Fields(fields).Logger()
+}
+
 type requestLogger struct {
 	Logger zerolog.Logger
 }

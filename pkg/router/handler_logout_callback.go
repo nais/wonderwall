@@ -33,7 +33,7 @@ func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 	actualState := params.Get("state")
 
 	if expectedState != actualState {
-		logger.Warn().Msgf("logout/callback: state parameter mismatch: expected %s, got %s", expectedState, actualState)
+		logger.Warn().Msgf("logout/callback: state parameter mismatch: expected %s, got %s; falling back to ingress", expectedState, actualState)
 		http.Redirect(w, r, h.Config.Ingress, http.StatusTemporaryRedirect)
 		return
 	}

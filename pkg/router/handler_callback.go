@@ -112,7 +112,7 @@ func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.
 			oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
 		}
 
-		tokens, err = h.OauthConfig.Exchange(ctx, code, opts...)
+		tokens, err = h.Client.AuthCodeGrant(ctx, code, opts)
 		if err != nil {
 			log.Warnf("callback: exchanging authorization code for token; retrying: %+v", err)
 			return retry.RetryableError(err)
@@ -154,7 +154,7 @@ func logSuccessfulLogin(r *http.Request, tokens *jwt.Tokens, referer string) {
 		"claims":      tokens.Claims(),
 	}
 
-	logger := logentry.LogEntry(r.Context()).With().Fields(fields).Logger()
+	logger := logentry.LogEntryWithFields(r.Context(), fields)
 	logger.Info().Msg("callback: successful login")
 }
 
