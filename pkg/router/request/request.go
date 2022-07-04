@@ -103,7 +103,9 @@ func refererPath(r *http.Request) string {
 		return ""
 	}
 
-	return referer.Path
+	referer.Scheme = ""
+	referer.Host = ""
+	return referer.String()
 }
 
 // RetryURI returns a URI that should retry the desired route that failed.
