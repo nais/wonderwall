@@ -53,8 +53,37 @@ func TestCanonicalRedirectURL(t *testing.T) {
 
 	// HTTP Referer header is 2nd priority
 	t.Run("Referer header is set", func(t *testing.T) {
-		r.Header.Set("referer", "http://localhost:8080/foo/bar/baz?gnu=notunix")
-		assert.Equal(t, "/foo/bar/baz", request.CanonicalRedirectURL(r, ingress))
+		for _, test := range []struct {
+			name     string
+			value    string
+			expected string
+		}{
+			{
+				name:     "full URL",
+				value:    "http://localhost:8080/foo/bar/baz",
+				expected: "/foo/bar/baz",
+			},
+			{
+				name:     "full URL with query parameters",
+				value:    "http://localhost:8080/foo/bar/baz?gnu=notunix",
+				expected: "/foo/bar/baz?gnu=notunix",
+			},
+			{
+				name:     "absolute path",
+				value:    "/foo/bar/baz",
+				expected: "/foo/bar/baz",
+			},
+			{
+				name:     "absolute path with query parameters",
+				value:    "/foo/bar/baz?gnu=notunix",
+				expected: "/foo/bar/baz?gnu=notunix",
+			},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				r.Header.Set("Referer", test.value)
+				assert.Equal(t, test.expected, request.CanonicalRedirectURL(r, ingress))
+			})
+		}
 	})
 
 	// If redirect parameter is set, use that
@@ -88,6 +117,16 @@ func TestCanonicalRedirectURL(t *testing.T) {
 				name:     "url path without trailing slash",
 				value:    "http://localhost:8080/path",
 				expected: "/path",
+			},
+			{
+				name:     "absolute path",
+				value:    "/path",
+				expected: "/path",
+			},
+			{
+				name:     "absolute path with query parameters",
+				value:    "/path?gnu=notunix",
+				expected: "/path?gnu=notunix",
 			},
 		} {
 			t.Run(test.name, func(t *testing.T) {
