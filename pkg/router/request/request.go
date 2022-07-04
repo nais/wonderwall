@@ -70,6 +70,7 @@ func parseRedirectParam(r *http.Request) (string, bool) {
 
 	redirectParamURLString := redirectParamURL.String()
 
+	// root path without trailing slash is empty
 	if len(redirectParamURLString) == 0 {
 		redirectParamURLString = "/"
 	}
@@ -103,6 +104,7 @@ func refererPath(r *http.Request) string {
 		return ""
 	}
 
+	// strip scheme and host to avoid cross-domain redirects
 	referer.Scheme = ""
 	referer.Host = ""
 	return referer.String()
