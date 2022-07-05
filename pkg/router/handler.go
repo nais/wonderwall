@@ -29,6 +29,7 @@ type Handler struct {
 }
 
 func NewHandler(
+	jwksRefreshCtx context.Context,
 	cfg *config.Config,
 	crypter crypto.Crypter,
 	httplogger zerolog.Logger,
@@ -40,10 +41,7 @@ func NewHandler(
 	cookiePath := config.ParseIngress(cfg.Ingress)
 	cookieOpts := cookie.DefaultOptions().WithPath(cookiePath)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	openidProvider, err := provider.NewProvider(ctx, openidConfig)
+	openidProvider, err := provider.NewProvider(jwksRefreshCtx, openidConfig)
 	if err != nil {
 		return nil, err
 	}

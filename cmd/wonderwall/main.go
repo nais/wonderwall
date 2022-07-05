@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/nais/liberator/pkg/conftools"
@@ -51,10 +52,13 @@ func run() error {
 		return err
 	}
 
+	jwksRefreshCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	crypt := crypto.NewCrypter(key)
 	sessionStore := session.NewStore(cfg)
 	httplogger := logging.NewHttpLogger(cfg)
-	h, err := router.NewHandler(cfg, crypt, httplogger, openidConfig, sessionStore)
+	h, err := router.NewHandler(jwksRefreshCtx, cfg, crypt, httplogger, openidConfig, sessionStore)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}

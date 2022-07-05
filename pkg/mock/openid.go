@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 )
 
 type IdentityProvider struct {
+	cancelFunc          context.CancelFunc
 	Cfg                 *config.Config
 	OpenIDConfig        Configuration
 	Provider            TestProvider
@@ -33,6 +35,7 @@ type IdentityProvider struct {
 }
 
 func (in IdentityProvider) Close() {
+	in.cancelFunc()
 	in.ProviderServer.Close()
 	in.RelyingPartyServer.Close()
 }
@@ -68,7 +71,8 @@ func NewIdentityProvider(cfg *config.Config) IdentityProvider {
 	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
 	sessionStore := session.NewMemory()
 
-	rpHandler, err := router.NewHandler(cfg, crypter, zerolog.Nop(), openidConfig, sessionStore)
+	ctx, cancel := context.WithCancel(context.Background())
+	rpHandler, err := router.NewHandler(ctx, cfg, crypter, zerolog.Nop(), openidConfig, sessionStore)
 	if err != nil {
 		panic(err)
 	}
@@ -77,6 +81,7 @@ func NewIdentityProvider(cfg *config.Config) IdentityProvider {
 	rpServer := httptest.NewServer(router.New(rpHandler))
 
 	return IdentityProvider{
+		cancelFunc:          cancel,
 		Cfg:                 cfg,
 		RelyingPartyHandler: rpHandler,
 		RelyingPartyServer:  rpServer,
