@@ -58,7 +58,7 @@ func run() error {
 	crypt := crypto.NewCrypter(key)
 	sessionStore := session.NewStore(cfg)
 	httplogger := logging.NewHttpLogger(cfg)
-	h, err := router.NewHandler(jwksRefreshCtx, cfg, crypt, httplogger, openidConfig, sessionStore)
+	h, err := router.NewHandler(jwksRefreshCtx, openidConfig, crypt, httplogger, sessionStore)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}

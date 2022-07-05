@@ -24,7 +24,7 @@ func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 	logoutCookie, err := h.getLogoutCookie(r)
 	if err != nil {
 		logger.Warn().Msgf("logout/callback: getting cookie: %+v", err)
-		http.Redirect(w, r, h.Config.Ingress, http.StatusTemporaryRedirect)
+		http.Redirect(w, r, h.Cfg.Wonderwall().Ingress, http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -34,13 +34,13 @@ func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 
 	if expectedState != actualState {
 		logger.Warn().Msgf("logout/callback: state parameter mismatch: expected %s, got %s; falling back to ingress", expectedState, actualState)
-		http.Redirect(w, r, h.Config.Ingress, http.StatusTemporaryRedirect)
+		http.Redirect(w, r, h.Cfg.Wonderwall().Ingress, http.StatusTemporaryRedirect)
 		return
 	}
 
 	if len(logoutCookie.RedirectTo) == 0 {
 		logger.Warn().Msgf("logout/callback: empty redirect; falling back to ingress")
-		http.Redirect(w, r, h.Config.Ingress, http.StatusTemporaryRedirect)
+		http.Redirect(w, r, h.Cfg.Wonderwall().Ingress, http.StatusTemporaryRedirect)
 		return
 	}
 

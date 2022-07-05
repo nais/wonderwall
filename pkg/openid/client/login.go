@@ -53,7 +53,7 @@ func NewLogin(c Client, r *http.Request) (Login, error) {
 		return nil, fmt.Errorf("generating login url: %w", err)
 	}
 
-	redirect := request.CanonicalRedirectURL(r, c.config().Ingress())
+	redirect := request.CanonicalRedirectURL(r, c.config().Wonderwall().Ingress)
 	cookie := params.cookie(redirect)
 
 	return login{
@@ -142,8 +142,8 @@ func (in *loginParameters) authCodeURL(r *http.Request) (string, error) {
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 	}
 
-	if in.config().Loginstatus().NeedsResourceIndicator() {
-		opts = append(opts, oauth2.SetAuthURLParam("resource", in.config().Loginstatus().ResourceIndicator))
+	if in.config().Wonderwall().Loginstatus.NeedsResourceIndicator() {
+		opts = append(opts, oauth2.SetAuthURLParam("resource", in.config().Wonderwall().Loginstatus.ResourceIndicator))
 	}
 
 	opts, err := in.withSecurityLevel(r, opts)

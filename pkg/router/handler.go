@@ -17,12 +17,11 @@ import (
 )
 
 type Handler struct {
+	Cfg           openidconfig.Config
 	Client        client.Client
-	Config        *config.Config
 	CookieOptions cookie.Options
 	Crypter       crypto.Crypter
 	Loginstatus   loginstatus.Client
-	OpenIDConfig  openidconfig.Config
 	Provider      provider.Provider
 	Sessions      session.Store
 	Httplogger    zerolog.Logger
@@ -30,35 +29,33 @@ type Handler struct {
 
 func NewHandler(
 	jwksRefreshCtx context.Context,
-	cfg *config.Config,
+	cfg openidconfig.Config,
 	crypter crypto.Crypter,
 	httplogger zerolog.Logger,
-	openidConfig openidconfig.Config,
 	sessionStore session.Store,
 ) (*Handler, error) {
-	loginstatusClient := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
+	loginstatusClient := loginstatus.NewClient(cfg.Wonderwall().Loginstatus, http.DefaultClient)
 
-	cookiePath := config.ParseIngress(cfg.Ingress)
+	cookiePath := config.ParseIngress(cfg.Wonderwall().Ingress)
 	cookieOpts := cookie.DefaultOptions().WithPath(cookiePath)
 
-	openidProvider, err := provider.NewProvider(jwksRefreshCtx, openidConfig)
+	openidProvider, err := provider.NewProvider(jwksRefreshCtx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	openidClient := client.NewClient(openidConfig)
+	openidClient := client.NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Handler{
 		Client:        openidClient,
-		Config:        cfg,
 		CookieOptions: cookieOpts,
 		Crypter:       crypter,
 		Httplogger:    httplogger,
 		Loginstatus:   loginstatusClient,
-		OpenIDConfig:  openidConfig,
+		Cfg:           cfg,
 		Provider:      openidProvider,
 		Sessions:      sessionStore,
 	}, nil

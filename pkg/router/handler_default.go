@@ -22,20 +22,20 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 		isAuthenticated = true
 
 		// force new authentication if loginstatus is enabled and cookie isn't set
-		if h.Config.Loginstatus.Enabled && !h.Loginstatus.HasCookie(r) {
+		if h.Cfg.Wonderwall().Loginstatus.Enabled && !h.Loginstatus.HasCookie(r) {
 			isAuthenticated = false
 			log.Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
 		}
 	}
 
-	if !isAuthenticated && h.Config.AutoLogin {
+	if !isAuthenticated && h.Cfg.Wonderwall().AutoLogin {
 		r.Header.Add("Referer", r.URL.String())
 		h.Login(w, r)
 		return
 	}
 
 	director := func(upstreamRequest *http.Request) {
-		modifyRequest(upstreamRequest, r, h.Config.UpstreamHost)
+		modifyRequest(upstreamRequest, r, h.Cfg.Wonderwall().UpstreamHost)
 
 		if isAuthenticated {
 			withAuthentication(upstreamRequest, sessionData)

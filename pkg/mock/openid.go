@@ -72,7 +72,7 @@ func NewIdentityProvider(cfg *config.Config) IdentityProvider {
 	sessionStore := session.NewMemory()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	rpHandler, err := router.NewHandler(ctx, cfg, crypter, zerolog.Nop(), openidConfig, sessionStore)
+	rpHandler, err := router.NewHandler(ctx, openidConfig, crypter, zerolog.Nop(), sessionStore)
 	if err != nil {
 		panic(err)
 	}

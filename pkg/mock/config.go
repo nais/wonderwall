@@ -20,10 +20,9 @@ func Config() *config.Config {
 }
 
 type Configuration struct {
-	ClientConfig      *TestClientConfiguration
-	ProviderConfig    *openidconfig.Provider
-	IngressConfig     string
-	LoginstatusConfig config.Loginstatus
+	ClientConfig     *TestClientConfiguration
+	ProviderConfig   *openidconfig.Provider
+	WonderwallConfig *config.Config
 }
 
 func (c Configuration) Client() openidconfig.Client {
@@ -34,19 +33,18 @@ func (c Configuration) Provider() *openidconfig.Provider {
 	return c.ProviderConfig
 }
 
-func (c Configuration) Ingress() string {
-	return c.IngressConfig
+func (c Configuration) ProviderName() string {
+	return string(c.WonderwallConfig.OpenID.Provider)
 }
 
-func (c Configuration) Loginstatus() config.Loginstatus {
-	return c.LoginstatusConfig
+func (c Configuration) Wonderwall() *config.Config {
+	return c.WonderwallConfig
 }
 
 func NewTestConfiguration(cfg *config.Config) Configuration {
 	return Configuration{
-		ClientConfig:      clientConfiguration(cfg),
-		ProviderConfig:    providerConfiguration(),
-		IngressConfig:     cfg.Ingress,
-		LoginstatusConfig: cfg.Loginstatus,
+		ClientConfig:     clientConfiguration(cfg),
+		ProviderConfig:   providerConfiguration(),
+		WonderwallConfig: cfg,
 	}
 }

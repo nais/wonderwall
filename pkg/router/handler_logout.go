@@ -37,11 +37,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	cookie.Clear(w, cookie.Session, h.CookieOptions)
 
-	if h.Config.Loginstatus.Enabled {
+	if h.Cfg.Wonderwall().Loginstatus.Enabled {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
 	}
 
-	u, err := url.Parse(h.OpenIDConfig.Provider().EndSessionEndpoint)
+	u, err := url.Parse(h.Cfg.Provider().EndSessionEndpoint)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("logout: parsing end session endpoint: %w", err))
 		return
@@ -60,7 +60,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := u.Query()
-	v.Add("post_logout_redirect_uri", h.OpenIDConfig.Client().GetLogoutCallbackURI())
+	v.Add("post_logout_redirect_uri", h.Cfg.Client().GetLogoutCallbackURI())
 	v.Add("state", logoutCookie.State)
 
 	if len(idToken) > 0 {
@@ -86,7 +86,7 @@ func (h *Handler) logoutCookie() (*openid.LogoutCookie, error) {
 
 	return &openid.LogoutCookie{
 		State:      state,
-		RedirectTo: h.OpenIDConfig.Client().GetPostLogoutRedirectURI(),
+		RedirectTo: h.Cfg.Client().GetPostLogoutRedirectURI(),
 	}, nil
 }
 

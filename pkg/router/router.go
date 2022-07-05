@@ -13,9 +13,9 @@ func New(handler *Handler) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)
-	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall", string(handler.Config.OpenID.Provider))
+	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall", handler.Cfg.ProviderName())
 
-	prefix := config.ParseIngress(handler.Config.Ingress)
+	prefix := config.ParseIngress(handler.Cfg.Wonderwall().Ingress)
 
 	r.Route(prefix+paths.OAuth2, func(r chi.Router) {
 		r.Use(middleware.LogEntryHandler(handler.Httplogger))

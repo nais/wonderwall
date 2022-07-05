@@ -43,7 +43,7 @@ func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCod
 	logger := logentry.LogEntry(r.Context())
 	logger.WithLevel(level).Stack().Err(cause).Msgf("error in route: %+v", cause)
 
-	if len(h.Config.ErrorRedirectURI) > 0 {
+	if len(h.Cfg.Wonderwall().ErrorRedirectURI) > 0 {
 		err := h.customErrorRedirect(w, r, statusCode)
 		if err == nil {
 			return
@@ -63,7 +63,7 @@ func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, s
 
 	errorPage := ErrorPage{
 		CorrelationID: middleware.GetReqID(r.Context()),
-		RetryURI:      RetryURI(r, h.Config.Ingress, loginCookie),
+		RetryURI:      RetryURI(r, h.Cfg.Wonderwall().Ingress, loginCookie),
 	}
 	err = errorTemplate.Execute(w, errorPage)
 	if err != nil {
@@ -72,7 +72,7 @@ func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, s
 }
 
 func (h *Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, statusCode int) error {
-	override, err := url.Parse(h.Config.ErrorRedirectURI)
+	override, err := url.Parse(h.Cfg.Wonderwall().ErrorRedirectURI)
 	if err != nil {
 		return err
 	}

@@ -71,7 +71,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tokens.IDToken.Validate(h.OpenIDConfig, loginCookie.Nonce)
+	err = tokens.IDToken.Validate(h.Cfg, loginCookie.Nonce)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: validating id_token: %w", err))
 		return
@@ -83,7 +83,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.Config.Loginstatus.Enabled {
+	if h.Cfg.Wonderwall().Loginstatus.Enabled {
 		tokenResponse, err := h.getLoginstatusToken(r.Context(), tokens)
 		if err != nil {
 			h.InternalError(w, r, fmt.Errorf("callback: exchanging loginstatus token: %w", err))

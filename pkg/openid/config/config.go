@@ -7,16 +7,15 @@ import (
 type Config interface {
 	Client() Client
 	Provider() *Provider
+	ProviderName() string
 
-	Ingress() string
-	Loginstatus() wonderwallconfig.Loginstatus
+	Wonderwall() *wonderwallconfig.Config
 }
 
 type config struct {
+	cfg            *wonderwallconfig.Config
 	clientConfig   Client
 	providerConfig *Provider
-	ingress        string
-	loginstatus    wonderwallconfig.Loginstatus
 }
 
 func (c config) Client() Client {
@@ -27,12 +26,12 @@ func (c config) Provider() *Provider {
 	return c.providerConfig
 }
 
-func (c config) Ingress() string {
-	return c.ingress
+func (c config) ProviderName() string {
+	return string(c.cfg.OpenID.Provider)
 }
 
-func (c config) Loginstatus() wonderwallconfig.Loginstatus {
-	return c.loginstatus
+func (c config) Wonderwall() *wonderwallconfig.Config {
+	return c.cfg
 }
 
 func NewConfig(cfg *wonderwallconfig.Config) (Config, error) {
@@ -47,9 +46,8 @@ func NewConfig(cfg *wonderwallconfig.Config) (Config, error) {
 	}
 
 	return config{
+		cfg:            cfg,
 		clientConfig:   clientCfg,
 		providerConfig: providerCfg,
-		ingress:        cfg.Ingress,
-		loginstatus:    cfg.Loginstatus,
 	}, nil
 }
