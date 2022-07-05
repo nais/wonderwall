@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"net/http/cookiejar"
-	"net/http/httptest"
 	"net/url"
 	"testing"
 
@@ -13,33 +11,25 @@ import (
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/mock"
-	"github.com/nais/wonderwall/pkg/router"
+	"github.com/nais/wonderwall/pkg/openid/client"
 )
 
 func TestHandler_Login(t *testing.T) {
-	idpserver, idp := mock.IdentityProviderServer()
-	h := mock.NewHandler(idp)
-	r := router.New(h)
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
 
-	jar, err := cookiejar.New(nil)
+	rpClient := idp.RelyingPartyClient()
+
+	loginURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/login")
 	assert.NoError(t, err)
 
-	server := httptest.NewServer(r)
-	client := server.Client()
-	client.Jar = jar
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	}
-
-	loginURL, err := url.Parse(server.URL + "/oauth2/login")
-	assert.NoError(t, err)
-
-	resp, err := client.Get(loginURL.String())
+	resp, err := rpClient.Get(loginURL.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 	defer resp.Body.Close()
 
-	cookies := client.Jar.Cookies(loginURL)
+	cookies := rpClient.Jar.Cookies(loginURL)
 	loginCookie := getCookieFromJar(cookie.Login, cookies)
 	assert.NotNil(t, loginCookie)
 	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
@@ -49,17 +39,17 @@ func TestHandler_Login(t *testing.T) {
 	u, err := url.Parse(location)
 	assert.NoError(t, err)
 
-	assert.Equal(t, idpserver.URL, fmt.Sprintf("%s://%s", u.Scheme, u.Host))
+	assert.Equal(t, idp.ProviderServer.URL, fmt.Sprintf("%s://%s", u.Scheme, u.Host))
 	assert.Equal(t, "/authorize", u.Path)
-	assert.Equal(t, idp.GetClientConfiguration().GetACRValues(), u.Query().Get("acr_values"))
-	assert.Equal(t, idp.GetClientConfiguration().GetUILocales(), u.Query().Get("ui_locales"))
-	assert.Equal(t, idp.GetClientConfiguration().GetClientID(), u.Query().Get("client_id"))
-	assert.Equal(t, idp.GetClientConfiguration().GetCallbackURI(), u.Query().Get("redirect_uri"))
+	assert.Equal(t, idp.OpenIDConfig.Client().GetACRValues(), u.Query().Get("acr_values"))
+	assert.Equal(t, idp.OpenIDConfig.Client().GetUILocales(), u.Query().Get("ui_locales"))
+	assert.Equal(t, idp.OpenIDConfig.Client().GetClientID(), u.Query().Get("client_id"))
+	assert.Equal(t, idp.OpenIDConfig.Client().GetCallbackURI(), u.Query().Get("redirect_uri"))
 	assert.NotEmpty(t, u.Query().Get("state"))
 	assert.NotEmpty(t, u.Query().Get("nonce"))
 	assert.NotEmpty(t, u.Query().Get("code_challenge"))
 
-	resp, err = client.Get(u.String())
+	resp, err = rpClient.Get(u.String())
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
@@ -73,34 +63,27 @@ func TestHandler_Login(t *testing.T) {
 }
 
 func TestHandler_Callback_and_Logout(t *testing.T) {
-	idpserver, idp := mock.IdentityProviderServer()
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
 
-	h := mock.NewHandler(idp)
-	r := router.New(h)
-	server := httptest.NewServer(r)
+	rpClient := idp.RelyingPartyClient()
 
-	idp.ClientConfiguration.CallbackURI = server.URL + "/oauth2/callback"
-	idp.ClientConfiguration.PostLogoutRedirectURI = server.URL
-	idp.ClientConfiguration.LogoutCallbackURI = server.URL + "/oauth2/logout/callback"
-	h.Client = mock.NewClient(idp)
+	idp.OpenIDConfig.ClientConfig.CallbackURI = idp.RelyingPartyServer.URL + "/oauth2/callback"
+	idp.OpenIDConfig.ClientConfig.PostLogoutRedirectURI = idp.RelyingPartyServer.URL
+	idp.OpenIDConfig.ClientConfig.LogoutCallbackURI = idp.RelyingPartyServer.URL + "/oauth2/logout/callback"
 
-	jar, err := cookiejar.New(nil)
-	assert.NoError(t, err)
-
-	client := server.Client()
-	client.Jar = jar
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	}
+	c := client.NewClient(idp.OpenIDConfig)
+	idp.RelyingPartyHandler.Client = c
 
 	// First, run /oauth2/login to set cookies
-	loginURL, err := url.Parse(server.URL + "/oauth2/login")
-	resp, err := client.Get(loginURL.String())
+	loginURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/login")
+	resp, err := rpClient.Get(loginURL.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 	defer resp.Body.Close()
 
-	cookies := client.Jar.Cookies(loginURL)
+	cookies := rpClient.Jar.Cookies(loginURL)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)
 	loginCookie := getCookieFromJar(cookie.Login, cookies)
 	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
@@ -115,7 +98,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Follow redirect to authorize with identity provider
-	resp, err = client.Get(u.String())
+	resp, err = rpClient.Get(u.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 	defer resp.Body.Close()
@@ -126,11 +109,11 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Follow redirect to callback
-	resp, err = client.Get(callbackURL.String())
+	resp, err = rpClient.Get(callbackURL.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
-	cookies = client.Jar.Cookies(callbackURL)
+	cookies = rpClient.Jar.Cookies(callbackURL)
 	sessionCookie = getCookieFromJar(cookie.Session, cookies)
 	loginCookie = getCookieFromJar(cookie.Login, cookies)
 	loginLegacyCookie = getCookieFromJar(cookie.LoginLegacy, cookies)
@@ -140,15 +123,15 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.Nil(t, loginLegacyCookie)
 
 	// Request self-initiated logout
-	logoutURL, err := url.Parse(server.URL + "/oauth2/logout")
+	logoutURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/logout")
 	assert.NoError(t, err)
 
-	resp, err = client.Get(logoutURL.String())
+	resp, err = rpClient.Get(logoutURL.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 	defer resp.Body.Close()
 
-	cookies = client.Jar.Cookies(logoutURL)
+	cookies = rpClient.Jar.Cookies(logoutURL)
 	sessionCookie = getCookieFromJar(cookie.Session, cookies)
 	logoutCookie := getCookieFromJar(cookie.Logout, cookies)
 
@@ -160,19 +143,19 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	endsessionURL, err := url.Parse(location)
 	assert.NoError(t, err)
 
-	idpserverURL, err := url.Parse(idpserver.URL)
+	idpserverURL, err := url.Parse(idp.ProviderServer.URL)
 	assert.NoError(t, err)
 
 	endsessionParams := endsessionURL.Query()
 	expectedState := endsessionParams["state"]
 	assert.Equal(t, idpserverURL.Host, endsessionURL.Host)
 	assert.Equal(t, "/endsession", endsessionURL.Path)
-	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{idp.GetClientConfiguration().GetLogoutCallbackURI()})
+	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{idp.OpenIDConfig.Client().GetLogoutCallbackURI()})
 	assert.NotEmpty(t, endsessionParams["id_token_hint"])
 	assert.NotEmpty(t, expectedState)
 
 	// Follow redirect to endsession endpoint at identity provider
-	resp, err = client.Get(endsessionURL.String())
+	resp, err = rpClient.Get(endsessionURL.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 	defer resp.Body.Close()
@@ -181,7 +164,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	location = resp.Header.Get("location")
 	logoutCallbackURI, err := url.Parse(location)
 	assert.NoError(t, err)
-	assert.Contains(t, logoutCallbackURI.String(), idp.ClientConfiguration.GetLogoutCallbackURI())
+	assert.Contains(t, logoutCallbackURI.String(), idp.OpenIDConfig.Client().GetLogoutCallbackURI())
 	logoutCallbackParams := endsessionURL.Query()
 	actualState := logoutCallbackParams["state"]
 
@@ -190,7 +173,7 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.Equal(t, expectedState, actualState)
 
 	// Follow redirect back to logout callback
-	resp, err = client.Get(logoutCallbackURI.String())
+	resp, err = rpClient.Get(logoutCallbackURI.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
@@ -198,9 +181,9 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	location = resp.Header.Get("location")
 	postLogoutRedirectURI, err := url.Parse(location)
 	assert.NoError(t, err)
-	assert.Equal(t, idp.ClientConfiguration.GetPostLogoutRedirectURI(), postLogoutRedirectURI.String())
+	assert.Equal(t, idp.OpenIDConfig.Client().GetPostLogoutRedirectURI(), postLogoutRedirectURI.String())
 
-	cookies = client.Jar.Cookies(logoutCallbackURI)
+	cookies = rpClient.Jar.Cookies(logoutCallbackURI)
 	sessionCookie = getCookieFromJar(cookie.Session, cookies)
 	logoutCookie = getCookieFromJar(cookie.Logout, cookies)
 
@@ -209,28 +192,21 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 }
 
 func TestHandler_FrontChannelLogout(t *testing.T) {
-	_, idp := mock.IdentityProviderServer()
-	idp.WithFrontChannelLogoutSupport()
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	idp.Provider.WithFrontChannelLogoutSupport()
+	defer idp.Close()
 
-	h := mock.NewHandler(idp)
-	r := router.New(h)
-	server := httptest.NewServer(r)
+	rpClient := idp.RelyingPartyClient()
 
-	idp.ClientConfiguration.CallbackURI = server.URL + "/oauth2/callback"
-	idp.ClientConfiguration.PostLogoutRedirectURI = server.URL
-	h.Client = mock.NewClient(idp)
+	idp.OpenIDConfig.ClientConfig.CallbackURI = idp.RelyingPartyServer.URL + "/oauth2/callback"
+	idp.OpenIDConfig.ClientConfig.PostLogoutRedirectURI = idp.RelyingPartyServer.URL
 
-	jar, err := cookiejar.New(nil)
-	assert.NoError(t, err)
-
-	client := server.Client()
-	client.Jar = jar
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	}
+	c := client.NewClient(idp.OpenIDConfig)
+	idp.RelyingPartyHandler.Client = c
 
 	// First, run /oauth2/login to set cookies
-	resp, err := client.Get(server.URL + "/oauth2/login")
+	resp, err := rpClient.Get(idp.RelyingPartyServer.URL + "/oauth2/login")
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 	defer resp.Body.Close()
@@ -241,7 +217,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Follow redirect to authorize with idporten
-	resp, err = client.Get(u.String())
+	resp, err = rpClient.Get(u.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 	defer resp.Body.Close()
@@ -252,11 +228,11 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Follow redirect to callback
-	resp, err = client.Get(callbackURL.String())
+	resp, err = rpClient.Get(callbackURL.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
-	cookies := client.Jar.Cookies(callbackURL)
+	cookies := rpClient.Jar.Cookies(callbackURL)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)
 
 	assert.NotNil(t, sessionCookie)
@@ -265,47 +241,41 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
 	assert.NoError(t, err)
 
-	sid, err := h.Crypter.Decrypt(ciphertext)
+	sid, err := idp.RelyingPartyHandler.Crypter.Decrypt(ciphertext)
 	assert.NoError(t, err)
 
-	frontchannelLogoutURL, err := url.Parse(server.URL)
+	frontchannelLogoutURL, err := url.Parse(idp.RelyingPartyServer.URL)
 	assert.NoError(t, err)
 
 	frontchannelLogoutURL.Path = "/oauth2/logout/frontchannel"
 
 	values := url.Values{}
 	values.Add("sid", string(sid))
-	values.Add("iss", idp.GetOpenIDConfiguration().Issuer)
+	values.Add("iss", idp.OpenIDConfig.Provider().Issuer)
 	frontchannelLogoutURL.RawQuery = values.Encode()
 
-	resp, err = client.Get(frontchannelLogoutURL.String())
+	resp, err = rpClient.Get(frontchannelLogoutURL.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	defer resp.Body.Close()
 }
 
 func TestHandler_SessionStateRequired(t *testing.T) {
-	idpServer, idp := mock.IdentityProviderServer()
-	idp.WithCheckSessionIFrameSupport(idpServer.URL + "/checksession")
-	h := mock.NewHandler(idp)
-	r := router.New(h)
-	server := httptest.NewServer(r)
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	idp.Provider.WithCheckSessionIFrameSupport(idp.ProviderServer.URL + "/checksession")
+	defer idp.Close()
 
-	idp.ClientConfiguration.CallbackURI = server.URL + "/oauth2/callback"
-	idp.ClientConfiguration.PostLogoutRedirectURI = server.URL
-	h.Client = mock.NewClient(idp)
+	idp.OpenIDConfig.ClientConfig.CallbackURI = idp.RelyingPartyServer.URL + "/oauth2/callback"
+	idp.OpenIDConfig.ClientConfig.PostLogoutRedirectURI = idp.RelyingPartyServer.URL
 
-	jar, err := cookiejar.New(nil)
-	assert.NoError(t, err)
+	c := client.NewClient(idp.OpenIDConfig)
+	idp.RelyingPartyHandler.Client = c
 
-	client := server.Client()
-	client.Jar = jar
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	}
+	rpClient := idp.RelyingPartyClient()
 
 	// First, run /oauth2/login to set cookies
-	resp, err := client.Get(server.URL + "/oauth2/login")
+	resp, err := rpClient.Get(idp.RelyingPartyServer.URL + "/oauth2/login")
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 	defer resp.Body.Close()
@@ -316,7 +286,7 @@ func TestHandler_SessionStateRequired(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Follow redirect to authorize with idporten
-	resp, err = client.Get(u.String())
+	resp, err = rpClient.Get(u.String())
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 	defer resp.Body.Close()

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/nais/liberator/pkg/conftools"
@@ -11,7 +10,7 @@ import (
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/logging"
 	"github.com/nais/wonderwall/pkg/metrics"
-	"github.com/nais/wonderwall/pkg/openid"
+	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/server"
 	"github.com/nais/wonderwall/pkg/session"
@@ -47,9 +46,7 @@ func run() error {
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	provider, err := openid.NewProvider(ctx, cfg)
+	openidConfig, err := openidconfig.NewConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -57,7 +54,7 @@ func run() error {
 	crypt := crypto.NewCrypter(key)
 	sessionStore := session.NewStore(cfg)
 	httplogger := logging.NewHttpLogger(cfg)
-	h, err := router.NewHandler(*cfg, crypt, httplogger, provider, sessionStore)
+	h, err := router.NewHandler(cfg, crypt, httplogger, openidConfig, sessionStore)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}

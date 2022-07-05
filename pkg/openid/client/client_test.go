@@ -1,4 +1,4 @@
-package openid_test
+package client_test
 
 import (
 	"testing"
@@ -8,21 +8,22 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/mock"
-	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/openid/scopes"
+	"github.com/nais/wonderwall/pkg/openid/client"
 )
 
-func TestAssertion(t *testing.T) {
-	provider := mock.NewTestProvider()
-	provider.OpenIDConfiguration.Issuer = "some-issuer"
-	provider.ClientConfiguration.ClientID = "client-id"
-	provider.ClientConfiguration.Scopes = scopes.DefaultScopes()
+func TestMakeAssertion(t *testing.T) {
+	cfg := mock.Config()
+	cfg.OpenID.ClientID = "some-client-id"
+
+	openidConfig := mock.NewTestConfiguration(cfg)
+	openidConfig.Provider().Issuer = "some-issuer"
+	c := client.NewClient(openidConfig)
 
 	expiry := 30 * time.Second
-	assertionString, err := openid.ClientAssertion(provider, expiry)
+	assertionString, err := c.MakeAssertion(expiry)
 	assert.NoError(t, err)
 
-	key := provider.GetClientConfiguration().GetClientJWK()
+	key := openidConfig.Client().GetClientJWK()
 	publicKey, err := key.PublicKey()
 	assert.NoError(t, err)
 	opts := []jwt.ParseOption{
@@ -36,8 +37,8 @@ func TestAssertion(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.ElementsMatch(t, []string{"some-issuer"}, assertion.Audience())
-	assert.Equal(t, "client-id", assertion.Issuer())
-	assert.Equal(t, "client-id", assertion.Subject())
+	assert.Equal(t, "some-client-id", assertion.Issuer())
+	assert.Equal(t, "some-client-id", assertion.Subject())
 
 	scps, ok := assertion.Get("scope")
 	assert.True(t, ok)

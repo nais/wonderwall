@@ -1,4 +1,4 @@
-package openid
+package client
 
 import (
 	"crypto/sha256"
@@ -9,6 +9,8 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/router/request"
 	"github.com/nais/wonderwall/pkg/strings"
 )
@@ -35,7 +37,7 @@ type Login interface {
 	CanonicalRedirect() string
 	CodeChallenge() string
 	CodeVerifier() string
-	Cookie() *LoginCookie
+	Cookie() *openid.LoginCookie
 	Nonce() string
 	State() string
 }
@@ -51,7 +53,7 @@ func NewLogin(c Client, r *http.Request) (Login, error) {
 		return nil, fmt.Errorf("generating login url: %w", err)
 	}
 
-	redirect := request.CanonicalRedirectURL(r, c.Config().Ingress)
+	redirect := request.CanonicalRedirectURL(r, c.config().Ingress())
 	cookie := params.cookie(redirect)
 
 	return login{
@@ -65,7 +67,7 @@ func NewLogin(c Client, r *http.Request) (Login, error) {
 type login struct {
 	authCodeURL       string
 	canonicalRedirect string
-	cookie            *LoginCookie
+	cookie            *openid.LoginCookie
 	params            *loginParameters
 }
 
@@ -93,7 +95,7 @@ func (l login) CanonicalRedirect() string {
 	return l.canonicalRedirect
 }
 
-func (l login) Cookie() *LoginCookie {
+func (l login) Cookie() *openid.LoginCookie {
 	return l.cookie
 }
 
@@ -131,16 +133,17 @@ func newLoginParameters(c Client) (*loginParameters, error) {
 }
 
 func (in *loginParameters) authCodeURL(r *http.Request) (string, error) {
+	scopes := in.config().Client().GetScopes().String()
 	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("scope", in.Provider().GetClientConfiguration().GetScopes().String()),
+		oauth2.SetAuthURLParam("scope", scopes),
 		oauth2.SetAuthURLParam("nonce", in.Nonce),
 		oauth2.SetAuthURLParam("response_mode", "query"),
 		oauth2.SetAuthURLParam("code_challenge", in.CodeChallenge),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 	}
 
-	if in.Config().Loginstatus.NeedsResourceIndicator() {
-		opts = append(opts, oauth2.SetAuthURLParam("resource", in.Config().Loginstatus.ResourceIndicator))
+	if in.config().Loginstatus().NeedsResourceIndicator() {
+		opts = append(opts, oauth2.SetAuthURLParam("resource", in.config().Loginstatus().ResourceIndicator))
 	}
 
 	opts, err := in.withSecurityLevel(r, opts)
@@ -153,12 +156,12 @@ func (in *loginParameters) authCodeURL(r *http.Request) (string, error) {
 		return "", fmt.Errorf("%w: %+v", InvalidLocaleError, err)
 	}
 
-	authCodeUrl := in.OAuth2Config().AuthCodeURL(in.State, opts...)
+	authCodeUrl := in.oAuth2Config().AuthCodeURL(in.State, opts...)
 	return authCodeUrl, nil
 }
 
-func (in *loginParameters) cookie(redirect string) *LoginCookie {
-	return &LoginCookie{
+func (in *loginParameters) cookie(redirect string) *openid.LoginCookie {
+	return &openid.LoginCookie{
 		State:        in.State,
 		Nonce:        in.Nonce,
 		CodeVerifier: in.CodeVerifier,
@@ -170,8 +173,8 @@ func (in *loginParameters) withLocale(r *http.Request, opts []oauth2.AuthCodeOpt
 	return withParamMapping(r,
 		opts,
 		LocaleURLParameter,
-		in.Provider().GetClientConfiguration().GetUILocales(),
-		in.Provider().GetOpenIDConfiguration().UILocalesSupported,
+		in.config().Client().GetUILocales(),
+		in.config().Provider().UILocalesSupported,
 	)
 }
 
@@ -179,12 +182,12 @@ func (in *loginParameters) withSecurityLevel(r *http.Request, opts []oauth2.Auth
 	return withParamMapping(r,
 		opts,
 		SecurityLevelURLParameter,
-		in.Provider().GetClientConfiguration().GetACRValues(),
-		in.Provider().GetOpenIDConfiguration().ACRValuesSupported,
+		in.config().Client().GetACRValues(),
+		in.config().Provider().ACRValuesSupported,
 	)
 }
 
-func withParamMapping(r *http.Request, opts []oauth2.AuthCodeOption, param, fallback string, supported Supported) ([]oauth2.AuthCodeOption, error) {
+func withParamMapping(r *http.Request, opts []oauth2.AuthCodeOption, param, fallback string, supported config.Supported) ([]oauth2.AuthCodeOption, error) {
 	if len(fallback) == 0 {
 		return opts, nil
 	}
@@ -200,7 +203,7 @@ func withParamMapping(r *http.Request, opts []oauth2.AuthCodeOption, param, fall
 
 // LoginURLParameter attempts to get a given parameter from the given HTTP request, falling back if none found.
 // The value must exist in the supplied list of supported values.
-func LoginURLParameter(r *http.Request, parameter, fallback string, supported Supported) (string, error) {
+func LoginURLParameter(r *http.Request, parameter, fallback string, supported config.Supported) (string, error) {
 	value := r.URL.Query().Get(parameter)
 
 	if len(value) == 0 {

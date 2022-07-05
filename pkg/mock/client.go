@@ -1,54 +1,78 @@
 package mock
 
 import (
-	"time"
-
-	"github.com/rs/zerolog"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
-	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/router"
-	"github.com/nais/wonderwall/pkg/session"
+	"github.com/nais/wonderwall/pkg/openid/scopes"
 )
 
-func Config() *config.Config {
-	return &config.Config{
-		EncryptionKey: `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq`, // 256 bits AES
-		Ingress:       "/",
-		OpenID: config.OpenID{
-			Provider: "test",
-		},
-		SessionMaxLifetime: time.Hour,
-	}
+type TestClientConfiguration struct {
+	ClientID              string
+	ClientJWK             jwk.Key
+	CallbackURI           string
+	LogoutCallbackURI     string
+	PostLogoutRedirectURI string
+	Scopes                scopes.Scopes
+	ACRValues             string
+	UILocales             string
+	WellKnownURL          string
 }
 
-func NewClient(provider openid.Provider) openid.Client {
-	return openid.NewClient(*Config(), provider)
+func (c TestClientConfiguration) GetCallbackURI() string {
+	return c.CallbackURI
 }
 
-func NewClientWithCfg(cfg *config.Config, provider openid.Provider) openid.Client {
-	return openid.NewClient(*cfg, provider)
+func (c TestClientConfiguration) GetClientID() string {
+	return c.ClientID
 }
 
-func NewHandler(provider openid.Provider) *router.Handler {
-	cfg := Config()
-	return NewHandlerWithCfg(cfg, provider)
+func (c TestClientConfiguration) GetClientJWK() jwk.Key {
+	return c.ClientJWK
 }
 
-func NewHandlerWithCfg(cfg *config.Config, provider openid.Provider) *router.Handler {
-	if cfg == nil {
-		cfg = Config()
-	}
+func (c TestClientConfiguration) GetLogoutCallbackURI() string {
+	return c.LogoutCallbackURI
+}
 
-	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
-	sessionStore := session.NewMemory()
+func (c TestClientConfiguration) GetPostLogoutRedirectURI() string {
+	return c.PostLogoutRedirectURI
+}
 
-	h, err := router.NewHandler(*cfg, crypter, zerolog.Logger{}, provider, sessionStore)
+func (c TestClientConfiguration) GetScopes() scopes.Scopes {
+	return c.Scopes
+}
+
+func (c TestClientConfiguration) GetACRValues() string {
+	return c.ACRValues
+}
+
+func (c TestClientConfiguration) GetUILocales() string {
+	return c.UILocales
+}
+
+func (c TestClientConfiguration) GetWellKnownURL() string {
+	return c.WellKnownURL
+}
+
+func (c TestClientConfiguration) Print() {}
+
+func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
+	key, err := crypto.NewJwk()
 	if err != nil {
 		panic(err)
 	}
 
-	h.CookieOptions = h.CookieOptions.WithSecure(false)
-	return h
+	return &TestClientConfiguration{
+		ClientID:              cfg.OpenID.ClientID,
+		ClientJWK:             key,
+		CallbackURI:           "http://localhost/callback",
+		LogoutCallbackURI:     "http://localhost/logout/callback",
+		WellKnownURL:          "",
+		UILocales:             "nb",
+		ACRValues:             "Level4",
+		PostLogoutRedirectURI: "",
+		Scopes:                scopes.DefaultScopes(),
+	}
 }

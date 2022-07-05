@@ -6,7 +6,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 
-	"github.com/nais/wonderwall/pkg/openid"
+	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 )
 
 type IDToken struct {
@@ -17,9 +17,9 @@ func (in *IDToken) GetSidClaim() (string, error) {
 	return in.GetStringClaim(SidClaim)
 }
 
-func (in *IDToken) Validate(provider openid.Provider, nonce string) error {
-	openIDconfig := provider.GetOpenIDConfiguration()
-	clientConfig := provider.GetClientConfiguration()
+func (in *IDToken) Validate(cfg openidconfig.Config, nonce string) error {
+	openIDconfig := cfg.Provider()
+	clientConfig := cfg.Client()
 
 	opts := []jwt.ValidateOption{
 		jwt.WithAudience(clientConfig.GetClientID()),

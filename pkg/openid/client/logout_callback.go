@@ -1,4 +1,4 @@
-package openid
+package client
 
 type LogoutCallback struct {
 	Client

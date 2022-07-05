@@ -9,6 +9,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/openid/client"
 	logentry "github.com/nais/wonderwall/pkg/router/middleware"
 )
 
@@ -19,7 +20,7 @@ const (
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	login, err := h.Client.Login(r)
 	if err != nil {
-		if errors.Is(err, openid.InvalidSecurityLevelError) || errors.Is(err, openid.InvalidLocaleError) {
+		if errors.Is(err, client.InvalidSecurityLevelError) || errors.Is(err, client.InvalidLocaleError) {
 			h.BadRequest(w, r, err)
 		} else {
 			h.InternalError(w, r, err)

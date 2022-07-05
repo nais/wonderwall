@@ -9,14 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/jwt"
-	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
 func TestSessionID(t *testing.T) {
 	for _, test := range []struct {
 		name       string
-		config     *openid.Configuration
+		config     *config.Provider
 		idToken    *jwt.IDToken
 		params     url.Values
 		want       string
@@ -69,21 +69,21 @@ func TestSessionID(t *testing.T) {
 		},
 		{
 			name:       "No support for front-channel logout nor session management should generate session ID",
-			config:     &openid.Configuration{},
+			config:     &config.Provider{},
 			idToken:    idToken(),
 			want:       "some-generated-id",
 			exactMatch: false,
 		},
 		{
 			name:       "No support for front-channel logout nor session management, sid in id_token",
-			config:     &openid.Configuration{},
+			config:     &config.Provider{},
 			idToken:    idTokenWithSid("some-sid"),
 			want:       "some-sid",
 			exactMatch: true,
 		},
 		{
 			name:       "No support for front-channel logout nor session management, session_state in param",
-			config:     &openid.Configuration{},
+			config:     &config.Provider{},
 			idToken:    idToken(),
 			params:     params("session_state", "some-session-state"),
 			want:       "some-session-state",
@@ -91,7 +91,7 @@ func TestSessionID(t *testing.T) {
 		},
 		{
 			name:       "No support for front-channel logout nor session management, sid in id_token and session_state in param, sid should take precedence",
-			config:     &openid.Configuration{},
+			config:     &config.Provider{},
 			idToken:    idTokenWithSid("some-sid"),
 			params:     params("session_state", "some-session-state"),
 			want:       "some-sid",
@@ -115,15 +115,15 @@ func TestSessionID(t *testing.T) {
 	}
 }
 
-func sidRequired() *openid.Configuration {
-	return &openid.Configuration{
+func sidRequired() *config.Provider {
+	return &config.Provider{
 		FrontchannelLogoutSessionSupported: true,
 		FrontchannelLogoutSupported:        true,
 	}
 }
 
-func sessionStateRequired() *openid.Configuration {
-	return &openid.Configuration{
+func sessionStateRequired() *config.Provider {
+	return &config.Provider{
 		CheckSessionIframe: "https://some-provider/some-endpoint",
 	}
 }

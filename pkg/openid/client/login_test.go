@@ -1,4 +1,4 @@
-package openid_test
+package client_test
 
 import (
 	"errors"
@@ -9,7 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/mock"
-	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/openid/client"
+	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 )
 
 func TestLogin_URL(t *testing.T) {
@@ -33,7 +34,7 @@ func TestLogin_URL(t *testing.T) {
 		},
 		{
 			url:   "http://localhost:1234/oauth2/login?level=NoLevel",
-			error: openid.InvalidSecurityLevelError,
+			error: client.InvalidSecurityLevelError,
 		},
 		{
 			url: "http://localhost:1234/oauth2/login?locale=nb",
@@ -52,7 +53,7 @@ func TestLogin_URL(t *testing.T) {
 		},
 		{
 			url:   "http://localhost:1234/oauth2/login?locale=es",
-			error: openid.InvalidLocaleError,
+			error: client.InvalidLocaleError,
 		},
 	}
 
@@ -61,10 +62,11 @@ func TestLogin_URL(t *testing.T) {
 			req, err := http.NewRequest("GET", test.url, nil)
 			assert.NoError(t, err)
 
-			provider := mock.NewTestProvider()
-			provider.OpenIDConfiguration.AuthorizationEndpoint = "https://provider/authorize"
-			client := mock.NewClient(provider)
-			result, err := client.Login(req)
+			cfg := mock.Config()
+			openidConfig := mock.NewTestConfiguration(cfg)
+			c := client.NewClient(openidConfig)
+
+			result, err := c.Login(req)
 
 			if test.error != nil {
 				assert.True(t, errors.Is(err, test.error))
@@ -87,9 +89,9 @@ func TestLogin_URL(t *testing.T) {
 				assert.NotContains(t, query, "resource")
 
 				assert.ElementsMatch(t, query["response_type"], []string{"code"})
-				assert.ElementsMatch(t, query["client_id"], []string{provider.ClientConfiguration.ClientID})
-				assert.ElementsMatch(t, query["redirect_uri"], []string{provider.ClientConfiguration.CallbackURI})
-				assert.ElementsMatch(t, query["scope"], []string{provider.ClientConfiguration.GetScopes().String()})
+				assert.ElementsMatch(t, query["client_id"], []string{openidConfig.Client().GetClientID()})
+				assert.ElementsMatch(t, query["redirect_uri"], []string{openidConfig.Client().GetCallbackURI()})
+				assert.ElementsMatch(t, query["scope"], []string{openidConfig.Client().GetScopes().String()})
 				assert.ElementsMatch(t, query["state"], []string{result.State()})
 				assert.ElementsMatch(t, query["nonce"], []string{result.Nonce()})
 				assert.ElementsMatch(t, query["response_mode"], []string{"query"})
@@ -111,14 +113,17 @@ func TestLoginURL_WithResourceIndicator(t *testing.T) {
 	req, err := http.NewRequest("GET", "http://localhost:1234/oauth2/login", nil)
 	assert.NoError(t, err)
 
-	provider := mock.NewTestProvider()
-	provider.OpenIDConfiguration.AuthorizationEndpoint = "https://provider/authorize"
 	cfg := mock.Config()
 	cfg.Loginstatus.Enabled = true
 	cfg.Loginstatus.ResourceIndicator = "https://some-resource"
-	client := mock.NewClientWithCfg(cfg, provider)
-	result, err := client.Login(req)
 
+	openidConfig := mock.NewTestConfiguration(cfg)
+	openidConfig.Provider().AuthorizationEndpoint = "https://provider/authorize"
+
+	c := client.NewClient(openidConfig)
+
+	result, err := c.Login(req)
+	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	parsed, err := url.Parse(result.AuthCodeURL())
 	assert.NoError(t, err)
@@ -133,7 +138,7 @@ func TestLoginURLParameter(t *testing.T) {
 		name      string
 		parameter string
 		fallback  string
-		supported openid.Supported
+		supported openidconfig.Supported
 		url       string
 		expectErr error
 		expected  string
@@ -156,19 +161,19 @@ func TestLoginURLParameter(t *testing.T) {
 		{
 			name:      "invalid URL parameter value should return error",
 			url:       "http://localhost:8080/oauth2/login?param=invalid",
-			expectErr: openid.InvalidLoginParameterError,
+			expectErr: client.InvalidLoginParameterError,
 		},
 		{
 			name:      "invalid fallback value should return error",
 			fallback:  "invalid",
 			url:       "http://localhost:8080/oauth2/login",
-			expectErr: openid.InvalidLoginParameterError,
+			expectErr: client.InvalidLoginParameterError,
 		},
 		{
 			name:      "no supported values should return error",
 			url:       "http://localhost:8080/oauth2/login",
-			supported: openid.Supported{""},
-			expectErr: openid.InvalidLoginParameterError,
+			supported: openidconfig.Supported{""},
+			expectErr: client.InvalidLoginParameterError,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -178,7 +183,7 @@ func TestLoginURLParameter(t *testing.T) {
 			// default test values
 			parameter := "param"
 			fallback := "valid"
-			supported := openid.Supported{"valid", "valid2"}
+			supported := openidconfig.Supported{"valid", "valid2"}
 
 			if len(test.parameter) > 0 {
 				parameter = test.parameter
@@ -192,7 +197,7 @@ func TestLoginURLParameter(t *testing.T) {
 				supported = test.supported
 			}
 
-			val, err := openid.LoginURLParameter(r, parameter, fallback, supported)
+			val, err := client.LoginURLParameter(r, parameter, fallback, supported)
 
 			if test.expectErr == nil {
 				assert.NoError(t, err)

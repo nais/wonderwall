@@ -7,21 +7,15 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/crypto"
-	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/openid/clients"
+	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 )
 
 type TestProvider struct {
-	ClientConfiguration *TestClientConfiguration
-	OpenIDConfiguration *openid.Configuration
+	OpenIDConfiguration *openidconfig.Provider
 	JwksPair            *crypto.JwkSet
 }
 
-func (p TestProvider) GetClientConfiguration() clients.Configuration {
-	return p.ClientConfiguration
-}
-
-func (p TestProvider) GetOpenIDConfiguration() *openid.Configuration {
+func (p TestProvider) GetOpenIDConfiguration() *openidconfig.Provider {
 	return p.OpenIDConfiguration
 }
 
@@ -48,21 +42,21 @@ func (p TestProvider) WithCheckSessionIFrameSupport(url string) TestProvider {
 	return p
 }
 
-func NewTestProvider() TestProvider {
+func newTestProvider(cfg Configuration) TestProvider {
 	jwksPair, err := crypto.NewJwkSet()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	clientCfg := clientConfiguration()
-	provider := TestProvider{
-		ClientConfiguration: &clientCfg,
-		OpenIDConfiguration: &openid.Configuration{
-			ACRValuesSupported: openid.Supported{"Level3", "Level4"},
-			UILocalesSupported: openid.Supported{"nb", "nb", "en", "se"},
-		},
-		JwksPair: jwksPair,
+	return TestProvider{
+		OpenIDConfiguration: cfg.ProviderConfig,
+		JwksPair:            jwksPair,
 	}
+}
 
-	return provider
+func providerConfiguration() *openidconfig.Provider {
+	return &openidconfig.Provider{
+		ACRValuesSupported: openidconfig.Supported{"Level3", "Level4"},
+		UILocalesSupported: openidconfig.Supported{"nb", "nb", "en", "se"},
+	}
 }

@@ -71,7 +71,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tokens.IDToken.Validate(h.Provider, loginCookie.Nonce)
+	err = tokens.IDToken.Validate(h.OpenIDConfig, loginCookie.Nonce)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: validating id_token: %w", err))
 		return
@@ -101,7 +101,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.LoginCookie, code string) (*oauth2.Token, error) {
 	var tokens *oauth2.Token
 	err := retry.Do(ctx, backoff(), func(ctx context.Context) error {
-		clientAssertion, err := openid.ClientAssertion(h.Provider, time.Second*30)
+		clientAssertion, err := h.Client.MakeAssertion(time.Second * 30)
 		if err != nil {
 			return fmt.Errorf("creating client assertion: %w", err)
 		}

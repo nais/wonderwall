@@ -10,7 +10,7 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/jwt"
-	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/openid/provider"
 )
 
 const (
@@ -29,13 +29,13 @@ type cookieSessionStore struct {
 	req        *http.Request
 	rw         http.ResponseWriter
 	crypter    crypto.Crypter
-	provider   openid.Provider
+	provider   provider.Provider
 	cookieOpts cookie.Options
 }
 
 var _ CookieStore = &cookieSessionStore{}
 
-func NewCookie(rw http.ResponseWriter, req *http.Request, crypter crypto.Crypter, provider openid.Provider, opts cookie.Options) CookieStore {
+func NewCookie(rw http.ResponseWriter, req *http.Request, crypter crypto.Crypter, provider provider.Provider, opts cookie.Options) CookieStore {
 	return &cookieSessionStore{
 		req:        req,
 		rw:         rw,
