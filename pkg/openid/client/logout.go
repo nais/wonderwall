@@ -7,9 +7,11 @@ type Logout struct {
 }
 
 func (in Logout) URL() string {
+	// TODO
 	panic("not implemented")
 }
 
 func (in Logout) Cookie() openid.LogoutCookie {
+	// TODO
 	panic("not implemented")
 }

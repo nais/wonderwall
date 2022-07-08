@@ -5,5 +5,6 @@ type LogoutCallback struct {
 }
 
 func (in LogoutCallback) ValidateRequest() (bool, error) {
+	// TODO
 	panic("not implemented")
 }
