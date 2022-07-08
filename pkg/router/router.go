@@ -17,16 +17,20 @@ func New(handler *Handler) chi.Router {
 
 	prefix := config.ParseIngress(handler.Cfg.Wonderwall().Ingress)
 
-	r.Route(prefix+paths.OAuth2, func(r chi.Router) {
+	r.Group(func(r chi.Router) {
 		r.Use(middleware.LogEntryHandler(handler.Httplogger))
 		r.Use(prometheusMiddleware.Handler)
 		r.Use(chi_middleware.NoCache)
-		r.Get(paths.Login, handler.Login)
-		r.Get(paths.Callback, handler.Callback)
-		r.Get(paths.Logout, handler.Logout)
-		r.Get(paths.FrontChannelLogout, handler.FrontChannelLogout)
-		r.Get(paths.LogoutCallback, handler.LogoutCallback)
+
+		r.Route(prefix+paths.OAuth2, func(r chi.Router) {
+			r.Get(paths.Login, handler.Login)
+			r.Get(paths.Callback, handler.Callback)
+			r.Get(paths.Logout, handler.Logout)
+			r.Get(paths.FrontChannelLogout, handler.FrontChannelLogout)
+			r.Get(paths.LogoutCallback, handler.LogoutCallback)
+		})
 	})
+
 	r.HandleFunc("/*", handler.Default)
 	return r
 }
