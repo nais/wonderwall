@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -78,7 +77,9 @@ func (h *Handler) getSessionLifetime(tokenExpiry time.Time) time.Duration {
 	return defaultSessionLifetime
 }
 
-func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *jwt.Tokens, rawTokens *oauth2.Token, params url.Values) error {
+func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *jwt.Tokens, rawTokens *oauth2.Token) error {
+	params := r.URL.Query()
+
 	externalSessionID, err := session.NewSessionID(h.Cfg.Provider(), tokens.IDToken, params)
 	if err != nil {
 		return fmt.Errorf("generating session ID: %w", err)

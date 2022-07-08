@@ -13,7 +13,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/loginstatus"
-	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/openid/client"
 	logentry "github.com/nais/wonderwall/pkg/router/middleware"
 )
 
@@ -36,48 +36,31 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params := r.URL.Query()
-	if params.Get("error") != "" {
-		oauthError := params.Get("error")
-		oauthErrorDescription := params.Get("error_description")
-		h.InternalError(w, r, fmt.Errorf("callback: error from identity provider: %s: %s", oauthError, oauthErrorDescription))
+	loginCallback := h.Client.LoginCallback(r, h.Provider, loginCookie)
+
+	if loginCallback.IdentityProviderError() != nil {
+		h.InternalError(w, r, fmt.Errorf("callback: %w", err))
 		return
 	}
 
-	expectedState := loginCookie.State
-	actualState := params.Get("state")
-	if expectedState != actualState {
-		h.Unauthorized(w, r, fmt.Errorf("callback: state parameter mismatch (possible csrf): expected %s, got %s", expectedState, actualState))
+	if loginCallback.StateMismatchError() != nil {
+		h.Unauthorized(w, r, fmt.Errorf("callback: %w", err))
 		return
 	}
 
-	rawTokens, err := h.codeExchangeForToken(r.Context(), loginCookie, params.Get("code"))
+	rawTokens, err := h.exchangeAuthCode(r.Context(), loginCallback)
 	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("callback: exchanging code: %w", err))
+		h.InternalError(w, r, fmt.Errorf("callback: %w", err))
 		return
 	}
 
-	jwkSet, err := h.Provider.GetPublicJwkSet(r.Context())
+	tokens, err := loginCallback.ProcessTokens(r.Context(), rawTokens)
 	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("callback: getting jwks: %w", err))
+		h.InternalError(w, r, fmt.Errorf("callback: %w", err))
 		return
 	}
 
-	tokens, err := jwt.ParseOauth2Token(rawTokens, *jwkSet)
-	if err != nil {
-		// JWKS might not be up-to-date, so we'll want to force a refresh for the next attempt
-		_, _ = h.Provider.RefreshPublicJwkSet(r.Context())
-		h.InternalError(w, r, fmt.Errorf("callback: parsing tokens: %w", err))
-		return
-	}
-
-	err = tokens.IDToken.Validate(h.Cfg, loginCookie.Nonce)
-	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("callback: validating id_token: %w", err))
-		return
-	}
-
-	err = h.createSession(w, r, tokens, rawTokens, params)
+	err = h.createSession(w, r, tokens, rawTokens)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return
@@ -91,35 +74,28 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Loginstatus.SetCookie(w, tokenResponse, h.CookieOptions)
-		log.Info("callback: successfully fetched loginstatus token")
+		log.Debug("callback: successfully fetched loginstatus token")
 	}
 
 	logSuccessfulLogin(r, tokens, loginCookie.Referer)
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) codeExchangeForToken(ctx context.Context, loginCookie *openid.LoginCookie, code string) (*oauth2.Token, error) {
+func (h *Handler) exchangeAuthCode(ctx context.Context, loginCallback client.LoginCallback) (*oauth2.Token, error) {
 	var tokens *oauth2.Token
-	err := retry.Do(ctx, backoff(), func(ctx context.Context) error {
-		clientAssertion, err := h.Client.MakeAssertion(time.Second * 30)
-		if err != nil {
-			return fmt.Errorf("creating client assertion: %w", err)
-		}
+	var err error
 
-		opts := []oauth2.AuthCodeOption{
-			oauth2.SetAuthURLParam("code_verifier", loginCookie.CodeVerifier),
-			oauth2.SetAuthURLParam("client_assertion", clientAssertion),
-			oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
-		}
-
-		tokens, err = h.Client.AuthCodeGrant(ctx, code, opts)
+	retryable := func(ctx context.Context) error {
+		tokens, err = loginCallback.ExchangeAuthCode(ctx)
 		if err != nil {
-			log.Warnf("callback: exchanging authorization code for token; retrying: %+v", err)
+			log.Warnf("callback: retrying: %+v", err)
 			return retry.RetryableError(err)
 		}
 
 		return nil
-	})
+	}
+
+	err = retry.Do(ctx, backoff(), retryable)
 	if err != nil {
 		return nil, err
 	}

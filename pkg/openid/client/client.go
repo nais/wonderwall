@@ -10,7 +10,9 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"golang.org/x/oauth2"
 
+	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	"github.com/nais/wonderwall/pkg/openid/provider"
 )
 
 type Client interface {
@@ -18,7 +20,7 @@ type Client interface {
 	oAuth2Config() *oauth2.Config
 
 	Login(r *http.Request) (Login, error)
-	LoginCallback(r *http.Request) error
+	LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) LoginCallback
 	Logout(r *http.Request) error
 	LogoutCallback(r *http.Request) error
 
@@ -67,9 +69,8 @@ func (c client) Login(r *http.Request) (Login, error) {
 	return login, nil
 }
 
-func (c client) LoginCallback(r *http.Request) error {
-	//TODO implement me
-	panic("implement me")
+func (c client) LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) LoginCallback {
+	return NewLoginCallback(c, r, p, cookie)
 }
 
 func (c client) Logout(r *http.Request) error {
