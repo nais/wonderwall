@@ -45,12 +45,12 @@ type Login interface {
 func NewLogin(c Client, r *http.Request) (Login, error) {
 	params, err := newLoginParameters(c)
 	if err != nil {
-		return nil, fmt.Errorf("generating login parameters: %w", err)
+		return nil, fmt.Errorf("generating parameters: %w", err)
 	}
 
 	url, err := params.authCodeURL(r)
 	if err != nil {
-		return nil, fmt.Errorf("generating login url: %w", err)
+		return nil, fmt.Errorf("generating auth code url: %w", err)
 	}
 
 	redirect := request.CanonicalRedirectURL(r, c.config().Wonderwall().Ingress)
