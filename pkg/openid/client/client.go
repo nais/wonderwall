@@ -21,7 +21,7 @@ type Client interface {
 
 	Login(r *http.Request) (Login, error)
 	LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) LoginCallback
-	Logout(r *http.Request) error
+	Logout() (Logout, error)
 	LogoutCallback(r *http.Request) error
 	LogoutFrontchannel(r *http.Request) LogoutFrontchannel
 
@@ -74,9 +74,13 @@ func (c client) LoginCallback(r *http.Request, p provider.Provider, cookie *open
 	return NewLoginCallback(c, r, p, cookie)
 }
 
-func (c client) Logout(r *http.Request) error {
-	//TODO implement me
-	panic("implement me")
+func (c client) Logout() (Logout, error) {
+	logout, err := NewLogout(c)
+	if err != nil {
+		return nil, fmt.Errorf("logout: %w", err)
+	}
+
+	return logout, nil
 }
 
 func (c client) LogoutCallback(r *http.Request) error {

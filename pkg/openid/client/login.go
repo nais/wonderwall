@@ -56,7 +56,7 @@ func NewLogin(c Client, r *http.Request) (Login, error) {
 	redirect := request.CanonicalRedirectURL(r, c.config().Wonderwall().Ingress)
 	cookie := params.cookie(redirect)
 
-	return login{
+	return &login{
 		authCodeURL:       url,
 		canonicalRedirect: redirect,
 		cookie:            cookie,

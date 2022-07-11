@@ -5,14 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
 	logentry "github.com/nais/wonderwall/pkg/router/middleware"
-	"github.com/nais/wonderwall/pkg/strings"
+)
+
+const (
+	LogoutCookieLifetime = 5 * time.Minute
 )
 
 // Logout triggers self-initiated for the current user
@@ -41,53 +44,24 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
 	}
 
-	u, err := url.Parse(h.Cfg.Provider().EndSessionEndpoint)
+	logout, err := h.Client.Logout()
 	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("logout: parsing end session endpoint: %w", err))
-		return
+		h.InternalError(w, r, err)
 	}
 
-	logoutCookie, err := h.logoutCookie()
-	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("logout: generating logout cookie: %w", err))
-		return
-	}
-
-	err = h.setLogoutCookie(w, logoutCookie)
+	err = h.setLogoutCookie(w, logout.Cookie())
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("logout: setting logout cookie: %w", err))
 		return
 	}
 
-	v := u.Query()
-	v.Add("post_logout_redirect_uri", h.Cfg.Client().GetLogoutCallbackURI())
-	v.Add("state", logoutCookie.State)
-
-	if len(idToken) > 0 {
-		v.Add("id_token_hint", idToken)
-	}
-
-	u.RawQuery = v.Encode()
-
 	fields := map[string]interface{}{
-		"redirect_to": logoutCookie.RedirectTo,
+		"redirect_to": logout.CanonicalRedirect(),
 	}
 	logger := logentry.LogEntryWithFields(r.Context(), fields)
 	logger.Info().Msg("logout: redirecting to identity provider")
 
-	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
-}
-
-func (h *Handler) logoutCookie() (*openid.LogoutCookie, error) {
-	state, err := strings.GenerateBase64(32)
-	if err != nil {
-		return nil, fmt.Errorf("generating state: %w", err)
-	}
-
-	return &openid.LogoutCookie{
-		State:      state,
-		RedirectTo: h.Cfg.Client().GetPostLogoutRedirectURI(),
-	}, nil
+	http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) setLogoutCookie(w http.ResponseWriter, logoutCookie *openid.LogoutCookie) error {
@@ -96,14 +70,8 @@ func (h *Handler) setLogoutCookie(w http.ResponseWriter, logoutCookie *openid.Lo
 		return fmt.Errorf("marshalling login cookie: %w", err)
 	}
 
-	opts := h.CookieOptions.
-		WithExpiresIn(LogoutCookieLifetime)
+	opts := h.CookieOptions.WithExpiresIn(LogoutCookieLifetime)
 	value := string(logoutCookieJson)
 
-	err = cookie.EncryptAndSet(w, cookie.Logout, value, opts, h.Crypter)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return cookie.EncryptAndSet(w, cookie.Logout, value, opts, h.Crypter)
 }

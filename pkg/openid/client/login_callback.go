@@ -30,7 +30,7 @@ type loginCallback struct {
 }
 
 func NewLoginCallback(c Client, r *http.Request, p provider.Provider, cookie *openid.LoginCookie) LoginCallback {
-	return loginCallback{
+	return &loginCallback{
 		client:        c,
 		cookie:        cookie,
 		provider:      p,

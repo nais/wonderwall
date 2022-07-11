@@ -4,15 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
 	logentry "github.com/nais/wonderwall/pkg/router/middleware"
-)
-
-const (
-	LogoutCookieLifetime = 5 * time.Minute
 )
 
 // LogoutCallback handles the callback from the self-initiated logout for the current user
