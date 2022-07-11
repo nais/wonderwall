@@ -23,6 +23,7 @@ type Client interface {
 	LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) LoginCallback
 	Logout(r *http.Request) error
 	LogoutCallback(r *http.Request) error
+	LogoutFrontchannel(r *http.Request) LogoutFrontchannel
 
 	AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error)
 	MakeAssertion(expiration time.Duration) (string, error)
@@ -81,6 +82,10 @@ func (c client) Logout(r *http.Request) error {
 func (c client) LogoutCallback(r *http.Request) error {
 	//TODO implement me
 	panic("implement me")
+}
+
+func (c client) LogoutFrontchannel(r *http.Request) LogoutFrontchannel {
+	return NewLogoutFrontchannel(r)
 }
 
 func (c client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error) {

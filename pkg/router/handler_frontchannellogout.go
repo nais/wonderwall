@@ -10,9 +10,6 @@ import (
 
 // FrontChannelLogout triggers logout triggered by a third-party.
 func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	sid := params.Get("sid")
-
 	// Unconditionally destroy all local references to the session.
 	cookie.Clear(w, cookie.Session, h.CookieOptions)
 
@@ -20,13 +17,15 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
 	}
 
-	if len(sid) == 0 {
+	logoutFrontchannel := h.Client.LogoutFrontchannel(r)
+	if logoutFrontchannel.MissingSidParameter() {
 		log.Info("front-channel logout: sid parameter not set in request; ignoring")
 		h.DeleteSessionFallback(w, r)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
+	sid := logoutFrontchannel.Sid()
 	sessionID := h.localSessionID(sid)
 	sessionData, err := h.getSession(r.Context(), sessionID)
 	if err != nil {
