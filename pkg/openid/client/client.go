@@ -22,7 +22,7 @@ type Client interface {
 	Login(r *http.Request) (Login, error)
 	LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) LoginCallback
 	Logout() (Logout, error)
-	LogoutCallback(r *http.Request) error
+	LogoutCallback(r *http.Request, cookie *openid.LogoutCookie) LogoutCallback
 	LogoutFrontchannel(r *http.Request) LogoutFrontchannel
 
 	AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error)
@@ -83,9 +83,8 @@ func (c client) Logout() (Logout, error) {
 	return logout, nil
 }
 
-func (c client) LogoutCallback(r *http.Request) error {
-	//TODO implement me
-	panic("implement me")
+func (c client) LogoutCallback(r *http.Request, cookie *openid.LogoutCookie) LogoutCallback {
+	return NewLogoutCallback(r, cookie)
 }
 
 func (c client) LogoutFrontchannel(r *http.Request) LogoutFrontchannel {

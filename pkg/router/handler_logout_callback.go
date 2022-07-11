@@ -23,18 +23,9 @@ func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params := r.URL.Query()
-	expectedState := logoutCookie.State
-	actualState := params.Get("state")
-
-	if expectedState != actualState {
-		logger.Warn().Msgf("logout/callback: state parameter mismatch: expected %s, got %s; falling back to ingress", expectedState, actualState)
-		http.Redirect(w, r, h.Cfg.Wonderwall().Ingress, http.StatusTemporaryRedirect)
-		return
-	}
-
-	if len(logoutCookie.RedirectTo) == 0 {
-		logger.Warn().Msgf("logout/callback: empty redirect; falling back to ingress")
+	logoutCallback := h.Client.LogoutCallback(r, logoutCookie)
+	if err := logoutCallback.ValidateRequest(); err != nil {
+		logger.Warn().Msgf("logout/callback: %+v; falling back to ingress", err)
 		http.Redirect(w, r, h.Cfg.Wonderwall().Ingress, http.StatusTemporaryRedirect)
 		return
 	}
