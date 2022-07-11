@@ -29,6 +29,7 @@ type IdentityProvider struct {
 	Cfg                 *config.Config
 	OpenIDConfig        Configuration
 	Provider            TestProvider
+	ProviderHandler     *IdentityProviderHandler
 	ProviderServer      *httptest.Server
 	RelyingPartyHandler *router.Handler
 	RelyingPartyServer  *httptest.Server
@@ -87,11 +88,12 @@ func NewIdentityProvider(cfg *config.Config) IdentityProvider {
 		RelyingPartyServer:  rpServer,
 		OpenIDConfig:        openidConfig,
 		Provider:            provider,
+		ProviderHandler:     handler,
 		ProviderServer:      server,
 	}
 }
 
-func identityProviderRouter(ip *identityProviderHandler) chi.Router {
+func identityProviderRouter(ip *IdentityProviderHandler) chi.Router {
 	r := chi.NewRouter()
 	r.Get("/authorize", ip.Authorize)
 	r.Post("/token", ip.Token)
@@ -100,23 +102,23 @@ func identityProviderRouter(ip *identityProviderHandler) chi.Router {
 	return r
 }
 
-type identityProviderHandler struct {
-	Codes    map[string]authorizeRequest
+type IdentityProviderHandler struct {
+	Codes    map[string]AuthorizeRequest
 	Config   openidconfig.Config
 	Provider TestProvider
 	Sessions map[string]string
 }
 
-func newIdentityProviderHandler(provider TestProvider, cfg openidconfig.Config) *identityProviderHandler {
-	return &identityProviderHandler{
-		Codes:    make(map[string]authorizeRequest),
+func newIdentityProviderHandler(provider TestProvider, cfg openidconfig.Config) *IdentityProviderHandler {
+	return &IdentityProviderHandler{
+		Codes:    make(map[string]AuthorizeRequest),
 		Config:   cfg,
 		Provider: provider,
 		Sessions: make(map[string]string),
 	}
 }
 
-type authorizeRequest struct {
+type AuthorizeRequest struct {
 	AcrLevel      string
 	CodeChallenge string
 	Locale        string
@@ -131,7 +133,7 @@ type tokenResponse struct {
 	IDToken      string `json:"id_token"`
 }
 
-func (ip *identityProviderHandler) signToken(token jwt.Token) (string, error) {
+func (ip *IdentityProviderHandler) signToken(token jwt.Token) (string, error) {
 	privateJwkSet := *ip.Provider.PrivateJwkSet()
 	signer, ok := privateJwkSet.Key(0)
 	if !ok {
@@ -146,7 +148,7 @@ func (ip *identityProviderHandler) signToken(token jwt.Token) (string, error) {
 	return string(signedToken), nil
 }
 
-func (ip *identityProviderHandler) Authorize(w http.ResponseWriter, r *http.Request) {
+func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	state := query.Get("state")
 	redirect := query.Get("redirect_uri")
@@ -162,7 +164,7 @@ func (ip *identityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	}
 
 	code := uuid.New().String()
-	ip.Codes[code] = authorizeRequest{
+	ip.Codes[code] = AuthorizeRequest{
 		AcrLevel:      acrLevel,
 		CodeChallenge: codeChallenge,
 		Locale:        locale,
@@ -188,12 +190,12 @@ func (ip *identityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
 }
 
-func (ip *identityProviderHandler) Jwks(w http.ResponseWriter, r *http.Request) {
+func (ip *IdentityProviderHandler) Jwks(w http.ResponseWriter, r *http.Request) {
 	jwks, _ := ip.Provider.GetPublicJwkSet(r.Context())
 	json.NewEncoder(w).Encode(jwks)
 }
 
-func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request) {
+func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -302,10 +304,11 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	}
 
 	token := &tokenResponse{
-		AccessToken: signedAccessToken,
-		TokenType:   "Bearer",
-		IDToken:     signedIdToken,
-		ExpiresIn:   expires,
+		AccessToken:  signedAccessToken,
+		TokenType:    "Bearer",
+		IDToken:      signedIdToken,
+		RefreshToken: code + "some-refresh-token",
+		ExpiresIn:    expires,
 	}
 
 	w.Header().Set("content-type", "application/json")
@@ -313,7 +316,7 @@ func (ip *identityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(token)
 }
 
-func (ip *identityProviderHandler) EndSession(w http.ResponseWriter, r *http.Request) {
+func (ip *IdentityProviderHandler) EndSession(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	state := query.Get("state")
 	postLogoutRedirectURI := query.Get("post_logout_redirect_uri")
