@@ -38,12 +38,12 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	loginCallback := h.Client.LoginCallback(r, h.Provider, loginCookie)
 
-	if loginCallback.IdentityProviderError() != nil {
+	if err := loginCallback.IdentityProviderError(); err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: %w", err))
 		return
 	}
 
-	if loginCallback.StateMismatchError() != nil {
+	if err := loginCallback.StateMismatchError(); err != nil {
 		h.Unauthorized(w, r, fmt.Errorf("callback: %w", err))
 		return
 	}
