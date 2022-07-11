@@ -29,14 +29,18 @@ type loginCallback struct {
 	requestParams url.Values
 }
 
-func NewLoginCallback(c Client, r *http.Request, p provider.Provider, cookie *openid.LoginCookie) LoginCallback {
+func NewLoginCallback(c Client, r *http.Request, p provider.Provider, cookie *openid.LoginCookie) (LoginCallback, error) {
+	if cookie == nil {
+		return nil, fmt.Errorf("cookie is nil")
+	}
+
 	return &loginCallback{
 		client:        c,
 		cookie:        cookie,
 		provider:      p,
 		request:       r,
 		requestParams: r.URL.Query(),
-	}
+	}, nil
 }
 
 func (in loginCallback) IdentityProviderError() error {

@@ -23,7 +23,12 @@ func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logoutCallback := h.Client.LogoutCallback(r, logoutCookie)
+	logoutCallback, err := h.Client.LogoutCallback(r, logoutCookie)
+	if err != nil {
+		h.InternalError(w, r, err)
+		return
+	}
+
 	if err := logoutCallback.ValidateRequest(); err != nil {
 		logger.Warn().Msgf("logout/callback: %+v; falling back to ingress", err)
 		http.Redirect(w, r, h.Cfg.Wonderwall().Ingress, http.StatusTemporaryRedirect)

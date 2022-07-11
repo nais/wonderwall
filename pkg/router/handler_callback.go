@@ -36,7 +36,11 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loginCallback := h.Client.LoginCallback(r, h.Provider, loginCookie)
+	loginCallback, err := h.Client.LoginCallback(r, h.Provider, loginCookie)
+	if err != nil {
+		h.InternalError(w, r, err)
+		return
+	}
 
 	if err := loginCallback.IdentityProviderError(); err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: %w", err))

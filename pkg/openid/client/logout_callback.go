@@ -17,11 +17,15 @@ type logoutCallback struct {
 	requestParams url.Values
 }
 
-func NewLogoutCallback(r *http.Request, cookie *openid.LogoutCookie) LogoutCallback {
+func NewLogoutCallback(r *http.Request, cookie *openid.LogoutCookie) (LogoutCallback, error) {
+	if cookie == nil {
+		return nil, fmt.Errorf("cookie is nil")
+	}
+
 	return &logoutCallback{
 		requestParams: r.URL.Query(),
 		cookie:        cookie,
-	}
+	}, nil
 }
 
 func (in logoutCallback) ValidateRequest() error {
