@@ -6,8 +6,3 @@ type LoginCookie struct {
 	CodeVerifier string `json:"code_verifier"`
 	Referer      string `json:"referer"`
 }
-
-type LogoutCookie struct {
-	State      string `json:"state"`
-	RedirectTo string `json:"redirect_to"`
-}

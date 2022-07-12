@@ -22,7 +22,7 @@ type Client interface {
 	Login(r *http.Request) (Login, error)
 	LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) (LoginCallback, error)
 	Logout() (Logout, error)
-	LogoutCallback(r *http.Request, cookie *openid.LogoutCookie) (LogoutCallback, error)
+	LogoutCallback(r *http.Request) LogoutCallback
 	LogoutFrontchannel(r *http.Request) LogoutFrontchannel
 
 	AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error)
@@ -88,13 +88,8 @@ func (c client) Logout() (Logout, error) {
 	return logout, nil
 }
 
-func (c client) LogoutCallback(r *http.Request, cookie *openid.LogoutCookie) (LogoutCallback, error) {
-	logoutCallback, err := NewLogoutCallback(r, cookie)
-	if err != nil {
-		return nil, fmt.Errorf("logout/callback: %w", err)
-	}
-
-	return logoutCallback, nil
+func (c client) LogoutCallback(r *http.Request) LogoutCallback {
+	return NewLogoutCallback(c, r)
 }
 
 func (c client) LogoutFrontchannel(r *http.Request) LogoutFrontchannel {

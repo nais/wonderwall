@@ -133,10 +133,8 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 
 	cookies = rpClient.Jar.Cookies(logoutURL)
 	sessionCookie = getCookieFromJar(cookie.Session, cookies)
-	logoutCookie := getCookieFromJar(cookie.Logout, cookies)
 
 	assert.Nil(t, sessionCookie)
-	assert.NotNil(t, logoutCookie)
 
 	// Get endsession endpoint after local logout
 	location = resp.Header.Get("location")
@@ -147,12 +145,10 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.NoError(t, err)
 
 	endsessionParams := endsessionURL.Query()
-	expectedState := endsessionParams["state"]
 	assert.Equal(t, idpserverURL.Host, endsessionURL.Host)
 	assert.Equal(t, "/endsession", endsessionURL.Path)
 	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{idp.OpenIDConfig.Client().GetLogoutCallbackURI()})
 	assert.NotEmpty(t, endsessionParams["id_token_hint"])
-	assert.NotEmpty(t, expectedState)
 
 	// Follow redirect to endsession endpoint at identity provider
 	resp, err = rpClient.Get(endsessionURL.String())
@@ -165,12 +161,8 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	logoutCallbackURI, err := url.Parse(location)
 	assert.NoError(t, err)
 	assert.Contains(t, logoutCallbackURI.String(), idp.OpenIDConfig.Client().GetLogoutCallbackURI())
-	logoutCallbackParams := endsessionURL.Query()
-	actualState := logoutCallbackParams["state"]
 
 	assert.Equal(t, "/oauth2/logout/callback", logoutCallbackURI.Path)
-	assert.NotEmpty(t, actualState)
-	assert.Equal(t, expectedState, actualState)
 
 	// Follow redirect back to logout callback
 	resp, err = rpClient.Get(logoutCallbackURI.String())
@@ -185,10 +177,8 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 
 	cookies = rpClient.Jar.Cookies(logoutCallbackURI)
 	sessionCookie = getCookieFromJar(cookie.Session, cookies)
-	logoutCookie = getCookieFromJar(cookie.Logout, cookies)
 
 	assert.Nil(t, sessionCookie)
-	assert.Nil(t, logoutCookie)
 }
 
 func TestHandler_FrontChannelLogout(t *testing.T) {

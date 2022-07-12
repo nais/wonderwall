@@ -1,64 +1,31 @@
 package client
 
 import (
-	"fmt"
 	"net/http"
-	"net/url"
-
-	"github.com/nais/wonderwall/pkg/openid"
 )
 
 type LogoutCallback interface {
-	ValidateRequest() error
+	PostLogoutRedirectURI() string
 }
 
 type logoutCallback struct {
-	cookie        *openid.LogoutCookie
-	requestParams url.Values
+	Client
+	request *http.Request
 }
 
-func NewLogoutCallback(r *http.Request, cookie *openid.LogoutCookie) (LogoutCallback, error) {
-	if cookie == nil {
-		return nil, fmt.Errorf("cookie is nil")
-	}
-
+func NewLogoutCallback(c Client, r *http.Request) LogoutCallback {
 	return &logoutCallback{
-		requestParams: r.URL.Query(),
-		cookie:        cookie,
-	}, nil
+		Client:  c,
+		request: r,
+	}
 }
 
-func (in logoutCallback) ValidateRequest() error {
-	if err := in.emptyRedirectError(); err != nil {
-		return err
+func (in logoutCallback) PostLogoutRedirectURI() string {
+	redirect := in.config().Client().GetPostLogoutRedirectURI()
+
+	if len(redirect) == 0 {
+		return in.config().Wonderwall().Ingress
 	}
 
-	if err := in.stateMismatchError(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (in logoutCallback) emptyRedirectError() error {
-	if len(in.cookie.RedirectTo) == 0 {
-		return fmt.Errorf("empty redirect")
-	}
-
-	return nil
-}
-
-func (in logoutCallback) stateMismatchError() error {
-	expectedState := in.cookie.State
-	actualState := in.requestParams.Get("state")
-
-	if len(actualState) <= 0 {
-		return fmt.Errorf("missing state parameter in request (possible csrf)")
-	}
-
-	if expectedState != actualState {
-		return fmt.Errorf("state parameter mismatch (possible csrf): expected %s, got %s", expectedState, actualState)
-	}
-
-	return nil
+	return redirect
 }

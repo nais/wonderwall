@@ -175,8 +175,7 @@ func isRelevantCookie(name string) bool {
 	switch name {
 	case cookie.Session,
 		cookie.Login,
-		cookie.LoginLegacy,
-		cookie.Logout:
+		cookie.LoginLegacy:
 		return true
 	}
 

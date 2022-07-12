@@ -13,7 +13,6 @@ const (
 	Session     = "io.nais.wonderwall.session"
 	Login       = "io.nais.wonderwall.callback"
 	LoginLegacy = "io.nais.wonderwall.callback.legacy"
-	Logout      = "io.nais.wonderwall.logout"
 )
 
 type Cookie struct {

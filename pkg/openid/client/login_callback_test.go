@@ -160,7 +160,6 @@ func newLoginCallback(t *testing.T, url string, cookie *openid.LoginCookie) (moc
 
 	cfg := idp.OpenIDConfig
 	cfg.ClientConfig.LogoutCallbackURI = LogoutCallbackURI
-	cfg.ClientConfig.PostLogoutRedirectURI = PostLogoutRedirectURI
 	cfg.ProviderConfig.EndSessionEndpoint = EndSessionEndpoint
 
 	loginCallback, err := newTestClientWithConfig(cfg).LoginCallback(req, idp.Provider, cookie)
