@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,8 @@ func TestHandler_Login(t *testing.T) {
 	assert.Equal(t, idp.OpenIDConfig.Client().GetUILocales(), u.Query().Get("ui_locales"))
 	assert.Equal(t, idp.OpenIDConfig.Client().GetClientID(), u.Query().Get("client_id"))
 	assert.Equal(t, idp.OpenIDConfig.Client().GetCallbackURI(), u.Query().Get("redirect_uri"))
+	assert.Equal(t, "S256", u.Query().Get("code_challenge_method"))
+	assert.ElementsMatch(t, idp.OpenIDConfig.Client().GetScopes(), strings.Split(u.Query().Get("scope"), " "))
 	assert.NotEmpty(t, u.Query().Get("state"))
 	assert.NotEmpty(t, u.Query().Get("nonce"))
 	assert.NotEmpty(t, u.Query().Get("code_challenge"))
