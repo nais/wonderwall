@@ -8,6 +8,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -19,7 +20,9 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	scopespkg "github.com/nais/wonderwall/pkg/openid/scopes"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -103,7 +106,7 @@ func identityProviderRouter(ip *IdentityProviderHandler) chi.Router {
 }
 
 type IdentityProviderHandler struct {
-	Codes    map[string]AuthorizeRequest
+	Codes    map[string]*AuthorizeRequest
 	Config   openidconfig.Config
 	Provider TestProvider
 	Sessions map[string]string
@@ -111,7 +114,7 @@ type IdentityProviderHandler struct {
 
 func newIdentityProviderHandler(provider TestProvider, cfg openidconfig.Config) *IdentityProviderHandler {
 	return &IdentityProviderHandler{
-		Codes:    make(map[string]AuthorizeRequest),
+		Codes:    make(map[string]*AuthorizeRequest),
 		Config:   cfg,
 		Provider: provider,
 		Sessions: make(map[string]string),
@@ -120,9 +123,11 @@ func newIdentityProviderHandler(provider TestProvider, cfg openidconfig.Config) 
 
 type AuthorizeRequest struct {
 	AcrLevel      string
+	ClientID      string
 	CodeChallenge string
 	Locale        string
 	Nonce         string
+	SessionID     string
 }
 
 type tokenResponse struct {
@@ -150,25 +155,99 @@ func (ip *IdentityProviderHandler) signToken(token jwt.Token) (string, error) {
 
 func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
+
 	state := query.Get("state")
 	redirect := query.Get("redirect_uri")
-	acrLevel := query.Get("acr_values")
-	codeChallenge := query.Get("code_challenge")
-	locale := query.Get("ui_locales")
 	nonce := query.Get("nonce")
+	responseMode := query.Get("response_mode")
+	responseType := query.Get("response_type")
+	clientId := query.Get("client_id")
+	scope := query.Get("scope")
 
-	if state == "" || redirect == "" || acrLevel == "" || codeChallenge == "" || locale == "" || nonce == "" {
+	codeChallenge := query.Get("code_challenge")
+	codeChallengeMethod := query.Get("code_challenge_method")
+
+	acrLevel := query.Get("acr_values")
+	locale := query.Get("ui_locales")
+
+	required := map[string]string{
+		"state":         state,
+		"nonce":         nonce,
+		"redirect":      redirect,
+		"response_type": responseType,
+		"response_mode": responseMode,
+		"client_id":     clientId,
+		"scope":         scope,
+
+		// we enforce usage of PKCE
+		"code_challenge":        codeChallenge,
+		"code_challenge_method": codeChallengeMethod,
+	}
+
+	for param, value := range required {
+		if len(value) <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(fmt.Sprintf("missing required field '%s'", param)))
+			return
+		}
+	}
+
+	invalidParamResponse := func(w http.ResponseWriter, param, actual string, expected []string) {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("missing required fields"))
+		w.Write([]byte(fmt.Sprintf("'%s' is an invalid value for '%s', must be '%s'", actual, param, expected)))
+	}
+
+	allowedParamValues := map[string][]string{
+		"code_challenge_method": {"S256"},
+		"response_type":         {"code"},
+		"response_mode":         {"query"},
+		"acr_values":            {"", "Level3", "Level4"},
+		"ui_locales":            {"", "nb", "nn", "en", "se"},
+	}
+
+	for param, allowed := range allowedParamValues {
+		paramValue := query.Get(param)
+
+		found := false
+		for _, allowedValue := range allowed {
+			if paramValue == allowedValue {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			invalidParamResponse(w, param, paramValue, allowed)
+			return
+		}
+	}
+
+	scopes := strings.Split(scope, " ")
+	requiredScope := scopespkg.OpenID
+	found := false
+	for _, scope := range scopes {
+		if scope == requiredScope {
+			found = true
+		}
+	}
+
+	if !found {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("'scope' parameter must contain '%s', was '%s'", scopespkg.OpenID, scope)))
 		return
 	}
 
+	sessionID := uuid.New().String()
+	ip.Sessions[sessionID] = clientId
+
 	code := uuid.New().String()
-	ip.Codes[code] = AuthorizeRequest{
+	ip.Codes[code] = &AuthorizeRequest{
 		AcrLevel:      acrLevel,
+		ClientID:      clientId,
 		CodeChallenge: codeChallenge,
 		Locale:        locale,
 		Nonce:         nonce,
+		SessionID:     sessionID,
 	}
 
 	u, err := url.Parse(redirect)
@@ -181,7 +260,6 @@ func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	v.Set("code", code)
 	v.Set("state", state)
 	if ip.Provider.GetOpenIDConfiguration().SessionStateRequired() {
-		sessionID := uuid.New().String()
 		v.Set("session_state", sessionID)
 	}
 
@@ -218,14 +296,16 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	expires := int64(1200)
-
-	sub := uuid.New().String()
-
 	clientID := r.PostForm.Get("client_id")
 	if len(clientID) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("missing client_id"))
+		return
+	}
+
+	if auth.ClientID != clientID {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("client_id does not match client_id used to acquire code"))
 		return
 	}
 
@@ -251,7 +331,6 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		jwt.WithKeySet(publicClientJwkSet),
 		jwt.WithIssuer(ip.Config.Client().GetClientID()),
 		jwt.WithSubject(ip.Config.Client().GetClientID()),
-		jwt.WithClaimValue("scope", ip.Config.Client().GetScopes().String()),
 		jwt.WithAudience(ip.Provider.GetOpenIDConfiguration().Issuer),
 	}
 	_, err = jwt.Parse([]byte(clientAssertion), opts...)
@@ -264,6 +343,24 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		w.Write([]byte(fmt.Sprintf(v.Encode()+"%+v", err)))
 		return
 	}
+
+	codeVerifier := r.PostForm.Get("code_verifier")
+	if len(codeVerifier) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing code_verifier"))
+		return
+	}
+
+	expectedCodeChallenge := client.CodeChallenge(codeVerifier)
+
+	if expectedCodeChallenge != auth.CodeChallenge {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("code_verifier is invalid"))
+		return
+	}
+
+	expires := int64(1200)
+	sub := uuid.New().String()
 
 	accessToken := jwt.New()
 	accessToken.Set("sub", sub)
@@ -278,13 +375,10 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	sessionID := uuid.New().String()
-	ip.Sessions[sessionID] = clientID
-
 	idToken := jwt.New()
 	idToken.Set("sub", sub)
 	idToken.Set("iss", ip.Provider.GetOpenIDConfiguration().Issuer)
-	idToken.Set("aud", clientID)
+	idToken.Set("aud", auth.ClientID)
 	idToken.Set("locale", auth.Locale)
 	idToken.Set("nonce", auth.Nonce)
 	idToken.Set("acr", auth.AcrLevel)
@@ -293,7 +387,7 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 
 	// If the sid claim should be in token and in active session
 	if ip.Provider.OpenIDConfiguration.SidClaimRequired() {
-		idToken.Set("sid", sessionID)
+		idToken.Set("sid", auth.SessionID)
 	}
 
 	signedIdToken, err := ip.signToken(idToken)
