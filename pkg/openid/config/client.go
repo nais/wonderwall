@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	wonderwallconfig "github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
@@ -97,12 +96,12 @@ func NewClientConfig(cfg *wonderwallconfig.Config) (Client, error) {
 		return nil, fmt.Errorf("missing required config %s", wonderwallconfig.Ingress)
 	}
 
-	callbackURI, err := openid.RedirectURI(ingress, paths.Callback)
+	callbackURI, err := RedirectURI(ingress, paths.Callback)
 	if err != nil {
 		return nil, fmt.Errorf("creating callback URI from ingress: %w", err)
 	}
 
-	logoutCallbackURI, err := openid.RedirectURI(ingress, paths.LogoutCallback)
+	logoutCallbackURI, err := RedirectURI(ingress, paths.LogoutCallback)
 	if err != nil {
 		return nil, fmt.Errorf("creating logout callback URI from ingress: %w", err)
 	}

@@ -9,7 +9,6 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/provider"
 )
@@ -17,8 +16,7 @@ import (
 type LoginCallback interface {
 	IdentityProviderError() error
 	StateMismatchError() error
-	ExchangeAuthCode(ctx context.Context) (*oauth2.Token, error)
-	ProcessTokens(ctx context.Context, rawTokens *oauth2.Token) (*jwt.Tokens, error)
+	RedeemTokens(ctx context.Context) (*openid.Tokens, error)
 }
 
 type loginCallback struct {
@@ -68,7 +66,7 @@ func (in loginCallback) StateMismatchError() error {
 	return nil
 }
 
-func (in loginCallback) ExchangeAuthCode(ctx context.Context) (*oauth2.Token, error) {
+func (in loginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
 	clientAssertion, err := in.client.MakeAssertion(time.Second * 30)
 	if err != nil {
 		return nil, fmt.Errorf("creating client assertion: %w", err)
@@ -81,21 +79,17 @@ func (in loginCallback) ExchangeAuthCode(ctx context.Context) (*oauth2.Token, er
 	}
 
 	code := in.requestParams.Get("code")
-	tokens, err := in.client.AuthCodeGrant(ctx, code, opts)
+	rawTokens, err := in.client.AuthCodeGrant(ctx, code, opts)
 	if err != nil {
 		return nil, fmt.Errorf("exchanging authorization code for token: %w", err)
 	}
 
-	return tokens, nil
-}
-
-func (in loginCallback) ProcessTokens(ctx context.Context, rawTokens *oauth2.Token) (*jwt.Tokens, error) {
 	jwkSet, err := in.provider.GetPublicJwkSet(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting jwks: %w", err)
 	}
 
-	tokens, err := jwt.ParseOauth2Token(rawTokens, *jwkSet)
+	tokens, err := openid.NewTokens(rawTokens, *jwkSet)
 	if err != nil {
 		// JWKS might not be up-to-date, so we'll want to force a refresh for the next attempt
 		_, _ = in.provider.RefreshPublicJwkSet(ctx)

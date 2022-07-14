@@ -11,15 +11,18 @@ import (
 
 const (
 	AcceptableClockSkew = 10 * time.Second
+
+	JtiClaim = "jti"
+	SidClaim = "sid"
+	UtiClaim = "uti"
 )
 
 type Token interface {
 	GetExpiration() time.Time
-	GetJtiClaim() string
+	GetJwtID() string
 	GetSerialized() string
 	GetStringClaim(claim string) (string, error)
 	GetToken() jwt.Token
-	GetUtiClaim() string
 }
 
 type token struct {
@@ -31,8 +34,17 @@ func (in *token) GetExpiration() time.Time {
 	return in.token.Expiration()
 }
 
-func (in *token) GetJtiClaim() string {
-	return in.GetStringClaimOrEmpty(JtiClaim)
+func (in *token) GetJwtID() string {
+	jti := in.GetStringClaimOrEmpty(JtiClaim)
+	uti := in.GetStringClaimOrEmpty(UtiClaim)
+
+	// jti is the standard JWT ID claim
+	if len(jti) > 0 {
+		return jti
+	}
+
+	// else, try to return uti - which seems to be Azure AD's variant
+	return uti
 }
 
 func (in *token) GetSerialized() string {
@@ -68,10 +80,6 @@ func (in *token) GetStringClaimOrEmpty(claim string) string {
 
 func (in *token) GetToken() jwt.Token {
 	return in.token
-}
-
-func (in *token) GetUtiClaim() string {
-	return in.GetStringClaimOrEmpty(UtiClaim)
 }
 
 func NewToken(raw string, jwtToken jwt.Token) Token {

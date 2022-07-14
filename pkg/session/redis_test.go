@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/crypto"
-	"github.com/nais/wonderwall/pkg/jwt"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
@@ -24,16 +24,16 @@ func TestRedis(t *testing.T) {
 	idToken := jwtlib.New()
 	idToken.Set("jti", "id-token-jti")
 
-	accessToken := jwtlib.New()
-	accessToken.Set("jti", "access-token-jti")
-
-	tokens := &jwt.Tokens{
-		IDToken:     jwt.NewIDToken("id_token", idToken),
-		AccessToken: jwt.NewAccessToken("access_token", accessToken),
-	}
+	accessToken := "some-access-token"
 	refreshToken := "some-refresh-token"
+
+	tokens := &openid.Tokens{
+		AccessToken:  accessToken,
+		IDToken:      openid.NewIDToken("id_token", idToken),
+		RefreshToken: refreshToken,
+	}
 	metadata := session.NewMetadata(time.Now().Add(time.Hour))
-	data := session.NewData("myid", tokens, refreshToken, metadata)
+	data := session.NewData("myid", tokens, metadata)
 
 	encryptedData, err := data.Encrypt(crypter)
 	assert.NoError(t, err)

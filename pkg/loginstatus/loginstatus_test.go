@@ -13,7 +13,6 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 )
 
@@ -27,18 +26,18 @@ func TestClient_ExchangeToken(t *testing.T) {
 	client := loginstatus.NewClient(cfg, httpclient)
 
 	for _, test := range []struct {
-		token *jwt.AccessToken
+		token string
 		err   error
 	}{
 		{
-			token: jwt.NewAccessToken("valid-token", nil),
+			token: "valid-token",
 		},
 		{
-			token: jwt.NewAccessToken("invalid-token", nil),
+			token: "invalid-token",
 			err:   fmt.Errorf("client error: HTTP: %d: %s: %s", http.StatusUnauthorized, "access_denied", "No new and shiny token for you!"),
 		},
 		{
-			token: jwt.NewAccessToken("internal-server-error", nil),
+			token: "internal-server-error",
 			err:   fmt.Errorf("server error: HTTP: %d: %s", http.StatusInternalServerError, "Oh no, it broke"),
 		},
 	} {

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/nais/wonderwall/pkg/crypto"
-	"github.com/nais/wonderwall/pkg/jwt"
+	"github.com/nais/wonderwall/pkg/openid"
 )
 
 type EncryptedData struct {
@@ -46,21 +46,21 @@ func (in *EncryptedData) Decrypt(crypter crypto.Crypter) (*Data, error) {
 }
 
 type Data struct {
-	ExternalSessionID string     `json:"external_session_id"`
-	AccessToken       string     `json:"access_token"`
-	IDToken           string     `json:"id_token"`
-	RefreshToken      string     `json:"refresh_token"`
-	Claims            jwt.Claims `json:"claims"`
-	Metadata          Metadata   `json:"metadata"`
+	ExternalSessionID string   `json:"external_session_id"`
+	AccessToken       string   `json:"access_token"`
+	IDToken           string   `json:"id_token"`
+	RefreshToken      string   `json:"refresh_token"`
+	IDTokenJwtID      string   `json:"id_token_jwt_id"`
+	Metadata          Metadata `json:"metadata"`
 }
 
-func NewData(externalSessionID string, tokens *jwt.Tokens, refreshToken string, metadata *Metadata) *Data {
+func NewData(externalSessionID string, tokens *openid.Tokens, metadata *Metadata) *Data {
 	data := &Data{
 		ExternalSessionID: externalSessionID,
-		AccessToken:       tokens.AccessToken.GetSerialized(),
+		AccessToken:       tokens.AccessToken,
 		IDToken:           tokens.IDToken.GetSerialized(),
-		RefreshToken:      refreshToken,
-		Claims:            tokens.Claims(),
+		IDTokenJwtID:      tokens.IDToken.GetJwtID(),
+		RefreshToken:      tokens.RefreshToken,
 	}
 
 	if metadata != nil {

@@ -13,8 +13,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/mock"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -40,10 +40,9 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 		sessionData, err := rpHandler.GetSessionFallback(w, r)
 		assert.NoError(t, err)
 		assert.Equal(t, "sid", sessionData.ExternalSessionID)
-		assert.Equal(t, tokens.AccessToken.GetSerialized(), sessionData.AccessToken)
+		assert.Equal(t, tokens.AccessToken, sessionData.AccessToken)
 		assert.Equal(t, tokens.IDToken.GetSerialized(), sessionData.IDToken)
-		assert.Equal(t, "id-token-jti", sessionData.Claims.IDTokenJti)
-		assert.Equal(t, "access-token-jti", sessionData.Claims.AccessTokenJti)
+		assert.Equal(t, "id-token-jti", sessionData.IDTokenJwtID)
 		assert.Empty(t, sessionData.RefreshToken)
 	})
 }
@@ -59,7 +58,7 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 	// request should set session cookies in response
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
-	data := session.NewData("sid", tokens, "", nil)
+	data := session.NewData("sid", tokens, nil)
 	err := rpHandler.SetSessionFallback(writer, nil, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -79,7 +78,7 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 		},
 		{
 			cookieName: "wonderwall-3",
-			want:       tokens.AccessToken.GetSerialized(),
+			want:       tokens.AccessToken,
 		},
 	} {
 		assertCookieExists(t, rpHandler, test.cookieName, test.want, cookies)
@@ -118,10 +117,10 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 	})
 }
 
-func makeRequestWithFallbackCookies(t *testing.T, h *router.Handler, tokens *jwt.Tokens) *http.Request {
+func makeRequestWithFallbackCookies(t *testing.T, h *router.Handler, tokens *openid.Tokens) *http.Request {
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
-	data := session.NewData("sid", tokens, "", nil)
+	data := session.NewData("sid", tokens, nil)
 	err := h.SetSessionFallback(writer, nil, data, expiresIn)
 	assert.NoError(t, err)
 
@@ -163,7 +162,7 @@ func assertCookieExists(t *testing.T, h *router.Handler, cookieName, expectedVal
 	assert.Equal(t, expectedValue, string(plainbytes))
 }
 
-func makeTokens(provider mock.TestProvider) *jwt.Tokens {
+func makeTokens(provider mock.TestProvider) *openid.Tokens {
 	jwks := *provider.PrivateJwkSet()
 	jwksPublic, err := provider.GetPublicJwkSet(context.TODO())
 	if err != nil {
@@ -188,20 +187,10 @@ func makeTokens(provider mock.TestProvider) *jwt.Tokens {
 		log.Fatalf("parsing signed id_token: %+v", err)
 	}
 
-	accessToken := jwtlib.New()
-	accessToken.Set("jti", "access-token-jti")
+	accessToken := "some-access-token"
 
-	signedAccessToken, err := jwtlib.Sign(accessToken, jwtlib.WithKey(jwa.RS256, signer))
-	if err != nil {
-		log.Fatalf("signing access_token: %+v", err)
-	}
-	parsedAccessToken, err := jwtlib.Parse(signedAccessToken, jwtlib.WithKeySet(*jwksPublic))
-	if err != nil {
-		log.Fatalf("parsing signed access_token: %+v", err)
-	}
-
-	return &jwt.Tokens{
-		IDToken:     jwt.NewIDToken(string(signedIdToken), parsedIdToken),
-		AccessToken: jwt.NewAccessToken(string(signedAccessToken), parsedAccessToken),
+	return &openid.Tokens{
+		IDToken:     openid.NewIDToken(string(signedIdToken), parsedIdToken),
+		AccessToken: accessToken,
 	}
 }

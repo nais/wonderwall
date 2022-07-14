@@ -43,20 +43,20 @@ func TestLoginCallback_IdentityProviderError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestLoginCallback_ExchangeAuthCode(t *testing.T) {
-	t.Run("valid code", func(t *testing.T) {
-		url := "http://wonderwall/oauth2/callback?code=some-code"
+func TestLoginCallback_RedeemTokens(t *testing.T) {
+	url := "http://wonderwall/oauth2/callback?code=some-code"
 
+	t.Run("happy path", func(t *testing.T) {
 		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
 
-		tokens, err := lc.ExchangeAuthCode(context.Background())
+		tokens, err := lc.RedeemTokens(context.Background())
 		assert.NoError(t, err)
 		assert.NotNil(t, tokens)
 
 		assert.NotEmpty(t, tokens.AccessToken)
 		assert.NotEmpty(t, tokens.RefreshToken)
-		assert.NotEmpty(t, tokens.Extra("id_token"))
+		assert.NotEmpty(t, tokens.IDToken.GetSerialized())
 		assert.NotEmpty(t, tokens.TokenType)
 		assert.NotEmpty(t, tokens.Expiry)
 
@@ -67,8 +67,6 @@ func TestLoginCallback_ExchangeAuthCode(t *testing.T) {
 	})
 
 	t.Run("invalid code", func(t *testing.T) {
-		url := "http://wonderwall/oauth2/callback?code=some-code"
-
 		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
 		idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
@@ -76,26 +74,9 @@ func TestLoginCallback_ExchangeAuthCode(t *testing.T) {
 			"another-code":    {},
 		}
 
-		tokens, err := lc.ExchangeAuthCode(context.Background())
+		tokens, err := lc.RedeemTokens(context.Background())
 		assert.Error(t, err)
 		assert.Nil(t, tokens)
-	})
-}
-
-func TestLoginCallback_ProcessTokens(t *testing.T) {
-	url := "http://wonderwall/oauth2/callback?code=some-code"
-
-	t.Run("happy path", func(t *testing.T) {
-		idp, lc := newLoginCallback(t, url)
-		defer idp.Close()
-
-		rawTokens, err := lc.ExchangeAuthCode(context.Background())
-		assert.NoError(t, err)
-		assert.NotNil(t, rawTokens)
-
-		tokens, err := lc.ProcessTokens(context.Background(), rawTokens)
-		assert.NoError(t, err)
-		assert.NotNil(t, tokens)
 	})
 
 	t.Run("nonce mismatch", func(t *testing.T) {
@@ -103,11 +84,7 @@ func TestLoginCallback_ProcessTokens(t *testing.T) {
 		defer idp.Close()
 		idp.ProviderHandler.Codes["some-code"].Nonce = "some-other-nonce"
 
-		rawTokens, err := lc.ExchangeAuthCode(context.Background())
-		assert.NoError(t, err)
-		assert.NotNil(t, rawTokens)
-
-		tokens, err := lc.ProcessTokens(context.Background(), rawTokens)
+		tokens, err := lc.RedeemTokens(context.Background())
 		assert.Error(t, err)
 		assert.Nil(t, tokens)
 	})
@@ -117,11 +94,7 @@ func TestLoginCallback_ProcessTokens(t *testing.T) {
 		defer idp.Close()
 		idp.OpenIDConfig.ClientConfig.ClientID = "new-client-id"
 
-		rawTokens, err := lc.ExchangeAuthCode(context.Background())
-		assert.NoError(t, err)
-		assert.NotNil(t, rawTokens)
-
-		tokens, err := lc.ProcessTokens(context.Background(), rawTokens)
+		tokens, err := lc.RedeemTokens(context.Background())
 		assert.Error(t, err)
 		assert.Nil(t, tokens)
 	})

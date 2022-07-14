@@ -9,10 +9,9 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/jwt"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
@@ -77,7 +76,7 @@ func (h *Handler) getSessionLifetime(tokenExpiry time.Time) time.Duration {
 	return defaultSessionLifetime
 }
 
-func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *jwt.Tokens, rawTokens *oauth2.Token) error {
+func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *openid.Tokens) error {
 	params := r.URL.Query()
 
 	externalSessionID, err := session.NewSessionID(h.Cfg.Provider(), tokens.IDToken, params)
@@ -85,7 +84,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 		return fmt.Errorf("generating session ID: %w", err)
 	}
 
-	sessionLifetime := h.getSessionLifetime(rawTokens.Expiry)
+	sessionLifetime := h.getSessionLifetime(tokens.Expiry)
 	opts := h.CookieOptions.WithExpiresIn(sessionLifetime)
 
 	sessionID := h.localSessionID(externalSessionID)
@@ -95,7 +94,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 	}
 
 	sessionMetadata := session.NewMetadata(time.Now().Add(sessionLifetime))
-	sessionData := session.NewData(externalSessionID, tokens, rawTokens.RefreshToken, sessionMetadata)
+	sessionData := session.NewData(externalSessionID, tokens, sessionMetadata)
 
 	encryptedSessionData, err := sessionData.Encrypt(h.Crypter)
 	if err != nil {

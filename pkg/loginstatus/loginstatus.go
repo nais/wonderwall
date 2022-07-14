@@ -11,7 +11,6 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/jwt"
 )
 
 const (
@@ -19,7 +18,7 @@ const (
 )
 
 type Client interface {
-	ExchangeToken(ctx context.Context, accessToken *jwt.AccessToken) (*TokenResponse, error)
+	ExchangeToken(ctx context.Context, accessToken string) (*TokenResponse, error)
 	SetCookie(w http.ResponseWriter, token *TokenResponse, opts cookie.Options)
 	HasCookie(r *http.Request) bool
 	ClearCookie(w http.ResponseWriter, opts cookie.Options)
@@ -48,7 +47,7 @@ type client struct {
 	httpClient *http.Client
 }
 
-func (c client) ExchangeToken(ctx context.Context, accessToken *jwt.AccessToken) (*TokenResponse, error) {
+func (c client) ExchangeToken(ctx context.Context, accessToken string) (*TokenResponse, error) {
 	req, err := request(ctx, c.config.TokenURL, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("creating request %w", err)
@@ -101,13 +100,13 @@ func (c client) CookieOptions(opts cookie.Options) cookie.Options {
 		WithPath("/")
 }
 
-func request(ctx context.Context, url string, token *jwt.AccessToken) (*http.Request, error) {
+func request(ctx context.Context, url string, token string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.GetSerialized()))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	req.Header.Set("Accept", "application/json")
 
 	return req, nil

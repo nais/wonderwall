@@ -25,7 +25,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		}
 
 		fields := map[string]interface{}{
-			"claims": sessionData.Claims,
+			"jti": sessionData.IDTokenJwtID,
 		}
 		logger := logentry.LogEntryWithFields(r.Context(), fields)
 		logger.Info().Msg("logout: successful local logout")

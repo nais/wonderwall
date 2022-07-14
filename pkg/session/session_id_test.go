@@ -8,7 +8,7 @@ import (
 	jwtlib "github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nais/wonderwall/pkg/jwt"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -17,7 +17,7 @@ func TestSessionID(t *testing.T) {
 	for _, test := range []struct {
 		name       string
 		config     *config.Provider
-		idToken    *jwt.IDToken
+		idToken    *openid.IDToken
 		params     url.Values
 		want       string
 		exactMatch bool
@@ -136,7 +136,7 @@ func params(key, value string) url.Values {
 	return values
 }
 
-func newIDToken(extraClaims map[string]string) *jwt.IDToken {
+func newIDToken(extraClaims map[string]string) *openid.IDToken {
 	idToken := jwtlib.New()
 	idToken.Set("sub", "test")
 	idToken.Set("iss", "test")
@@ -155,15 +155,15 @@ func newIDToken(extraClaims map[string]string) *jwt.IDToken {
 		panic(err)
 	}
 
-	return jwt.NewIDToken(string(serialized), idToken)
+	return openid.NewIDToken(string(serialized), idToken)
 }
 
-func idTokenWithSid(sid string) *jwt.IDToken {
+func idTokenWithSid(sid string) *openid.IDToken {
 	return newIDToken(map[string]string{
 		"sid": sid,
 	})
 }
 
-func idToken() *jwt.IDToken {
+func idToken() *openid.IDToken {
 	return newIDToken(nil)
 }

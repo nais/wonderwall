@@ -7,9 +7,12 @@ import (
 	"net/http"
 	"time"
 
+	"golang.org/x/oauth2"
+
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/jwt"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/provider"
 )
 
@@ -87,15 +90,34 @@ func (c cookieSessionStore) Read(ctx context.Context) (*Data, error) {
 		return nil, fmt.Errorf("callback: getting jwks: %w", err)
 	}
 
-	tokens, err := jwt.ParseTokensFromStrings(idToken, accessToken, *jwkSet)
+	// TODO: currently a placeholder fallback value, should fetch from metadata cookie
+	expiry := time.Now().Add(time.Hour)
+
+	// attempt to get expiry from access_token if it is a JWT
+	parsedAccessToken, err := jwt.Parse(accessToken, *jwkSet)
+	if err == nil {
+		expiry = parsedAccessToken.Expiration()
+	}
+
+	// TODO: set refresh token and metadata
+	rawTokens := &oauth2.Token{
+		AccessToken:  accessToken,
+		TokenType:    "Bearer",
+		RefreshToken: "",
+		Expiry:       expiry,
+	}
+	rawTokens = rawTokens.WithExtra(map[string]interface{}{
+		"id_token": idToken,
+	})
+
+	tokens, err := openid.NewTokens(rawTokens, *jwkSet)
 	if err != nil {
 		// JWKS might not be up-to-date, so we'll want to force a refresh for the next attempt
 		_, _ = c.provider.RefreshPublicJwkSet(ctx)
 		return nil, fmt.Errorf("parsing tokens: %w", err)
 	}
 
-	// TODO: set refresh token and metadata
-	return NewData(externalSessionID, tokens, "", nil), nil
+	return NewData(externalSessionID, tokens, nil), nil
 }
 
 func (c cookieSessionStore) Delete() {

@@ -36,7 +36,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf("front-channel logout: destroying session: %+v", err)
 	} else if sessionData != nil {
-		log.WithField("claims", sessionData.Claims).Infof("front-channel logout: successful logout")
+		log.WithField("jti", sessionData.IDTokenJwtID).Infof("front-channel logout: successful logout")
 	}
 
 	w.WriteHeader(http.StatusOK)

@@ -1,4 +1,4 @@
-package openid_test
+package config_test
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
@@ -47,7 +47,7 @@ func TestRedirectURI(t *testing.T) {
 			err:   fmt.Errorf("ingress cannot be empty"),
 		},
 	} {
-		actual, err := openid.RedirectURI(test.input, test.path)
+		actual, err := config.RedirectURI(test.input, test.path)
 		if test.err != nil {
 			assert.EqualError(t, err, test.err.Error())
 		} else {

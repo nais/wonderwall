@@ -9,10 +9,9 @@ import (
 
 	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
 
-	"github.com/nais/wonderwall/pkg/jwt"
 	"github.com/nais/wonderwall/pkg/loginstatus"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/client"
 	logentry "github.com/nais/wonderwall/pkg/router/middleware"
 )
@@ -52,19 +51,13 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rawTokens, err := h.exchangeAuthCode(r.Context(), loginCallback)
+	tokens, err := h.redeemValidTokens(r.Context(), loginCallback)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: %w", err))
 		return
 	}
 
-	tokens, err := loginCallback.ProcessTokens(r.Context(), rawTokens)
-	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("callback: %w", err))
-		return
-	}
-
-	err = h.createSession(w, r, tokens, rawTokens)
+	err = h.createSession(w, r, tokens)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return
@@ -85,12 +78,12 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) exchangeAuthCode(ctx context.Context, loginCallback client.LoginCallback) (*oauth2.Token, error) {
-	var tokens *oauth2.Token
+func (h *Handler) redeemValidTokens(ctx context.Context, loginCallback client.LoginCallback) (*openid.Tokens, error) {
+	var tokens *openid.Tokens
 	var err error
 
 	retryable := func(ctx context.Context) error {
-		tokens, err = loginCallback.ExchangeAuthCode(ctx)
+		tokens, err = loginCallback.RedeemTokens(ctx)
 		if err != nil {
 			log.Warnf("callback: retrying: %+v", err)
 			return retry.RetryableError(err)
@@ -107,7 +100,7 @@ func (h *Handler) exchangeAuthCode(ctx context.Context, loginCallback client.Log
 	return tokens, nil
 }
 
-func (h *Handler) getLoginstatusToken(ctx context.Context, tokens *jwt.Tokens) (*loginstatus.TokenResponse, error) {
+func (h *Handler) getLoginstatusToken(ctx context.Context, tokens *openid.Tokens) (*loginstatus.TokenResponse, error) {
 	var tokenResponse *loginstatus.TokenResponse
 
 	err := retry.Do(ctx, backoff(), func(ctx context.Context) error {
@@ -128,10 +121,10 @@ func (h *Handler) getLoginstatusToken(ctx context.Context, tokens *jwt.Tokens) (
 	return tokenResponse, nil
 }
 
-func logSuccessfulLogin(r *http.Request, tokens *jwt.Tokens, referer string) {
+func logSuccessfulLogin(r *http.Request, tokens *openid.Tokens, referer string) {
 	fields := map[string]interface{}{
 		"redirect_to": referer,
-		"claims":      tokens.Claims(),
+		"jti":         tokens.IDToken.GetJwtID(),
 	}
 
 	logger := logentry.LogEntryWithFields(r.Context(), fields)
