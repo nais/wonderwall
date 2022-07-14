@@ -133,9 +133,7 @@ func newLoginParameters(c Client) (*loginParameters, error) {
 }
 
 func (in *loginParameters) authCodeURL(r *http.Request) (string, error) {
-	scopes := in.config().Client().GetScopes().String()
 	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("scope", scopes),
 		oauth2.SetAuthURLParam("nonce", in.Nonce),
 		oauth2.SetAuthURLParam("response_mode", "query"),
 		oauth2.SetAuthURLParam("code_challenge", in.CodeChallenge),
