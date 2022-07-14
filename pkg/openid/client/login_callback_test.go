@@ -14,13 +14,9 @@ import (
 )
 
 func TestLoginCallback_StateMismatchError(t *testing.T) {
-	cookie := &openid.LoginCookie{
-		State: "some-state",
-	}
-
 	t.Run("invalid state", func(t *testing.T) {
 		url := "http://wonderwall/oauth2/callback?state=some-other-state"
-		idp, lc := newLoginCallback(t, url, cookie)
+		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
 
 		err := lc.StateMismatchError()
@@ -29,7 +25,7 @@ func TestLoginCallback_StateMismatchError(t *testing.T) {
 
 	t.Run("missing state", func(t *testing.T) {
 		url := "http://wonderwall/oauth2/callback"
-		idp, lc := newLoginCallback(t, url, cookie)
+		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
 
 		err := lc.StateMismatchError()
@@ -38,13 +34,9 @@ func TestLoginCallback_StateMismatchError(t *testing.T) {
 }
 
 func TestLoginCallback_IdentityProviderError(t *testing.T) {
-	cookie := &openid.LoginCookie{
-		State: "some-state",
-	}
-
 	url := "http://wonderwall/oauth2/callback?error=invalid_client&error_description=client%20authenticaion%20failed"
 
-	idp, lc := newLoginCallback(t, url, cookie)
+	idp, lc := newLoginCallback(t, url)
 	defer idp.Close()
 
 	err := lc.IdentityProviderError()
@@ -53,14 +45,10 @@ func TestLoginCallback_IdentityProviderError(t *testing.T) {
 
 func TestLoginCallback_ExchangeAuthCode(t *testing.T) {
 	t.Run("valid code", func(t *testing.T) {
-		cookie := &openid.LoginCookie{}
 		url := "http://wonderwall/oauth2/callback?code=some-code"
 
-		idp, lc := newLoginCallback(t, url, cookie)
+		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
-		idp.ProviderHandler.Codes = map[string]mock.AuthorizeRequest{
-			"some-code": {},
-		}
 
 		tokens, err := lc.ExchangeAuthCode(context.Background())
 		assert.NoError(t, err)
@@ -79,12 +67,11 @@ func TestLoginCallback_ExchangeAuthCode(t *testing.T) {
 	})
 
 	t.Run("invalid code", func(t *testing.T) {
-		cookie := &openid.LoginCookie{}
 		url := "http://wonderwall/oauth2/callback?code=some-code"
 
-		idp, lc := newLoginCallback(t, url, cookie)
+		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
-		idp.ProviderHandler.Codes = map[string]mock.AuthorizeRequest{
+		idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
 			"some-other-code": {},
 			"another-code":    {},
 		}
@@ -96,18 +83,11 @@ func TestLoginCallback_ExchangeAuthCode(t *testing.T) {
 }
 
 func TestLoginCallback_ProcessTokens(t *testing.T) {
-	cookie := &openid.LoginCookie{
-		State: "some-state",
-		Nonce: "some-nonce",
-	}
 	url := "http://wonderwall/oauth2/callback?code=some-code"
 
 	t.Run("happy path", func(t *testing.T) {
-		idp, lc := newLoginCallback(t, url, cookie)
+		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
-		idp.ProviderHandler.Codes["some-code"] = mock.AuthorizeRequest{
-			Nonce: "some-nonce",
-		}
 
 		rawTokens, err := lc.ExchangeAuthCode(context.Background())
 		assert.NoError(t, err)
@@ -119,11 +99,9 @@ func TestLoginCallback_ProcessTokens(t *testing.T) {
 	})
 
 	t.Run("nonce mismatch", func(t *testing.T) {
-		idp, lc := newLoginCallback(t, url, cookie)
+		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
-		idp.ProviderHandler.Codes["some-code"] = mock.AuthorizeRequest{
-			Nonce: "some-other-nonce",
-		}
+		idp.ProviderHandler.Codes["some-code"].Nonce = "some-other-nonce"
 
 		rawTokens, err := lc.ExchangeAuthCode(context.Background())
 		assert.NoError(t, err)
@@ -135,11 +113,8 @@ func TestLoginCallback_ProcessTokens(t *testing.T) {
 	})
 
 	t.Run("unexpected audience", func(t *testing.T) {
-		idp, lc := newLoginCallback(t, url, cookie)
+		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
-		idp.ProviderHandler.Codes["some-code"] = mock.AuthorizeRequest{
-			Nonce: "some-nonce",
-		}
 		idp.OpenIDConfig.ClientConfig.ClientID = "new-client-id"
 
 		rawTokens, err := lc.ExchangeAuthCode(context.Background())
@@ -152,7 +127,13 @@ func TestLoginCallback_ProcessTokens(t *testing.T) {
 	})
 }
 
-func newLoginCallback(t *testing.T, url string, cookie *openid.LoginCookie) (mock.IdentityProvider, client.LoginCallback) {
+func newLoginCallback(t *testing.T, url string) (mock.IdentityProvider, client.LoginCallback) {
+	cookie := &openid.LoginCookie{
+		State:        "some-state",
+		Nonce:        "some-nonce",
+		CodeVerifier: "some-verifier",
+	}
+
 	req, err := http.NewRequest("GET", url, nil)
 	assert.NoError(t, err)
 
@@ -161,6 +142,14 @@ func newLoginCallback(t *testing.T, url string, cookie *openid.LoginCookie) (moc
 	cfg := idp.OpenIDConfig
 	cfg.ClientConfig.LogoutCallbackURI = LogoutCallbackURI
 	cfg.ProviderConfig.EndSessionEndpoint = EndSessionEndpoint
+
+	idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
+		"some-code": {
+			ClientID:      idp.OpenIDConfig.Client().GetClientID(),
+			CodeChallenge: client.CodeChallenge("some-verifier"),
+			Nonce:         "some-nonce",
+		},
+	}
 
 	loginCallback, err := newTestClientWithConfig(cfg).LoginCallback(req, idp.Provider, cookie)
 	assert.NoError(t, err)
