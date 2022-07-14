@@ -40,10 +40,6 @@ func TestMakeAssertion(t *testing.T) {
 	assert.Equal(t, "some-client-id", assertion.Issuer())
 	assert.Equal(t, "some-client-id", assertion.Subject())
 
-	scps, ok := assertion.Get("scope")
-	assert.True(t, ok)
-	assert.Equal(t, "openid", scps)
-
 	assert.True(t, assertion.IssuedAt().Before(time.Now()))
 	assert.True(t, assertion.Expiration().After(time.Now()))
 	assert.True(t, assertion.Expiration().Before(time.Now().Add(expiry)))

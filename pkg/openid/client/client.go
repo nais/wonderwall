@@ -114,7 +114,6 @@ func (c client) MakeAssertion(expiration time.Duration) (string, error) {
 	errs = append(errs, tok.Set(jwt.IssuerKey, clientCfg.GetClientID()))
 	errs = append(errs, tok.Set(jwt.SubjectKey, clientCfg.GetClientID()))
 	errs = append(errs, tok.Set(jwt.AudienceKey, providerCfg.Issuer))
-	errs = append(errs, tok.Set("scope", clientCfg.GetScopes().String()))
 	errs = append(errs, tok.Set(jwt.IssuedAtKey, iat))
 	errs = append(errs, tok.Set(jwt.ExpirationKey, exp))
 	errs = append(errs, tok.Set(jwt.JwtIDKey, uuid.New().String()))
