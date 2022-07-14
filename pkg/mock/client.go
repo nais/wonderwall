@@ -73,6 +73,6 @@ func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
 		UILocales:             "nb",
 		ACRValues:             "Level4",
 		PostLogoutRedirectURI: "",
-		Scopes:                scopes.DefaultScopes(),
+		Scopes:                scopes.DefaultScopes().WithAdditional(cfg.OpenID.Scopes...),
 	}
 }

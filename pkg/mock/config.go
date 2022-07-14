@@ -14,6 +14,7 @@ func Config() *config.Config {
 		OpenID: config.OpenID{
 			Provider: "test",
 			ClientID: "client-id",
+			Scopes:   []string{"some-scope"},
 		},
 		SessionMaxLifetime: time.Hour,
 	}
