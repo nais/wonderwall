@@ -126,7 +126,7 @@ func newLoginParameters(c Client) (*loginParameters, error) {
 	return &loginParameters{
 		Client:        c,
 		CodeVerifier:  codeVerifier,
-		CodeChallenge: codeChallenge(codeVerifier),
+		CodeChallenge: CodeChallenge(codeVerifier),
 		Nonce:         nonce,
 		State:         state,
 	}, nil
@@ -215,7 +215,7 @@ func LoginURLParameter(r *http.Request, parameter, fallback string, supported co
 	return value, fmt.Errorf("%w: invalid value for %s=%s", InvalidLoginParameterError, parameter, value)
 }
 
-func codeChallenge(codeVerifier string) string {
+func CodeChallenge(codeVerifier string) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(codeVerifier))
 	codeVerifierHash := hasher.Sum(nil)
