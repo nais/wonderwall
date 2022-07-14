@@ -84,6 +84,12 @@ func NewIdentityProvider(cfg *config.Config) IdentityProvider {
 	rpHandler.CookieOptions = rpHandler.CookieOptions.WithSecure(false)
 	rpServer := httptest.NewServer(router.New(rpHandler))
 
+	// reconfigure client after Relying Party server is started
+	openidConfig.ClientConfig.CallbackURI = rpServer.URL + "/oauth2/callback"
+	openidConfig.ClientConfig.PostLogoutRedirectURI = rpServer.URL
+	openidConfig.ClientConfig.LogoutCallbackURI = rpServer.URL + "/oauth2/logout/callback"
+	rpHandler.Client = client.NewClient(openidConfig)
+
 	return IdentityProvider{
 		cancelFunc:          cancel,
 		Cfg:                 cfg,

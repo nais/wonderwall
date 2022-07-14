@@ -12,7 +12,6 @@ import (
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/mock"
-	"github.com/nais/wonderwall/pkg/openid/client"
 )
 
 func TestHandler_Login(t *testing.T) {
@@ -22,19 +21,7 @@ func TestHandler_Login(t *testing.T) {
 
 	rpClient := idp.RelyingPartyClient()
 
-	loginURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/login")
-	assert.NoError(t, err)
-
-	resp, err := rpClient.Get(loginURL.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-	defer resp.Body.Close()
-
-	cookies := rpClient.Jar.Cookies(loginURL)
-	loginCookie := getCookieFromJar(cookie.Login, cookies)
-	assert.NotNil(t, loginCookie)
-	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
-	assert.NotNil(t, loginLegacyCookie)
+	resp := localLogin(t, rpClient, idp)
 
 	location := resp.Header.Get("location")
 	u, err := url.Parse(location)
@@ -53,8 +40,8 @@ func TestHandler_Login(t *testing.T) {
 	assert.NotEmpty(t, u.Query().Get("code_challenge"))
 
 	resp, err = rpClient.Get(u.String())
-	assert.NoError(t, err)
 	defer resp.Body.Close()
+	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	location = resp.Header.Get("location")
@@ -65,82 +52,27 @@ func TestHandler_Login(t *testing.T) {
 	assert.NotEmpty(t, callbackURL.Query().Get("code"))
 }
 
-func TestHandler_Callback_and_Logout(t *testing.T) {
+func TestHandler_Callback(t *testing.T) {
 	cfg := mock.Config()
 	idp := mock.NewIdentityProvider(cfg)
 	defer idp.Close()
 
 	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+}
 
-	idp.OpenIDConfig.ClientConfig.CallbackURI = idp.RelyingPartyServer.URL + "/oauth2/callback"
-	idp.OpenIDConfig.ClientConfig.PostLogoutRedirectURI = idp.RelyingPartyServer.URL
-	idp.OpenIDConfig.ClientConfig.LogoutCallbackURI = idp.RelyingPartyServer.URL + "/oauth2/logout/callback"
+func TestHandler_Logout(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
 
-	c := client.NewClient(idp.OpenIDConfig)
-	idp.RelyingPartyHandler.Client = c
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
 
-	// First, run /oauth2/login to set cookies
-	loginURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/login")
-	resp, err := rpClient.Get(loginURL.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-	defer resp.Body.Close()
-
-	cookies := rpClient.Jar.Cookies(loginURL)
-	sessionCookie := getCookieFromJar(cookie.Session, cookies)
-	loginCookie := getCookieFromJar(cookie.Login, cookies)
-	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
-
-	assert.Nil(t, sessionCookie)
-	assert.NotNil(t, loginCookie)
-	assert.NotNil(t, loginLegacyCookie)
-
-	// Get authorization URL
-	location := resp.Header.Get("location")
-	u, err := url.Parse(location)
-	assert.NoError(t, err)
-
-	// Follow redirect to authorize with identity provider
-	resp, err = rpClient.Get(u.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-	defer resp.Body.Close()
-
-	// Get callback URL after successful auth
-	location = resp.Header.Get("location")
-	callbackURL, err := url.Parse(location)
-	assert.NoError(t, err)
-
-	// Follow redirect to callback
-	resp, err = rpClient.Get(callbackURL.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-
-	cookies = rpClient.Jar.Cookies(callbackURL)
-	sessionCookie = getCookieFromJar(cookie.Session, cookies)
-	loginCookie = getCookieFromJar(cookie.Login, cookies)
-	loginLegacyCookie = getCookieFromJar(cookie.LoginLegacy, cookies)
-
-	assert.NotNil(t, sessionCookie)
-	assert.Nil(t, loginCookie)
-	assert.Nil(t, loginLegacyCookie)
-
-	// Request self-initiated logout
-	logoutURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/logout")
-	assert.NoError(t, err)
-
-	resp, err = rpClient.Get(logoutURL.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-	defer resp.Body.Close()
-
-	cookies = rpClient.Jar.Cookies(logoutURL)
-	sessionCookie = getCookieFromJar(cookie.Session, cookies)
-
-	assert.Nil(t, sessionCookie)
+	resp := localLogout(t, rpClient, idp)
 
 	// Get endsession endpoint after local logout
-	location = resp.Header.Get("location")
+	location := resp.Header.Get("location")
 	endsessionURL, err := url.Parse(location)
 	assert.NoError(t, err)
 
@@ -152,12 +84,171 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.Equal(t, "/endsession", endsessionURL.Path)
 	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{idp.OpenIDConfig.Client().GetLogoutCallbackURI()})
 	assert.NotEmpty(t, endsessionParams["id_token_hint"])
+}
+
+func TestHandler_LogoutCallback(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	logout(t, rpClient, idp)
+}
+
+func TestHandler_FrontChannelLogout(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	idp.Provider.WithFrontChannelLogoutSupport()
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	sessionCookie := login(t, rpClient, idp)
+
+	// Trigger front-channel logout
+	ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
+	assert.NoError(t, err)
+
+	sid, err := idp.RelyingPartyHandler.Crypter.Decrypt(ciphertext)
+	assert.NoError(t, err)
+
+	frontchannelLogoutURL, err := url.Parse(idp.RelyingPartyServer.URL)
+	assert.NoError(t, err)
+
+	frontchannelLogoutURL.Path = "/oauth2/logout/frontchannel"
+
+	values := url.Values{}
+	values.Add("sid", string(sid))
+	values.Add("iss", idp.OpenIDConfig.Provider().Issuer)
+	frontchannelLogoutURL.RawQuery = values.Encode()
+
+	resp, err := rpClient.Get(frontchannelLogoutURL.String())
+	defer resp.Body.Close()
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestHandler_SessionStateRequired(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	idp.Provider.WithCheckSessionIFrameSupport(idp.ProviderServer.URL + "/checksession")
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+
+	resp := authorize(t, rpClient, idp)
+
+	// Get callback URL after successful auth
+	location := resp.Header.Get("location")
+	callbackURL, err := url.Parse(location)
+	assert.NoError(t, err)
+
+	params := callbackURL.Query()
+	sessionState := params.Get("session_state")
+	assert.NotEmpty(t, sessionState)
+}
+
+func TestHandler_Default(t *testing.T) {
+	// TODO
+}
+
+func localLogin(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) *http.Response {
+	// First, run /oauth2/login to set cookies
+	loginURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/login")
+	assert.NoError(t, err)
+
+	resp, err := rpClient.Get(loginURL.String())
+	defer resp.Body.Close()
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+
+	cookies := rpClient.Jar.Cookies(loginURL)
+	sessionCookie := getCookieFromJar(cookie.Session, cookies)
+	loginCookie := getCookieFromJar(cookie.Login, cookies)
+	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
+
+	assert.Nil(t, sessionCookie)
+	assert.NotNil(t, loginCookie)
+	assert.NotNil(t, loginLegacyCookie)
+
+	return resp
+}
+
+func authorize(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) *http.Response {
+	resp := localLogin(t, rpClient, idp)
+
+	// Get authorization URL
+	location := resp.Header.Get("location")
+	u, err := url.Parse(location)
+	assert.NoError(t, err)
+
+	// Follow redirect to authorize with identity provider
+	resp, err = rpClient.Get(u.String())
+	defer resp.Body.Close()
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+
+	return resp
+}
+
+func callback(t *testing.T, rpClient *http.Client, authorizeResponse *http.Response) *http.Cookie {
+	// Get callback URL after successful auth
+	location := authorizeResponse.Header.Get("location")
+	callbackURL, err := url.Parse(location)
+	assert.NoError(t, err)
+
+	// Follow redirect to callback
+	resp, err := rpClient.Get(callbackURL.String())
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+
+	cookies := rpClient.Jar.Cookies(callbackURL)
+	sessionCookie := getCookieFromJar(cookie.Session, cookies)
+	loginCookie := getCookieFromJar(cookie.Login, cookies)
+	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
+
+	assert.NotNil(t, sessionCookie)
+	assert.Nil(t, loginCookie)
+	assert.Nil(t, loginLegacyCookie)
+
+	return sessionCookie
+}
+
+func login(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) *http.Cookie {
+	resp := authorize(t, rpClient, idp)
+	return callback(t, rpClient, resp)
+}
+
+func localLogout(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) *http.Response {
+	// Request self-initiated logout
+	logoutURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/logout")
+	assert.NoError(t, err)
+
+	resp, err := rpClient.Get(logoutURL.String())
+	defer resp.Body.Close()
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+
+	cookies := rpClient.Jar.Cookies(logoutURL)
+	sessionCookie := getCookieFromJar(cookie.Session, cookies)
+
+	assert.Nil(t, sessionCookie)
+
+	return resp
+}
+
+func logout(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) {
+	resp := localLogout(t, rpClient, idp)
+
+	// Get endsession endpoint after local logout
+	location := resp.Header.Get("location")
+	endsessionURL, err := url.Parse(location)
+	assert.NoError(t, err)
 
 	// Follow redirect to endsession endpoint at identity provider
 	resp, err = rpClient.Get(endsessionURL.String())
+	defer resp.Body.Close()
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-	defer resp.Body.Close()
 
 	// Get post-logout redirect URI after successful logout at identity provider
 	location = resp.Header.Get("location")
@@ -178,126 +269,16 @@ func TestHandler_Callback_and_Logout(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, idp.OpenIDConfig.Client().GetPostLogoutRedirectURI(), postLogoutRedirectURI.String())
 
-	cookies = rpClient.Jar.Cookies(logoutCallbackURI)
-	sessionCookie = getCookieFromJar(cookie.Session, cookies)
+	cookies := rpClient.Jar.Cookies(logoutCallbackURI)
+	sessionCookie := getCookieFromJar(cookie.Session, cookies)
 
 	assert.Nil(t, sessionCookie)
 }
 
-func TestHandler_FrontChannelLogout(t *testing.T) {
-	cfg := mock.Config()
-	idp := mock.NewIdentityProvider(cfg)
-	idp.Provider.WithFrontChannelLogoutSupport()
-	defer idp.Close()
-
-	rpClient := idp.RelyingPartyClient()
-
-	idp.OpenIDConfig.ClientConfig.CallbackURI = idp.RelyingPartyServer.URL + "/oauth2/callback"
-	idp.OpenIDConfig.ClientConfig.PostLogoutRedirectURI = idp.RelyingPartyServer.URL
-
-	c := client.NewClient(idp.OpenIDConfig)
-	idp.RelyingPartyHandler.Client = c
-
-	// First, run /oauth2/login to set cookies
-	resp, err := rpClient.Get(idp.RelyingPartyServer.URL + "/oauth2/login")
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-	defer resp.Body.Close()
-
-	// Get authorization URL
-	location := resp.Header.Get("location")
-	u, err := url.Parse(location)
-	assert.NoError(t, err)
-
-	// Follow redirect to authorize with idporten
-	resp, err = rpClient.Get(u.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-	defer resp.Body.Close()
-
-	// Get callback URL after successful auth
-	location = resp.Header.Get("location")
-	callbackURL, err := url.Parse(location)
-	assert.NoError(t, err)
-
-	// Follow redirect to callback
-	resp, err = rpClient.Get(callbackURL.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-
-	cookies := rpClient.Jar.Cookies(callbackURL)
-	sessionCookie := getCookieFromJar(cookie.Session, cookies)
-
-	assert.NotNil(t, sessionCookie)
-
-	// Trigger front-channel logout
-	ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
-	assert.NoError(t, err)
-
-	sid, err := idp.RelyingPartyHandler.Crypter.Decrypt(ciphertext)
-	assert.NoError(t, err)
-
-	frontchannelLogoutURL, err := url.Parse(idp.RelyingPartyServer.URL)
-	assert.NoError(t, err)
-
-	frontchannelLogoutURL.Path = "/oauth2/logout/frontchannel"
-
-	values := url.Values{}
-	values.Add("sid", string(sid))
-	values.Add("iss", idp.OpenIDConfig.Provider().Issuer)
-	frontchannelLogoutURL.RawQuery = values.Encode()
-
-	resp, err = rpClient.Get(frontchannelLogoutURL.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	defer resp.Body.Close()
-}
-
-func TestHandler_SessionStateRequired(t *testing.T) {
-	cfg := mock.Config()
-	idp := mock.NewIdentityProvider(cfg)
-	idp.Provider.WithCheckSessionIFrameSupport(idp.ProviderServer.URL + "/checksession")
-	defer idp.Close()
-
-	idp.OpenIDConfig.ClientConfig.CallbackURI = idp.RelyingPartyServer.URL + "/oauth2/callback"
-	idp.OpenIDConfig.ClientConfig.PostLogoutRedirectURI = idp.RelyingPartyServer.URL
-
-	c := client.NewClient(idp.OpenIDConfig)
-	idp.RelyingPartyHandler.Client = c
-
-	rpClient := idp.RelyingPartyClient()
-
-	// First, run /oauth2/login to set cookies
-	resp, err := rpClient.Get(idp.RelyingPartyServer.URL + "/oauth2/login")
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-	defer resp.Body.Close()
-
-	// Get authorization URL
-	location := resp.Header.Get("location")
-	u, err := url.Parse(location)
-	assert.NoError(t, err)
-
-	// Follow redirect to authorize with idporten
-	resp, err = rpClient.Get(u.String())
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-	defer resp.Body.Close()
-
-	// Get callback URL after successful auth
-	location = resp.Header.Get("location")
-	callbackURL, err := url.Parse(location)
-	assert.NoError(t, err)
-
-	params := callbackURL.Query()
-	sessionState := params.Get("session_state")
-	assert.NotEmpty(t, sessionState)
-}
-
 func getCookieFromJar(name string, cookies []*http.Cookie) *http.Cookie {
-	for _, cookie := range cookies {
-		if cookie.Name == name {
-			return cookie
+	for _, c := range cookies {
+		if c.Name == name {
+			return c
 		}
 	}
 
