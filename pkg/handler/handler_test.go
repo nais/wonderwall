@@ -189,6 +189,7 @@ func TestHandler_Default(t *testing.T) {
 		// initial request without session
 		resp, err := rpClient.Get(idp.RelyingPartyServer.URL)
 		assert.NoError(t, err)
+		defer resp.Body.Close()
 		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
 		body, err := ioutil.ReadAll(resp.Body)
@@ -265,6 +266,75 @@ func TestHandler_Default(t *testing.T) {
 		body, err := ioutil.ReadAll(resp.Body)
 		assert.NoError(t, err)
 		assert.Equal(t, "ok", string(body))
+	})
+
+	t.Run("with auto-login and skipped paths", func(t *testing.T) {
+		cfg := mock.Config()
+		cfg.UpstreamHost = upstreamURL.Host
+		cfg.AutoLogin = true
+		cfg.AutoLoginSkipPaths = []string{
+			"^/exact/match$",
+			"^/allowed(/?|/.*)$",
+			"/partial/(yup|yes)",
+		}
+		err := cfg.Validate()
+		assert.NoError(t, err)
+
+		idp := mock.NewIdentityProvider(cfg)
+		defer idp.Close()
+
+		rpClient := idp.RelyingPartyClient()
+
+		t.Run("matched paths", func(t *testing.T) {
+			matched := []string{
+				"/exact/match",
+				"/allowed",
+				"/allowed/",
+				"/allowed/very",
+				"/allowed/very/cool",
+				"/partial/yes",
+				"/partial/yup",
+				"/partial/yes/no",
+				"/partial/yup/no",
+				"/parent/partial/yup/no",
+			}
+			for _, path := range matched {
+				t.Run(path, func(t *testing.T) {
+					resp, err := rpClient.Get(idp.RelyingPartyServer.URL + path)
+					assert.NoError(t, err)
+					defer resp.Body.Close()
+
+					assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+					body, err := ioutil.ReadAll(resp.Body)
+					assert.NoError(t, err)
+					assert.Equal(t, "not ok", string(body))
+				})
+			}
+		})
+
+		t.Run("non-matched paths", func(t *testing.T) {
+			nonMatched := []string{
+				"",
+				"/",
+				"/exact/match/",
+				"/exact/match/huh",
+				"/not-allowed",
+				"/not-allowed/allowed",
+				"/alloweded",
+				"/nope/partial/",
+				"/nope/partial/child",
+			}
+			for _, path := range nonMatched {
+				t.Run(path, func(t *testing.T) {
+					resp, err := rpClient.Get(idp.RelyingPartyServer.URL + path)
+					assert.NoError(t, err)
+					defer resp.Body.Close()
+
+					assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+				})
+			}
+		})
 	})
 }
 

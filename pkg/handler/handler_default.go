@@ -28,7 +28,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !isAuthenticated && h.Cfg.Wonderwall().AutoLogin {
+	if h.AutoLogin.NeedsLogin(r, isAuthenticated) {
 		r.Header.Add("Referer", r.URL.String())
 		h.Login(w, r)
 		return

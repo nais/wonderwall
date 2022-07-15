@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/nais/liberator/pkg/conftools"
@@ -15,6 +17,7 @@ type Config struct {
 	MetricsBindAddress string `json:"metrics-bind-address"`
 
 	AutoLogin          bool          `json:"auto-login"`
+	AutoLoginSkipPaths []string      `json:"auto-login-skip-paths"`
 	EncryptionKey      string        `json:"encryption-key"`
 	ErrorRedirectURI   string        `json:"error-redirect-uri"`
 	Ingress            string        `json:"ingress"`
@@ -25,6 +28,29 @@ type Config struct {
 	Redis  Redis  `json:"redis"`
 
 	Loginstatus Loginstatus `json:"loginstatus"`
+}
+
+func (in Config) Validate() error {
+	if err := in.validateAutoLoginSkipPaths(); err != nil {
+		return fmt.Errorf("validating '%s': %w", AutoLoginSkipPaths, err)
+	}
+
+	return nil
+}
+
+func (in Config) validateAutoLoginSkipPaths() error {
+	for _, path := range in.AutoLoginSkipPaths {
+		if len(path) <= 0 {
+			return fmt.Errorf("path cannot be empty")
+		}
+
+		_, err := regexp.Compile(path)
+		if err != nil {
+			return fmt.Errorf("could not compile regex for path '%s': %w", path, err)
+		}
+	}
+
+	return nil
 }
 
 type Loginstatus struct {
@@ -46,6 +72,7 @@ const (
 	MetricsBindAddress = "metrics-bind-address"
 
 	AutoLogin          = "auto-login"
+	AutoLoginSkipPaths = "auto-login-skip-paths"
 	EncryptionKey      = "encryption-key"
 	ErrorRedirectURI   = "error-redirect-uri"
 	Ingress            = "ingress"
@@ -68,6 +95,7 @@ func Initialize() (*Config, error) {
 	flag.String(MetricsBindAddress, "127.0.0.1:3001", "Listen address for metrics only.")
 
 	flag.Bool(AutoLogin, false, "Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.")
+	flag.StringSlice(AutoLoginSkipPaths, []string{}, "Comma separated list of paths to ignore when 'auto-login' is enabled. Paths are evaluated as regular expressions.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
 	flag.String(Ingress, "", "Ingress used to access the main application.")

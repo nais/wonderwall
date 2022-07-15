@@ -32,6 +32,9 @@ func run() error {
 	if err := conftools.Load(cfg); err != nil {
 		return err
 	}
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
 
 	if err := logging.Setup(cfg.LogLevel, cfg.LogFormat); err != nil {
 		return err

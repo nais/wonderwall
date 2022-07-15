@@ -6,6 +6,7 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"github.com/nais/wonderwall/pkg/autologin"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
@@ -17,6 +18,7 @@ import (
 )
 
 type Handler struct {
+	AutoLogin     autologin.Options
 	Cfg           openidconfig.Config
 	Client        client.Client
 	CookieOptions cookie.Options
@@ -45,11 +47,14 @@ func NewHandler(
 	}
 
 	openidClient := client.NewClient(cfg)
+
+	autoLogin, err := autologin.NewOptions(cfg.Wonderwall())
 	if err != nil {
 		return nil, err
 	}
 
 	return &Handler{
+		AutoLogin:     *autoLogin,
 		Client:        openidClient,
 		CookieOptions: cookieOpts,
 		Crypter:       crypter,
