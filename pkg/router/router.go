@@ -5,11 +5,12 @@ import (
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/router/middleware"
+	"github.com/nais/wonderwall/pkg/handler"
+	"github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
-func New(handler *Handler) chi.Router {
+func New(handler *handler.Handler) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)

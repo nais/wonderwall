@@ -1,23 +1,18 @@
-package router
+package handler
 
 import (
 	_ "embed"
-	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/openid"
-	logentry "github.com/nais/wonderwall/pkg/router/middleware"
-	"github.com/nais/wonderwall/pkg/router/paths"
-	"github.com/nais/wonderwall/pkg/router/request"
+	logentry "github.com/nais/wonderwall/pkg/middleware"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 type ErrorPage struct {
@@ -63,7 +58,7 @@ func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, s
 
 	errorPage := ErrorPage{
 		CorrelationID: middleware.GetReqID(r.Context()),
-		RetryURI:      RetryURI(r, h.Cfg.Wonderwall().Ingress, loginCookie),
+		RetryURI:      urlpkg.Retry(r, h.Cfg.Wonderwall().Ingress, loginCookie),
 	}
 	err = errorTemplate.Execute(w, errorPage)
 	if err != nil {
@@ -101,27 +96,4 @@ func (h *Handler) BadRequest(w http.ResponseWriter, r *http.Request, cause error
 
 func (h *Handler) Unauthorized(w http.ResponseWriter, r *http.Request, cause error) {
 	h.respondError(w, r, http.StatusUnauthorized, cause, zerolog.WarnLevel)
-}
-
-// RetryURI returns a URI that should retry the desired route that failed.
-// It only handles the routes exposed by Wonderwall, i.e. `/oauth2/*`. As these routes
-// are related to the authentication flow, we default to redirecting back to the handled
-// `/oauth2/login` endpoint unless the original request attempted to reach the logout-flow.
-func RetryURI(r *http.Request, ingress string, loginCookie *openid.LoginCookie) string {
-	retryURI := r.URL.Path
-	prefix := config.ParseIngress(ingress)
-
-	if strings.HasSuffix(retryURI, paths.OAuth2+paths.Logout) || strings.HasSuffix(retryURI, paths.OAuth2+paths.FrontChannelLogout) {
-		return prefix + retryURI
-	}
-
-	redirect := request.CanonicalRedirectURL(r, ingress)
-
-	if loginCookie != nil && len(loginCookie.Referer) > 0 {
-		redirect = loginCookie.Referer
-	}
-
-	retryURI = fmt.Sprintf(prefix + paths.OAuth2 + paths.Login)
-	retryURI = retryURI + fmt.Sprintf("?%s=%s", request.RedirectURLParameter, redirect)
-	return retryURI
 }

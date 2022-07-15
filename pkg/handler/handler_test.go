@@ -1,4 +1,4 @@
-package router_test
+package handler_test
 
 import (
 	"encoding/base64"

@@ -1,4 +1,4 @@
-package router_test
+package handler_test
 
 import (
 	"context"
@@ -13,9 +13,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
@@ -117,7 +117,7 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 	})
 }
 
-func makeRequestWithFallbackCookies(t *testing.T, h *router.Handler, tokens *openid.Tokens) *http.Request {
+func makeRequestWithFallbackCookies(t *testing.T, h *handler.Handler, tokens *openid.Tokens) *http.Request {
 	writer := httptest.NewRecorder()
 	expiresIn := time.Minute
 	data := session.NewData("sid", tokens, nil)
@@ -150,7 +150,7 @@ func assertCookieExpired(t *testing.T, cookieName string, cookies []*http.Cookie
 	assert.Empty(t, expired.Value)
 }
 
-func assertCookieExists(t *testing.T, h *router.Handler, cookieName, expectedValue string, cookies []*http.Cookie) {
+func assertCookieExists(t *testing.T, h *handler.Handler, cookieName, expectedValue string, cookies []*http.Cookie) {
 	desiredCookie := getCookieFromJar(cookieName, cookies)
 	assert.NotNil(t, desiredCookie)
 

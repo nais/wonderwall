@@ -1,4 +1,4 @@
-package router
+package handler
 
 import (
 	"context"
@@ -11,9 +11,9 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/loginstatus"
+	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/client"
-	logentry "github.com/nais/wonderwall/pkg/router/middleware"
 )
 
 const (

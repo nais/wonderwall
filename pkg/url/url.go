@@ -1,18 +1,22 @@
-package request
+package url
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 const (
 	RedirectURLParameter = "redirect"
 )
 
-// CanonicalRedirectURL constructs a redirect URL that points back to the application.
-func CanonicalRedirectURL(r *http.Request, ingress string) string {
+// CanonicalRedirect constructs a redirect URL that points back to the application.
+func CanonicalRedirect(r *http.Request, ingress string) string {
 	// 1. Default
 	defaultPath := defaultRedirectURL(ingress)
 	redirect := defaultPath
@@ -35,6 +39,29 @@ func CanonicalRedirectURL(r *http.Request, ingress string) string {
 	}
 
 	return redirect
+}
+
+// Retry returns a URI that should retry the desired route that failed.
+// It only handles the routes exposed by Wonderwall, i.e. `/oauth2/*`. As these routes
+// are related to the authentication flow, we default to redirecting back to the handled
+// `/oauth2/login` endpoint unless the original request attempted to reach the logout-flow.
+func Retry(r *http.Request, ingress string, loginCookie *openid.LoginCookie) string {
+	retryURI := r.URL.Path
+	prefix := config.ParseIngress(ingress)
+
+	if strings.HasSuffix(retryURI, paths.OAuth2+paths.Logout) || strings.HasSuffix(retryURI, paths.OAuth2+paths.FrontChannelLogout) {
+		return prefix + retryURI
+	}
+
+	redirect := CanonicalRedirect(r, ingress)
+
+	if loginCookie != nil && len(loginCookie.Referer) > 0 {
+		redirect = loginCookie.Referer
+	}
+
+	retryURI = fmt.Sprintf(prefix + paths.OAuth2 + paths.Login)
+	retryURI = retryURI + fmt.Sprintf("?%s=%s", RedirectURLParameter, redirect)
+	return retryURI
 }
 
 func defaultRedirectURL(ingress string) string {

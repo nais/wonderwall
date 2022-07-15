@@ -1,4 +1,4 @@
-package router
+package handler
 
 import (
 	"encoding/json"
@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/nais/wonderwall/pkg/cookie"
+	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/client"
-	logentry "github.com/nais/wonderwall/pkg/router/middleware"
 )
 
 const (

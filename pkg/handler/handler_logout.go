@@ -1,4 +1,4 @@
-package router
+package handler
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"github.com/go-redis/redis/v8"
 
 	"github.com/nais/wonderwall/pkg/cookie"
-	logentry "github.com/nais/wonderwall/pkg/router/middleware"
+	logentry "github.com/nais/wonderwall/pkg/middleware"
 )
 
 // Logout triggers self-initiated for the current user

@@ -20,7 +20,8 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
-	"github.com/nais/wonderwall/pkg/openid/client"
+	handlerpkg "github.com/nais/wonderwall/pkg/handler"
+	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	scopespkg "github.com/nais/wonderwall/pkg/openid/scopes"
 	"github.com/nais/wonderwall/pkg/router"
@@ -34,7 +35,7 @@ type IdentityProvider struct {
 	Provider            TestProvider
 	ProviderHandler     *IdentityProviderHandler
 	ProviderServer      *httptest.Server
-	RelyingPartyHandler *router.Handler
+	RelyingPartyHandler *handlerpkg.Handler
 	RelyingPartyServer  *httptest.Server
 }
 
@@ -76,7 +77,7 @@ func NewIdentityProvider(cfg *config.Config) IdentityProvider {
 	sessionStore := session.NewMemory()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	rpHandler, err := router.NewHandler(ctx, openidConfig, crypter, zerolog.Nop(), sessionStore)
+	rpHandler, err := handlerpkg.NewHandler(ctx, openidConfig, crypter, zerolog.Nop(), sessionStore)
 	if err != nil {
 		panic(err)
 	}
@@ -88,7 +89,7 @@ func NewIdentityProvider(cfg *config.Config) IdentityProvider {
 	openidConfig.ClientConfig.CallbackURI = rpServer.URL + "/oauth2/callback"
 	openidConfig.ClientConfig.PostLogoutRedirectURI = rpServer.URL
 	openidConfig.ClientConfig.LogoutCallbackURI = rpServer.URL + "/oauth2/logout/callback"
-	rpHandler.Client = client.NewClient(openidConfig)
+	rpHandler.Client = openidclient.NewClient(openidConfig)
 
 	return IdentityProvider{
 		cancelFunc:          cancel,
@@ -357,7 +358,7 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	expectedCodeChallenge := client.CodeChallenge(codeVerifier)
+	expectedCodeChallenge := openidclient.CodeChallenge(codeVerifier)
 
 	if expectedCodeChallenge != auth.CodeChallenge {
 		w.WriteHeader(http.StatusBadRequest)

@@ -11,8 +11,8 @@ import (
 
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/config"
-	"github.com/nais/wonderwall/pkg/router/request"
 	"github.com/nais/wonderwall/pkg/strings"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 const (
@@ -53,7 +53,7 @@ func NewLogin(c Client, r *http.Request) (Login, error) {
 		return nil, fmt.Errorf("generating auth code url: %w", err)
 	}
 
-	redirect := request.CanonicalRedirectURL(r, c.config().Wonderwall().Ingress)
+	redirect := urlpkg.CanonicalRedirect(r, c.config().Wonderwall().Ingress)
 	cookie := params.cookie(redirect)
 
 	return &login{

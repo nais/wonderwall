@@ -1,9 +1,9 @@
-package router
+package handler
 
 import (
 	"net/http"
 
-	logentry "github.com/nais/wonderwall/pkg/router/middleware"
+	logentry "github.com/nais/wonderwall/pkg/middleware"
 )
 
 // LogoutCallback handles the callback from the self-initiated logout for the current user

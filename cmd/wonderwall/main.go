@@ -9,6 +9,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/logging"
 	"github.com/nais/wonderwall/pkg/metrics"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
@@ -58,7 +59,7 @@ func run() error {
 	crypt := crypto.NewCrypter(key)
 	sessionStore := session.NewStore(cfg)
 	httplogger := logging.NewHttpLogger(cfg)
-	h, err := router.NewHandler(jwksRefreshCtx, openidConfig, crypt, httplogger, sessionStore)
+	h, err := handler.NewHandler(jwksRefreshCtx, openidConfig, crypt, httplogger, sessionStore)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}
