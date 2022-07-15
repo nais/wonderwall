@@ -1,6 +1,7 @@
 package handler_test
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -105,11 +106,21 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	sessionCookie := login(t, rpClient, idp)
 
 	// Trigger front-channel logout
-	ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
-	assert.NoError(t, err)
+	sid := func() string {
+		ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
+		assert.NoError(t, err)
 
-	sid, err := idp.RelyingPartyHandler.Crypter.Decrypt(ciphertext)
-	assert.NoError(t, err)
+		localSessionID, err := idp.RelyingPartyHandler.Crypter.Decrypt(ciphertext)
+		assert.NoError(t, err)
+
+		encryptedSession, err := idp.RelyingPartyHandler.Sessions.Read(context.Background(), string(localSessionID))
+		assert.NoError(t, err)
+
+		data, err := encryptedSession.Decrypt(idp.RelyingPartyHandler.Crypter)
+		assert.NoError(t, err)
+
+		return data.ExternalSessionID
+	}()
 
 	frontchannelLogoutURL, err := url.Parse(idp.RelyingPartyServer.URL)
 	assert.NoError(t, err)
@@ -117,7 +128,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	frontchannelLogoutURL.Path = "/oauth2/logout/frontchannel"
 
 	values := url.Values{}
-	values.Add("sid", string(sid))
+	values.Add("sid", sid)
 	values.Add("iss", idp.OpenIDConfig.Provider().Issuer)
 	frontchannelLogoutURL.RawQuery = values.Encode()
 
