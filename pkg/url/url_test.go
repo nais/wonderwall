@@ -2,6 +2,7 @@ package url_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
@@ -12,8 +13,7 @@ import (
 )
 
 func TestCanonicalRedirect(t *testing.T) {
-	r, err := http.NewRequest("GET", "http://localhost:8080/oauth2/login", nil)
-	assert.NoError(t, err)
+	r := httptest.NewRequest("GET", "http://localhost:8080/oauth2/login", nil)
 
 	t.Run("default redirect", func(t *testing.T) {
 		for _, test := range []struct {
@@ -141,7 +141,7 @@ func TestCanonicalRedirect(t *testing.T) {
 
 func TestRetry(t *testing.T) {
 	httpRequest := func(url string, referer ...string) *http.Request {
-		req, _ := http.NewRequest(http.MethodGet, url, nil)
+		req := httptest.NewRequest(http.MethodGet, url, nil)
 		if len(referer) > 0 {
 			req.Header.Add("Referer", referer[0])
 		}

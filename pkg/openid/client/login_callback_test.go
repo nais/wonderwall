@@ -2,7 +2,7 @@ package client_test
 
 import (
 	"context"
-	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -107,8 +107,7 @@ func newLoginCallback(t *testing.T, url string) (mock.IdentityProvider, client.L
 		CodeVerifier: "some-verifier",
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
-	assert.NoError(t, err)
+	req := httptest.NewRequest("GET", url, nil)
 
 	idp := mock.NewIdentityProvider(mock.Config())
 

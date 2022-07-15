@@ -2,7 +2,7 @@ package client_test
 
 import (
 	"errors"
-	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
@@ -59,8 +59,7 @@ func TestLogin_URL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.url, func(t *testing.T) {
-			req, err := http.NewRequest("GET", test.url, nil)
-			assert.NoError(t, err)
+			req := httptest.NewRequest("GET", test.url, nil)
 
 			cfg := mock.Config()
 			openidConfig := mock.NewTestConfiguration(cfg)
@@ -110,8 +109,7 @@ func TestLogin_URL(t *testing.T) {
 }
 
 func TestLoginURL_WithResourceIndicator(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://localhost:1234/oauth2/login", nil)
-	assert.NoError(t, err)
+	req := httptest.NewRequest("GET", "http://localhost:1234/oauth2/login", nil)
 
 	cfg := mock.Config()
 	cfg.Loginstatus.Enabled = true
@@ -177,8 +175,7 @@ func TestLoginURLParameter(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			r, err := http.NewRequest("GET", test.url, nil)
-			assert.NoError(t, err)
+			r := httptest.NewRequest("GET", test.url, nil)
 
 			// default test values
 			parameter := "param"

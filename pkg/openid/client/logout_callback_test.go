@@ -1,7 +1,7 @@
 package client_test
 
 import (
-	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +12,7 @@ import (
 
 func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
-		lc, cfg := newLogoutCallback(t)
+		lc, cfg := newLogoutCallback()
 		cfg.ClientConfig.PostLogoutRedirectURI = "http://some-fancy-logout-page"
 
 		uri := lc.PostLogoutRedirectURI()
@@ -21,7 +21,7 @@ func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 	})
 
 	t.Run("empty preconfigured post-logout redirect uri", func(t *testing.T) {
-		lc, cfg := newLogoutCallback(t)
+		lc, cfg := newLogoutCallback()
 		cfg.ClientConfig.PostLogoutRedirectURI = ""
 		cfg.WonderwallConfig.Ingress = "http://wonderwall"
 
@@ -31,9 +31,8 @@ func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 	})
 }
 
-func newLogoutCallback(t *testing.T) (client.LogoutCallback, mock.Configuration) {
-	req, err := http.NewRequest("GET", "http://wonderwall/oauth2/logout/callback", nil)
-	assert.NoError(t, err)
+func newLogoutCallback() (client.LogoutCallback, mock.Configuration) {
+	req := httptest.NewRequest("GET", "http://wonderwall/oauth2/logout/callback", nil)
 
 	cfg := mock.NewTestConfiguration(mock.Config())
 	return newTestClientWithConfig(cfg).LogoutCallback(req), cfg
