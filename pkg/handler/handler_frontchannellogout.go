@@ -21,7 +21,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	if logoutFrontchannel.MissingSidParameter() {
 		log.Info("front-channel logout: sid parameter not set in request; ignoring")
 		h.DeleteSessionFallback(w, r)
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
