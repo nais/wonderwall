@@ -375,6 +375,7 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	accessToken.Set("acr", auth.AcrLevel)
 	accessToken.Set("iat", time.Now().Unix())
 	accessToken.Set("exp", time.Now().Unix()+expires)
+	accessToken.Set("jti", uuid.NewString())
 	signedAccessToken, err := ip.signToken(accessToken)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -391,6 +392,7 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	idToken.Set("acr", auth.AcrLevel)
 	idToken.Set("iat", time.Now().Unix())
 	idToken.Set("exp", time.Now().Unix()+expires)
+	idToken.Set("jti", uuid.NewString())
 
 	// If the sid claim should be in token and in active session
 	if ip.Provider.OpenIDConfiguration.SidClaimRequired() {
