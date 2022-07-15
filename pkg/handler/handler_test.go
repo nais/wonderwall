@@ -40,8 +40,8 @@ func TestHandler_Login(t *testing.T) {
 	assert.NotEmpty(t, u.Query().Get("code_challenge"))
 
 	resp, err = rpClient.Get(u.String())
-	defer resp.Body.Close()
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	location = resp.Header.Get("location")
@@ -122,8 +122,8 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 	frontchannelLogoutURL.RawQuery = values.Encode()
 
 	resp, err := rpClient.Get(frontchannelLogoutURL.String())
-	defer resp.Body.Close()
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
@@ -157,8 +157,8 @@ func localLogin(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) 
 	assert.NoError(t, err)
 
 	resp, err := rpClient.Get(loginURL.String())
-	defer resp.Body.Close()
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	cookies := rpClient.Jar.Cookies(loginURL)
@@ -183,8 +183,8 @@ func authorize(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) *
 
 	// Follow redirect to authorize with identity provider
 	resp, err = rpClient.Get(u.String())
-	defer resp.Body.Close()
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	return resp
@@ -224,8 +224,8 @@ func localLogout(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider)
 	assert.NoError(t, err)
 
 	resp, err := rpClient.Get(logoutURL.String())
-	defer resp.Body.Close()
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	cookies := rpClient.Jar.Cookies(logoutURL)
@@ -246,8 +246,8 @@ func logout(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) {
 
 	// Follow redirect to endsession endpoint at identity provider
 	resp, err = rpClient.Get(endsessionURL.String())
-	defer resp.Body.Close()
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	// Get post-logout redirect URI after successful logout at identity provider
