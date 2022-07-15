@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -159,7 +161,111 @@ func TestHandler_SessionStateRequired(t *testing.T) {
 }
 
 func TestHandler_Default(t *testing.T) {
-	// TODO
+	upstreamHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+
+		if len(token) > 0 {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte("not ok"))
+		}
+	})
+	upstream := httptest.NewServer(upstreamHandler)
+	defer upstream.Close()
+
+	upstreamHost, err := url.Parse(upstream.URL)
+	assert.NoError(t, err)
+
+	t.Run("without auto-login", func(t *testing.T) {
+		cfg := mock.Config()
+		cfg.UpstreamHost = upstreamHost.Host
+		idp := mock.NewIdentityProvider(cfg)
+		defer idp.Close()
+
+		rpClient := idp.RelyingPartyClient()
+
+		// initial request without session
+		resp, err := rpClient.Get(idp.RelyingPartyServer.URL)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+		body, err := ioutil.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, "not ok", string(body))
+
+		login(t, rpClient, idp)
+
+		// retry request with session
+		resp, err = rpClient.Get(idp.RelyingPartyServer.URL)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		body, err = ioutil.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, "ok", string(body))
+	})
+
+	t.Run("with auto-login", func(t *testing.T) {
+		cfg := mock.Config()
+		cfg.AutoLogin = true
+		cfg.UpstreamHost = upstreamHost.Host
+		idp := mock.NewIdentityProvider(cfg)
+		defer idp.Close()
+
+		rpClient := idp.RelyingPartyClient()
+
+		// initial request without session
+		target := idp.RelyingPartyServer.URL + "/"
+
+		resp, err := rpClient.Get(target)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+
+		// redirect should point to identity provider
+		authorizeLocation, err := resp.Location()
+		assert.NoError(t, err)
+		authorizeEndpoint := *authorizeLocation
+		authorizeEndpoint.RawQuery = ""
+		assert.Equal(t, idp.OpenIDConfig.Provider().AuthorizationEndpoint, authorizeEndpoint.String())
+
+		// follow redirect to identity provider for login
+		resp, err = rpClient.Get(authorizeLocation.String())
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+
+		// redirect should point back to relying party
+		callbackLocation, err := resp.Location()
+		assert.NoError(t, err)
+		callbackEndpoint := *callbackLocation
+		callbackEndpoint.RawQuery = ""
+		assert.Equal(t, idp.OpenIDConfig.Client().GetCallbackURI(), callbackEndpoint.String())
+
+		// follow redirect back to relying party
+		resp, err = rpClient.Get(callbackLocation.String())
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+
+		// finally, follow redirect back to original target, now with a session
+		targetLocation, err := resp.Location()
+		assert.NoError(t, err)
+		assert.Equal(t, target, targetLocation.String())
+
+		resp, err = rpClient.Get(targetLocation.String())
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		body, err := ioutil.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, "ok", string(body))
+	})
 }
 
 func localLogin(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) *http.Response {
