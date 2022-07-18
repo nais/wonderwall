@@ -23,6 +23,7 @@ type Client interface {
 	HasCookie(r *http.Request) bool
 	ClearCookie(w http.ResponseWriter, opts cookie.Options)
 	CookieOptions(opts cookie.Options) cookie.Options
+	NeedsLogin(r *http.Request) bool
 }
 
 func NewClient(config config.Loginstatus, httpClient *http.Client) Client {
@@ -98,6 +99,14 @@ func (c client) CookieOptions(opts cookie.Options) cookie.Options {
 	return opts.WithDomain(domain).
 		WithSameSite(SameSiteMode).
 		WithPath("/")
+}
+
+func (c client) NeedsLogin(r *http.Request) bool {
+	if c.config.Enabled && !c.HasCookie(r) {
+		return true
+	}
+
+	return false
 }
 
 func request(ctx context.Context, url string, token string) (*http.Request, error) {

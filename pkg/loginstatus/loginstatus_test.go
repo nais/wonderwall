@@ -174,6 +174,61 @@ func TestClient_CookieOptions(t *testing.T) {
 	}
 }
 
+func TestClient_NeedsLogin(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		enabled   bool
+		hasCookie bool
+		expected  bool
+	}{
+		{
+			name:      "not enabled, no cookie",
+			enabled:   false,
+			hasCookie: false,
+			expected:  false,
+		},
+		{
+			name:      "not enabled, has cookie",
+			enabled:   false,
+			hasCookie: true,
+			expected:  false,
+		},
+		{
+			name:      "enabled, no cookie",
+			enabled:   true,
+			hasCookie: false,
+			expected:  true,
+		},
+		{
+			name:      "enabled, has cookie",
+			enabled:   true,
+			hasCookie: true,
+			expected:  false,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := newCfg("https://some-server")
+			cfg.Enabled = test.enabled
+
+			client := loginstatus.NewClient(cfg, http.DefaultClient)
+			opts := client.CookieOptions(cookieOpts)
+
+			c := cookie.Make(cfg.CookieName, "some-value", opts)
+			r := httptest.NewRequest(http.MethodGet, "/", nil)
+
+			if test.hasCookie {
+				r.AddCookie(c.Cookie)
+			}
+
+			if test.expected {
+				assert.True(t, client.NeedsLogin(r))
+			} else {
+				assert.False(t, client.NeedsLogin(r))
+			}
+		})
+	}
+}
+
 func newCfg(serverURL string) config.Loginstatus {
 	return config.Loginstatus{
 		Enabled:           true,

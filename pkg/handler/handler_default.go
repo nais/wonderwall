@@ -19,12 +19,12 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	if hasAccessToken {
 		// add authentication if session cookie and token checks out
 		isAuthenticated = true
+	}
 
-		// force new authentication if loginstatus is enabled and cookie isn't set
-		if h.Cfg.Wonderwall().Loginstatus.Enabled && !h.Loginstatus.HasCookie(r) {
-			isAuthenticated = false
-			logentry.LogEntry(r).Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
-		}
+	// force new authentication if loginstatus is enabled and cookie isn't set
+	if h.Loginstatus.NeedsLogin(r) {
+		isAuthenticated = false
+		logentry.LogEntry(r).Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
 	}
 
 	if h.AutoLogin.NeedsLogin(r, isAuthenticated) {
