@@ -48,7 +48,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	tokens, err := h.redeemValidTokens(r, loginCallback)
 	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("callback: redeming tokens: %w", err))
+		h.InternalError(w, r, fmt.Errorf("callback: redeeming tokens: %w", err))
 		return
 	}
 
