@@ -105,7 +105,7 @@ func (c client) MakeAssertion(expiration time.Duration) (string, error) {
 	providerCfg := c.config().Provider()
 	key := clientCfg.GetClientJWK()
 
-	iat := time.Now()
+	iat := time.Now().Truncate(time.Second)
 	exp := iat.Add(expiration)
 
 	errs := make([]error, 0)

@@ -137,12 +137,14 @@ func params(key, value string) url.Values {
 }
 
 func newIDToken(extraClaims map[string]string) *openid.IDToken {
+	now := time.Now().Truncate(time.Second)
+
 	idToken := jwtlib.New()
 	idToken.Set("sub", "test")
 	idToken.Set("iss", "test")
 	idToken.Set("aud", "test")
-	idToken.Set("iat", time.Now().Unix())
-	idToken.Set("exp", time.Now().Add(time.Hour).Unix())
+	idToken.Set("iat", now.Unix())
+	idToken.Set("exp", now.Add(time.Hour).Unix())
 
 	for claim, value := range extraClaims {
 		if len(claim) > 0 {

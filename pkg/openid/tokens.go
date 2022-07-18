@@ -51,7 +51,7 @@ func (in *IDToken) Validate(cfg openidconfig.Config, nonce string) error {
 		jwtlib.WithAudience(clientConfig.GetClientID()),
 		jwtlib.WithClaimValue("nonce", nonce),
 		jwtlib.WithIssuer(openIDconfig.Issuer),
-		jwtlib.WithAcceptableSkew(5 * time.Second),
+		jwtlib.WithAcceptableSkew(jwt.AcceptableClockSkew),
 	}
 
 	if openIDconfig.SidClaimRequired() {

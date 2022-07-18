@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	AcceptableClockSkew = 10 * time.Second
+	AcceptableClockSkew = 5 * time.Second
 
 	JtiClaim = "jti"
 	SidClaim = "sid"

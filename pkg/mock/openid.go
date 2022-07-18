@@ -367,14 +367,16 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	}
 
 	expires := int64(1200)
+	iat := time.Now().Truncate(time.Second)
+	exp := iat.Add(time.Duration(expires) * time.Second)
 	sub := uuid.New().String()
 
 	accessToken := jwt.New()
 	accessToken.Set("sub", sub)
 	accessToken.Set("iss", ip.Provider.GetOpenIDConfiguration().Issuer)
 	accessToken.Set("acr", auth.AcrLevel)
-	accessToken.Set("iat", time.Now().Unix())
-	accessToken.Set("exp", time.Now().Unix()+expires)
+	accessToken.Set("iat", iat.Unix())
+	accessToken.Set("exp", exp.Unix())
 	accessToken.Set("jti", uuid.NewString())
 	signedAccessToken, err := ip.signToken(accessToken)
 	if err != nil {
@@ -390,8 +392,8 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	idToken.Set("locale", auth.Locale)
 	idToken.Set("nonce", auth.Nonce)
 	idToken.Set("acr", auth.AcrLevel)
-	idToken.Set("iat", time.Now().Unix())
-	idToken.Set("exp", time.Now().Unix()+expires)
+	idToken.Set("iat", iat.Unix())
+	idToken.Set("exp", exp.Unix())
 	idToken.Set("jti", uuid.NewString())
 
 	// If the sid claim should be in token and in active session
