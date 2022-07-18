@@ -43,7 +43,7 @@ func run() error {
 	log.Tracef("Trace logging enabled")
 
 	for _, line := range conftools.Format(maskedConfig) {
-		log.Info(line)
+		log.WithField("logger", "wonderwall.config").Info(line)
 	}
 
 	key, err := crypto.EncryptionKeyOrGenerate(cfg)
