@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
@@ -14,14 +13,11 @@ import (
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/client"
-)
-
-const (
-	retryBaseDuration = 50 * time.Millisecond
-	retryMaxDuration  = 1 * time.Second
+	retrypkg "github.com/nais/wonderwall/pkg/retry"
 )
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
+
 	// unconditionally clear login cookie
 	h.clearLoginCookies(w)
 
@@ -92,8 +88,7 @@ func (h *Handler) redeemValidTokens(r *http.Request, loginCallback client.LoginC
 		return nil
 	}
 
-	err = retry.Do(r.Context(), backoff(), retryable)
-	if err != nil {
+	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
 		return nil, err
 	}
 
@@ -103,7 +98,7 @@ func (h *Handler) redeemValidTokens(r *http.Request, loginCallback client.LoginC
 func (h *Handler) getLoginstatusToken(r *http.Request, tokens *openid.Tokens) (*loginstatus.TokenResponse, error) {
 	var tokenResponse *loginstatus.TokenResponse
 
-	err := retry.Do(r.Context(), backoff(), func(ctx context.Context) error {
+	retryable := func(ctx context.Context) error {
 		var err error
 
 		tokenResponse, err = h.Loginstatus.ExchangeToken(ctx, tokens.AccessToken)
@@ -113,8 +108,8 @@ func (h *Handler) getLoginstatusToken(r *http.Request, tokens *openid.Tokens) (*
 		}
 
 		return nil
-	})
-	if err != nil {
+	}
+	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
 		return nil, err
 	}
 
@@ -128,10 +123,4 @@ func logSuccessfulLogin(r *http.Request, tokens *openid.Tokens, referer string) 
 	}
 
 	logentry.LogEntry(r).WithFields(fields).Info("callback: successful login")
-}
-
-func backoff() retry.Backoff {
-	b := retry.NewFibonacci(retryBaseDuration)
-	b = retry.WithMaxDuration(retryMaxDuration, b)
-	return b
 }

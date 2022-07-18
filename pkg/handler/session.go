@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/sethvargo/go-retry"
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
+	retrypkg "github.com/nais/wonderwall/pkg/retry"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
@@ -30,7 +32,7 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 		return nil, fmt.Errorf("no session cookie: %w", err)
 	}
 
-	sessionData, err := h.getSession(r.Context(), sessionID)
+	sessionData, err := h.getSession(r, sessionID)
 	if err == nil {
 		h.DeleteSessionFallback(w, r)
 		return sessionData, nil
@@ -50,10 +52,26 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 	return fallbackSessionData, nil
 }
 
-func (h *Handler) getSession(ctx context.Context, sessionID string) (*session.Data, error) {
-	encryptedSessionData, err := h.Sessions.Read(ctx, sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("reading session data from store: %w", err)
+func (h *Handler) getSession(r *http.Request, sessionID string) (*session.Data, error) {
+	var encryptedSessionData *session.EncryptedData
+	var err error
+
+	retryable := func(ctx context.Context) error {
+		encryptedSessionData, err = h.Sessions.Read(ctx, sessionID)
+		if err == nil {
+			return nil
+		}
+
+		err = fmt.Errorf("reading session data from store: %w", err)
+		if errors.Is(err, redis.Nil) {
+			return err
+		}
+
+		return retry.RetryableError(err)
+	}
+
+	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
+		return nil, err
 	}
 
 	sessionData, err := encryptedSessionData.Decrypt(h.Crypter)
@@ -101,8 +119,16 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 		return fmt.Errorf("encrypting session data: %w", err)
 	}
 
-	err = h.Sessions.Write(r.Context(), sessionID, encryptedSessionData, sessionLifetime)
-	if err == nil {
+	retryable := func(ctx context.Context) error {
+		err = h.Sessions.Write(r.Context(), sessionID, encryptedSessionData, sessionLifetime)
+		if err != nil {
+			return retry.RetryableError(err)
+		}
+
+		return nil
+	}
+
+	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err == nil {
 		h.DeleteSessionFallback(w, r)
 		return nil
 	}
@@ -118,9 +144,22 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 }
 
 func (h *Handler) destroySession(w http.ResponseWriter, r *http.Request, sessionID string) error {
-	err := h.Sessions.Delete(r.Context(), sessionID)
-	if err != nil {
-		return fmt.Errorf("deleting session from store: %w", err)
+	retryable := func(ctx context.Context) error {
+		err := h.Sessions.Delete(r.Context(), sessionID)
+		if err == nil {
+			return nil
+		}
+
+		err = fmt.Errorf("deleting session from store: %w", err)
+		if errors.Is(err, redis.Nil) {
+			return err
+		}
+
+		return retry.RetryableError(err)
+	}
+
+	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
+		return err
 	}
 
 	h.DeleteSessionFallback(w, r)
