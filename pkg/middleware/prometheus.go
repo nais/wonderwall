@@ -37,7 +37,7 @@ func NewPrometheusMiddleware(name, provider string, buckets ...float64) *Prometh
 			Help:        "How many HTTP requests processed, partitioned by status code, method and HTTP path.",
 			ConstLabels: prometheus.Labels{"service": name, "provider": provider},
 		},
-		[]string{"code", "method", "path"},
+		[]string{"code", "method", "path", "host"},
 	)
 
 	if len(buckets) == 0 {
@@ -49,7 +49,7 @@ func NewPrometheusMiddleware(name, provider string, buckets ...float64) *Prometh
 		ConstLabels: prometheus.Labels{"service": name, "provider": provider},
 		Buckets:     buckets,
 	},
-		[]string{"code", "method", "path"},
+		[]string{"code", "method", "path", "host"},
 	)
 
 	prometheus.Register(m.reqs)
@@ -73,8 +73,8 @@ func (m *PrometheusMiddleware) Handler(next http.Handler) http.Handler {
 		next.ServeHTTP(ww, r)
 		statusCode := strconv.Itoa(ww.Status())
 		duration := time.Since(start)
-		m.reqs.WithLabelValues(statusCode, r.Method, r.URL.Path).Inc()
-		m.latency.WithLabelValues(statusCode, r.Method, r.URL.Path).Observe(duration.Seconds())
+		m.reqs.WithLabelValues(statusCode, r.Method, r.URL.Path, r.Host).Inc()
+		m.latency.WithLabelValues(statusCode, r.Method, r.URL.Path, r.Host).Observe(duration.Seconds())
 	}
 	return http.HandlerFunc(fn)
 }
