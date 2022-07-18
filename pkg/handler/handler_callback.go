@@ -49,7 +49,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	tokens, err := h.redeemValidTokens(r, loginCallback)
 	if err != nil {
-		h.InternalError(w, r, fmt.Errorf("callback: %w", err))
+		h.InternalError(w, r, fmt.Errorf("callback: redeming tokens: %w", err))
 		return
 	}
 
@@ -81,7 +81,6 @@ func (h *Handler) redeemValidTokens(r *http.Request, loginCallback client.LoginC
 	retryable := func(ctx context.Context) error {
 		tokens, err = loginCallback.RedeemTokens(ctx)
 		if err != nil {
-			logentry.LogEntry(r).Warnf("callback: retrying: %+v", err)
 			return retry.RetryableError(err)
 		}
 
@@ -103,7 +102,6 @@ func (h *Handler) getLoginstatusToken(r *http.Request, tokens *openid.Tokens) (*
 
 		tokenResponse, err = h.Loginstatus.ExchangeToken(ctx, tokens.AccessToken)
 		if err != nil {
-			logentry.LogEntry(r).Warnf("callback: exchanging loginstatus token; retrying: %+v", err)
 			return retry.RetryableError(err)
 		}
 

@@ -9,6 +9,8 @@ import (
 
 // FrontChannelLogout triggers logout triggered by a third-party.
 func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
+	logger := logentry.LogEntry(r)
+
 	// Unconditionally destroy all local references to the session.
 	cookie.Clear(w, cookie.Session, h.CookieOptions)
 
@@ -18,7 +20,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 
 	logoutFrontchannel := h.Client.LogoutFrontchannel(r)
 	if logoutFrontchannel.MissingSidParameter() {
-		logentry.LogEntry(r).Info("front-channel logout: sid parameter not set in request; ignoring")
+		logger.Info("front-channel logout: sid parameter not set in request; ignoring")
 		h.DeleteSessionFallback(w, r)
 		w.WriteHeader(http.StatusAccepted)
 		return
@@ -28,14 +30,14 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	sessionID := h.localSessionID(sid)
 	sessionData, err := h.getSession(r, sessionID)
 	if err != nil {
-		logentry.LogEntry(r).Infof("front-channel logout: getting session (user might already be logged out): %+v", err)
+		logger.Infof("front-channel logout: getting session (user might already be logged out): %+v", err)
 	}
 
 	err = h.destroySession(w, r, sessionID)
 	if err != nil {
-		logentry.LogEntry(r).Warnf("front-channel logout: destroying session: %+v", err)
+		logger.Warnf("front-channel logout: destroying session: %+v", err)
 	} else if sessionData != nil {
-		logentry.LogEntry(r).WithField("jti", sessionData.IDTokenJwtID).Infof("front-channel logout: successful logout")
+		logger.WithField("jti", sessionData.IDTokenJwtID).Infof("front-channel logout: successful logout")
 	}
 
 	w.WriteHeader(http.StatusOK)

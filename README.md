@@ -83,7 +83,7 @@ The following flags are available:
 --error-redirect-uri string                URI to redirect user to on errors for custom error handling.
 --ingress string                           Ingress used to access the main application.
 --log-format string                        Log format, either 'json' or 'text'. (default "json")
---log-level string                         Logging verbosity level. (default "debug")
+--log-level string                         Logging verbosity level. (default "info")
 --loginstatus.cookie-domain string         The domain that the cookie should be set for.
 --loginstatus.cookie-name string           The name of the cookie.
 --loginstatus.enabled                      Feature toggle for Loginstatus, a separate service that should provide an opaque token to indicate that a user has been authenticated previously, e.g. by another application in another subdomain.

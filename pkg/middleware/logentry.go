@@ -22,7 +22,7 @@ func LogEntryHandler(provider string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			entry := logger.NewLogEntry(r)
-			entry.WithRequestLogFields(r).Debugf("request")
+			entry.WithRequestLogFields(r).Infof("request")
 
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 			t1 := time.Now()

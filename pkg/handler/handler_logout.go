@@ -14,6 +14,8 @@ import (
 
 // Logout triggers self-initiated for the current user
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	logger := logentry.LogEntry(r)
+
 	var idToken string
 
 	sessionData, err := h.getSessionFromCookie(w, r)
@@ -28,7 +30,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		fields := log.Fields{
 			"jti": sessionData.IDTokenJwtID,
 		}
-		logentry.LogEntry(r).WithFields(fields).Info("logout: successful local logout")
+		logger.WithFields(fields).Info("logout: successful local logout")
 	}
 
 	cookie.Clear(w, cookie.Session, h.CookieOptions)
@@ -43,6 +45,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logentry.LogEntry(r).Info("logout: redirecting to identity provider")
+	logger.Info("logout: redirecting to identity provider")
 	http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
 }

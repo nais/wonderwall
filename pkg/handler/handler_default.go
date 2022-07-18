@@ -28,6 +28,8 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.AutoLogin.NeedsLogin(r, isAuthenticated) {
+		logentry.LogEntry(r).Info("default: request is unauthenticated; performing auto-login...")
+
 		r.Header.Add("Referer", r.URL.String())
 		h.Login(w, r)
 		return
