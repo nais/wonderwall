@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 // Logout triggers self-initiated for the current user
@@ -22,7 +22,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err == nil && sessionData != nil {
 		idToken = sessionData.IDToken
 		err = h.destroySession(w, r, h.localSessionID(sessionData.ExternalSessionID))
-		if err != nil && !errors.Is(err, redis.Nil) {
+		if err != nil && !errors.Is(err, session.KeyNotFoundError) {
 			h.InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
 			return
 		}

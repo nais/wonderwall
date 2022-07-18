@@ -26,7 +26,7 @@ func (s *memorySessionStore) Read(_ context.Context, key string) (*EncryptedData
 
 	data, ok := s.sessions[key]
 	if !ok {
-		return nil, fmt.Errorf("no such session: %s", key)
+		return nil, fmt.Errorf("%w: no such session: %s", KeyNotFoundError, key)
 	}
 
 	return data, nil

@@ -2,6 +2,8 @@ package session
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -26,11 +28,15 @@ func (s *redisSessionStore) Read(ctx context.Context, key string) (*EncryptedDat
 	err := metrics.ObserveRedisLatency("Read", func() error {
 		return s.client.Get(ctx, key).Scan(encryptedData)
 	})
-	if err != nil {
-		return nil, err
+	if err == nil {
+		return encryptedData, nil
 	}
 
-	return encryptedData, nil
+	if errors.Is(err, redis.Nil) {
+		return nil, fmt.Errorf("%w: %s", KeyNotFoundError, err.Error())
+	}
+
+	return nil, err
 }
 
 func (s *redisSessionStore) Write(ctx context.Context, key string, value *EncryptedData, expiration time.Duration) error {
@@ -40,7 +46,16 @@ func (s *redisSessionStore) Write(ctx context.Context, key string, value *Encryp
 }
 
 func (s *redisSessionStore) Delete(ctx context.Context, keys ...string) error {
-	return metrics.ObserveRedisLatency("Delete", func() error {
+	err := metrics.ObserveRedisLatency("Delete", func() error {
 		return s.client.Del(ctx, keys...).Err()
 	})
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, redis.Nil) {
+		return fmt.Errorf("%w: %s", KeyNotFoundError, err.Error())
+	}
+
+	return err
 }

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/sethvargo/go-retry"
 
 	"github.com/nais/wonderwall/pkg/cookie"
@@ -38,7 +37,7 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 		return sessionData, nil
 	}
 
-	if errors.Is(err, redis.Nil) {
+	if errors.Is(err, session.KeyNotFoundError) {
 		return nil, fmt.Errorf("session not found in store: %w", err)
 	}
 
@@ -63,7 +62,7 @@ func (h *Handler) getSession(r *http.Request, sessionID string) (*session.Data, 
 		}
 
 		err = fmt.Errorf("reading session data from store: %w", err)
-		if errors.Is(err, redis.Nil) {
+		if errors.Is(err, session.KeyNotFoundError) {
 			return err
 		}
 
@@ -151,7 +150,7 @@ func (h *Handler) destroySession(w http.ResponseWriter, r *http.Request, session
 		}
 
 		err = fmt.Errorf("deleting session from store: %w", err)
-		if errors.Is(err, redis.Nil) {
+		if errors.Is(err, session.KeyNotFoundError) {
 			return err
 		}
 

@@ -17,7 +17,6 @@ import (
 )
 
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
-
 	// unconditionally clear login cookie
 	h.clearLoginCookies(w)
 
