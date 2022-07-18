@@ -51,7 +51,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokens, err := h.redeemValidTokens(r.Context(), loginCallback)
+	tokens, err := h.redeemValidTokens(r, loginCallback)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: %w", err))
 		return
@@ -64,35 +64,35 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.Cfg.Wonderwall().Loginstatus.Enabled {
-		tokenResponse, err := h.getLoginstatusToken(r.Context(), tokens)
+		tokenResponse, err := h.getLoginstatusToken(r, tokens)
 		if err != nil {
 			h.InternalError(w, r, fmt.Errorf("callback: exchanging loginstatus token: %w", err))
 			return
 		}
 
 		h.Loginstatus.SetCookie(w, tokenResponse, h.CookieOptions)
-		log.Debug("callback: successfully fetched loginstatus token")
+		logentry.LogEntry(r).Debug("callback: successfully fetched loginstatus token")
 	}
 
 	logSuccessfulLogin(r, tokens, loginCookie.Referer)
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) redeemValidTokens(ctx context.Context, loginCallback client.LoginCallback) (*openid.Tokens, error) {
+func (h *Handler) redeemValidTokens(r *http.Request, loginCallback client.LoginCallback) (*openid.Tokens, error) {
 	var tokens *openid.Tokens
 	var err error
 
 	retryable := func(ctx context.Context) error {
 		tokens, err = loginCallback.RedeemTokens(ctx)
 		if err != nil {
-			log.Warnf("callback: retrying: %+v", err)
+			logentry.LogEntry(r).Warnf("callback: retrying: %+v", err)
 			return retry.RetryableError(err)
 		}
 
 		return nil
 	}
 
-	err = retry.Do(ctx, backoff(), retryable)
+	err = retry.Do(r.Context(), backoff(), retryable)
 	if err != nil {
 		return nil, err
 	}
@@ -100,15 +100,15 @@ func (h *Handler) redeemValidTokens(ctx context.Context, loginCallback client.Lo
 	return tokens, nil
 }
 
-func (h *Handler) getLoginstatusToken(ctx context.Context, tokens *openid.Tokens) (*loginstatus.TokenResponse, error) {
+func (h *Handler) getLoginstatusToken(r *http.Request, tokens *openid.Tokens) (*loginstatus.TokenResponse, error) {
 	var tokenResponse *loginstatus.TokenResponse
 
-	err := retry.Do(ctx, backoff(), func(ctx context.Context) error {
+	err := retry.Do(r.Context(), backoff(), func(ctx context.Context) error {
 		var err error
 
 		tokenResponse, err = h.Loginstatus.ExchangeToken(ctx, tokens.AccessToken)
 		if err != nil {
-			log.Warnf("callback: exchanging loginstatus token; retrying: %+v", err)
+			logentry.LogEntry(r).Warnf("callback: exchanging loginstatus token; retrying: %+v", err)
 			return retry.RetryableError(err)
 		}
 
@@ -122,13 +122,12 @@ func (h *Handler) getLoginstatusToken(ctx context.Context, tokens *openid.Tokens
 }
 
 func logSuccessfulLogin(r *http.Request, tokens *openid.Tokens, referer string) {
-	fields := map[string]interface{}{
+	fields := log.Fields{
 		"redirect_to": referer,
 		"jti":         tokens.IDToken.GetJwtID(),
 	}
 
-	logger := logentry.LogEntryWithFields(r.Context(), fields)
-	logger.Info().Msg("callback: successful login")
+	logentry.LogEntry(r).WithFields(fields).Info("callback: successful login")
 }
 
 func backoff() retry.Backoff {

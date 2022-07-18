@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/cookie"
+	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -40,7 +40,7 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 		return nil, fmt.Errorf("session not found in store: %w", err)
 	}
 
-	log.Warnf("get session: store is unavailable: %+v; using cookie fallback", err)
+	logentry.LogEntry(r).Warnf("get session: store is unavailable: %+v; using cookie fallback", err)
 
 	fallbackSessionData, err := h.GetSessionFallback(w, r)
 	if err != nil {
@@ -107,7 +107,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 		return nil
 	}
 
-	log.Warnf("create session: store is unavailable: %+v; using cookie fallback", err)
+	logentry.LogEntry(r).Warnf("create session: store is unavailable: %+v; using cookie fallback", err)
 
 	err = h.SetSessionFallback(w, r, sessionData, sessionLifetime)
 	if err != nil {

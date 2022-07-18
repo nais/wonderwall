@@ -16,7 +16,6 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/rs/zerolog"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
@@ -77,7 +76,7 @@ func NewIdentityProvider(cfg *config.Config) IdentityProvider {
 	sessionStore := session.NewMemory()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	rpHandler, err := handlerpkg.NewHandler(ctx, openidConfig, crypter, zerolog.Nop(), sessionStore)
+	rpHandler, err := handlerpkg.NewHandler(ctx, openidConfig, crypter, sessionStore)
 	if err != nil {
 		panic(err)
 	}

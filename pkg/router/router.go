@@ -19,7 +19,7 @@ func New(handler *handler.Handler) chi.Router {
 	prefix := config.ParseIngress(handler.Cfg.Wonderwall().Ingress)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.LogEntryHandler(handler.Httplogger))
+		r.Use(middleware.LogEntryHandler(handler.Cfg.ProviderName()))
 		r.Use(prometheusMiddleware.Handler)
 		r.Use(chi_middleware.NoCache)
 

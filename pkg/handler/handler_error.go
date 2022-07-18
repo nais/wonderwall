@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/rs/zerolog"
 	log "github.com/sirupsen/logrus"
 
 	logentry "github.com/nais/wonderwall/pkg/middleware"
@@ -34,9 +33,16 @@ func init() {
 	}
 }
 
-func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level zerolog.Level) {
-	logger := logentry.LogEntry(r.Context())
-	logger.WithLevel(level).Stack().Err(cause).Msgf("error in route: %+v", cause)
+func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level log.Level) {
+	logger := logentry.LogEntry(r)
+	msg := "error in route: %+v"
+
+	switch level {
+	case log.WarnLevel:
+		logger.Warnf(msg, cause)
+	default:
+		logger.Errorf(msg, cause)
+	}
 
 	if len(h.Cfg.Wonderwall().ErrorRedirectURI) > 0 {
 		err := h.customErrorRedirect(w, r, statusCode)
@@ -62,7 +68,7 @@ func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, s
 	}
 	err = errorTemplate.Execute(w, errorPage)
 	if err != nil {
-		log.Errorf("executing error template: %+v", err)
+		logentry.LogEntry(r).Errorf("executing error template: %+v", err)
 	}
 }
 
@@ -87,13 +93,13 @@ func (h *Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, st
 }
 
 func (h *Handler) InternalError(w http.ResponseWriter, r *http.Request, cause error) {
-	h.respondError(w, r, http.StatusInternalServerError, cause, zerolog.ErrorLevel)
+	h.respondError(w, r, http.StatusInternalServerError, cause, log.ErrorLevel)
 }
 
 func (h *Handler) BadRequest(w http.ResponseWriter, r *http.Request, cause error) {
-	h.respondError(w, r, http.StatusBadRequest, cause, zerolog.ErrorLevel)
+	h.respondError(w, r, http.StatusBadRequest, cause, log.ErrorLevel)
 }
 
 func (h *Handler) Unauthorized(w http.ResponseWriter, r *http.Request, cause error) {
-	h.respondError(w, r, http.StatusUnauthorized, cause, zerolog.WarnLevel)
+	h.respondError(w, r, http.StatusUnauthorized, cause, log.WarnLevel)
 }

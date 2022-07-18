@@ -3,9 +3,8 @@ package handler
 import (
 	"net/http"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/nais/wonderwall/pkg/cookie"
+	logentry "github.com/nais/wonderwall/pkg/middleware"
 )
 
 // FrontChannelLogout triggers logout triggered by a third-party.
@@ -19,7 +18,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 
 	logoutFrontchannel := h.Client.LogoutFrontchannel(r)
 	if logoutFrontchannel.MissingSidParameter() {
-		log.Info("front-channel logout: sid parameter not set in request; ignoring")
+		logentry.LogEntry(r).Info("front-channel logout: sid parameter not set in request; ignoring")
 		h.DeleteSessionFallback(w, r)
 		w.WriteHeader(http.StatusAccepted)
 		return
@@ -29,14 +28,14 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	sessionID := h.localSessionID(sid)
 	sessionData, err := h.getSession(r.Context(), sessionID)
 	if err != nil {
-		log.Infof("front-channel logout: getting session (user might already be logged out): %+v", err)
+		logentry.LogEntry(r).Infof("front-channel logout: getting session (user might already be logged out): %+v", err)
 	}
 
 	err = h.destroySession(w, r, sessionID)
 	if err != nil {
-		log.Errorf("front-channel logout: destroying session: %+v", err)
+		logentry.LogEntry(r).Warnf("front-channel logout: destroying session: %+v", err)
 	} else if sessionData != nil {
-		log.WithField("jti", sessionData.IDTokenJwtID).Infof("front-channel logout: successful logout")
+		logentry.LogEntry(r).WithField("jti", sessionData.IDTokenJwtID).Infof("front-channel logout: successful logout")
 	}
 
 	w.WriteHeader(http.StatusOK)

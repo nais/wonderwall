@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-redis/redis/v8"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
@@ -24,11 +25,10 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fields := map[string]interface{}{
+		fields := log.Fields{
 			"jti": sessionData.IDTokenJwtID,
 		}
-		logger := logentry.LogEntryWithFields(r.Context(), fields)
-		logger.Info().Msg("logout: successful local logout")
+		logentry.LogEntry(r).WithFields(fields).Info("logout: successful local logout")
 	}
 
 	cookie.Clear(w, cookie.Session, h.CookieOptions)
@@ -43,8 +43,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger := logentry.LogEntry(r.Context())
-	logger.Info().Msg("logout: redirecting to identity provider")
-
+	logentry.LogEntry(r).Info("logout: redirecting to identity provider")
 	http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
 }

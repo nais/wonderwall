@@ -1,39 +1,33 @@
 package middleware
 
 import (
-	"bytes"
-	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog"
-	"github.com/rs/zerolog"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/cookie"
 )
 
+var logger *requestLogger
+
 // LogEntryHandler is copied verbatim from httplog package to replace with our own requestLogger implementation.
-func LogEntryHandler(logger zerolog.Logger) func(next http.Handler) http.Handler {
-	var f middleware.LogFormatter = &requestLogger{logger}
+func LogEntryHandler(provider string) func(next http.Handler) http.Handler {
+	logger = &requestLogger{Logger: log.StandardLogger(), Provider: provider}
+
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			entry := f.NewLogEntry(r)
+			entry := logger.NewLogEntry(r)
+			entry.WithRequestLogFields(r).Debugf("request")
+
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-
-			buf := newLimitBuffer(512)
-			ww.Tee(buf)
-
 			t1 := time.Now()
 			defer func() {
-				var respBody []byte
-				if ww.Status() >= 400 {
-					respBody, _ = ioutil.ReadAll(buf)
-				}
-				entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(t1), respBody)
+				entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(t1), nil)
 			}()
 
 			next.ServeHTTP(ww, middleware.WithLogEntry(r, entry))
@@ -42,50 +36,70 @@ func LogEntryHandler(logger zerolog.Logger) func(next http.Handler) http.Handler
 	}
 }
 
-func LogEntry(ctx context.Context) zerolog.Logger {
+func LogEntry(r *http.Request) *log.Entry {
+	ctx := r.Context()
 	val := ctx.Value(middleware.LogEntryCtxKey)
 	entry, ok := val.(*requestLoggerEntry)
 	if ok {
 		return entry.Logger
 	}
 
-	return httplog.NewLogger("wonderwall")
-}
-
-func LogEntryWithFields(ctx context.Context, fields any) zerolog.Logger {
-	return LogEntry(ctx).With().Fields(fields).Logger()
+	entry = logger.NewLogEntry(r)
+	return entry.Logger
 }
 
 type requestLogger struct {
-	Logger zerolog.Logger
+	Logger   *log.Logger
+	Provider string
 }
 
-func (l *requestLogger) NewLogEntry(r *http.Request) middleware.LogEntry {
+func (l *requestLogger) NewLogEntry(r *http.Request) *requestLoggerEntry {
 	entry := &requestLoggerEntry{}
-	entry.Logger = l.Logger.With().Fields(requestLogFields(r)).Logger()
+	correlationID := middleware.GetReqID(r.Context())
+
+	fields := log.Fields{
+		"correlation_id": correlationID,
+		"provider":       l.Provider,
+	}
+
+	entry.Logger = l.Logger.WithFields(fields)
 	return entry
 }
 
 type requestLoggerEntry struct {
-	Logger zerolog.Logger
-	msg    string
+	Logger *log.Entry
 }
 
-func (l *requestLoggerEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
+func (l *requestLoggerEntry) WithRequestLogFields(r *http.Request) *log.Entry {
+	fields := log.Fields{
+		"request_cookies":    nonEmptyRequestCookies(r),
+		"request_host":       r.Host,
+		"request_method":     r.Method,
+		"request_path":       r.URL.Path,
+		"request_protocol":   r.Proto,
+		"request_referer":    r.Referer(),
+		"request_user_agent": r.UserAgent(),
+	}
+
+	return l.Logger.WithFields(fields)
+}
+
+func (l *requestLoggerEntry) Write(status, bytes int, _ http.Header, elapsed time.Duration, _ any) {
 	msg := fmt.Sprintf("response: HTTP %d (%s)", status, statusLabel(status))
-	if l.msg != "" {
-		msg = fmt.Sprintf("%s - %s", msg, l.msg)
+	fields := log.Fields{
+		"response_status":     status,
+		"response_bytes":      bytes,
+		"response_elapsed_ms": float64(elapsed.Nanoseconds()) / 1000000.0, // in milliseconds, with fractional
 	}
 
-	responseLog := map[string]interface{}{
-		"status":  status,
-		"bytes":   bytes,
-		"elapsed": float64(elapsed.Nanoseconds()) / 1000000.0, // in milliseconds
-	}
+	entry := l.Logger.WithFields(fields)
 
-	l.Logger.WithLevel(statusLevel(status)).Fields(map[string]interface{}{
-		"httpResponse": responseLog,
-	}).Msgf(msg)
+	switch {
+	case status >= 400:
+		entry.Infof(msg)
+	default:
+		entry.Debugf(msg)
+	}
 }
 
 func (l *requestLoggerEntry) Panic(v interface{}, stack []byte) {
@@ -94,25 +108,12 @@ func (l *requestLoggerEntry) Panic(v interface{}, stack []byte) {
 		stacktrace = string(stack)
 	}
 
-	l.Logger = l.Logger.With().
-		Str("stacktrace", stacktrace).
-		Str("panic", fmt.Sprintf("%+v", v)).
-		Logger()
-
-	l.msg = fmt.Sprintf("%+v", v)
-
-	if !httplog.DefaultOptions.JSON {
-		middleware.PrintPrettyStack(v)
+	fields := log.Fields{
+		"stacktrace": stacktrace,
+		"error":      fmt.Sprintf("%+v", v),
 	}
-}
 
-func statusLevel(status int) zerolog.Level {
-	switch {
-	case status >= 400:
-		return zerolog.InfoLevel
-	default:
-		return zerolog.DebugLevel
-	}
+	l.Logger = l.Logger.WithFields(fields)
 }
 
 func statusLabel(status int) string {
@@ -130,45 +131,18 @@ func statusLabel(status int) string {
 	}
 }
 
-func requestLogFields(r *http.Request) map[string]interface{} {
-	requestFields := map[string]interface{}{
-		"cookies":       requestCookies(r),
-		"protocol":      r.Proto,
-		"referer":       r.Referer(),
-		"requestMethod": r.Method,
-		"requestPath":   r.URL.Path,
-		"userAgent":     r.UserAgent(),
-	}
-
-	if reqID := middleware.GetReqID(r.Context()); reqID != "" {
-		requestFields["requestID"] = reqID
-	}
-
-	return map[string]interface{}{
-		"httpRequest": requestFields,
-	}
-}
-
-type requestCookie struct {
-	Name    string `json:"name"`
-	IsEmpty bool   `json:"isEmpty"`
-}
-
-func requestCookies(r *http.Request) []requestCookie {
-	result := make([]requestCookie, 0)
+func nonEmptyRequestCookies(r *http.Request) string {
+	result := make([]string, 0)
 
 	for _, c := range r.Cookies() {
-		if !isRelevantCookie(c.Name) {
+		if !isRelevantCookie(c.Name) || len(c.Value) <= 0 {
 			continue
 		}
 
-		result = append(result, requestCookie{
-			Name:    c.Name,
-			IsEmpty: len(c.Value) <= 0,
-		})
+		result = append(result, c.Name)
 	}
 
-	return result
+	return strings.Join(result, ", ")
 }
 
 func isRelevantCookie(name string) bool {
@@ -180,37 +154,4 @@ func isRelevantCookie(name string) bool {
 	}
 
 	return false
-}
-
-// limitBuffer is used to pipe response body information from the
-// response writer to a certain limit amount. The idea is to read
-// a portion of the response body such as an error response so we
-// may log it.
-//
-// Copied verbatim from httplog package as it is unexported.
-type limitBuffer struct {
-	*bytes.Buffer
-	limit int
-}
-
-func newLimitBuffer(size int) io.ReadWriter {
-	return limitBuffer{
-		Buffer: bytes.NewBuffer(make([]byte, 0, size)),
-		limit:  size,
-	}
-}
-
-func (b limitBuffer) Write(p []byte) (n int, err error) {
-	if b.Buffer.Len() >= b.limit {
-		return len(p), nil
-	}
-	limit := b.limit
-	if len(p) < limit {
-		limit = len(p)
-	}
-	return b.Buffer.Write(p[:limit])
-}
-
-func (b limitBuffer) Read(p []byte) (n int, err error) {
-	return b.Buffer.Read(p)
 }

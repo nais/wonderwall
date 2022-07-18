@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/nais/wonderwall/pkg/cookie"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
@@ -35,20 +37,17 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fields := map[string]interface{}{
+	fields := log.Fields{
 		"redirect_after_login": login.CanonicalRedirect(),
 	}
-	logger := logentry.LogEntryWithFields(r.Context(), fields)
-	logger.Info().Msg("login: redirecting to identity provider")
-
+	logentry.LogEntry(r).WithFields(fields).Info("login: redirecting to identity provider")
 	http.Redirect(w, r, login.AuthCodeURL(), http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
 	loginCookieJson, err := cookie.GetDecrypted(r, cookie.Login, h.Crypter)
 	if err != nil {
-		logger := logentry.LogEntry(r.Context())
-		logger.Info().Msgf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
+		logentry.LogEntry(r).Debugf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
 
 		loginCookieJson, err = cookie.GetDecrypted(r, cookie.LoginLegacy, h.Crypter)
 		if err != nil {
