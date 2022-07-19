@@ -127,10 +127,10 @@ flags described previously:
 
 The default values for the following flags are also changed:
 
-| Flag | Value |
-| ---- | ----- |
+| Flag                | Value    |
+|---------------------|----------|
 | `openid.acr-values` | `Level4` |
-| `openid.ui-locales` | `nb` |
+| `openid.ui-locales` | `nb`     |
 
 #### Azure AD
 
@@ -150,10 +150,52 @@ described previously:
 
 - Go 1.17
 
-### Setup
+### Binary
 
 `make wonderwall` and `./bin/wonderwall`
 
 See [configuration](#configuration).
 
-Optionally run the Redis server with `docker-compose up`.
+### Docker Compose
+
+See the [docker-compose file](docker-compose.yml) for an example setup:
+
+- Requires an environment variable `WONDERWALL_OPENID_CLIENT_JWK` with a private JWK. 
+  - This can be acquired from <https://mkjwk.org>.
+  - Set the environment variable in an `.env` file that Docker Compose automatically detects and uses.
+- By default, the setup will use the latest available pre-built image.
+  - If you want to will build a fresh binary from the cloned source, replace the following
+
+```yaml
+services:
+  ...
+  wonderwall:
+    image: ghcr.io/nais/wonderwall:latest
+ ```
+
+with 
+
+```yaml
+services:
+  ...
+  wonderwall:
+    build: .
+```
+
+Run `docker-compose up`. This starts:
+
+- Wonderwall
+- Redis as the session storage
+- [mock-oauth2-server](https://github.com/navikt/mock-oauth2-server) as an identity provider
+- [http-https-echo](https://hub.docker.com/r/mendhak/http-https-echo) as a dummy upstream server
+
+Try it out:
+
+1. Visit <http://localhost:3000>
+   1. The response should be returned as-is from the upstream.
+   2. The `authorization` header should not be set.
+2. Visit <http://localhost:3000/oauth2/login>
+   1. The `authorization` header should now be set in the upstream response.
+   2. The response should also include the decoded JWT from said header.
+3. Visit <http://localhost:3000/oauth2/logout>
+   1. The `authorization` header should no longer be set in the upstream response.
