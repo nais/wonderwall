@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/loginstatus"
+	"github.com/nais/wonderwall/pkg/metrics"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/client"
@@ -120,4 +121,5 @@ func logSuccessfulLogin(r *http.Request, tokens *openid.Tokens, referer string) 
 	}
 
 	logentry.LogEntry(r).WithFields(fields).Info("callback: successful login")
+	metrics.ObserveLogin()
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/nais/wonderwall/pkg/cookie"
+	"github.com/nais/wonderwall/pkg/metrics"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 )
 
@@ -31,14 +32,19 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	sessionData, err := h.getSession(r, sessionID)
 	if err != nil {
 		logger.Infof("front-channel logout: getting session (user might already be logged out): %+v", err)
+		w.WriteHeader(http.StatusAccepted)
+		return
 	}
 
 	err = h.destroySession(w, r, sessionID)
 	if err != nil {
 		logger.Warnf("front-channel logout: destroying session: %+v", err)
+		w.WriteHeader(http.StatusAccepted)
+		return
 	} else if sessionData != nil {
 		logger.WithField("jti", sessionData.IDTokenJwtID).Infof("front-channel logout: successful logout")
 	}
 
+	metrics.ObserveLogout(metrics.LogoutOperationFrontChannel)
 	w.WriteHeader(http.StatusOK)
 }

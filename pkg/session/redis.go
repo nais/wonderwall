@@ -25,7 +25,7 @@ func NewRedis(client redis.Cmdable) Store {
 
 func (s *redisSessionStore) Read(ctx context.Context, key string) (*EncryptedData, error) {
 	encryptedData := &EncryptedData{}
-	err := metrics.ObserveRedisLatency("Read", func() error {
+	err := metrics.ObserveRedisLatency(metrics.RedisOperationRead, func() error {
 		return s.client.Get(ctx, key).Scan(encryptedData)
 	})
 	if err == nil {
@@ -40,13 +40,13 @@ func (s *redisSessionStore) Read(ctx context.Context, key string) (*EncryptedDat
 }
 
 func (s *redisSessionStore) Write(ctx context.Context, key string, value *EncryptedData, expiration time.Duration) error {
-	return metrics.ObserveRedisLatency("Write", func() error {
+	return metrics.ObserveRedisLatency(metrics.RedisOperationWrite, func() error {
 		return s.client.Set(ctx, key, value, expiration).Err()
 	})
 }
 
 func (s *redisSessionStore) Delete(ctx context.Context, keys ...string) error {
-	err := metrics.ObserveRedisLatency("Delete", func() error {
+	err := metrics.ObserveRedisLatency(metrics.RedisOperationDelete, func() error {
 		return s.client.Del(ctx, keys...).Err()
 	})
 	if err == nil {
