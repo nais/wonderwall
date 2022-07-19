@@ -8,7 +8,7 @@ import (
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 )
 
-// FrontChannelLogout triggers logout triggered by a third-party.
+// FrontChannelLogout performs a local logout initiated by a third party in the SSO circle-of-trust.
 func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	logger := logentry.LogEntry(r)
 

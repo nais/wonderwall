@@ -86,6 +86,7 @@ func TestHandler_LogoutCallback(t *testing.T) {
 	defer idp.Close()
 
 	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
 	logout(t, rpClient, idp)
 }
 

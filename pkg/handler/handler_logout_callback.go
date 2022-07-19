@@ -6,7 +6,7 @@ import (
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 )
 
-// LogoutCallback handles the callback from the self-initiated logout for the current user
+// LogoutCallback handles the callback initiated by the self-initiated logout after single-logout at the identity provider.
 func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 	redirect := h.Client.LogoutCallback(r).PostLogoutRedirectURI()
 

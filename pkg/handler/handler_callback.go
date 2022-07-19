@@ -17,6 +17,7 @@ import (
 	retrypkg "github.com/nais/wonderwall/pkg/retry"
 )
 
+// Callback handles the authentication response from the identity provider.
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	// unconditionally clear login cookie
 	h.clearLoginCookies(w)

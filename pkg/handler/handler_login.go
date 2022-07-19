@@ -19,6 +19,7 @@ const (
 	LoginCookieLifetime = 1 * time.Hour
 )
 
+// Login initiates the authorization code flow.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	login, err := h.Client.Login(r)
 	if err != nil {

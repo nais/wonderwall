@@ -8,7 +8,7 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-// Default proxies all requests upstream
+// Default proxies all requests upstream.
 func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	isAuthenticated := false
 
