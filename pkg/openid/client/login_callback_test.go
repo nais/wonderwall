@@ -100,7 +100,7 @@ func TestLoginCallback_RedeemTokens(t *testing.T) {
 	})
 }
 
-func newLoginCallback(t *testing.T, url string) (mock.IdentityProvider, client.LoginCallback) {
+func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, client.LoginCallback) {
 	cookie := &openid.LoginCookie{
 		State:        "some-state",
 		Nonce:        "some-nonce",

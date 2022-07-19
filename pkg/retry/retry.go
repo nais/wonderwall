@@ -19,24 +19,22 @@ type FibonacciBackoff struct {
 	backoff retry.Backoff
 }
 
-func (in FibonacciBackoff) WithBase(base time.Duration) FibonacciBackoff {
+func (in *FibonacciBackoff) BaseDuration(base time.Duration) {
 	in.base = base
 	in.backoff = fibonacci(in.base, in.max)
-	return in
 }
 
-func (in FibonacciBackoff) WithMax(max time.Duration) FibonacciBackoff {
+func (in *FibonacciBackoff) MaxDuration(max time.Duration) {
 	in.max = max
 	in.backoff = fibonacci(in.base, in.max)
-	return in
 }
 
-func (in FibonacciBackoff) Backoff() retry.Backoff {
+func (in *FibonacciBackoff) Backoff() retry.Backoff {
 	return in.backoff
 }
 
-func Fibonacci() FibonacciBackoff {
-	return FibonacciBackoff{
+func Fibonacci() *FibonacciBackoff {
+	return &FibonacciBackoff{
 		base:    DefaultBaseDuration,
 		max:     DefaultMaxDuration,
 		backoff: fibonacci(DefaultBaseDuration, DefaultMaxDuration),

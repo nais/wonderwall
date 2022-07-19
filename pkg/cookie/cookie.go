@@ -19,7 +19,7 @@ type Cookie struct {
 	*http.Cookie
 }
 
-func (in Cookie) Encrypt(crypter crypto.Crypter) (*Cookie, error) {
+func (in *Cookie) Encrypt(crypter crypto.Crypter) (*Cookie, error) {
 	plaintext := []byte(in.Cookie.Value)
 	ciphertext, err := crypter.Encrypt(plaintext)
 	if err != nil {
@@ -27,14 +27,11 @@ func (in Cookie) Encrypt(crypter crypto.Crypter) (*Cookie, error) {
 	}
 
 	value := base64.StdEncoding.EncodeToString(ciphertext)
-
-	encryptedCookie := in.Cookie
-	encryptedCookie.Value = value
-
-	return &Cookie{encryptedCookie}, nil
+	in.Cookie.Value = value
+	return in, nil
 }
 
-func (in Cookie) Decrypt(crypter crypto.Crypter) (string, error) {
+func (in *Cookie) Decrypt(crypter crypto.Crypter) (string, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(in.Value)
 	if err != nil {
 		return "", fmt.Errorf("value for cookie '%s' is not base64 encoded: %w", in.Name, err)

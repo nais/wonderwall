@@ -30,21 +30,21 @@ import (
 type IdentityProvider struct {
 	cancelFunc          context.CancelFunc
 	Cfg                 *config.Config
-	OpenIDConfig        Configuration
-	Provider            TestProvider
+	OpenIDConfig        *Configuration
+	Provider            *TestProvider
 	ProviderHandler     *IdentityProviderHandler
 	ProviderServer      *httptest.Server
 	RelyingPartyHandler *handlerpkg.Handler
 	RelyingPartyServer  *httptest.Server
 }
 
-func (in IdentityProvider) Close() {
+func (in *IdentityProvider) Close() {
 	in.cancelFunc()
 	in.ProviderServer.Close()
 	in.RelyingPartyServer.Close()
 }
 
-func (in IdentityProvider) RelyingPartyClient() *http.Client {
+func (in *IdentityProvider) RelyingPartyClient() *http.Client {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		panic(err)
@@ -59,7 +59,7 @@ func (in IdentityProvider) RelyingPartyClient() *http.Client {
 	return client
 }
 
-func NewIdentityProvider(cfg *config.Config) IdentityProvider {
+func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	openidConfig := NewTestConfiguration(cfg)
 	provider := newTestProvider(openidConfig)
 	handler := newIdentityProviderHandler(provider, openidConfig)
@@ -90,7 +90,7 @@ func NewIdentityProvider(cfg *config.Config) IdentityProvider {
 	openidConfig.ClientConfig.LogoutCallbackURI = rpServer.URL + "/oauth2/logout/callback"
 	rpHandler.Client = openidclient.NewClient(openidConfig)
 
-	return IdentityProvider{
+	return &IdentityProvider{
 		cancelFunc:          cancel,
 		Cfg:                 cfg,
 		RelyingPartyHandler: rpHandler,
@@ -114,11 +114,11 @@ func identityProviderRouter(ip *IdentityProviderHandler) chi.Router {
 type IdentityProviderHandler struct {
 	Codes    map[string]*AuthorizeRequest
 	Config   openidconfig.Config
-	Provider TestProvider
+	Provider *TestProvider
 	Sessions map[string]string
 }
 
-func newIdentityProviderHandler(provider TestProvider, cfg openidconfig.Config) *IdentityProviderHandler {
+func newIdentityProviderHandler(provider *TestProvider, cfg openidconfig.Config) *IdentityProviderHandler {
 	return &IdentityProviderHandler{
 		Codes:    make(map[string]*AuthorizeRequest),
 		Config:   cfg,

@@ -30,7 +30,7 @@ type Config struct {
 	Loginstatus Loginstatus `json:"loginstatus"`
 }
 
-func (in Config) Validate() error {
+func (in *Config) Validate() error {
 	if err := in.validateAutoLoginSkipPaths(); err != nil {
 		return fmt.Errorf("validating '%s': %w", AutoLoginSkipPaths, err)
 	}
@@ -38,7 +38,7 @@ func (in Config) Validate() error {
 	return nil
 }
 
-func (in Config) validateAutoLoginSkipPaths() error {
+func (in *Config) validateAutoLoginSkipPaths() error {
 	for _, path := range in.AutoLoginSkipPaths {
 		if len(path) <= 0 {
 			return fmt.Errorf("path cannot be empty")
@@ -61,7 +61,7 @@ type Loginstatus struct {
 	TokenURL          string `json:"token-url"`
 }
 
-func (in Loginstatus) NeedsResourceIndicator() bool {
+func (in *Loginstatus) NeedsResourceIndicator() bool {
 	return in.Enabled && len(in.ResourceIndicator) > 0
 }
 

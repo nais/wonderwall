@@ -20,43 +20,43 @@ type TestClientConfiguration struct {
 	WellKnownURL          string
 }
 
-func (c TestClientConfiguration) GetCallbackURI() string {
+func (c *TestClientConfiguration) GetCallbackURI() string {
 	return c.CallbackURI
 }
 
-func (c TestClientConfiguration) GetClientID() string {
+func (c *TestClientConfiguration) GetClientID() string {
 	return c.ClientID
 }
 
-func (c TestClientConfiguration) GetClientJWK() jwk.Key {
+func (c *TestClientConfiguration) GetClientJWK() jwk.Key {
 	return c.ClientJWK
 }
 
-func (c TestClientConfiguration) GetLogoutCallbackURI() string {
+func (c *TestClientConfiguration) GetLogoutCallbackURI() string {
 	return c.LogoutCallbackURI
 }
 
-func (c TestClientConfiguration) GetPostLogoutRedirectURI() string {
+func (c *TestClientConfiguration) GetPostLogoutRedirectURI() string {
 	return c.PostLogoutRedirectURI
 }
 
-func (c TestClientConfiguration) GetScopes() scopes.Scopes {
+func (c *TestClientConfiguration) GetScopes() scopes.Scopes {
 	return c.Scopes
 }
 
-func (c TestClientConfiguration) GetACRValues() string {
+func (c *TestClientConfiguration) GetACRValues() string {
 	return c.ACRValues
 }
 
-func (c TestClientConfiguration) GetUILocales() string {
+func (c *TestClientConfiguration) GetUILocales() string {
 	return c.UILocales
 }
 
-func (c TestClientConfiguration) GetWellKnownURL() string {
+func (c *TestClientConfiguration) GetWellKnownURL() string {
 	return c.WellKnownURL
 }
 
-func (c TestClientConfiguration) Print() {}
+func (c *TestClientConfiguration) Print() {}
 
 func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
 	key, err := crypto.NewJwk()

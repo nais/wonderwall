@@ -31,7 +31,7 @@ type jwksLock struct {
 	sync.Mutex
 }
 
-func (p provider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
+func (p *provider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 	url := p.configuration.JwksURI
 	set, err := p.jwksCache.Get(ctx, url)
 	if err != nil {
@@ -41,7 +41,7 @@ func (p provider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 	return &set, nil
 }
 
-func (p provider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
+func (p *provider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 	p.jwksLock.Lock()
 	defer p.jwksLock.Unlock()
 

@@ -26,7 +26,7 @@ func NewLogout(c Client) (Logout, error) {
 	}, nil
 }
 
-func (in logout) SingleLogoutURL(idToken string) string {
+func (in *logout) SingleLogoutURL(idToken string) string {
 	v := in.endSessionEndpoint.Query()
 	v.Add("post_logout_redirect_uri", in.config().Client().GetLogoutCallbackURI())
 

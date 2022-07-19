@@ -48,7 +48,7 @@ func NewCookie(rw http.ResponseWriter, req *http.Request, crypter crypto.Crypter
 	}
 }
 
-func (c cookieSessionStore) Write(data *Data, expiration time.Duration) error {
+func (c *cookieSessionStore) Write(data *Data, expiration time.Duration) error {
 	opts := c.cookieOpts.WithExpiresIn(expiration)
 
 	err := c.setCookie(ExternalIDCookieName, data.ExternalSessionID, opts)
@@ -69,7 +69,7 @@ func (c cookieSessionStore) Write(data *Data, expiration time.Duration) error {
 	return nil
 }
 
-func (c cookieSessionStore) Read(ctx context.Context) (*Data, error) {
+func (c *cookieSessionStore) Read(ctx context.Context) (*Data, error) {
 	externalSessionID, err := c.getValue(ExternalIDCookieName)
 	if err != nil {
 		return nil, fmt.Errorf("reading session ID from fallback cookie: %w", err)
@@ -120,13 +120,13 @@ func (c cookieSessionStore) Read(ctx context.Context) (*Data, error) {
 	return NewData(externalSessionID, tokens, nil), nil
 }
 
-func (c cookieSessionStore) Delete() {
+func (c *cookieSessionStore) Delete() {
 	for _, name := range c.allCookieNames() {
 		c.deleteIfNotFound(name)
 	}
 }
 
-func (c cookieSessionStore) allCookieNames() []string {
+func (c *cookieSessionStore) allCookieNames() []string {
 	return []string{
 		ExternalIDCookieName,
 		IDTokenCookieName,
@@ -134,7 +134,7 @@ func (c cookieSessionStore) allCookieNames() []string {
 	}
 }
 
-func (c cookieSessionStore) deleteIfNotFound(cookieName string) {
+func (c *cookieSessionStore) deleteIfNotFound(cookieName string) {
 	_, err := c.req.Cookie(cookieName)
 	if errors.Is(err, http.ErrNoCookie) {
 		return
@@ -143,10 +143,10 @@ func (c cookieSessionStore) deleteIfNotFound(cookieName string) {
 	cookie.Clear(c.rw, cookieName, c.cookieOpts)
 }
 
-func (c cookieSessionStore) setCookie(name, value string, opts cookie.Options) error {
+func (c *cookieSessionStore) setCookie(name, value string, opts cookie.Options) error {
 	return cookie.EncryptAndSet(c.rw, name, value, opts, c.crypter)
 }
 
-func (c cookieSessionStore) getValue(name string) (string, error) {
+func (c *cookieSessionStore) getValue(name string) (string, error) {
 	return cookie.GetDecrypted(c.req, name, c.crypter)
 }

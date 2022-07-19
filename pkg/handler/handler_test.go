@@ -282,7 +282,7 @@ func TestHandler_Default(t *testing.T) {
 	})
 }
 
-func localLogin(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) response {
+func localLogin(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) response {
 	// First, run /oauth2/login to set cookies
 	loginURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/login")
 	assert.NoError(t, err)
@@ -302,7 +302,7 @@ func localLogin(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) 
 	return resp
 }
 
-func authorize(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) response {
+func authorize(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) response {
 	resp := localLogin(t, rpClient, idp)
 
 	// Follow redirect to authorize with identity provider
@@ -332,12 +332,12 @@ func callback(t *testing.T, rpClient *http.Client, authorizeResponse response) *
 	return sessionCookie
 }
 
-func login(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) *http.Cookie {
+func login(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) *http.Cookie {
 	resp := authorize(t, rpClient, idp)
 	return callback(t, rpClient, resp)
 }
 
-func localLogout(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) response {
+func localLogout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) response {
 	// Request self-initiated logout
 	logoutURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/logout")
 	assert.NoError(t, err)
@@ -353,7 +353,7 @@ func localLogout(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider)
 	return resp
 }
 
-func logout(t *testing.T, rpClient *http.Client, idp mock.IdentityProvider) {
+func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
 	// Get endsession endpoint after local logout
 	resp := localLogout(t, rpClient, idp)
 

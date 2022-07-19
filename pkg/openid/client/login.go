@@ -71,31 +71,31 @@ type login struct {
 	params            *loginParameters
 }
 
-func (l login) CodeChallenge() string {
+func (l *login) CodeChallenge() string {
 	return l.params.CodeChallenge
 }
 
-func (l login) CodeVerifier() string {
+func (l *login) CodeVerifier() string {
 	return l.params.CodeVerifier
 }
 
-func (l login) Nonce() string {
+func (l *login) Nonce() string {
 	return l.params.Nonce
 }
 
-func (l login) State() string {
+func (l *login) State() string {
 	return l.params.State
 }
 
-func (l login) AuthCodeURL() string {
+func (l *login) AuthCodeURL() string {
 	return l.authCodeURL
 }
 
-func (l login) CanonicalRedirect() string {
+func (l *login) CanonicalRedirect() string {
 	return l.canonicalRedirect
 }
 
-func (l login) Cookie() *openid.LoginCookie {
+func (l *login) Cookie() *openid.LoginCookie {
 	return l.cookie
 }
 

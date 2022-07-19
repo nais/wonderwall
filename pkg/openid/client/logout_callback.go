@@ -20,7 +20,7 @@ func NewLogoutCallback(c Client, r *http.Request) LogoutCallback {
 	}
 }
 
-func (in logoutCallback) PostLogoutRedirectURI() string {
+func (in *logoutCallback) PostLogoutRedirectURI() string {
 	redirect := in.config().Client().GetPostLogoutRedirectURI()
 
 	if len(redirect) == 0 {

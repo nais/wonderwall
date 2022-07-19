@@ -45,7 +45,7 @@ func TestMakeAssertion(t *testing.T) {
 	assert.True(t, assertion.Expiration().Before(time.Now().Add(expiry)))
 }
 
-func newTestClientWithConfig(config mock.Configuration) client.Client {
+func newTestClientWithConfig(config *mock.Configuration) client.Client {
 	return client.NewClient(config)
 }
 

@@ -41,7 +41,7 @@ func NewLoginCallback(c Client, r *http.Request, p provider.Provider, cookie *op
 	}, nil
 }
 
-func (in loginCallback) IdentityProviderError() error {
+func (in *loginCallback) IdentityProviderError() error {
 	if in.requestParams.Get("error") != "" {
 		oauthError := in.requestParams.Get("error")
 		oauthErrorDescription := in.requestParams.Get("error_description")
@@ -51,7 +51,7 @@ func (in loginCallback) IdentityProviderError() error {
 	return nil
 }
 
-func (in loginCallback) StateMismatchError() error {
+func (in *loginCallback) StateMismatchError() error {
 	expectedState := in.cookie.State
 	actualState := in.requestParams.Get("state")
 
@@ -66,7 +66,7 @@ func (in loginCallback) StateMismatchError() error {
 	return nil
 }
 
-func (in loginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
+func (in *loginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
 	clientAssertion, err := in.client.MakeAssertion(time.Second * 30)
 	if err != nil {
 		return nil, fmt.Errorf("creating client assertion: %w", err)

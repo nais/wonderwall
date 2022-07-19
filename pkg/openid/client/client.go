@@ -53,15 +53,15 @@ func NewClient(cfg openidconfig.Config) Client {
 	}
 }
 
-func (c client) config() openidconfig.Config {
+func (c *client) config() openidconfig.Config {
 	return c.cfg
 }
 
-func (c client) oAuth2Config() *oauth2.Config {
+func (c *client) oAuth2Config() *oauth2.Config {
 	return c.oauth2Config
 }
 
-func (c client) Login(r *http.Request) (Login, error) {
+func (c *client) Login(r *http.Request) (Login, error) {
 	login, err := NewLogin(c, r)
 	if err != nil {
 		return nil, fmt.Errorf("login: %w", err)
@@ -70,7 +70,7 @@ func (c client) Login(r *http.Request) (Login, error) {
 	return login, nil
 }
 
-func (c client) LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) (LoginCallback, error) {
+func (c *client) LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) (LoginCallback, error) {
 	loginCallback, err := NewLoginCallback(c, r, p, cookie)
 	if err != nil {
 		return nil, fmt.Errorf("callback: %w", err)
@@ -79,7 +79,7 @@ func (c client) LoginCallback(r *http.Request, p provider.Provider, cookie *open
 	return loginCallback, nil
 }
 
-func (c client) Logout() (Logout, error) {
+func (c *client) Logout() (Logout, error) {
 	logout, err := NewLogout(c)
 	if err != nil {
 		return nil, fmt.Errorf("logout: %w", err)
@@ -88,19 +88,19 @@ func (c client) Logout() (Logout, error) {
 	return logout, nil
 }
 
-func (c client) LogoutCallback(r *http.Request) LogoutCallback {
+func (c *client) LogoutCallback(r *http.Request) LogoutCallback {
 	return NewLogoutCallback(c, r)
 }
 
-func (c client) LogoutFrontchannel(r *http.Request) LogoutFrontchannel {
+func (c *client) LogoutFrontchannel(r *http.Request) LogoutFrontchannel {
 	return NewLogoutFrontchannel(r)
 }
 
-func (c client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error) {
+func (c *client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error) {
 	return c.oauth2Config.Exchange(ctx, code, opts...)
 }
 
-func (c client) MakeAssertion(expiration time.Duration) (string, error) {
+func (c *client) MakeAssertion(expiration time.Duration) (string, error) {
 	clientCfg := c.config().Client()
 	providerCfg := c.config().Provider()
 	key := clientCfg.GetClientJWK()
@@ -132,7 +132,7 @@ func (c client) MakeAssertion(expiration time.Duration) (string, error) {
 	return string(encoded), nil
 }
 
-func (c client) RefreshGrant(r *http.Request) error {
+func (c *client) RefreshGrant(r *http.Request) error {
 	//TODO implement me
 	panic("implement me")
 }

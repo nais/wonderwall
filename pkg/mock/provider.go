@@ -15,40 +15,38 @@ type TestProvider struct {
 	JwksPair            *crypto.JwkSet
 }
 
-func (p TestProvider) GetOpenIDConfiguration() *openidconfig.Provider {
+func (p *TestProvider) GetOpenIDConfiguration() *openidconfig.Provider {
 	return p.OpenIDConfiguration
 }
 
-func (p TestProvider) GetPublicJwkSet(_ context.Context) (*jwk.Set, error) {
+func (p *TestProvider) GetPublicJwkSet(_ context.Context) (*jwk.Set, error) {
 	return &p.JwksPair.Public, nil
 }
 
-func (p TestProvider) RefreshPublicJwkSet(_ context.Context) (*jwk.Set, error) {
+func (p *TestProvider) RefreshPublicJwkSet(_ context.Context) (*jwk.Set, error) {
 	return &p.JwksPair.Public, nil
 }
 
-func (p TestProvider) PrivateJwkSet() *jwk.Set {
+func (p *TestProvider) PrivateJwkSet() *jwk.Set {
 	return &p.JwksPair.Private
 }
 
-func (p TestProvider) WithFrontChannelLogoutSupport() TestProvider {
+func (p *TestProvider) WithFrontChannelLogoutSupport() {
 	p.OpenIDConfiguration.FrontchannelLogoutSupported = true
 	p.OpenIDConfiguration.FrontchannelLogoutSessionSupported = true
-	return p
 }
 
-func (p TestProvider) WithCheckSessionIFrameSupport(url string) TestProvider {
+func (p *TestProvider) WithCheckSessionIFrameSupport(url string) {
 	p.OpenIDConfiguration.CheckSessionIframe = url
-	return p
 }
 
-func newTestProvider(cfg Configuration) TestProvider {
+func newTestProvider(cfg *Configuration) *TestProvider {
 	jwksPair, err := crypto.NewJwkSet()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return TestProvider{
+	return &TestProvider{
 		OpenIDConfiguration: cfg.ProviderConfig,
 		JwksPair:            jwksPair,
 	}

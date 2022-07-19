@@ -33,24 +33,24 @@ type Configuration struct {
 	WonderwallConfig *config.Config
 }
 
-func (c Configuration) Client() openidconfig.Client {
+func (c *Configuration) Client() openidconfig.Client {
 	return c.ClientConfig
 }
 
-func (c Configuration) Provider() *openidconfig.Provider {
+func (c *Configuration) Provider() *openidconfig.Provider {
 	return c.ProviderConfig
 }
 
-func (c Configuration) ProviderName() string {
+func (c *Configuration) ProviderName() string {
 	return string(c.WonderwallConfig.OpenID.Provider)
 }
 
-func (c Configuration) Wonderwall() *config.Config {
+func (c *Configuration) Wonderwall() *config.Config {
 	return c.WonderwallConfig
 }
 
-func NewTestConfiguration(cfg *config.Config) Configuration {
-	return Configuration{
+func NewTestConfiguration(cfg *config.Config) *Configuration {
+	return &Configuration{
 		ClientConfig:     clientConfiguration(cfg),
 		ProviderConfig:   providerConfiguration(),
 		WonderwallConfig: cfg,

@@ -31,7 +31,7 @@ func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 	})
 }
 
-func newLogoutCallback() (client.LogoutCallback, mock.Configuration) {
+func newLogoutCallback() (client.LogoutCallback, *mock.Configuration) {
 	req := httptest.NewRequest("GET", "http://wonderwall/oauth2/logout/callback", nil)
 
 	cfg := mock.NewTestConfiguration(mock.Config())

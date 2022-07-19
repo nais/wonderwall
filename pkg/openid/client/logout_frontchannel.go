@@ -21,10 +21,10 @@ func NewLogoutFrontchannel(r *http.Request) LogoutFrontchannel {
 	}
 }
 
-func (l logoutFrontchannel) Sid() string {
+func (l *logoutFrontchannel) Sid() string {
 	return l.sid
 }
 
-func (l logoutFrontchannel) MissingSidParameter() bool {
+func (l *logoutFrontchannel) MissingSidParameter() bool {
 	return len(l.sid) <= 0
 }

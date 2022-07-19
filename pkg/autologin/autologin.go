@@ -12,7 +12,7 @@ type Options struct {
 	SkipRoutes []Route
 }
 
-func (o Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
+func (o *Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 	if isAuthenticated || !o.Enabled {
 		return false
 	}

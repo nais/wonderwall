@@ -18,19 +18,19 @@ type config struct {
 	providerConfig *Provider
 }
 
-func (c config) Client() Client {
+func (c *config) Client() Client {
 	return c.clientConfig
 }
 
-func (c config) Provider() *Provider {
+func (c *config) Provider() *Provider {
 	return c.providerConfig
 }
 
-func (c config) ProviderName() string {
+func (c *config) ProviderName() string {
 	return string(c.cfg.OpenID.Provider)
 }
 
-func (c config) Wonderwall() *wonderwallconfig.Config {
+func (c *config) Wonderwall() *wonderwallconfig.Config {
 	return c.cfg
 }
 
@@ -45,7 +45,7 @@ func NewConfig(cfg *wonderwallconfig.Config) (Config, error) {
 		return nil, err
 	}
 
-	return config{
+	return &config{
 		cfg:            cfg,
 		clientConfig:   clientCfg,
 		providerConfig: providerCfg,

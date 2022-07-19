@@ -162,7 +162,7 @@ func assertCookieExists(t *testing.T, h *handler.Handler, cookieName, expectedVa
 	assert.Equal(t, expectedValue, string(plainbytes))
 }
 
-func makeTokens(provider mock.TestProvider) *openid.Tokens {
+func makeTokens(provider *mock.TestProvider) *openid.Tokens {
 	jwks := *provider.PrivateJwkSet()
 	jwksPublic, err := provider.GetPublicJwkSet(context.TODO())
 	if err != nil {
