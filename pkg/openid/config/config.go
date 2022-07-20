@@ -10,7 +10,6 @@ type Config interface {
 }
 
 type config struct {
-	cfg            *wonderwallconfig.Config
 	clientConfig   Client
 	providerConfig Provider
 }
@@ -35,7 +34,6 @@ func NewConfig(cfg *wonderwallconfig.Config) (Config, error) {
 	}
 
 	return &config{
-		cfg:            cfg,
 		clientConfig:   clientCfg,
 		providerConfig: providerCfg,
 	}, nil
