@@ -30,7 +30,7 @@ import (
 type IdentityProvider struct {
 	cancelFunc          context.CancelFunc
 	Cfg                 *config.Config
-	OpenIDConfig        *Configuration
+	OpenIDConfig        *TestConfiguration
 	Provider            *TestProvider
 	ProviderHandler     *IdentityProviderHandler
 	ProviderServer      *httptest.Server
@@ -61,22 +61,22 @@ func (in *IdentityProvider) RelyingPartyClient() *http.Client {
 
 func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	openidConfig := NewTestConfiguration(cfg)
-	provider := newTestProvider(openidConfig)
+	provider := newTestProvider()
 	handler := newIdentityProviderHandler(provider, openidConfig)
 	idpRouter := identityProviderRouter(handler)
 	server := httptest.NewServer(idpRouter)
 
-	openidConfig.Provider().Issuer = server.URL
-	openidConfig.Provider().JwksURI = server.URL + "/jwks"
-	openidConfig.Provider().AuthorizationEndpoint = server.URL + "/authorize"
-	openidConfig.Provider().TokenEndpoint = server.URL + "/token"
-	openidConfig.Provider().EndSessionEndpoint = server.URL + "/endsession"
+	openidConfig.TestProvider.SetAuthorizationEndpoint(server.URL + "/authorize")
+	openidConfig.TestProvider.SetEndSessionEndpoint(server.URL + "/endsession")
+	openidConfig.TestProvider.SetIssuer(server.URL)
+	openidConfig.TestProvider.SetJwksURI(server.URL + "/jwks")
+	openidConfig.TestProvider.SetTokenEndpoint(server.URL + "/token")
 
 	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
 	sessionStore := session.NewMemory()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	rpHandler, err := handlerpkg.NewHandler(ctx, openidConfig, crypter, sessionStore)
+	rpHandler, err := handlerpkg.NewHandler(ctx, cfg, openidConfig, crypter, sessionStore)
 	if err != nil {
 		panic(err)
 	}
@@ -85,9 +85,8 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	rpServer := httptest.NewServer(router.New(rpHandler))
 
 	// reconfigure client after Relying Party server is started
-	openidConfig.ClientConfig.CallbackURI = rpServer.URL + "/oauth2/callback"
-	openidConfig.ClientConfig.PostLogoutRedirectURI = rpServer.URL
-	openidConfig.ClientConfig.LogoutCallbackURI = rpServer.URL + "/oauth2/logout/callback"
+	openidConfig.TestClient.callbackURI = rpServer.URL + "/oauth2/callback"
+	openidConfig.TestClient.logoutCallbackURI = rpServer.URL + "/oauth2/logout/callback"
 	rpHandler.Client = openidclient.NewClient(openidConfig)
 
 	return &IdentityProvider{
@@ -265,7 +264,7 @@ func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	v := url.Values{}
 	v.Set("code", code)
 	v.Set("state", state)
-	if ip.Provider.GetOpenIDConfiguration().SessionStateRequired() {
+	if ip.Config.Provider().SessionStateRequired() {
 		v.Set("session_state", sessionID)
 	}
 
@@ -322,7 +321,7 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	clientJwk := ip.Config.Client().GetClientJWK()
+	clientJwk := ip.Config.Client().ClientJWK()
 	clientJwkSet := jwk.NewSet()
 	clientJwkSet.AddKey(clientJwk)
 	publicClientJwkSet, err := jwk.PublicSetOf(clientJwkSet)
@@ -335,9 +334,9 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	opts := []jwt.ParseOption{
 		jwt.WithValidate(true),
 		jwt.WithKeySet(publicClientJwkSet),
-		jwt.WithIssuer(ip.Config.Client().GetClientID()),
-		jwt.WithSubject(ip.Config.Client().GetClientID()),
-		jwt.WithAudience(ip.Provider.GetOpenIDConfiguration().Issuer),
+		jwt.WithIssuer(ip.Config.Client().ClientID()),
+		jwt.WithSubject(ip.Config.Client().ClientID()),
+		jwt.WithAudience(ip.Config.Provider().Issuer()),
 	}
 	_, err = jwt.Parse([]byte(clientAssertion), opts...)
 	if err != nil {
@@ -372,7 +371,7 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 
 	accessToken := jwt.New()
 	accessToken.Set("sub", sub)
-	accessToken.Set("iss", ip.Provider.GetOpenIDConfiguration().Issuer)
+	accessToken.Set("iss", ip.Config.Provider().Issuer())
 	accessToken.Set("acr", auth.AcrLevel)
 	accessToken.Set("iat", iat.Unix())
 	accessToken.Set("exp", exp.Unix())
@@ -386,7 +385,7 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 
 	idToken := jwt.New()
 	idToken.Set("sub", sub)
-	idToken.Set("iss", ip.Provider.GetOpenIDConfiguration().Issuer)
+	idToken.Set("iss", ip.Config.Provider().Issuer())
 	idToken.Set("aud", auth.ClientID)
 	idToken.Set("locale", auth.Locale)
 	idToken.Set("nonce", auth.Nonce)
@@ -396,7 +395,7 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	idToken.Set("jti", uuid.NewString())
 
 	// If the sid claim should be in token and in active session
-	if ip.Provider.OpenIDConfiguration.SidClaimRequired() {
+	if ip.Config.Provider().SidClaimRequired() {
 		idToken.Set("sid", auth.SessionID)
 	}
 

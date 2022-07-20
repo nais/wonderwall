@@ -21,7 +21,7 @@ const (
 
 // Login initiates the authorization code flow.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	login, err := h.Client.Login(r)
+	login, err := h.Client.Login(r, h.Config.Ingress, h.Loginstatus)
 	if err != nil {
 		if errors.Is(err, client.InvalidSecurityLevelError) || errors.Is(err, client.InvalidLocaleError) {
 			h.BadRequest(w, r, err)

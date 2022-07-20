@@ -92,7 +92,7 @@ func TestLoginCallback_RedeemTokens(t *testing.T) {
 	t.Run("unexpected audience", func(t *testing.T) {
 		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
-		idp.OpenIDConfig.ClientConfig.ClientID = "new-client-id"
+		idp.Cfg.OpenID.ClientID = "new-client-id"
 
 		tokens, err := lc.RedeemTokens(context.Background())
 		assert.Error(t, err)
@@ -112,12 +112,11 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, client.
 	idp := mock.NewIdentityProvider(mock.Config())
 
 	cfg := idp.OpenIDConfig
-	cfg.ClientConfig.LogoutCallbackURI = LogoutCallbackURI
-	cfg.ProviderConfig.EndSessionEndpoint = EndSessionEndpoint
+	cfg.TestClient.SetLogoutCallbackURI(LogoutCallbackURI)
 
 	idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
 		"some-code": {
-			ClientID:      idp.OpenIDConfig.Client().GetClientID(),
+			ClientID:      idp.OpenIDConfig.Client().ClientID(),
 			CodeChallenge: client.CodeChallenge("some-verifier"),
 			Nonce:         "some-nonce",
 		},

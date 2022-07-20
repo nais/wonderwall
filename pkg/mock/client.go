@@ -9,54 +9,53 @@ import (
 )
 
 type TestClientConfiguration struct {
-	ClientID              string
-	ClientJWK             jwk.Key
-	CallbackURI           string
-	LogoutCallbackURI     string
-	PostLogoutRedirectURI string
-	Scopes                scopes.Scopes
-	ACRValues             string
-	UILocales             string
-	WellKnownURL          string
+	*config.Config
+	callbackURI       string
+	clientJwk         jwk.Key
+	logoutCallbackURI string
 }
 
-func (c *TestClientConfiguration) GetCallbackURI() string {
-	return c.CallbackURI
+func (c *TestClientConfiguration) ACRValues() string {
+	return c.Config.OpenID.ACRValues
 }
 
-func (c *TestClientConfiguration) GetClientID() string {
-	return c.ClientID
+func (c *TestClientConfiguration) CallbackURI() string {
+	return c.callbackURI
 }
 
-func (c *TestClientConfiguration) GetClientJWK() jwk.Key {
-	return c.ClientJWK
+func (c *TestClientConfiguration) ClientID() string {
+	return c.Config.OpenID.ClientID
 }
 
-func (c *TestClientConfiguration) GetLogoutCallbackURI() string {
-	return c.LogoutCallbackURI
+func (c *TestClientConfiguration) ClientJWK() jwk.Key {
+	return c.clientJwk
 }
 
-func (c *TestClientConfiguration) GetPostLogoutRedirectURI() string {
-	return c.PostLogoutRedirectURI
+func (c *TestClientConfiguration) LogoutCallbackURI() string {
+	return c.logoutCallbackURI
 }
 
-func (c *TestClientConfiguration) GetScopes() scopes.Scopes {
-	return c.Scopes
+func (c *TestClientConfiguration) PostLogoutRedirectURI() string {
+	return c.Config.OpenID.PostLogoutRedirectURI
 }
 
-func (c *TestClientConfiguration) GetACRValues() string {
-	return c.ACRValues
+func (c *TestClientConfiguration) Scopes() scopes.Scopes {
+	return scopes.DefaultScopes().WithAdditional(c.Config.OpenID.Scopes...)
 }
 
-func (c *TestClientConfiguration) GetUILocales() string {
-	return c.UILocales
+func (c *TestClientConfiguration) UILocales() string {
+	return c.Config.OpenID.UILocales
 }
 
-func (c *TestClientConfiguration) GetWellKnownURL() string {
-	return c.WellKnownURL
+func (c *TestClientConfiguration) WellKnownURL() string {
+	return c.Config.OpenID.WellKnownURL
 }
 
 func (c *TestClientConfiguration) Print() {}
+
+func (c *TestClientConfiguration) SetLogoutCallbackURI(url string) {
+	c.logoutCallbackURI = url
+}
 
 func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
 	key, err := crypto.NewJwk()
@@ -65,14 +64,9 @@ func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
 	}
 
 	return &TestClientConfiguration{
-		ClientID:              cfg.OpenID.ClientID,
-		ClientJWK:             key,
-		CallbackURI:           "http://localhost/callback",
-		LogoutCallbackURI:     "http://localhost/logout/callback",
-		WellKnownURL:          "",
-		UILocales:             "nb",
-		ACRValues:             "Level4",
-		PostLogoutRedirectURI: "",
-		Scopes:                scopes.DefaultScopes().WithAdditional(cfg.OpenID.Scopes...),
+		Config:            cfg,
+		clientJwk:         key,
+		callbackURI:       "http://localhost/callback",
+		logoutCallbackURI: "http://localhost/logout/callback",
 	}
 }

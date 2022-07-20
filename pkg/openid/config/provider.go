@@ -4,13 +4,111 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	log "github.com/sirupsen/logrus"
 
 	wonderwallconfig "github.com/nais/wonderwall/pkg/config"
 )
 
-type Provider struct {
+type Provider interface {
+	AuthorizationEndpoint() string
+	EndSessionEndpointURL() url.URL
+	Issuer() string
+	JwksURI() string
+	TokenEndpoint() string
+
+	ACRValuesSupported() Supported
+	UILocalesSupported() Supported
+
+	Name() string
+	SessionStateRequired() bool
+	SidClaimRequired() bool
+}
+
+type provider struct {
+	endSessionEndpointURL *url.URL
+	metadata              *ProviderMetadata
+	name                  string
+}
+
+func (p *provider) AuthorizationEndpoint() string {
+	return p.metadata.AuthorizationEndpoint
+}
+
+func (p *provider) EndSessionEndpointURL() url.URL {
+	return *p.endSessionEndpointURL
+}
+
+func (p *provider) TokenEndpoint() string {
+	return p.metadata.TokenEndpoint
+}
+
+func (p *provider) Issuer() string {
+	return p.metadata.Issuer
+}
+
+func (p *provider) JwksURI() string {
+	return p.metadata.JwksURI
+}
+
+func (p *provider) ACRValuesSupported() Supported {
+	return p.metadata.ACRValuesSupported
+}
+
+func (p *provider) UILocalesSupported() Supported {
+	return p.metadata.UILocalesSupported
+}
+
+func (p *provider) Name() string {
+	return p.name
+}
+
+func (p *provider) SessionStateRequired() bool {
+	return len(p.metadata.CheckSessionIframe) > 0
+}
+
+func (p *provider) SidClaimRequired() bool {
+	return p.metadata.FrontchannelLogoutSupported && p.metadata.FrontchannelLogoutSessionSupported
+}
+
+func NewProviderConfig(cfg *wonderwallconfig.Config) (Provider, error) {
+	response, err := http.Get(cfg.OpenID.WellKnownURL)
+	if err != nil {
+		return nil, fmt.Errorf("fetching well known configuration: %w", err)
+	}
+	defer response.Body.Close()
+
+	providerCfg := new(ProviderMetadata)
+	if err := json.NewDecoder(response.Body).Decode(providerCfg); err != nil {
+		return nil, fmt.Errorf("decoding well known configuration: %w", err)
+	}
+
+	acrValues := cfg.OpenID.ACRValues
+	if len(acrValues) > 0 && !providerCfg.ACRValuesSupported.Contains(acrValues) {
+		return nil, fmt.Errorf("identity provider does not support '%s=%s'", wonderwallconfig.OpenIDACRValues, acrValues)
+	}
+
+	uiLocales := cfg.OpenID.UILocales
+	if len(uiLocales) > 0 && !providerCfg.UILocalesSupported.Contains(uiLocales) {
+		return nil, fmt.Errorf("identity provider does not support '%s=%s'", wonderwallconfig.OpenIDUILocales, acrValues)
+	}
+
+	endSessionEndpointURL, err := url.Parse(providerCfg.EndSessionEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("parsing end session endpoint URL: %w", err)
+	}
+
+	providerCfg.Print()
+
+	return &provider{
+		endSessionEndpointURL: endSessionEndpointURL,
+		metadata:              providerCfg,
+		name:                  string(cfg.OpenID.Provider),
+	}, nil
+}
+
+type ProviderMetadata struct {
 	Issuer                                 string    `json:"issuer"`
 	AuthorizationEndpoint                  string    `json:"authorization_endpoint"`
 	PushedAuthorizationRequestEndpoint     string    `json:"pushed_authorization_request_endpoint"`
@@ -37,6 +135,13 @@ type Provider struct {
 	CheckSessionIframe                     string    `json:"check_session_iframe"`
 }
 
+func (c *ProviderMetadata) Print() {
+	logger := log.WithField("logger", "openid.config.provider")
+
+	logger.Info("😗 openid provider configuration 😗")
+	logger.Infof("%#v", *c)
+}
+
 type Supported []string
 
 func (in Supported) Contains(value string) bool {
@@ -46,45 +151,4 @@ func (in Supported) Contains(value string) bool {
 		}
 	}
 	return false
-}
-
-func NewProviderConfig(cfg *wonderwallconfig.Config) (*Provider, error) {
-	response, err := http.Get(cfg.OpenID.WellKnownURL)
-	if err != nil {
-		return nil, fmt.Errorf("fetching well known configuration: %w", err)
-	}
-	defer response.Body.Close()
-
-	var providerCfg Provider
-	if err := json.NewDecoder(response.Body).Decode(&providerCfg); err != nil {
-		return nil, fmt.Errorf("decoding well known configuration: %w", err)
-	}
-
-	acrValues := cfg.OpenID.ACRValues
-	if len(acrValues) > 0 && !providerCfg.ACRValuesSupported.Contains(acrValues) {
-		return nil, fmt.Errorf("identity provider does not support '%s=%s'", wonderwallconfig.OpenIDACRValues, acrValues)
-	}
-
-	uiLocales := cfg.OpenID.UILocales
-	if len(uiLocales) > 0 && !providerCfg.UILocalesSupported.Contains(uiLocales) {
-		return nil, fmt.Errorf("identity provider does not support '%s=%s'", wonderwallconfig.OpenIDUILocales, acrValues)
-	}
-
-	providerCfg.Print()
-	return &providerCfg, nil
-}
-
-func (c *Provider) SessionStateRequired() bool {
-	return len(c.CheckSessionIframe) > 0
-}
-
-func (c *Provider) SidClaimRequired() bool {
-	return c.FrontchannelLogoutSupported && c.FrontchannelLogoutSessionSupported
-}
-
-func (c *Provider) Print() {
-	logger := log.WithField("logger", "openid.config.provider")
-
-	logger.Info("😗 openid provider configuration 😗")
-	logger.Infof("%+v", *c)
 }

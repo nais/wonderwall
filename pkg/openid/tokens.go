@@ -48,9 +48,9 @@ func (in *IDToken) Validate(cfg openidconfig.Config, nonce string) error {
 	clientConfig := cfg.Client()
 
 	opts := []jwtlib.ValidateOption{
-		jwtlib.WithAudience(clientConfig.GetClientID()),
+		jwtlib.WithAudience(clientConfig.ClientID()),
 		jwtlib.WithClaimValue("nonce", nonce),
-		jwtlib.WithIssuer(openIDconfig.Issuer),
+		jwtlib.WithIssuer(openIDconfig.Issuer()),
 		jwtlib.WithAcceptableSkew(jwt.AcceptableClockSkew),
 	}
 
@@ -58,7 +58,7 @@ func (in *IDToken) Validate(cfg openidconfig.Config, nonce string) error {
 		opts = append(opts, jwtlib.WithRequiredClaim("sid"))
 	}
 
-	if len(clientConfig.GetACRValues()) > 0 {
+	if len(clientConfig.ACRValues()) > 0 {
 		opts = append(opts, jwtlib.WithRequiredClaim("acr"))
 	}
 

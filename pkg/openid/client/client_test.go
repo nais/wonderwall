@@ -16,14 +16,14 @@ func TestMakeAssertion(t *testing.T) {
 	cfg.OpenID.ClientID = "some-client-id"
 
 	openidConfig := mock.NewTestConfiguration(cfg)
-	openidConfig.Provider().Issuer = "some-issuer"
+	openidConfig.TestProvider.SetIssuer("some-issuer")
 	c := client.NewClient(openidConfig)
 
 	expiry := 30 * time.Second
 	assertionString, err := c.MakeAssertion(expiry)
 	assert.NoError(t, err)
 
-	key := openidConfig.Client().GetClientJWK()
+	key := openidConfig.Client().ClientJWK()
 	publicKey, err := key.PublicKey()
 	assert.NoError(t, err)
 	opts := []jwt.ParseOption{
@@ -45,7 +45,7 @@ func TestMakeAssertion(t *testing.T) {
 	assert.True(t, assertion.Expiration().Before(time.Now().Add(expiry)))
 }
 
-func newTestClientWithConfig(config *mock.Configuration) client.Client {
+func newTestClientWithConfig(config *mock.TestConfiguration) client.Client {
 	return client.NewClient(config)
 }
 

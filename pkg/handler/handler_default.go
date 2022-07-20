@@ -36,7 +36,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	}
 
 	director := func(upstreamRequest *http.Request) {
-		modifyRequest(upstreamRequest, r, h.Cfg.Wonderwall().UpstreamHost)
+		modifyRequest(upstreamRequest, r, h.Config.UpstreamHost)
 
 		if isAuthenticated {
 			withAuthentication(upstreamRequest, sessionData)

@@ -2,12 +2,14 @@ package client_test
 
 import (
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
@@ -64,8 +66,9 @@ func TestLogin_URL(t *testing.T) {
 			cfg := mock.Config()
 			openidConfig := mock.NewTestConfiguration(cfg)
 			c := client.NewClient(openidConfig)
+			lsc := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
 
-			result, err := c.Login(req)
+			result, err := c.Login(req, cfg.Ingress, lsc)
 
 			if test.error != nil {
 				assert.True(t, errors.Is(err, test.error))
@@ -88,9 +91,9 @@ func TestLogin_URL(t *testing.T) {
 				assert.NotContains(t, query, "resource")
 
 				assert.ElementsMatch(t, query["response_type"], []string{"code"})
-				assert.ElementsMatch(t, query["client_id"], []string{openidConfig.Client().GetClientID()})
-				assert.ElementsMatch(t, query["redirect_uri"], []string{openidConfig.Client().GetCallbackURI()})
-				assert.ElementsMatch(t, query["scope"], []string{openidConfig.Client().GetScopes().String()})
+				assert.ElementsMatch(t, query["client_id"], []string{openidConfig.Client().ClientID()})
+				assert.ElementsMatch(t, query["redirect_uri"], []string{openidConfig.Client().CallbackURI()})
+				assert.ElementsMatch(t, query["scope"], []string{openidConfig.Client().Scopes().String()})
 				assert.ElementsMatch(t, query["state"], []string{result.State()})
 				assert.ElementsMatch(t, query["nonce"], []string{result.Nonce()})
 				assert.ElementsMatch(t, query["response_mode"], []string{"query"})
@@ -115,12 +118,14 @@ func TestLoginURL_WithResourceIndicator(t *testing.T) {
 	cfg.Loginstatus.Enabled = true
 	cfg.Loginstatus.ResourceIndicator = "https://some-resource"
 
+	lsc := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
+
 	openidConfig := mock.NewTestConfiguration(cfg)
-	openidConfig.Provider().AuthorizationEndpoint = "https://provider/authorize"
+	openidConfig.TestProvider.SetAuthorizationEndpoint("https://provider/authorize")
 
 	c := client.NewClient(openidConfig)
 
-	result, err := c.Login(req)
+	result, err := c.Login(req, cfg.Ingress, lsc)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	parsed, err := url.Parse(result.AuthCodeURL())

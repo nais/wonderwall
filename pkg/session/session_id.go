@@ -15,7 +15,7 @@ const (
 	SessionStateParamKey = "session_state"
 )
 
-func NewSessionID(cfg *config.Provider, idToken *openid.IDToken, params url.Values) (string, error) {
+func NewSessionID(cfg config.Provider, idToken *openid.IDToken, params url.Values) (string, error) {
 	// 1. check for 'sid' claim in id_token
 	sessionID, err := idToken.GetSidClaim()
 	if err == nil {

@@ -6,32 +6,21 @@ import (
 
 type Config interface {
 	Client() Client
-	Provider() *Provider
-	ProviderName() string
-
-	Wonderwall() *wonderwallconfig.Config
+	Provider() Provider
 }
 
 type config struct {
 	cfg            *wonderwallconfig.Config
 	clientConfig   Client
-	providerConfig *Provider
+	providerConfig Provider
 }
 
 func (c *config) Client() Client {
 	return c.clientConfig
 }
 
-func (c *config) Provider() *Provider {
+func (c *config) Provider() Provider {
 	return c.providerConfig
-}
-
-func (c *config) ProviderName() string {
-	return string(c.cfg.OpenID.Provider)
-}
-
-func (c *config) Wonderwall() *wonderwallconfig.Config {
-	return c.cfg
 }
 
 func NewConfig(cfg *wonderwallconfig.Config) (Config, error) {

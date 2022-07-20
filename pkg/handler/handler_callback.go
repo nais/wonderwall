@@ -60,7 +60,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.Cfg.Wonderwall().Loginstatus.Enabled {
+	if h.Loginstatus.Enabled() {
 		tokenResponse, err := h.getLoginstatusToken(r, tokens)
 		if err != nil {
 			h.InternalError(w, r, fmt.Errorf("callback: exchanging loginstatus token: %w", err))

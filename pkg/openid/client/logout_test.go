@@ -18,7 +18,7 @@ const (
 
 func TestLogout_SingleLogoutURL(t *testing.T) {
 	t.Run("with id_token", func(t *testing.T) {
-		logout := newLogout(t)
+		logout := newLogout()
 		idToken := "some-id-token"
 
 		raw := logout.SingleLogoutURL(idToken)
@@ -41,7 +41,7 @@ func TestLogout_SingleLogoutURL(t *testing.T) {
 	})
 
 	t.Run("without id_token", func(t *testing.T) {
-		logout := newLogout(t)
+		logout := newLogout()
 		idToken := ""
 
 		raw := logout.SingleLogoutURL(idToken)
@@ -64,14 +64,13 @@ func TestLogout_SingleLogoutURL(t *testing.T) {
 	})
 }
 
-func newLogout(t *testing.T) client.Logout {
-	cfg := mock.NewTestConfiguration(mock.Config())
-	cfg.ClientConfig.LogoutCallbackURI = LogoutCallbackURI
-	cfg.ClientConfig.PostLogoutRedirectURI = PostLogoutRedirectURI
-	cfg.ProviderConfig.EndSessionEndpoint = EndSessionEndpoint
+func newLogout() client.Logout {
+	cfg := mock.Config()
+	cfg.OpenID.PostLogoutRedirectURI = PostLogoutRedirectURI
 
-	logout, err := newTestClientWithConfig(cfg).Logout()
-	assert.NoError(t, err)
+	openidCfg := mock.NewTestConfiguration(cfg)
+	openidCfg.TestClient.SetLogoutCallbackURI(LogoutCallbackURI)
+	openidCfg.TestProvider.SetEndSessionEndpoint(EndSessionEndpoint)
 
-	return logout
+	return newTestClientWithConfig(openidCfg).Logout()
 }

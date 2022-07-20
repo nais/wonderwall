@@ -44,7 +44,7 @@ func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCod
 		logger.Errorf(msg, cause)
 	}
 
-	if len(h.Cfg.Wonderwall().ErrorRedirectURI) > 0 {
+	if len(h.Config.ErrorRedirectURI) > 0 {
 		err := h.customErrorRedirect(w, r, statusCode)
 		if err == nil {
 			return
@@ -64,7 +64,7 @@ func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, s
 
 	errorPage := ErrorPage{
 		CorrelationID: middleware.GetReqID(r.Context()),
-		RetryURI:      urlpkg.Retry(r, h.Cfg.Wonderwall().Ingress, loginCookie),
+		RetryURI:      urlpkg.Retry(r, h.Config.Ingress, loginCookie),
 	}
 	err = errorTemplate.Execute(w, errorPage)
 	if err != nil {
@@ -73,7 +73,7 @@ func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, s
 }
 
 func (h *Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, statusCode int) error {
-	override, err := url.Parse(h.Cfg.Wonderwall().ErrorRedirectURI)
+	override, err := url.Parse(h.Config.ErrorRedirectURI)
 	if err != nil {
 		return err
 	}

@@ -12,9 +12,12 @@ func Config() *config.Config {
 		EncryptionKey: `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq`, // 256 bits AES
 		Ingress:       "/",
 		OpenID: config.OpenID{
-			Provider: "test",
-			ClientID: "client-id",
-			Scopes:   []string{"some-scope"},
+			ACRValues:             "Level4",
+			ClientID:              "client-id",
+			PostLogoutRedirectURI: "https://google.com",
+			Provider:              "test",
+			Scopes:                []string{"some-scope"},
+			UILocales:             "nb",
 		},
 		SessionMaxLifetime: time.Hour,
 	}
@@ -27,32 +30,22 @@ func Config() *config.Config {
 	return cfg
 }
 
-type Configuration struct {
-	ClientConfig     *TestClientConfiguration
-	ProviderConfig   *openidconfig.Provider
-	WonderwallConfig *config.Config
+type TestConfiguration struct {
+	TestClient   *TestClientConfiguration
+	TestProvider *TestProviderConfiguration
 }
 
-func (c *Configuration) Client() openidconfig.Client {
-	return c.ClientConfig
+func (c *TestConfiguration) Client() openidconfig.Client {
+	return c.TestClient
 }
 
-func (c *Configuration) Provider() *openidconfig.Provider {
-	return c.ProviderConfig
+func (c *TestConfiguration) Provider() openidconfig.Provider {
+	return c.TestProvider
 }
 
-func (c *Configuration) ProviderName() string {
-	return string(c.WonderwallConfig.OpenID.Provider)
-}
-
-func (c *Configuration) Wonderwall() *config.Config {
-	return c.WonderwallConfig
-}
-
-func NewTestConfiguration(cfg *config.Config) *Configuration {
-	return &Configuration{
-		ClientConfig:     clientConfiguration(cfg),
-		ProviderConfig:   providerConfiguration(),
-		WonderwallConfig: cfg,
+func NewTestConfiguration(cfg *config.Config) *TestConfiguration {
+	return &TestConfiguration{
+		TestClient:   clientConfiguration(cfg),
+		TestProvider: providerConfiguration(cfg),
 	}
 }

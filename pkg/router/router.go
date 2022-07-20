@@ -14,12 +14,12 @@ func New(handler *handler.Handler) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)
-	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall", handler.Cfg.ProviderName())
+	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall", handler.OpenIDConfig.Provider().Name())
 
-	prefix := config.ParseIngress(handler.Cfg.Wonderwall().Ingress)
+	prefix := config.ParseIngress(handler.Config.Ingress)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.LogEntryHandler(handler.Cfg.ProviderName()))
+		r.Use(middleware.LogEntryHandler(handler.OpenIDConfig.Provider().Name()))
 		r.Use(prometheusMiddleware.Handler)
 		r.Use(chi_middleware.NoCache)
 

@@ -17,12 +17,6 @@ import (
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	logger := logentry.LogEntry(r)
 
-	logout, err := h.Client.Logout()
-	if err != nil {
-		h.InternalError(w, r, err)
-		return
-	}
-
 	var idToken string
 
 	sessionData, err := h.getSessionFromCookie(w, r)
@@ -43,11 +37,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	cookie.Clear(w, cookie.Session, h.CookieOptions)
 
-	if h.Cfg.Wonderwall().Loginstatus.Enabled {
+	if h.Loginstatus.Enabled() {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
 	}
 
 	logger.Info("logout: redirecting to identity provider")
 	metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
-	http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
+	http.Redirect(w, r, h.Client.Logout().SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
 }

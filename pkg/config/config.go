@@ -61,10 +61,6 @@ type Loginstatus struct {
 	TokenURL          string `json:"token-url"`
 }
 
-func (in *Loginstatus) NeedsResourceIndicator() bool {
-	return in.Enabled && len(in.ResourceIndicator) > 0
-}
-
 const (
 	BindAddress        = "bind-address"
 	LogFormat          = "log-format"

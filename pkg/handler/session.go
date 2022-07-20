@@ -22,7 +22,7 @@ import (
 // Thus, we cannot assume that the value of `sid` or `session_state` to uniquely identify the pair of (user, application session)
 // if using a shared session store.
 func (h *Handler) localSessionID(sessionID string) string {
-	return fmt.Sprintf("%s:%s:%s", h.Cfg.ProviderName(), h.Cfg.Client().GetClientID(), sessionID)
+	return fmt.Sprintf("%s:%s:%s", h.OpenIDConfig.Provider().Name(), h.OpenIDConfig.Client().ClientID(), sessionID)
 }
 
 func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (*session.Data, error) {
@@ -82,7 +82,7 @@ func (h *Handler) getSession(r *http.Request, sessionID string) (*session.Data, 
 }
 
 func (h *Handler) getSessionLifetime(tokenExpiry time.Time) time.Duration {
-	defaultSessionLifetime := h.Cfg.Wonderwall().SessionMaxLifetime
+	defaultSessionLifetime := h.Config.SessionMaxLifetime
 
 	tokenDuration := tokenExpiry.Sub(time.Now())
 
@@ -96,7 +96,7 @@ func (h *Handler) getSessionLifetime(tokenExpiry time.Time) time.Duration {
 func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *openid.Tokens) error {
 	params := r.URL.Query()
 
-	externalSessionID, err := session.NewSessionID(h.Cfg.Provider(), tokens.IDToken, params)
+	externalSessionID, err := session.NewSessionID(h.OpenIDConfig.Provider(), tokens.IDToken, params)
 	if err != nil {
 		return fmt.Errorf("generating session ID: %w", err)
 	}

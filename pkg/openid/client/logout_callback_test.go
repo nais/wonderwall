@@ -6,14 +6,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid/client"
 )
 
 func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
-		lc, cfg := newLogoutCallback()
-		cfg.ClientConfig.PostLogoutRedirectURI = "http://some-fancy-logout-page"
+		cfg := mock.Config()
+		cfg.OpenID.PostLogoutRedirectURI = "http://some-fancy-logout-page"
+
+		lc := newLogoutCallback(cfg)
 
 		uri := lc.PostLogoutRedirectURI()
 		assert.NotEmpty(t, uri)
@@ -21,9 +24,11 @@ func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 	})
 
 	t.Run("empty preconfigured post-logout redirect uri", func(t *testing.T) {
-		lc, cfg := newLogoutCallback()
-		cfg.ClientConfig.PostLogoutRedirectURI = ""
-		cfg.WonderwallConfig.Ingress = "http://wonderwall"
+		cfg := mock.Config()
+		cfg.Ingress = "http://wonderwall"
+		cfg.OpenID.PostLogoutRedirectURI = ""
+
+		lc := newLogoutCallback(cfg)
 
 		uri := lc.PostLogoutRedirectURI()
 		assert.NotEmpty(t, uri)
@@ -31,9 +36,8 @@ func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 	})
 }
 
-func newLogoutCallback() (client.LogoutCallback, *mock.Configuration) {
+func newLogoutCallback(cfg *config.Config) client.LogoutCallback {
 	req := httptest.NewRequest("GET", "http://wonderwall/oauth2/logout/callback", nil)
-
-	cfg := mock.NewTestConfiguration(mock.Config())
-	return newTestClientWithConfig(cfg).LogoutCallback(req), cfg
+	openidCfg := mock.NewTestConfiguration(cfg)
+	return newTestClientWithConfig(openidCfg).LogoutCallback(req, cfg.Ingress)
 }

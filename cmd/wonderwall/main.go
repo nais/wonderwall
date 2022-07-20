@@ -56,12 +56,12 @@ func run() error {
 		return err
 	}
 
-	jwksRefreshCtx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	crypt := crypto.NewCrypter(key)
 	sessionStore := session.NewStore(cfg)
-	h, err := handler.NewHandler(jwksRefreshCtx, openidConfig, crypt, sessionStore)
+	h, err := handler.NewHandler(ctx, cfg, openidConfig, crypt, sessionStore)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}

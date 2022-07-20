@@ -16,46 +16,49 @@ import (
 )
 
 type Handler struct {
-	AutoLogin     autologin.Options
-	Cfg           openidconfig.Config
+	AutoLogin     *autologin.Options
 	Client        client.Client
+	Config        *config.Config
 	CookieOptions cookie.Options
 	Crypter       crypto.Crypter
-	Loginstatus   loginstatus.Client
+	Loginstatus   loginstatus.Loginstatus
+	OpenIDConfig  openidconfig.Config
 	Provider      provider.Provider
 	Sessions      session.Store
 }
 
 func NewHandler(
-	jwksRefreshCtx context.Context,
-	cfg openidconfig.Config,
+	ctx context.Context,
+	cfg *config.Config,
+	openidConfig openidconfig.Config,
 	crypter crypto.Crypter,
 	sessionStore session.Store,
 ) (*Handler, error) {
-	loginstatusClient := loginstatus.NewClient(cfg.Wonderwall().Loginstatus, http.DefaultClient)
+	loginstatusClient := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
 
-	cookiePath := config.ParseIngress(cfg.Wonderwall().Ingress)
+	cookiePath := config.ParseIngress(cfg.Ingress)
 	cookieOpts := cookie.DefaultOptions().WithPath(cookiePath)
 
-	openidProvider, err := provider.NewProvider(jwksRefreshCtx, cfg)
+	openidProvider, err := provider.NewProvider(ctx, openidConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	openidClient := client.NewClient(cfg)
+	openidClient := client.NewClient(openidConfig)
 
-	autoLogin, err := autologin.NewOptions(cfg.Wonderwall())
+	autoLogin, err := autologin.NewOptions(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Handler{
-		AutoLogin:     *autoLogin,
+		AutoLogin:     autoLogin,
 		Client:        openidClient,
+		Config:        cfg,
 		CookieOptions: cookieOpts,
 		Crypter:       crypter,
 		Loginstatus:   loginstatusClient,
-		Cfg:           cfg,
+		OpenIDConfig:  openidConfig,
 		Provider:      openidProvider,
 		Sessions:      sessionStore,
 	}, nil

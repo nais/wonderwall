@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/strings"
@@ -42,18 +43,18 @@ type Login interface {
 	State() string
 }
 
-func NewLogin(c Client, r *http.Request) (Login, error) {
+func NewLogin(c Client, r *http.Request, ingress string, loginstatus loginstatus.Loginstatus) (Login, error) {
 	params, err := newLoginParameters(c)
 	if err != nil {
 		return nil, fmt.Errorf("generating parameters: %w", err)
 	}
 
-	url, err := params.authCodeURL(r)
+	url, err := params.authCodeURL(r, loginstatus)
 	if err != nil {
 		return nil, fmt.Errorf("generating auth code url: %w", err)
 	}
 
-	redirect := urlpkg.CanonicalRedirect(r, c.config().Wonderwall().Ingress)
+	redirect := urlpkg.CanonicalRedirect(r, ingress)
 	cookie := params.cookie(redirect)
 
 	return &login{
@@ -71,22 +72,6 @@ type login struct {
 	params            *loginParameters
 }
 
-func (l *login) CodeChallenge() string {
-	return l.params.CodeChallenge
-}
-
-func (l *login) CodeVerifier() string {
-	return l.params.CodeVerifier
-}
-
-func (l *login) Nonce() string {
-	return l.params.Nonce
-}
-
-func (l *login) State() string {
-	return l.params.State
-}
-
 func (l *login) AuthCodeURL() string {
 	return l.authCodeURL
 }
@@ -95,8 +80,24 @@ func (l *login) CanonicalRedirect() string {
 	return l.canonicalRedirect
 }
 
+func (l *login) CodeChallenge() string {
+	return l.params.CodeChallenge
+}
+
+func (l *login) CodeVerifier() string {
+	return l.params.CodeVerifier
+}
+
 func (l *login) Cookie() *openid.LoginCookie {
 	return l.cookie
+}
+
+func (l *login) Nonce() string {
+	return l.params.Nonce
+}
+
+func (l *login) State() string {
+	return l.params.State
 }
 
 type loginParameters struct {
@@ -132,7 +133,7 @@ func newLoginParameters(c Client) (*loginParameters, error) {
 	}, nil
 }
 
-func (in *loginParameters) authCodeURL(r *http.Request) (string, error) {
+func (in *loginParameters) authCodeURL(r *http.Request, loginstatus loginstatus.Loginstatus) (string, error) {
 	opts := []oauth2.AuthCodeOption{
 		oauth2.SetAuthURLParam("nonce", in.Nonce),
 		oauth2.SetAuthURLParam("response_mode", "query"),
@@ -140,8 +141,8 @@ func (in *loginParameters) authCodeURL(r *http.Request) (string, error) {
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 	}
 
-	if in.config().Wonderwall().Loginstatus.NeedsResourceIndicator() {
-		opts = append(opts, oauth2.SetAuthURLParam("resource", in.config().Wonderwall().Loginstatus.ResourceIndicator))
+	if loginstatus.NeedsResourceIndicator() {
+		opts = append(opts, oauth2.SetAuthURLParam("resource", loginstatus.ResourceIndicator()))
 	}
 
 	opts, err := in.withSecurityLevel(r, opts)
@@ -171,8 +172,8 @@ func (in *loginParameters) withLocale(r *http.Request, opts []oauth2.AuthCodeOpt
 	return withParamMapping(r,
 		opts,
 		LocaleURLParameter,
-		in.config().Client().GetUILocales(),
-		in.config().Provider().UILocalesSupported,
+		in.config().Client().UILocales(),
+		in.config().Provider().UILocalesSupported(),
 	)
 }
 
@@ -180,8 +181,8 @@ func (in *loginParameters) withSecurityLevel(r *http.Request, opts []oauth2.Auth
 	return withParamMapping(r,
 		opts,
 		SecurityLevelURLParameter,
-		in.config().Client().GetACRValues(),
-		in.config().Provider().ACRValuesSupported,
+		in.config().Client().ACRValues(),
+		in.config().Provider().ACRValuesSupported(),
 	)
 }
 

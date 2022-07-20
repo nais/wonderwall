@@ -30,12 +30,12 @@ func TestHandler_Login(t *testing.T) {
 
 	assert.Equal(t, idp.ProviderServer.URL, fmt.Sprintf("%s://%s", loginURL.Scheme, loginURL.Host))
 	assert.Equal(t, "/authorize", loginURL.Path)
-	assert.Equal(t, idp.OpenIDConfig.Client().GetACRValues(), loginURL.Query().Get("acr_values"))
-	assert.Equal(t, idp.OpenIDConfig.Client().GetUILocales(), loginURL.Query().Get("ui_locales"))
-	assert.Equal(t, idp.OpenIDConfig.Client().GetClientID(), loginURL.Query().Get("client_id"))
-	assert.Equal(t, idp.OpenIDConfig.Client().GetCallbackURI(), loginURL.Query().Get("redirect_uri"))
+	assert.Equal(t, idp.OpenIDConfig.Client().ACRValues(), loginURL.Query().Get("acr_values"))
+	assert.Equal(t, idp.OpenIDConfig.Client().UILocales(), loginURL.Query().Get("ui_locales"))
+	assert.Equal(t, idp.OpenIDConfig.Client().ClientID(), loginURL.Query().Get("client_id"))
+	assert.Equal(t, idp.OpenIDConfig.Client().CallbackURI(), loginURL.Query().Get("redirect_uri"))
 	assert.Equal(t, "S256", loginURL.Query().Get("code_challenge_method"))
-	assert.ElementsMatch(t, idp.OpenIDConfig.Client().GetScopes(), strings.Split(loginURL.Query().Get("scope"), " "))
+	assert.ElementsMatch(t, idp.OpenIDConfig.Client().Scopes(), strings.Split(loginURL.Query().Get("scope"), " "))
 	assert.NotEmpty(t, loginURL.Query().Get("state"))
 	assert.NotEmpty(t, loginURL.Query().Get("nonce"))
 	assert.NotEmpty(t, loginURL.Query().Get("code_challenge"))
@@ -76,7 +76,7 @@ func TestHandler_Logout(t *testing.T) {
 	endsessionParams := endsessionURL.Query()
 	assert.Equal(t, idpserverURL.Host, endsessionURL.Host)
 	assert.Equal(t, "/endsession", endsessionURL.Path)
-	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{idp.OpenIDConfig.Client().GetLogoutCallbackURI()})
+	assert.Equal(t, endsessionParams["post_logout_redirect_uri"], []string{idp.OpenIDConfig.Client().LogoutCallbackURI()})
 	assert.NotEmpty(t, endsessionParams["id_token_hint"])
 }
 
@@ -93,7 +93,7 @@ func TestHandler_LogoutCallback(t *testing.T) {
 func TestHandler_FrontChannelLogout(t *testing.T) {
 	cfg := mock.Config()
 	idp := mock.NewIdentityProvider(cfg)
-	idp.Provider.WithFrontChannelLogoutSupport()
+	idp.OpenIDConfig.TestProvider.WithFrontChannelLogoutSupport()
 	defer idp.Close()
 
 	rpClient := idp.RelyingPartyClient()
@@ -123,7 +123,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 
 	values := url.Values{}
 	values.Add("sid", sid)
-	values.Add("iss", idp.OpenIDConfig.Provider().Issuer)
+	values.Add("iss", idp.OpenIDConfig.Provider().Issuer())
 	frontchannelLogoutURL.RawQuery = values.Encode()
 
 	resp := get(t, rpClient, frontchannelLogoutURL.String())
@@ -133,7 +133,7 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 func TestHandler_SessionStateRequired(t *testing.T) {
 	cfg := mock.Config()
 	idp := mock.NewIdentityProvider(cfg)
-	idp.Provider.WithCheckSessionIFrameSupport(idp.ProviderServer.URL + "/checksession")
+	idp.OpenIDConfig.TestProvider.WithCheckSessionIFrameSupport(idp.ProviderServer.URL + "/checksession")
 	defer idp.Close()
 
 	rpClient := idp.RelyingPartyClient()
@@ -192,7 +192,7 @@ func TestHandler_Default(t *testing.T) {
 
 		authorizeEndpoint := *authorizeLocation
 		authorizeEndpoint.RawQuery = ""
-		assert.Equal(t, idp.OpenIDConfig.Provider().AuthorizationEndpoint, authorizeEndpoint.String())
+		assert.Equal(t, idp.OpenIDConfig.Provider().AuthorizationEndpoint(), authorizeEndpoint.String())
 
 		// follow redirect to identity provider for login
 		resp = get(t, rpClient, authorizeLocation.String())
@@ -203,7 +203,7 @@ func TestHandler_Default(t *testing.T) {
 
 		callbackEndpoint := *callbackLocation
 		callbackEndpoint.RawQuery = ""
-		assert.Equal(t, idp.OpenIDConfig.Client().GetCallbackURI(), callbackEndpoint.String())
+		assert.Equal(t, idp.OpenIDConfig.Client().CallbackURI(), callbackEndpoint.String())
 
 		// follow redirect back to relying party
 		resp = get(t, rpClient, callbackLocation.String())
@@ -364,7 +364,7 @@ func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
 
 	// Get post-logout redirect URI after successful logout at identity provider
 	logoutCallbackURI := resp.Location
-	assert.Contains(t, logoutCallbackURI.String(), idp.OpenIDConfig.Client().GetLogoutCallbackURI())
+	assert.Contains(t, logoutCallbackURI.String(), idp.OpenIDConfig.Client().LogoutCallbackURI())
 	assert.Equal(t, "/oauth2/logout/callback", logoutCallbackURI.Path)
 
 	// Follow redirect back to logout callback
@@ -372,7 +372,7 @@ func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
 	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 	// Get post-logout redirect URI after redirect back to logout callback
-	assert.Equal(t, idp.OpenIDConfig.Client().GetPostLogoutRedirectURI(), resp.Location.String())
+	assert.Equal(t, "https://google.com", resp.Location.String())
 
 	cookies := rpClient.Jar.Cookies(logoutCallbackURI)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)

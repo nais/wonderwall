@@ -17,16 +17,21 @@ const (
 	SameSiteMode = http.SameSiteDefaultMode
 )
 
-type Client interface {
-	ExchangeToken(ctx context.Context, accessToken string) (*TokenResponse, error)
-	SetCookie(w http.ResponseWriter, token *TokenResponse, opts cookie.Options)
-	HasCookie(r *http.Request) bool
-	ClearCookie(w http.ResponseWriter, opts cookie.Options)
-	CookieOptions(opts cookie.Options) cookie.Options
+type Loginstatus interface {
+	Enabled() bool
 	NeedsLogin(r *http.Request) bool
+	NeedsResourceIndicator() bool
+	ResourceIndicator() string
+
+	ExchangeToken(ctx context.Context, accessToken string) (*TokenResponse, error)
+
+	CookieOptions(opts cookie.Options) cookie.Options
+	ClearCookie(w http.ResponseWriter, opts cookie.Options)
+	HasCookie(r *http.Request) bool
+	SetCookie(w http.ResponseWriter, token *TokenResponse, opts cookie.Options)
 }
 
-func NewClient(config config.Loginstatus, httpClient *http.Client) Client {
+func NewClient(config config.Loginstatus, httpClient *http.Client) Loginstatus {
 	return &client{
 		config:     config,
 		httpClient: httpClient,
@@ -46,6 +51,18 @@ type ErrorResponse struct {
 type client struct {
 	config     config.Loginstatus
 	httpClient *http.Client
+}
+
+func (c *client) NeedsResourceIndicator() bool {
+	return c.Enabled() && len(c.ResourceIndicator()) > 0
+}
+
+func (c *client) ResourceIndicator() string {
+	return c.config.ResourceIndicator
+}
+
+func (c *client) Enabled() bool {
+	return c.config.Enabled
 }
 
 func (c *client) ExchangeToken(ctx context.Context, accessToken string) (*TokenResponse, error) {

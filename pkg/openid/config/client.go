@@ -12,72 +12,73 @@ import (
 )
 
 type Client interface {
-	GetClientID() string
-	GetClientJWK() jwk.Key
-	GetPostLogoutRedirectURI() string
-	GetCallbackURI() string
-	GetLogoutCallbackURI() string
-	GetScopes() scopes.Scopes
-	GetACRValues() string
-	GetUILocales() string
-	GetWellKnownURL() string
+	ACRValues() string
+	CallbackURI() string
+	ClientID() string
+	ClientJWK() jwk.Key
+	LogoutCallbackURI() string
+	PostLogoutRedirectURI() string
+	Scopes() scopes.Scopes
+	UILocales() string
+	WellKnownURL() string
+
 	Print()
 }
 
-type openIDConfig struct {
+type client struct {
 	wonderwallconfig.OpenID
 	clientJwk         jwk.Key
 	callbackURI       string
 	logoutCallbackURI string
 }
 
-func (in *openIDConfig) GetCallbackURI() string {
+func (in *client) ACRValues() string {
+	return in.OpenID.ACRValues
+}
+
+func (in *client) CallbackURI() string {
 	return in.callbackURI
 }
 
-func (in *openIDConfig) GetClientID() string {
-	return in.ClientID
+func (in *client) ClientID() string {
+	return in.OpenID.ClientID
 }
 
-func (in *openIDConfig) GetClientJWK() jwk.Key {
+func (in *client) ClientJWK() jwk.Key {
 	return in.clientJwk
 }
 
-func (in *openIDConfig) GetLogoutCallbackURI() string {
+func (in *client) LogoutCallbackURI() string {
 	return in.logoutCallbackURI
 }
 
-func (in *openIDConfig) GetPostLogoutRedirectURI() string {
-	return in.PostLogoutRedirectURI
+func (in *client) PostLogoutRedirectURI() string {
+	return in.OpenID.PostLogoutRedirectURI
 }
 
-func (in *openIDConfig) GetScopes() scopes.Scopes {
-	return scopes.DefaultScopes().WithAdditional(in.Scopes...)
+func (in *client) Scopes() scopes.Scopes {
+	return scopes.DefaultScopes().WithAdditional(in.OpenID.Scopes...)
 }
 
-func (in *openIDConfig) GetACRValues() string {
-	return in.ACRValues
+func (in *client) UILocales() string {
+	return in.OpenID.UILocales
 }
 
-func (in *openIDConfig) GetUILocales() string {
-	return in.UILocales
+func (in *client) WellKnownURL() string {
+	return in.OpenID.WellKnownURL
 }
 
-func (in *openIDConfig) GetWellKnownURL() string {
-	return in.WellKnownURL
-}
-
-func (in *openIDConfig) Print() {
+func (in *client) Print() {
 	logger := log.WithField("logger", "openid.config.client")
 
 	logger.Info("🤔 openid client configuration 🤔")
-	logger.Infof("acr values: '%s'", in.GetACRValues())
-	logger.Infof("client id: '%s'", in.GetClientID())
-	logger.Infof("post-logout redirect uri: '%s'", in.GetPostLogoutRedirectURI())
-	logger.Infof("callback uri: '%s'", in.GetCallbackURI())
-	logger.Infof("logout callback uri: '%s'", in.GetLogoutCallbackURI())
-	logger.Infof("scopes: '%s'", in.GetScopes())
-	logger.Infof("ui locales: '%s'", in.GetUILocales())
+	logger.Infof("acr values: '%s'", in.ACRValues())
+	logger.Infof("client id: '%s'", in.ClientID())
+	logger.Infof("post-logout redirect uri: '%s'", in.PostLogoutRedirectURI())
+	logger.Infof("callback uri: '%s'", in.CallbackURI())
+	logger.Infof("logout callback uri: '%s'", in.LogoutCallbackURI())
+	logger.Infof("scopes: '%s'", in.Scopes())
+	logger.Infof("ui locales: '%s'", in.UILocales())
 }
 
 func NewClientConfig(cfg *wonderwallconfig.Config) (Client, error) {
@@ -106,7 +107,7 @@ func NewClientConfig(cfg *wonderwallconfig.Config) (Client, error) {
 		return nil, fmt.Errorf("creating logout callback URI from ingress: %w", err)
 	}
 
-	openIDConfig := &openIDConfig{
+	c := &client{
 		OpenID:            cfg.OpenID,
 		clientJwk:         clientJwk,
 		callbackURI:       callbackURI,
@@ -116,20 +117,20 @@ func NewClientConfig(cfg *wonderwallconfig.Config) (Client, error) {
 	var clientConfig Client
 	switch cfg.OpenID.Provider {
 	case wonderwallconfig.ProviderIDPorten:
-		clientConfig = openIDConfig.IDPorten()
+		clientConfig = c.IDPorten()
 	case wonderwallconfig.ProviderAzure:
-		clientConfig = openIDConfig.Azure()
+		clientConfig = c.Azure()
 	case "":
 		return nil, fmt.Errorf("missing required config %s", wonderwallconfig.OpenIDProvider)
 	default:
-		clientConfig = openIDConfig
+		clientConfig = c
 	}
 
-	if len(clientConfig.GetClientID()) == 0 {
+	if len(clientConfig.ClientID()) == 0 {
 		return nil, fmt.Errorf("missing required config %s", wonderwallconfig.OpenIDClientID)
 	}
 
-	if len(clientConfig.GetWellKnownURL()) == 0 {
+	if len(clientConfig.WellKnownURL()) == 0 {
 		return nil, fmt.Errorf("missing required config %s", wonderwallconfig.OpenIDWellKnownURL)
 	}
 
@@ -138,27 +139,27 @@ func NewClientConfig(cfg *wonderwallconfig.Config) (Client, error) {
 }
 
 type azure struct {
-	*openIDConfig
+	*client
 }
 
-func (in *openIDConfig) Azure() Client {
+func (in *client) Azure() Client {
 	return &azure{
-		openIDConfig: in,
+		client: in,
 	}
 }
 
-func (in *azure) GetScopes() scopes.Scopes {
+func (in *azure) Scopes() scopes.Scopes {
 	return scopes.DefaultScopes().
-		WithAzureScope(in.ClientID).
-		WithAdditional(in.Scopes...)
+		WithAzureScope(in.OpenID.ClientID).
+		WithAdditional(in.OpenID.Scopes...)
 }
 
 type idporten struct {
-	*openIDConfig
+	*client
 }
 
-func (in *openIDConfig) IDPorten() Client {
+func (in *client) IDPorten() Client {
 	return &idporten{
-		openIDConfig: in,
+		client: in,
 	}
 }

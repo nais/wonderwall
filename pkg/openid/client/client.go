@@ -10,6 +10,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"golang.org/x/oauth2"
 
+	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/openid/provider"
@@ -19,10 +20,10 @@ type Client interface {
 	config() openidconfig.Config
 	oAuth2Config() *oauth2.Config
 
-	Login(r *http.Request) (Login, error)
+	Login(r *http.Request, ingress string, loginstatus loginstatus.Loginstatus) (Login, error)
 	LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) (LoginCallback, error)
-	Logout() (Logout, error)
-	LogoutCallback(r *http.Request) LogoutCallback
+	Logout() Logout
+	LogoutCallback(r *http.Request, ingress string) LogoutCallback
 	LogoutFrontchannel(r *http.Request) LogoutFrontchannel
 
 	AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error)
@@ -37,14 +38,14 @@ type client struct {
 
 func NewClient(cfg openidconfig.Config) Client {
 	oauth2Config := &oauth2.Config{
-		ClientID: cfg.Client().GetClientID(),
+		ClientID: cfg.Client().ClientID(),
 		Endpoint: oauth2.Endpoint{
-			AuthURL:   cfg.Provider().AuthorizationEndpoint,
-			TokenURL:  cfg.Provider().TokenEndpoint,
+			AuthURL:   cfg.Provider().AuthorizationEndpoint(),
+			TokenURL:  cfg.Provider().TokenEndpoint(),
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
-		RedirectURL: cfg.Client().GetCallbackURI(),
-		Scopes:      cfg.Client().GetScopes(),
+		RedirectURL: cfg.Client().CallbackURI(),
+		Scopes:      cfg.Client().Scopes(),
 	}
 
 	return &client{
@@ -61,8 +62,8 @@ func (c *client) oAuth2Config() *oauth2.Config {
 	return c.oauth2Config
 }
 
-func (c *client) Login(r *http.Request) (Login, error) {
-	login, err := NewLogin(c, r)
+func (c *client) Login(r *http.Request, ingress string, loginstatus loginstatus.Loginstatus) (Login, error) {
+	login, err := NewLogin(c, r, ingress, loginstatus)
 	if err != nil {
 		return nil, fmt.Errorf("login: %w", err)
 	}
@@ -79,17 +80,12 @@ func (c *client) LoginCallback(r *http.Request, p provider.Provider, cookie *ope
 	return loginCallback, nil
 }
 
-func (c *client) Logout() (Logout, error) {
-	logout, err := NewLogout(c)
-	if err != nil {
-		return nil, fmt.Errorf("logout: %w", err)
-	}
-
-	return logout, nil
+func (c *client) Logout() Logout {
+	return NewLogout(c)
 }
 
-func (c *client) LogoutCallback(r *http.Request) LogoutCallback {
-	return NewLogoutCallback(c, r)
+func (c *client) LogoutCallback(r *http.Request, ingress string) LogoutCallback {
+	return NewLogoutCallback(c, r, ingress)
 }
 
 func (c *client) LogoutFrontchannel(r *http.Request) LogoutFrontchannel {
@@ -103,7 +99,7 @@ func (c *client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.A
 func (c *client) MakeAssertion(expiration time.Duration) (string, error) {
 	clientCfg := c.config().Client()
 	providerCfg := c.config().Provider()
-	key := clientCfg.GetClientJWK()
+	key := clientCfg.ClientJWK()
 
 	iat := time.Now().Truncate(time.Second)
 	exp := iat.Add(expiration)
@@ -111,9 +107,9 @@ func (c *client) MakeAssertion(expiration time.Duration) (string, error) {
 	errs := make([]error, 0)
 
 	tok := jwt.New()
-	errs = append(errs, tok.Set(jwt.IssuerKey, clientCfg.GetClientID()))
-	errs = append(errs, tok.Set(jwt.SubjectKey, clientCfg.GetClientID()))
-	errs = append(errs, tok.Set(jwt.AudienceKey, providerCfg.Issuer))
+	errs = append(errs, tok.Set(jwt.IssuerKey, clientCfg.ClientID()))
+	errs = append(errs, tok.Set(jwt.SubjectKey, clientCfg.ClientID()))
+	errs = append(errs, tok.Set(jwt.AudienceKey, providerCfg.Issuer()))
 	errs = append(errs, tok.Set(jwt.IssuedAtKey, iat))
 	errs = append(errs, tok.Set(jwt.ExpirationKey, exp))
 	errs = append(errs, tok.Set(jwt.JwtIDKey, uuid.New().String()))

@@ -15,7 +15,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	// Unconditionally destroy all local references to the session.
 	cookie.Clear(w, cookie.Session, h.CookieOptions)
 
-	if h.Cfg.Wonderwall().Loginstatus.Enabled {
+	if h.Loginstatus.Enabled() {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
 	}
 
