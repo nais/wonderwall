@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nais/liberator/pkg/conftools"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler"
-	"github.com/nais/wonderwall/pkg/logging"
 	"github.com/nais/wonderwall/pkg/metrics"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/router"
@@ -18,32 +16,10 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-var maskedConfig = []string{
-	config.OpenIDClientJWK,
-	config.EncryptionKey,
-	config.RedisPassword,
-}
-
 func run() error {
 	cfg, err := config.Initialize()
 	if err != nil {
 		return err
-	}
-	if err := conftools.Load(cfg); err != nil {
-		return err
-	}
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-
-	if err := logging.Setup(cfg.LogLevel, cfg.LogFormat); err != nil {
-		return err
-	}
-
-	log.Tracef("Trace logging enabled")
-
-	for _, line := range conftools.Format(maskedConfig) {
-		log.WithField("logger", "wonderwall.config").Info(line)
 	}
 
 	key, err := crypto.EncryptionKeyOrGenerate(cfg)

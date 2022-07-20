@@ -6,8 +6,11 @@ import (
 	"time"
 
 	"github.com/nais/liberator/pkg/conftools"
+	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/nais/wonderwall/pkg/logging"
 )
 
 type Config struct {
@@ -128,5 +131,30 @@ func Initialize() (*Config, error) {
 		viper.Set(OpenIDProvider, ProviderOpenID)
 	}
 
-	return &Config{}, nil
+	cfg := new(Config)
+
+	if err := conftools.Load(cfg); err != nil {
+		return nil, err
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	if err := logging.Setup(cfg.LogLevel, cfg.LogFormat); err != nil {
+		return nil, err
+	}
+
+	log.Tracef("Trace logging enabled")
+
+	maskedConfig := []string{
+		OpenIDClientJWK,
+		EncryptionKey,
+		RedisPassword,
+	}
+
+	for _, line := range conftools.Format(maskedConfig) {
+		log.WithField("logger", "wonderwall.config").Info(line)
+	}
+
+	return cfg, nil
 }
