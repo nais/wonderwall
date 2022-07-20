@@ -34,17 +34,10 @@ func NewHandler(
 	crypter crypto.Crypter,
 	sessionStore session.Store,
 ) (*Handler, error) {
-	loginstatusClient := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
-
-	cookiePath := config.ParseIngress(cfg.Ingress)
-	cookieOpts := cookie.DefaultOptions().WithPath(cookiePath)
-
 	openidProvider, err := provider.NewProvider(ctx, openidConfig)
 	if err != nil {
 		return nil, err
 	}
-
-	openidClient := client.NewClient(openidConfig)
 
 	autoLogin, err := autologin.NewOptions(cfg)
 	if err != nil {
@@ -53,11 +46,11 @@ func NewHandler(
 
 	return &Handler{
 		AutoLogin:     autoLogin,
-		Client:        openidClient,
+		Client:        client.NewClient(openidConfig),
 		Config:        cfg,
-		CookieOptions: cookieOpts,
+		CookieOptions: cookie.DefaultOptions().WithPath(config.ParseIngress(cfg.Ingress)),
 		Crypter:       crypter,
-		Loginstatus:   loginstatusClient,
+		Loginstatus:   loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient),
 		OpenIDConfig:  openidConfig,
 		Provider:      openidProvider,
 		Sessions:      sessionStore,
