@@ -2,14 +2,15 @@ package autologin
 
 import (
 	"net/http"
-	"regexp"
+	pathlib "path"
+	"strings"
 
 	"github.com/nais/wonderwall/pkg/config"
 )
 
 type Options struct {
-	Enabled    bool
-	SkipRoutes []Route
+	Enabled      bool
+	SkipPatterns []string
 }
 
 func (o *Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
@@ -17,8 +18,14 @@ func (o *Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 		return false
 	}
 
-	for _, route := range o.SkipRoutes {
-		if route.Regexp.MatchString(r.URL.Path) {
+	for _, pattern := range o.SkipPatterns {
+		path := r.URL.Path
+		if !strings.HasPrefix(path, "/") {
+			path = "/" + path
+		}
+
+		match, _ := pathlib.Match(pattern, r.URL.Path)
+		if match {
 			return false
 		}
 	}
@@ -26,36 +33,9 @@ func (o *Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 	return true
 }
 
-type Route struct {
-	Path   string
-	Regexp *regexp.Regexp
-}
-
 func NewOptions(cfg *config.Config) (*Options, error) {
-	routes, err := skippedRoutes(cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Options{
-		Enabled:    cfg.AutoLogin,
-		SkipRoutes: routes,
+		Enabled:      cfg.AutoLogin,
+		SkipPatterns: cfg.AutoLoginSkipPaths,
 	}, nil
-}
-
-func skippedRoutes(cfg *config.Config) ([]Route, error) {
-	routes := make([]Route, 0)
-	for _, path := range cfg.AutoLoginSkipPaths {
-		re, err := regexp.Compile(path)
-		if err != nil {
-			return nil, err
-		}
-
-		routes = append(routes, Route{
-			Path:   path,
-			Regexp: re,
-		})
-	}
-
-	return routes, nil
 }

@@ -77,7 +77,7 @@ The following flags are available:
 
 ```shell
 --auto-login                               Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.
---auto-login-skip-paths strings            Comma separated list of paths to ignore when 'auto-login' is enabled. Paths are evaluated as regular expressions.
+--auto-login-skip-paths strings            Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style single asterisks using the stdlib path.Match. Invalid patterns are ignored.
 --bind-address string                      Listen address for public connections. (default "127.0.0.1:3000")
 --encryption-key string                    Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
 --error-redirect-uri string                URI to redirect user to on errors for custom error handling.
@@ -148,7 +148,7 @@ described previously:
 
 ### Requirements
 
-- Go 1.17
+- Go 1.18
 
 ### Binary
 

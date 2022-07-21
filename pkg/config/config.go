@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/nais/liberator/pkg/conftools"
@@ -31,29 +29,6 @@ type Config struct {
 	Redis  Redis  `json:"redis"`
 
 	Loginstatus Loginstatus `json:"loginstatus"`
-}
-
-func (in *Config) Validate() error {
-	if err := in.validateAutoLoginSkipPaths(); err != nil {
-		return fmt.Errorf("validating '%s': %w", AutoLoginSkipPaths, err)
-	}
-
-	return nil
-}
-
-func (in *Config) validateAutoLoginSkipPaths() error {
-	for _, path := range in.AutoLoginSkipPaths {
-		if len(path) <= 0 {
-			return fmt.Errorf("path cannot be empty")
-		}
-
-		_, err := regexp.Compile(path)
-		if err != nil {
-			return fmt.Errorf("could not compile regex for path '%s': %w", path, err)
-		}
-	}
-
-	return nil
 }
 
 type Loginstatus struct {
@@ -94,7 +69,7 @@ func Initialize() (*Config, error) {
 	flag.String(MetricsBindAddress, "127.0.0.1:3001", "Listen address for metrics only.")
 
 	flag.Bool(AutoLogin, false, "Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.")
-	flag.StringSlice(AutoLoginSkipPaths, []string{}, "Comma separated list of paths to ignore when 'auto-login' is enabled. Paths are evaluated as regular expressions.")
+	flag.StringSlice(AutoLoginSkipPaths, []string{}, "Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style single asterisks using the stdlib path.Match. Invalid patterns are ignored.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
 	flag.String(Ingress, "", "Ingress used to access the main application.")
@@ -134,9 +109,6 @@ func Initialize() (*Config, error) {
 	cfg := new(Config)
 
 	if err := conftools.Load(cfg); err != nil {
-		return nil, err
-	}
-	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 

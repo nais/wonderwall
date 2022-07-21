@@ -231,12 +231,12 @@ func TestHandler_Default(t *testing.T) {
 		cfg.UpstreamHost = up.URL.Host
 		cfg.AutoLogin = true
 		cfg.AutoLoginSkipPaths = []string{
-			"^/exact/match$",
-			"^/allowed(/?|/.*)$",
-			"/partial/(yup|yes)",
+			"/exact/match",
+			"/allowed",
+			"/wildcard/*",
+			"/deeper/*/*",
+			"/any*",
 		}
-		err := cfg.Validate()
-		assert.NoError(t, err)
 
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
@@ -247,14 +247,12 @@ func TestHandler_Default(t *testing.T) {
 			matched := []string{
 				"/exact/match",
 				"/allowed",
-				"/allowed/",
-				"/allowed/very",
-				"/allowed/very/cool",
-				"/partial/yes",
-				"/partial/yup",
-				"/partial/yes/no",
-				"/partial/yup/no",
-				"/parent/partial/yup/no",
+				"/wildcard/",
+				"/wildcard/very",
+				"/deeper/1/",
+				"/deeper/1/2",
+				"/anything",
+				"/anywho",
 			}
 			for _, path := range matched {
 				t.Run(path, func(t *testing.T) {
@@ -273,11 +271,18 @@ func TestHandler_Default(t *testing.T) {
 				"/",
 				"/exact/match/",
 				"/exact/match/huh",
+				"/allowed/",
 				"/not-allowed",
 				"/not-allowed/allowed",
-				"/alloweded",
-				"/nope/partial/",
-				"/nope/partial/child",
+				"/wildcard",
+				"/wildcard/yup/nope",
+				"/deeper",
+				"/deeper/",
+				"/deeper/1",
+				"/deeper/1/2/",
+				"/deeper/1/2/3",
+				"/any/",
+				"/anywho/stvent",
 			}
 			for _, path := range nonMatched {
 				t.Run(path, func(t *testing.T) {

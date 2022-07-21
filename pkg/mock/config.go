@@ -8,7 +8,7 @@ import (
 )
 
 func Config() *config.Config {
-	cfg := &config.Config{
+	return &config.Config{
 		EncryptionKey: `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq`, // 256 bits AES
 		Ingress:       "/",
 		OpenID: config.OpenID{
@@ -21,13 +21,6 @@ func Config() *config.Config {
 		},
 		SessionMaxLifetime: time.Hour,
 	}
-
-	err := cfg.Validate()
-	if err != nil {
-		panic(err)
-	}
-
-	return cfg
 }
 
 type TestConfiguration struct {
