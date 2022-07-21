@@ -162,7 +162,11 @@ See the [docker-compose file](docker-compose.yml) for an example setup:
 
 - Requires an environment variable `WONDERWALL_OPENID_CLIENT_JWK` with a private JWK. 
   - This can be acquired from <https://mkjwk.org>.
-  - Set the environment variable in an `.env` file that Docker Compose automatically detects and uses.
+  - Set the environment variable in an `.env` file that Docker Compose automatically detects and uses
+  - Environment variables can be finicky with escaping, so try to wrap the value with single quotation marks.
+    - E.g. `WONDERWALL_OPENID_CLIENT_JWK='{ "p": "_xCP...", ... }'`.
+- You need to be able to reach `host.docker.internal` to reach the identity provider mock, so make sure you 
+have `127.0.0.1 host.docker.internal` in your `/etc/hosts` file.
 - By default, the setup will use the latest available pre-built image.
   - If you want to will build a fresh binary from the cloned source, replace the following
 
