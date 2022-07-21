@@ -59,9 +59,14 @@ func Retry(r *http.Request, ingress string, loginCookie *openid.LoginCookie) str
 		redirect = loginCookie.Referer
 	}
 
-	retryURI = fmt.Sprintf(prefix + paths.OAuth2 + paths.Login)
-	retryURI = retryURI + fmt.Sprintf("?%s=%s", RedirectURLParameter, redirect)
-	return retryURI
+	return LoginURL(prefix, redirect)
+}
+
+func LoginURL(prefix, redirectTarget string) string {
+	loginPath := prefix + paths.OAuth2 + paths.Login
+	redirectParam := fmt.Sprintf("?%s=%s", RedirectURLParameter, redirectTarget)
+
+	return loginPath + redirectParam
 }
 
 func defaultRedirectURL(ingress string) string {

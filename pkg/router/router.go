@@ -4,7 +4,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
 
-	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/router/paths"
@@ -16,7 +15,7 @@ func New(handler *handler.Handler) chi.Router {
 	r.Use(chi_middleware.Recoverer)
 	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall", handler.OpenIDConfig.Provider().Name())
 
-	prefix := config.ParseIngress(handler.Config.Ingress)
+	prefix := handler.Path()
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.LogEntryHandler(handler.OpenIDConfig.Provider().Name()))

@@ -299,3 +299,42 @@ func TestRetry(t *testing.T) {
 		})
 	}
 }
+
+func TestLoginURL(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		prefix         string
+		redirectTarget string
+		want           string
+	}{
+		{
+			name:           "no prefix",
+			prefix:         "",
+			redirectTarget: "https://test.example.com?some=param&other=param2",
+			want:           "/oauth2/login?redirect=https://test.example.com?some=param&other=param2",
+		},
+		{
+			name:           "with prefix",
+			prefix:         "/path",
+			redirectTarget: "https://test.example.com?some=param&other=param2",
+			want:           "/path/oauth2/login?redirect=https://test.example.com?some=param&other=param2",
+		},
+		{
+			name:           "we need to go deeper",
+			prefix:         "/deeper/path",
+			redirectTarget: "https://test.example.com?some=param&other=param2",
+			want:           "/deeper/path/oauth2/login?redirect=https://test.example.com?some=param&other=param2",
+		},
+		{
+			name:           "relative target",
+			prefix:         "",
+			redirectTarget: "/path?some=param&other=param2",
+			want:           "/oauth2/login?redirect=/path?some=param&other=param2",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			loginUrl := urlpkg.LoginURL(test.prefix, test.redirectTarget)
+			assert.Equal(t, test.want, loginUrl)
+		})
+	}
+}

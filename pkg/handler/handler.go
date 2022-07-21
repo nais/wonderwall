@@ -25,6 +25,8 @@ type Handler struct {
 	OpenIDConfig  openidconfig.Config
 	Provider      provider.Provider
 	Sessions      session.Store
+
+	path string
 }
 
 func NewHandler(
@@ -54,5 +56,10 @@ func NewHandler(
 		OpenIDConfig:  openidConfig,
 		Provider:      openidProvider,
 		Sessions:      sessionStore,
+		path:          config.ParseIngress(cfg.Ingress),
 	}, nil
+}
+
+func (h *Handler) Path() string {
+	return h.path
 }

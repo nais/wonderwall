@@ -187,6 +187,14 @@ func TestHandler_Default(t *testing.T) {
 		resp := get(t, rpClient, target)
 		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
+		// redirect should point to local login endpoint
+		loginLocation := resp.Location
+		assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login?redirect=/", loginLocation.String())
+
+		// follow redirect to local login endpoint
+		resp = get(t, rpClient, loginLocation.String())
+		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+
 		// redirect should point to identity provider
 		authorizeLocation := resp.Location
 

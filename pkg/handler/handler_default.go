@@ -6,6 +6,7 @@ import (
 
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/session"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 // Default proxies all requests upstream.
@@ -31,8 +32,10 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	if h.AutoLogin.NeedsLogin(r, isAuthenticated) {
 		logger.Debug("default: auto-login is enabled; request does not match skippable path")
 
-		r.Header.Add("Referer", r.URL.String())
-		h.Login(w, r)
+		redirectTarget := r.URL.String()
+		loginUrl := urlpkg.LoginURL(h.Path(), redirectTarget)
+
+		http.Redirect(w, r, loginUrl, http.StatusTemporaryRedirect)
 		return
 	}
 
