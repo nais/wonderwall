@@ -30,7 +30,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.AutoLogin.NeedsLogin(r, isAuthenticated) {
-		logger.Debug("default: auto-login is enabled; request does not match skippable path")
+		logger.Debug("default: auto-login is enabled; request does not match any configured ignorable paths")
 
 		redirectTarget := r.URL.String()
 		loginUrl := urlpkg.LoginURL(h.Path(), redirectTarget)

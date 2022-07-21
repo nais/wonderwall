@@ -9,8 +9,8 @@ import (
 )
 
 type Options struct {
-	Enabled      bool
-	SkipPatterns []string
+	Enabled        bool
+	IgnorePatterns []string
 }
 
 func (o *Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
@@ -18,7 +18,7 @@ func (o *Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 		return false
 	}
 
-	for _, pattern := range o.SkipPatterns {
+	for _, pattern := range o.IgnorePatterns {
 		path := r.URL.Path
 		if !strings.HasPrefix(path, "/") {
 			path = "/" + path
@@ -35,7 +35,7 @@ func (o *Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 
 func NewOptions(cfg *config.Config) (*Options, error) {
 	return &Options{
-		Enabled:      cfg.AutoLogin,
-		SkipPatterns: cfg.AutoLoginSkipPaths,
+		Enabled:        cfg.AutoLogin,
+		IgnorePatterns: cfg.AutoLoginIgnorePaths,
 	}, nil
 }

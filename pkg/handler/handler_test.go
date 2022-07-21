@@ -226,11 +226,11 @@ func TestHandler_Default(t *testing.T) {
 		assert.Equal(t, "ok", resp.Body)
 	})
 
-	t.Run("with auto-login and skipped paths", func(t *testing.T) {
+	t.Run("with auto-login and ignored paths", func(t *testing.T) {
 		cfg := mock.Config()
 		cfg.UpstreamHost = up.URL.Host
 		cfg.AutoLogin = true
-		cfg.AutoLoginSkipPaths = []string{
+		cfg.AutoLoginIgnorePaths = []string{
 			"/exact/match",
 			"/allowed",
 			"/wildcard/*",
@@ -243,7 +243,7 @@ func TestHandler_Default(t *testing.T) {
 
 		rpClient := idp.RelyingPartyClient()
 
-		t.Run("matched paths", func(t *testing.T) {
+		t.Run("matched paths should not trigger login", func(t *testing.T) {
 			matched := []string{
 				"/exact/match",
 				"/allowed",
@@ -265,7 +265,7 @@ func TestHandler_Default(t *testing.T) {
 			}
 		})
 
-		t.Run("non-matched paths", func(t *testing.T) {
+		t.Run("non-matched paths should trigger login", func(t *testing.T) {
 			nonMatched := []string{
 				"",
 				"/",

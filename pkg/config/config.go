@@ -17,13 +17,13 @@ type Config struct {
 	LogLevel           string `json:"log-level"`
 	MetricsBindAddress string `json:"metrics-bind-address"`
 
-	AutoLogin          bool          `json:"auto-login"`
-	AutoLoginSkipPaths []string      `json:"auto-login-skip-paths"`
-	EncryptionKey      string        `json:"encryption-key"`
-	ErrorRedirectURI   string        `json:"error-redirect-uri"`
-	Ingress            string        `json:"ingress"`
-	SessionMaxLifetime time.Duration `json:"session-max-lifetime"`
-	UpstreamHost       string        `json:"upstream-host"`
+	AutoLogin            bool          `json:"auto-login"`
+	AutoLoginIgnorePaths []string      `json:"auto-login-ignore-paths"`
+	EncryptionKey        string        `json:"encryption-key"`
+	ErrorRedirectURI     string        `json:"error-redirect-uri"`
+	Ingress              string        `json:"ingress"`
+	SessionMaxLifetime   time.Duration `json:"session-max-lifetime"`
+	UpstreamHost         string        `json:"upstream-host"`
 
 	OpenID OpenID `json:"openid"`
 	Redis  Redis  `json:"redis"`
@@ -45,13 +45,13 @@ const (
 	LogLevel           = "log-level"
 	MetricsBindAddress = "metrics-bind-address"
 
-	AutoLogin          = "auto-login"
-	AutoLoginSkipPaths = "auto-login-skip-paths"
-	EncryptionKey      = "encryption-key"
-	ErrorRedirectURI   = "error-redirect-uri"
-	Ingress            = "ingress"
-	SessionMaxLifetime = "session-max-lifetime"
-	UpstreamHost       = "upstream-host"
+	AutoLogin            = "auto-login"
+	AutoLoginIgnorePaths = "auto-login-ignore-paths"
+	EncryptionKey        = "encryption-key"
+	ErrorRedirectURI     = "error-redirect-uri"
+	Ingress              = "ingress"
+	SessionMaxLifetime   = "session-max-lifetime"
+	UpstreamHost         = "upstream-host"
 
 	LoginstatusEnabled           = "loginstatus.enabled"
 	LoginstatusCookieDomain      = "loginstatus.cookie-domain"
@@ -69,7 +69,7 @@ func Initialize() (*Config, error) {
 	flag.String(MetricsBindAddress, "127.0.0.1:3001", "Listen address for metrics only.")
 
 	flag.Bool(AutoLogin, false, "Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.")
-	flag.StringSlice(AutoLoginSkipPaths, []string{}, "Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style single asterisks using the stdlib path.Match. Invalid patterns are ignored.")
+	flag.StringSlice(AutoLoginIgnorePaths, []string{}, "Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style single asterisks using the stdlib path.Match. Invalid patterns are ignored.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
 	flag.String(Ingress, "", "Ingress used to access the main application.")
