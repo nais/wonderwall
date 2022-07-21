@@ -34,8 +34,22 @@ func (o *Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 }
 
 func NewOptions(cfg *config.Config) (*Options, error) {
+	seen := make(map[string]bool)
+	patterns := make([]string, 0)
+
+	for _, path := range cfg.AutoLoginIgnorePaths {
+		if len(path) == 0 {
+			continue
+		}
+
+		if _, found := seen[path]; !found {
+			seen[path] = true
+			patterns = append(patterns, path)
+		}
+	}
+
 	return &Options{
 		Enabled:        cfg.AutoLogin,
-		IgnorePatterns: cfg.AutoLoginIgnorePaths,
+		IgnorePatterns: patterns,
 	}, nil
 }
