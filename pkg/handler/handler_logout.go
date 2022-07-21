@@ -41,7 +41,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
 	}
 
-	logger.Info("logout: redirecting to identity provider")
+	logger.Debug("logout: redirecting to identity provider")
 	metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
 	http.Redirect(w, r, h.Client.Logout().SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
 }

@@ -10,6 +10,7 @@ import (
 
 // Default proxies all requests upstream.
 func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
+	logger := logentry.LogEntry(r).WithField("request_path", r.URL.Path)
 	isAuthenticated := false
 
 	sessionData, err := h.getSessionFromCookie(w, r)
@@ -23,12 +24,12 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 		// force new authentication if loginstatus is enabled and cookie isn't set
 		if h.Loginstatus.NeedsLogin(r) {
 			isAuthenticated = false
-			logentry.LogEntry(r).Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
+			logger.Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
 		}
 	}
 
 	if h.AutoLogin.NeedsLogin(r, isAuthenticated) {
-		logentry.LogEntry(r).Info("default: request is unauthenticated; performing auto-login...")
+		logger.Debug("default: auto-login is enabled; request does not match skippable path")
 
 		r.Header.Add("Referer", r.URL.String())
 		h.Login(w, r)

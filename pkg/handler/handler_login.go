@@ -41,7 +41,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	fields := log.Fields{
 		"redirect_after_login": login.CanonicalRedirect(),
 	}
-	logentry.LogEntry(r).WithFields(fields).Info("login: redirecting to identity provider")
+	logentry.LogEntry(r).WithFields(fields).Debug("login: redirecting to identity provider")
 	http.Redirect(w, r, login.AuthCodeURL(), http.StatusTemporaryRedirect)
 }
 

@@ -21,7 +21,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 
 	logoutFrontchannel := h.Client.LogoutFrontchannel(r)
 	if logoutFrontchannel.MissingSidParameter() {
-		logger.Info("front-channel logout: sid parameter not set in request; ignoring")
+		logger.Debug("front-channel logout: sid parameter not set in request; ignoring")
 		h.DeleteSessionFallback(w, r)
 		w.WriteHeader(http.StatusAccepted)
 		return
@@ -31,7 +31,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	sessionID := h.localSessionID(sid)
 	sessionData, err := h.getSession(r, sessionID)
 	if err != nil {
-		logger.Infof("front-channel logout: getting session (user might already be logged out): %+v", err)
+		logger.Debugf("front-channel logout: could not get session (user might already be logged out): %+v", err)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
@@ -42,7 +42,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	} else if sessionData != nil {
-		logger.WithField("jti", sessionData.IDTokenJwtID).Infof("front-channel logout: successful logout")
+		logger.WithField("jti", sessionData.IDTokenJwtID).Info("front-channel logout: successful logout")
 	}
 
 	metrics.ObserveLogout(metrics.LogoutOperationFrontChannel)
