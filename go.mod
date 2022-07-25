@@ -8,7 +8,7 @@ require (
 	github.com/go-chi/httplog v0.2.4
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.3.0
-	github.com/lestrrat-go/jwx/v2 v2.0.3
+	github.com/lestrrat-go/jwx/v2 v2.0.4
 	github.com/nais/liberator v0.0.0-20220708061353-10750ef0b304
 	github.com/prometheus/client_golang v1.12.2
 	github.com/sethvargo/go-retry v0.2.3
@@ -27,12 +27,12 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
-	github.com/goccy/go-json v0.9.8 // indirect
+	github.com/goccy/go-json v0.9.10 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.1 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
-	github.com/lestrrat-go/httprc v1.0.2 // indirect
+	github.com/lestrrat-go/httprc v1.0.4 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
