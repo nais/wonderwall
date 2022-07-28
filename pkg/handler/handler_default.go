@@ -1,11 +1,10 @@
 package handler
 
 import (
+	"context"
 	"net/http"
-	"net/http/httputil"
 
 	logentry "github.com/nais/wonderwall/pkg/middleware"
-	"github.com/nais/wonderwall/pkg/session"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
@@ -39,37 +38,26 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	director := func(upstreamRequest *http.Request) {
-		modifyRequest(upstreamRequest, r, h.Config.UpstreamHost)
+	ctx := r.Context()
 
-		if isAuthenticated {
-			withAuthentication(upstreamRequest, sessionData)
-		}
+	if isAuthenticated {
+		ctx = withAccessToken(ctx, sessionData.AccessToken)
 	}
 
-	errorHandler := func(w http.ResponseWriter, r *http.Request, err error) {
-		w.WriteHeader(http.StatusBadGateway)
-		w.Write([]byte(err.Error()))
-	}
-
-	reverseProxy := httputil.ReverseProxy{
-		Director:     director,
-		ErrorHandler: errorHandler,
-	}
-	reverseProxy.ServeHTTP(w, r)
+	h.ReverseProxy.ServeHTTP(w, r.WithContext(ctx))
 }
 
-func modifyRequest(dst, src *http.Request, upstreamHost string) {
-	// Delete incoming authentication
-	dst.Header.Del("authorization")
-	// Instruct http.ReverseProxy to not modify X-Forwarded-For header
-	dst.Header["X-Forwarded-For"] = nil
-	// Request should go to correct host
-	dst.Host = src.Host
-	dst.URL.Host = upstreamHost
-	dst.URL.Scheme = "http"
+type contextKey string
+
+const (
+	ctxAccessToken = contextKey("AccessToken")
+)
+
+func accessTokenFrom(ctx context.Context) (string, bool) {
+	accessToken, ok := ctx.Value(ctxAccessToken).(string)
+	return accessToken, ok
 }
 
-func withAuthentication(dst *http.Request, sessionData *session.Data) {
-	dst.Header.Add("authorization", "Bearer "+sessionData.AccessToken)
+func withAccessToken(ctx context.Context, accessToken string) context.Context {
+	return context.WithValue(ctx, ctxAccessToken, accessToken)
 }

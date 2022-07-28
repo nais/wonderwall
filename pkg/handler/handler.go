@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"net/http/httputil"
 
 	"github.com/nais/wonderwall/pkg/autologin"
 	"github.com/nais/wonderwall/pkg/config"
@@ -24,6 +25,7 @@ type Handler struct {
 	Loginstatus   loginstatus.Loginstatus
 	OpenIDConfig  openidconfig.Config
 	Provider      provider.Provider
+	ReverseProxy  *httputil.ReverseProxy
 	Sessions      session.Store
 
 	path string
@@ -55,9 +57,33 @@ func NewHandler(
 		Loginstatus:   loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient),
 		OpenIDConfig:  openidConfig,
 		Provider:      openidProvider,
+		ReverseProxy:  newReverseProxy(cfg.UpstreamHost),
 		Sessions:      sessionStore,
 		path:          config.ParseIngress(cfg.Ingress),
 	}, nil
+}
+
+func newReverseProxy(upstreamHost string) *httputil.ReverseProxy {
+	return &httputil.ReverseProxy{
+		Director: func(r *http.Request) {
+			// Delete incoming authentication
+			r.Header.Del("authorization")
+			// Instruct http.ReverseProxy to not modify X-Forwarded-For header
+			r.Header["X-Forwarded-For"] = nil
+			// Request should go to correct host
+			r.Host = upstreamHost
+			r.URL.Host = upstreamHost
+			r.URL.Scheme = "http"
+
+			accessToken, ok := accessTokenFrom(r.Context())
+			if ok {
+				r.Header.Set("authorization", "Bearer "+accessToken)
+			}
+		},
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+		},
+	}
 }
 
 func (h *Handler) Path() string {
