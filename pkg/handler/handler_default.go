@@ -13,11 +13,8 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	logger := logentry.LogEntry(r).WithField("request_path", r.URL.Path)
 	isAuthenticated := false
 
-	sessionData, err := h.getSessionFromCookie(w, r)
-
-	hasSessionData := err == nil && sessionData != nil
-	hasAccessToken := hasSessionData && len(sessionData.AccessToken) > 0
-	if hasAccessToken {
+	accessToken, ok := h.accessToken(w, r)
+	if ok {
 		// add authentication if session cookie and token checks out
 		isAuthenticated = true
 
@@ -41,10 +38,19 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	if isAuthenticated {
-		ctx = withAccessToken(ctx, sessionData.AccessToken)
+		ctx = withAccessToken(ctx, accessToken)
 	}
 
 	h.ReverseProxy.ServeHTTP(w, r.WithContext(ctx))
+}
+
+func (h *Handler) accessToken(w http.ResponseWriter, r *http.Request) (string, bool) {
+	sessionData, err := h.getSessionFromCookie(w, r)
+	if err != nil || sessionData == nil || len(sessionData.AccessToken) == 0 {
+		return "", false
+	}
+
+	return sessionData.AccessToken, true
 }
 
 type contextKey string
