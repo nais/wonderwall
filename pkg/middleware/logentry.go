@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/httplog"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/cookie"
@@ -102,11 +101,8 @@ func (l *requestLoggerEntry) Write(status, bytes int, _ http.Header, elapsed tim
 	}
 }
 
-func (l *requestLoggerEntry) Panic(v interface{}, stack []byte) {
+func (l *requestLoggerEntry) Panic(v interface{}, _ []byte) {
 	stacktrace := "#"
-	if httplog.DefaultOptions.JSON {
-		stacktrace = string(stack)
-	}
 
 	fields := log.Fields{
 		"stacktrace": stacktrace,
