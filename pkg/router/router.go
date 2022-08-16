@@ -13,6 +13,7 @@ func New(handler *handler.Handler) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)
+	r.Use(middleware.Ingress(handler.OpenIDConfig))
 	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall", handler.OpenIDConfig.Provider().Name())
 
 	prefix := handler.Path()
