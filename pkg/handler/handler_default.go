@@ -1,16 +1,15 @@
 package handler
 
 import (
-	"context"
 	"net/http"
 
-	logentry "github.com/nais/wonderwall/pkg/middleware"
-	urlpkg "github.com/nais/wonderwall/pkg/url"
+	"github.com/nais/wonderwall/pkg/handler/url"
+	mw "github.com/nais/wonderwall/pkg/middleware"
 )
 
 // Default proxies all requests upstream.
 func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
-	logger := logentry.LogEntry(r).WithField("request_path", r.URL.Path)
+	logger := mw.LogEntry(r).WithField("request_path", r.URL.Path)
 	isAuthenticated := false
 
 	accessToken, ok := h.accessToken(w, r)
@@ -38,7 +37,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	if isAuthenticated {
-		ctx = withAccessToken(ctx, accessToken)
+		ctx = mw.WithAccessToken(ctx, accessToken)
 	}
 
 	h.ReverseProxy.ServeHTTP(w, r.WithContext(ctx))
@@ -51,19 +50,4 @@ func (h *Handler) accessToken(w http.ResponseWriter, r *http.Request) (string, b
 	}
 
 	return sessionData.AccessToken, true
-}
-
-type contextKey string
-
-const (
-	ctxAccessToken = contextKey("AccessToken")
-)
-
-func accessTokenFrom(ctx context.Context) (string, bool) {
-	accessToken, ok := ctx.Value(ctxAccessToken).(string)
-	return accessToken, ok
-}
-
-func withAccessToken(ctx context.Context, accessToken string) context.Context {
-	return context.WithValue(ctx, ctxAccessToken, accessToken)
 }

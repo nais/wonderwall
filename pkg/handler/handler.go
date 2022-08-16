@@ -74,7 +74,7 @@ func newReverseProxy(upstreamHost string) *httputil.ReverseProxy {
 			r.URL.Host = upstreamHost
 			r.URL.Scheme = "http"
 
-			accessToken, ok := accessTokenFrom(r.Context())
+			accessToken, ok := middleware.AccessTokenFrom(r.Context())
 			if ok {
 				r.Header.Set("authorization", "Bearer "+accessToken)
 			}
