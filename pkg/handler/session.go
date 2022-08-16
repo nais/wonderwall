@@ -10,7 +10,6 @@ import (
 	"github.com/sethvargo/go-retry"
 
 	"github.com/nais/wonderwall/pkg/cookie"
-	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	retrypkg "github.com/nais/wonderwall/pkg/retry"
 	"github.com/nais/wonderwall/pkg/session"
@@ -25,7 +24,7 @@ func (h *Handler) localSessionID(sessionID string) string {
 	return fmt.Sprintf("%s:%s:%s", h.OpenIDConfig.Provider().Name(), h.OpenIDConfig.Client().ClientID(), sessionID)
 }
 
-func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (*session.Data, error) {
+func (h *Handler) getSessionFromCookie(r *http.Request) (*session.Data, error) {
 	sessionID, err := cookie.GetDecrypted(r, cookie.Session, h.Crypter)
 	if err != nil {
 		return nil, fmt.Errorf("no session cookie: %w", err)
@@ -33,7 +32,6 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 
 	sessionData, err := h.getSession(r, sessionID)
 	if err == nil {
-		h.DeleteSessionFallback(w, r)
 		return sessionData, nil
 	}
 
@@ -41,14 +39,7 @@ func (h *Handler) getSessionFromCookie(w http.ResponseWriter, r *http.Request) (
 		return nil, fmt.Errorf("session not found in store: %w", err)
 	}
 
-	logentry.LogEntry(r).Warnf("get session: store is unavailable: %+v; using cookie fallback", err)
-
-	fallbackSessionData, err := h.GetSessionFallback(w, r)
-	if err != nil {
-		return nil, fmt.Errorf("getting fallback session: %w", err)
-	}
-
-	return fallbackSessionData, nil
+	return nil, fmt.Errorf("get session: store is unavailable: %+v", err)
 }
 
 func (h *Handler) getSession(r *http.Request, sessionID string) (*session.Data, error) {
@@ -130,22 +121,14 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 		return nil
 	}
 
-	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err == nil {
-		h.DeleteSessionFallback(w, r)
-		return nil
-	}
-
-	logentry.LogEntry(r).Warnf("create session: store is unavailable: %+v; using cookie fallback", err)
-
-	err = h.SetSessionFallback(w, r, sessionData, sessionLifetime)
-	if err != nil {
-		return fmt.Errorf("writing session to fallback store: %w", err)
+	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
+		return fmt.Errorf("create session: store is unavailable: %+v", err)
 	}
 
 	return nil
 }
 
-func (h *Handler) destroySession(w http.ResponseWriter, r *http.Request, sessionID string) error {
+func (h *Handler) destroySession(r *http.Request, sessionID string) error {
 	retryable := func(ctx context.Context) error {
 		err := h.Sessions.Delete(r.Context(), sessionID)
 		if err == nil {
@@ -164,6 +147,5 @@ func (h *Handler) destroySession(w http.ResponseWriter, r *http.Request, session
 		return err
 	}
 
-	h.DeleteSessionFallback(w, r)
 	return nil
 }

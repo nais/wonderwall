@@ -12,7 +12,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntry(r).WithField("request_path", r.URL.Path)
 	isAuthenticated := false
 
-	accessToken, ok := h.accessToken(w, r)
+	accessToken, ok := h.accessToken(r)
 	if ok {
 		// add authentication if session cookie and token checks out
 		isAuthenticated = true
@@ -44,8 +44,8 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	h.ReverseProxy.ServeHTTP(w, r.WithContext(ctx))
 }
 
-func (h *Handler) accessToken(w http.ResponseWriter, r *http.Request) (string, bool) {
-	sessionData, err := h.getSessionFromCookie(w, r)
+func (h *Handler) accessToken(r *http.Request) (string, bool) {
+	sessionData, err := h.getSessionFromCookie(r)
 	if err != nil || sessionData == nil || len(sessionData.AccessToken) == 0 {
 		return "", false
 	}

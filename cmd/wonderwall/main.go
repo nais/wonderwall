@@ -36,7 +36,11 @@ func run() error {
 	defer cancel()
 
 	crypt := crypto.NewCrypter(key)
-	sessionStore := session.NewStore(cfg)
+	sessionStore, err := session.NewStore(cfg)
+	if err != nil {
+		return err
+	}
+
 	h, err := handler.NewHandler(ctx, cfg, openidConfig, crypt, sessionStore)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)

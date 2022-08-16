@@ -24,11 +24,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	var idToken string
 
-	sessionData, err := h.getSessionFromCookie(w, r)
+	sessionData, err := h.getSessionFromCookie(r)
 	if err == nil && sessionData != nil {
 		idToken = sessionData.IDToken
 
-		err = h.destroySession(w, r, h.localSessionID(sessionData.ExternalSessionID))
+		err = h.destroySession(r, h.localSessionID(sessionData.ExternalSessionID))
 		if err != nil && !errors.Is(err, session.KeyNotFoundError) {
 			h.InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
 			return

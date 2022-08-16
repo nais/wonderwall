@@ -22,7 +22,6 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	logoutFrontchannel := h.Client.LogoutFrontchannel(r)
 	if logoutFrontchannel.MissingSidParameter() {
 		logger.Debug("front-channel logout: sid parameter not set in request; ignoring")
-		h.DeleteSessionFallback(w, r)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
@@ -36,7 +35,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.destroySession(w, r, sessionID)
+	err = h.destroySession(r, sessionID)
 	if err != nil {
 		logger.Warnf("front-channel logout: destroying session: %+v", err)
 		w.WriteHeader(http.StatusAccepted)

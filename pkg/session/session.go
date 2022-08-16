@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -20,15 +21,15 @@ type Store interface {
 	Delete(ctx context.Context, keys ...string) error
 }
 
-func NewStore(cfg *config.Config) Store {
+func NewStore(cfg *config.Config) (Store, error) {
 	if len(cfg.Redis.Address) == 0 {
 		log.Warnf("Redis not configured, using in-memory session backing store; not suitable for multi-pod deployments!")
-		return NewMemory()
+		return NewMemory(), nil
 	}
 
 	redisClient, err := cfg.Redis.Client()
 	if err != nil {
-		log.Fatalf("Failed to configure Redis: %v", err)
+		return nil, fmt.Errorf("failed to create Redis Client: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
@@ -36,10 +37,10 @@ func NewStore(cfg *config.Config) Store {
 
 	err = redisClient.Ping(ctx).Err()
 	if err != nil {
-		log.Warnf("Failed to connect to configured Redis, using cookie fallback: %v", err)
+		return nil, fmt.Errorf("failed to connect to configured Redis: %w", err)
 	} else {
 		log.Infof("Using Redis as session backing store")
 	}
 
-	return NewRedis(redisClient)
+	return NewRedis(redisClient), nil
 }
