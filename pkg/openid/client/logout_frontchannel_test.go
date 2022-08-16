@@ -1,6 +1,7 @@
 package client_test
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -28,6 +29,6 @@ func TestLogoutFrontchannel_Sid(t *testing.T) {
 }
 
 func newLogoutFrontchannel(url string) client.LogoutFrontchannel {
-	req := httptest.NewRequest("GET", url, nil)
+	req := httptest.NewRequest(http.MethodGet, url, nil)
 	return newTestClient().LogoutFrontchannel(req)
 }

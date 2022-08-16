@@ -107,7 +107,7 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, client.
 		CodeVerifier: "some-verifier",
 	}
 
-	req := httptest.NewRequest("GET", url, nil)
+	req := httptest.NewRequest(http.MethodGet, url, nil)
 
 	idp := mock.NewIdentityProvider(mock.Config())
 

@@ -180,7 +180,7 @@ func TestLoginURLParameter(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			r := httptest.NewRequest("GET", test.url, nil)
+			r := httptest.NewRequest(http.MethodGet, test.url, nil)
 
 			// default test values
 			parameter := "param"

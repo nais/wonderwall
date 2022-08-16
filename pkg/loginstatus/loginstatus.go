@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -127,7 +127,7 @@ func (c *client) NeedsLogin(r *http.Request) bool {
 }
 
 func request(ctx context.Context, url string, token string) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func request(ctx context.Context, url string, token string) (*http.Request, erro
 }
 
 func handleResponse(resp *http.Response) (*TokenResponse, error) {
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading server response: %w", err)
 	}
