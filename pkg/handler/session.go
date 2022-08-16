@@ -102,7 +102,10 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 	}
 
 	sessionLifetime := h.getSessionLifetime(tokens.Expiry)
-	opts := h.CookieOptions.WithExpiresIn(sessionLifetime)
+
+	opts := h.CookieOptions.
+		WithExpiresIn(sessionLifetime).
+		WithPath(h.Path(r))
 
 	sessionID := h.localSessionID(externalSessionID)
 	err = cookie.EncryptAndSet(w, cookie.Session, sessionID, opts, h.Crypter)

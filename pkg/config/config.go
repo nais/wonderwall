@@ -21,7 +21,7 @@ type Config struct {
 	AutoLoginIgnorePaths []string      `json:"auto-login-ignore-paths"`
 	EncryptionKey        string        `json:"encryption-key"`
 	ErrorRedirectURI     string        `json:"error-redirect-uri"`
-	Ingress              string        `json:"ingress"`
+	Ingresses            []string      `json:"ingress"`
 	SessionMaxLifetime   time.Duration `json:"session-max-lifetime"`
 	UpstreamHost         string        `json:"upstream-host"`
 
@@ -72,7 +72,7 @@ func Initialize() (*Config, error) {
 	flag.StringSlice(AutoLoginIgnorePaths, []string{}, "Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style single asterisks using the stdlib path.Match. Invalid patterns are ignored.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
-	flag.String(Ingress, "", "Ingress used to access the main application.")
+	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 

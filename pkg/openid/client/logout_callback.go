@@ -2,6 +2,8 @@ package client
 
 import (
 	"net/http"
+
+	mw "github.com/nais/wonderwall/pkg/middleware"
 )
 
 type LogoutCallback interface {
@@ -11,23 +13,26 @@ type LogoutCallback interface {
 type logoutCallback struct {
 	Client
 	request *http.Request
-	ingress string
 }
 
-func NewLogoutCallback(c Client, r *http.Request, ingress string) LogoutCallback {
+func NewLogoutCallback(c Client, r *http.Request) LogoutCallback {
 	return &logoutCallback{
 		Client:  c,
 		request: r,
-		ingress: ingress,
 	}
 }
 
 func (in *logoutCallback) PostLogoutRedirectURI() string {
 	redirect := in.config().Client().PostLogoutRedirectURI()
 
-	if len(redirect) == 0 {
-		return in.ingress
+	if len(redirect) > 0 {
+		return redirect
 	}
 
-	return redirect
+	ingress, ok := mw.IngressFrom(in.request.Context())
+	if !ok {
+		return "/"
+	}
+
+	return ingress.String()
 }

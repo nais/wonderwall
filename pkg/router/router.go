@@ -16,20 +16,22 @@ func New(handler *handler.Handler) chi.Router {
 	r.Use(middleware.Ingress(handler.OpenIDConfig))
 	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall", handler.OpenIDConfig.Provider().Name())
 
-	prefix := handler.Path()
+	prefixes := handler.OpenIDConfig.Client().Ingresses().Paths()
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.LogEntryHandler(handler.OpenIDConfig.Provider().Name()))
 		r.Use(prometheusMiddleware.Handler)
 		r.Use(chi_middleware.NoCache)
 
-		r.Route(prefix+paths.OAuth2, func(r chi.Router) {
-			r.Get(paths.Login, handler.Login)
-			r.Get(paths.Callback, handler.Callback)
-			r.Get(paths.Logout, handler.Logout)
-			r.Get(paths.FrontChannelLogout, handler.FrontChannelLogout)
-			r.Get(paths.LogoutCallback, handler.LogoutCallback)
-		})
+		for _, prefix := range prefixes {
+			r.Route(prefix+paths.OAuth2, func(r chi.Router) {
+				r.Get(paths.Login, handler.Login)
+				r.Get(paths.Callback, handler.Callback)
+				r.Get(paths.Logout, handler.Logout)
+				r.Get(paths.FrontChannelLogout, handler.FrontChannelLogout)
+				r.Get(paths.LogoutCallback, handler.LogoutCallback)
+			})
+		}
 	})
 
 	r.HandleFunc("/*", handler.Default)

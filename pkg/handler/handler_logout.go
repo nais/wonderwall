@@ -16,6 +16,11 @@ import (
 // Logout triggers self-initiated logout for the current user.
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	logger := logentry.LogEntry(r)
+	logout, err := h.Client.Logout(r)
+	if err != nil {
+		h.InternalError(w, r, err)
+		return
+	}
 
 	var idToken string
 
@@ -35,7 +40,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		logger.WithFields(fields).Info("logout: successful local logout")
 	}
 
-	cookie.Clear(w, cookie.Session, h.CookieOptions)
+	cookie.Clear(w, cookie.Session, h.CookieOptions.WithPath(h.Path(r)))
 
 	if h.Loginstatus.Enabled() {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)
@@ -43,5 +48,5 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	logger.Debug("logout: redirecting to identity provider")
 	metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
-	http.Redirect(w, r, h.Client.Logout().SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
+	http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
 }

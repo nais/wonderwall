@@ -11,14 +11,14 @@ import (
 )
 
 const (
-	LogoutCallbackURI     = "http://wonderwall/oauth2/logout/callback"
+	LogoutCallbackURI     = mock.Ingress + "/oauth2/logout/callback"
 	PostLogoutRedirectURI = "http://some-other-url"
 	EndSessionEndpoint    = "http://provider/endsession"
 )
 
 func TestLogout_SingleLogoutURL(t *testing.T) {
 	t.Run("with id_token", func(t *testing.T) {
-		logout := newLogout()
+		logout := newLogout(t)
 		idToken := "some-id-token"
 
 		raw := logout.SingleLogoutURL(idToken)
@@ -41,7 +41,7 @@ func TestLogout_SingleLogoutURL(t *testing.T) {
 	})
 
 	t.Run("without id_token", func(t *testing.T) {
-		logout := newLogout()
+		logout := newLogout(t)
 		idToken := ""
 
 		raw := logout.SingleLogoutURL(idToken)
@@ -64,13 +64,17 @@ func TestLogout_SingleLogoutURL(t *testing.T) {
 	})
 }
 
-func newLogout() client.Logout {
+func newLogout(t *testing.T) client.Logout {
 	cfg := mock.Config()
-	cfg.OpenID.PostLogoutRedirectURI = PostLogoutRedirectURI
 
 	openidCfg := mock.NewTestConfiguration(cfg)
-	openidCfg.TestClient.SetLogoutCallbackURI(LogoutCallbackURI)
+	openidCfg.TestClient.SetPostLogoutRedirectURI(PostLogoutRedirectURI)
 	openidCfg.TestProvider.SetEndSessionEndpoint(EndSessionEndpoint)
 
-	return newTestClientWithConfig(openidCfg).Logout()
+	req := mock.NewGetRequest(mock.Ingress+"/oauth2/logout", openidCfg)
+
+	logout, err := newTestClientWithConfig(openidCfg).Logout(req)
+	assert.NoError(t, err)
+
+	return logout
 }

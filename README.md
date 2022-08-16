@@ -81,7 +81,7 @@ The following flags are available:
 --bind-address string                      Listen address for public connections. (default "127.0.0.1:3000")
 --encryption-key string                    Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
 --error-redirect-uri string                URI to redirect user to on errors for custom error handling.
---ingress string                           Ingress used to access the main application.
+--ingress string                           Comma separated list of ingresses used to access the main application.
 --log-format string                        Log format, either 'json' or 'text'. (default "json")
 --log-level string                         Logging verbosity level. (default "info")
 --loginstatus.cookie-domain string         The domain that the cookie should be set for.

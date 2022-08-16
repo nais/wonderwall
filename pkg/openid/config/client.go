@@ -7,16 +7,15 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	wonderwallconfig "github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
-	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 type Client interface {
 	ACRValues() string
-	CallbackURI() string
 	ClientID() string
 	ClientJWK() jwk.Key
-	LogoutCallbackURI() string
+	Ingresses() *ingress.Ingresses
 	PostLogoutRedirectURI() string
 	Scopes() scopes.Scopes
 	UILocales() string
@@ -27,17 +26,12 @@ type Client interface {
 
 type client struct {
 	wonderwallconfig.OpenID
-	clientJwk         jwk.Key
-	callbackURI       string
-	logoutCallbackURI string
+	clientJwk jwk.Key
+	ingresses *ingress.Ingresses
 }
 
 func (in *client) ACRValues() string {
 	return in.OpenID.ACRValues
-}
-
-func (in *client) CallbackURI() string {
-	return in.callbackURI
 }
 
 func (in *client) ClientID() string {
@@ -48,8 +42,8 @@ func (in *client) ClientJWK() jwk.Key {
 	return in.clientJwk
 }
 
-func (in *client) LogoutCallbackURI() string {
-	return in.logoutCallbackURI
+func (in *client) Ingresses() *ingress.Ingresses {
+	return in.ingresses
 }
 
 func (in *client) PostLogoutRedirectURI() string {
@@ -75,8 +69,6 @@ func (in *client) Print() {
 	logger.Infof("acr values: '%s'", in.ACRValues())
 	logger.Infof("client id: '%s'", in.ClientID())
 	logger.Infof("post-logout redirect uri: '%s'", in.PostLogoutRedirectURI())
-	logger.Infof("callback uri: '%s'", in.CallbackURI())
-	logger.Infof("logout callback uri: '%s'", in.LogoutCallbackURI())
 	logger.Infof("scopes: '%s'", in.Scopes())
 	logger.Infof("ui locales: '%s'", in.UILocales())
 }
@@ -92,26 +84,15 @@ func NewClientConfig(cfg *wonderwallconfig.Config) (Client, error) {
 		return nil, fmt.Errorf("parsing client JWK: %w", err)
 	}
 
-	ingress := cfg.Ingress
-	if len(ingress) == 0 {
-		return nil, fmt.Errorf("missing required config %s", wonderwallconfig.Ingress)
-	}
-
-	callbackURI, err := RedirectURI(ingress, paths.Callback)
+	ingresses, err := ingress.ParseIngresses(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("creating callback URI from ingress: %w", err)
-	}
-
-	logoutCallbackURI, err := RedirectURI(ingress, paths.LogoutCallback)
-	if err != nil {
-		return nil, fmt.Errorf("creating logout callback URI from ingress: %w", err)
+		return nil, err
 	}
 
 	c := &client{
-		OpenID:            cfg.OpenID,
-		clientJwk:         clientJwk,
-		callbackURI:       callbackURI,
-		logoutCallbackURI: logoutCallbackURI,
+		OpenID:    cfg.OpenID,
+		clientJwk: clientJwk,
+		ingresses: ingresses,
 	}
 
 	var clientConfig Client

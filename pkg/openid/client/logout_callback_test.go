@@ -1,7 +1,6 @@
 package client_test
 
 import (
-	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,19 +24,18 @@ func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 
 	t.Run("empty preconfigured post-logout redirect uri", func(t *testing.T) {
 		cfg := mock.Config()
-		cfg.Ingress = "http://wonderwall"
 		cfg.OpenID.PostLogoutRedirectURI = ""
 
 		lc := newLogoutCallback(cfg)
 
 		uri := lc.PostLogoutRedirectURI()
 		assert.NotEmpty(t, uri)
-		assert.Equal(t, "http://wonderwall", uri)
+		assert.Equal(t, mock.Ingress, uri)
 	})
 }
 
 func newLogoutCallback(cfg *config.Config) client.LogoutCallback {
-	req := httptest.NewRequest("GET", "http://wonderwall/oauth2/logout/callback", nil)
 	openidCfg := mock.NewTestConfiguration(cfg)
-	return newTestClientWithConfig(openidCfg).LogoutCallback(req, cfg.Ingress)
+	req := mock.NewGetRequest(mock.Ingress+"/oauth2/logout/callback", openidCfg)
+	return newTestClientWithConfig(openidCfg).LogoutCallback(req)
 }

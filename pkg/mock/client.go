@@ -5,22 +5,18 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
 )
 
 type TestClientConfiguration struct {
 	*config.Config
-	callbackURI       string
-	clientJwk         jwk.Key
-	logoutCallbackURI string
+	clientJwk jwk.Key
+	ingresses *ingress.Ingresses
 }
 
 func (c *TestClientConfiguration) ACRValues() string {
 	return c.Config.OpenID.ACRValues
-}
-
-func (c *TestClientConfiguration) CallbackURI() string {
-	return c.callbackURI
 }
 
 func (c *TestClientConfiguration) ClientID() string {
@@ -31,8 +27,23 @@ func (c *TestClientConfiguration) ClientJWK() jwk.Key {
 	return c.clientJwk
 }
 
-func (c *TestClientConfiguration) LogoutCallbackURI() string {
-	return c.logoutCallbackURI
+func (c *TestClientConfiguration) Ingresses() *ingress.Ingresses {
+	return c.ingresses
+}
+
+func (c *TestClientConfiguration) SetIngresses(ingresses ...string) {
+	c.Config.Ingresses = ingresses
+
+	parsed, err := ingress.ParseIngresses(c.Config)
+	if err != nil {
+		panic(err)
+	}
+
+	c.ingresses = parsed
+}
+
+func (c *TestClientConfiguration) SetPostLogoutRedirectURI(uri string) {
+	c.Config.OpenID.PostLogoutRedirectURI = uri
 }
 
 func (c *TestClientConfiguration) PostLogoutRedirectURI() string {
@@ -53,20 +64,20 @@ func (c *TestClientConfiguration) WellKnownURL() string {
 
 func (c *TestClientConfiguration) Print() {}
 
-func (c *TestClientConfiguration) SetLogoutCallbackURI(url string) {
-	c.logoutCallbackURI = url
-}
-
 func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
 	key, err := crypto.NewJwk()
 	if err != nil {
 		panic(err)
 	}
 
+	ingresses, err := ingress.ParseIngresses(cfg)
+	if err != nil {
+		panic(err)
+	}
+
 	return &TestClientConfiguration{
-		Config:            cfg,
-		clientJwk:         key,
-		callbackURI:       "http://localhost/callback",
-		logoutCallbackURI: "http://localhost/logout/callback",
+		Config:    cfg,
+		clientJwk: key,
+		ingresses: ingresses,
 	}
 }

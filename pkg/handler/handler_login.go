@@ -21,7 +21,7 @@ const (
 
 // Login initiates the authorization code flow.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	login, err := h.Client.Login(r, h.Config.Ingress, h.Loginstatus)
+	login, err := h.Client.Login(r, h.Loginstatus)
 	if err != nil {
 		if errors.Is(err, client.InvalidSecurityLevelError) || errors.Is(err, client.InvalidLocaleError) {
 			h.BadRequest(w, r, err)
@@ -32,7 +32,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.setLoginCookies(w, login.Cookie())
+	err = h.setLoginCookies(w, r, login.Cookie())
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
 		return
@@ -65,7 +65,7 @@ func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
 	return &loginCookie, nil
 }
 
-func (h *Handler) setLoginCookies(w http.ResponseWriter, loginCookie *openid.LoginCookie) error {
+func (h *Handler) setLoginCookies(w http.ResponseWriter, r *http.Request, loginCookie *openid.LoginCookie) error {
 	loginCookieJson, err := json.Marshal(loginCookie)
 	if err != nil {
 		return fmt.Errorf("marshalling login cookie: %w", err)
@@ -73,7 +73,8 @@ func (h *Handler) setLoginCookies(w http.ResponseWriter, loginCookie *openid.Log
 
 	opts := h.CookieOptions.
 		WithExpiresIn(LoginCookieLifetime).
-		WithSameSite(http.SameSiteNoneMode)
+		WithSameSite(http.SameSiteNoneMode).
+		WithPath(h.Path(r))
 	value := string(loginCookieJson)
 
 	err = cookie.EncryptAndSet(w, cookie.Login, value, opts, h.Crypter)
@@ -90,8 +91,8 @@ func (h *Handler) setLoginCookies(w http.ResponseWriter, loginCookie *openid.Log
 	return nil
 }
 
-func (h *Handler) clearLoginCookies(w http.ResponseWriter) {
-	opts := h.CookieOptions
+func (h *Handler) clearLoginCookies(w http.ResponseWriter, r *http.Request) {
+	opts := h.CookieOptions.WithPath(h.Path(r))
 	cookie.Clear(w, cookie.Login, opts.WithSameSite(http.SameSiteNoneMode))
 	cookie.Clear(w, cookie.LoginLegacy, opts.WithSameSite(http.SameSiteDefaultMode))
 }

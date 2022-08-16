@@ -9,11 +9,11 @@ import (
 
 	"golang.org/x/oauth2"
 
+	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/strings"
-	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 const (
@@ -43,18 +43,23 @@ type Login interface {
 	State() string
 }
 
-func NewLogin(c Client, r *http.Request, ingress string, loginstatus loginstatus.Loginstatus) (Login, error) {
+func NewLogin(c Client, r *http.Request, loginstatus loginstatus.Loginstatus) (Login, error) {
 	params, err := newLoginParameters(c)
 	if err != nil {
 		return nil, fmt.Errorf("generating parameters: %w", err)
 	}
 
-	url, err := params.authCodeURL(r, loginstatus)
+	callbackURL, err := urlpkg.CallbackURL(r)
+	if err != nil {
+		return nil, fmt.Errorf("generating callback url: %w", err)
+	}
+
+	url, err := params.authCodeURL(r, callbackURL, loginstatus)
 	if err != nil {
 		return nil, fmt.Errorf("generating auth code url: %w", err)
 	}
 
-	redirect := urlpkg.CanonicalRedirect(r, ingress)
+	redirect := urlpkg.CanonicalRedirect(r)
 	cookie := params.cookie(redirect)
 
 	return &login{
@@ -67,6 +72,7 @@ func NewLogin(c Client, r *http.Request, ingress string, loginstatus loginstatus
 
 type login struct {
 	authCodeURL       string
+	callbackURL       string
 	canonicalRedirect string
 	cookie            *openid.LoginCookie
 	params            *loginParameters
@@ -133,12 +139,13 @@ func newLoginParameters(c Client) (*loginParameters, error) {
 	}, nil
 }
 
-func (in *loginParameters) authCodeURL(r *http.Request, loginstatus loginstatus.Loginstatus) (string, error) {
+func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, loginstatus loginstatus.Loginstatus) (string, error) {
 	opts := []oauth2.AuthCodeOption{
 		oauth2.SetAuthURLParam("nonce", in.Nonce),
 		oauth2.SetAuthURLParam("response_mode", "query"),
 		oauth2.SetAuthURLParam("code_challenge", in.CodeChallenge),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+		oauth2.SetAuthURLParam("redirect_uri", callbackURL),
 	}
 
 	if loginstatus.NeedsResourceIndicator() {

@@ -23,5 +23,5 @@ func (h *Handler) DeleteSessionFallback(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) cookieStore(w http.ResponseWriter, r *http.Request) session.CookieStore {
-	return session.NewCookie(w, r, h.Crypter, h.Provider, h.CookieOptions)
+	return session.NewCookie(w, r, h.Crypter, h.Provider, h.CookieOptions.WithPath(h.Path(r)))
 }

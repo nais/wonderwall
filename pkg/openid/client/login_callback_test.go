@@ -2,6 +2,7 @@ package client_test
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -15,7 +16,7 @@ import (
 
 func TestLoginCallback_StateMismatchError(t *testing.T) {
 	t.Run("invalid state", func(t *testing.T) {
-		url := "http://wonderwall/oauth2/callback?state=some-other-state"
+		url := mock.Ingress + "/oauth2/callback?state=some-other-state"
 		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
 
@@ -24,7 +25,7 @@ func TestLoginCallback_StateMismatchError(t *testing.T) {
 	})
 
 	t.Run("missing state", func(t *testing.T) {
-		url := "http://wonderwall/oauth2/callback"
+		url := mock.Ingress + "/oauth2/callback"
 		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
 
@@ -34,7 +35,7 @@ func TestLoginCallback_StateMismatchError(t *testing.T) {
 }
 
 func TestLoginCallback_IdentityProviderError(t *testing.T) {
-	url := "http://wonderwall/oauth2/callback?error=invalid_client&error_description=client%20authenticaion%20failed"
+	url := mock.Ingress + "/oauth2/callback?error=invalid_client&error_description=client%20authenticaion%20failed"
 
 	idp, lc := newLoginCallback(t, url)
 	defer idp.Close()
@@ -44,7 +45,7 @@ func TestLoginCallback_IdentityProviderError(t *testing.T) {
 }
 
 func TestLoginCallback_RedeemTokens(t *testing.T) {
-	url := "http://wonderwall/oauth2/callback?code=some-code"
+	url := mock.Ingress + "/oauth2/callback?code=some-code"
 
 	t.Run("happy path", func(t *testing.T) {
 		idp, lc := newLoginCallback(t, url)
@@ -112,7 +113,6 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, client.
 	idp := mock.NewIdentityProvider(mock.Config())
 
 	cfg := idp.OpenIDConfig
-	cfg.TestClient.SetLogoutCallbackURI(LogoutCallbackURI)
 
 	idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
 		"some-code": {

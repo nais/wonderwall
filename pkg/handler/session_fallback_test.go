@@ -28,14 +28,14 @@ func TestHandler_GetSessionFallback(t *testing.T) {
 	rpHandler := idp.RelyingPartyHandler
 
 	t.Run("request without fallback session cookies", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r := idp.GetRequest("/")
 		w := httptest.NewRecorder()
 		_, err := rpHandler.GetSessionFallback(w, r)
 		assert.Error(t, err)
 	})
 
 	t.Run("request with fallback session cookies", func(t *testing.T) {
-		r := makeRequestWithFallbackCookies(t, rpHandler, tokens)
+		r := makeRequestWithFallbackCookies(t, idp, tokens)
 		w := httptest.NewRecorder()
 		sessionData, err := rpHandler.GetSessionFallback(w, r)
 		assert.NoError(t, err)
@@ -57,9 +57,10 @@ func TestHandler_SetSessionFallback(t *testing.T) {
 
 	// request should set session cookies in response
 	writer := httptest.NewRecorder()
+	r := idp.GetRequest("/")
 	expiresIn := time.Minute
 	data := session.NewData("sid", tokens, nil)
-	err := rpHandler.SetSessionFallback(writer, nil, data, expiresIn)
+	err := rpHandler.SetSessionFallback(writer, r, data, expiresIn)
 	assert.NoError(t, err)
 
 	cookies := writer.Result().Cookies()
@@ -94,7 +95,7 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 	tokens := makeTokens(idp.Provider)
 
 	t.Run("expire cookies if they are set", func(t *testing.T) {
-		r := makeRequestWithFallbackCookies(t, rpHandler, tokens)
+		r := makeRequestWithFallbackCookies(t, idp, tokens)
 		writer := httptest.NewRecorder()
 		rpHandler.DeleteSessionFallback(writer, r)
 		cookies := writer.Result().Cookies()
@@ -109,7 +110,7 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 
 	t.Run("skip expiring cookies if they are not set", func(t *testing.T) {
 		writer := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r := idp.GetRequest("/")
 		rpHandler.DeleteSessionFallback(writer, r)
 		cookies := writer.Result().Cookies()
 
@@ -117,11 +118,13 @@ func TestHandler_DeleteSessionFallback(t *testing.T) {
 	})
 }
 
-func makeRequestWithFallbackCookies(t *testing.T, h *handler.Handler, tokens *openid.Tokens) *http.Request {
+func makeRequestWithFallbackCookies(t *testing.T, idp *mock.IdentityProvider, tokens *openid.Tokens) *http.Request {
 	writer := httptest.NewRecorder()
+	r := mock.NewGetRequest("/", idp.OpenIDConfig)
+
 	expiresIn := time.Minute
 	data := session.NewData("sid", tokens, nil)
-	err := h.SetSessionFallback(writer, nil, data, expiresIn)
+	err := idp.RelyingPartyHandler.SetSessionFallback(writer, r, data, expiresIn)
 	assert.NoError(t, err)
 
 	cookies := writer.Result().Cookies()
@@ -133,8 +136,6 @@ func makeRequestWithFallbackCookies(t *testing.T, h *handler.Handler, tokens *op
 	accessTokenCookie := getCookieFromJar("wonderwall-3", cookies)
 	assert.NotNil(t, accessTokenCookie)
 
-	// make request with fallback session cookies set
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.AddCookie(externalSessionIDCookie)
 	r.AddCookie(idTokenCookie)
 	r.AddCookie(accessTokenCookie)

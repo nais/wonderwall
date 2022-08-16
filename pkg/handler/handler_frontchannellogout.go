@@ -5,15 +5,15 @@ import (
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/metrics"
-	logentry "github.com/nais/wonderwall/pkg/middleware"
+	mw "github.com/nais/wonderwall/pkg/middleware"
 )
 
 // FrontChannelLogout performs a local logout initiated by a third party in the SSO circle-of-trust.
 func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
-	logger := logentry.LogEntry(r)
+	logger := mw.LogEntry(r)
 
 	// Unconditionally destroy all local references to the session.
-	cookie.Clear(w, cookie.Session, h.CookieOptions)
+	cookie.Clear(w, cookie.Session, h.CookieOptions.WithPath(h.Path(r)))
 
 	if h.Loginstatus.Enabled() {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)

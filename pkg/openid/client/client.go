@@ -20,10 +20,10 @@ type Client interface {
 	config() openidconfig.Config
 	oAuth2Config() *oauth2.Config
 
-	Login(r *http.Request, ingress string, loginstatus loginstatus.Loginstatus) (Login, error)
+	Login(r *http.Request, loginstatus loginstatus.Loginstatus) (Login, error)
 	LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) (LoginCallback, error)
-	Logout() Logout
-	LogoutCallback(r *http.Request, ingress string) LogoutCallback
+	Logout(r *http.Request) (Logout, error)
+	LogoutCallback(r *http.Request) LogoutCallback
 	LogoutFrontchannel(r *http.Request) LogoutFrontchannel
 
 	AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error)
@@ -44,8 +44,7 @@ func NewClient(cfg openidconfig.Config) Client {
 			TokenURL:  cfg.Provider().TokenEndpoint(),
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
-		RedirectURL: cfg.Client().CallbackURI(),
-		Scopes:      cfg.Client().Scopes(),
+		Scopes: cfg.Client().Scopes(),
 	}
 
 	return &client{
@@ -62,8 +61,8 @@ func (c *client) oAuth2Config() *oauth2.Config {
 	return c.oauth2Config
 }
 
-func (c *client) Login(r *http.Request, ingress string, loginstatus loginstatus.Loginstatus) (Login, error) {
-	login, err := NewLogin(c, r, ingress, loginstatus)
+func (c *client) Login(r *http.Request, loginstatus loginstatus.Loginstatus) (Login, error) {
+	login, err := NewLogin(c, r, loginstatus)
 	if err != nil {
 		return nil, fmt.Errorf("login: %w", err)
 	}
@@ -80,12 +79,17 @@ func (c *client) LoginCallback(r *http.Request, p provider.Provider, cookie *ope
 	return loginCallback, nil
 }
 
-func (c *client) Logout() Logout {
-	return NewLogout(c)
+func (c *client) Logout(r *http.Request) (Logout, error) {
+	logout, err := NewLogout(c, r)
+	if err != nil {
+		return nil, fmt.Errorf("logout: %w", err)
+	}
+
+	return logout, nil
 }
 
-func (c *client) LogoutCallback(r *http.Request, ingress string) LogoutCallback {
-	return NewLogoutCallback(c, r, ingress)
+func (c *client) LogoutCallback(r *http.Request) LogoutCallback {
+	return NewLogoutCallback(c, r)
 }
 
 func (c *client) LogoutFrontchannel(r *http.Request) LogoutFrontchannel {

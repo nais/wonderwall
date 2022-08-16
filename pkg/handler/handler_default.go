@@ -28,8 +28,9 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 		logger.Debug("default: auto-login is enabled; request does not match any configured ignorable paths")
 
 		redirectTarget := r.URL.String()
-		loginUrl := urlpkg.LoginURL(h.Path(), redirectTarget)
+		path := h.Path(r)
 
+		loginUrl := url.LoginURL(path, redirectTarget)
 		http.Redirect(w, r, loginUrl, http.StatusTemporaryRedirect)
 		return
 	}

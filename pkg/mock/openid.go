@@ -59,6 +59,15 @@ func (in *IdentityProvider) RelyingPartyClient() *http.Client {
 	return client
 }
 
+func (in *IdentityProvider) SetIngresses(ingresses ...string) {
+	in.Cfg.Ingresses = ingresses
+	in.OpenIDConfig.TestClient.SetIngresses(ingresses...)
+}
+
+func (in *IdentityProvider) GetRequest(target string) *http.Request {
+	return NewGetRequest(target, in.OpenIDConfig)
+}
+
 func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	openidConfig := NewTestConfiguration(cfg)
 	provider := newTestProvider()
@@ -85,8 +94,7 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	rpServer := httptest.NewServer(router.New(rpHandler))
 
 	// reconfigure client after Relying Party server is started
-	openidConfig.TestClient.callbackURI = rpServer.URL + "/oauth2/callback"
-	openidConfig.TestClient.logoutCallbackURI = rpServer.URL + "/oauth2/logout/callback"
+	openidConfig.TestClient.SetIngresses(rpServer.URL)
 	rpHandler.Client = openidclient.NewClient(openidConfig)
 
 	return &IdentityProvider{

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid/client"
@@ -24,29 +25,29 @@ func TestLogin_URL(t *testing.T) {
 
 	tests := []loginURLTest{
 		{
-			url: "http://localhost:1234/oauth2/login?level=Level4",
+			url: mock.Ingress + "/oauth2/login?level=Level4",
 			extraParams: map[string]string{
 				"acr_values": "Level4",
 			},
 			error: nil,
 		},
 		{
-			url:   "http://localhost:1234/oauth2/login",
+			url:   mock.Ingress + "/oauth2/login",
 			error: nil,
 		},
 		{
-			url:   "http://localhost:1234/oauth2/login?level=NoLevel",
+			url:   mock.Ingress + "/oauth2/login?level=NoLevel",
 			error: client.InvalidSecurityLevelError,
 		},
 		{
-			url: "http://localhost:1234/oauth2/login?locale=nb",
+			url: mock.Ingress + "/oauth2/login?locale=nb",
 			extraParams: map[string]string{
 				"ui_locales": "nb",
 			},
 			error: nil,
 		},
 		{
-			url: "http://localhost:1234/oauth2/login?level=Level4&locale=nb",
+			url: mock.Ingress + "/oauth2/login?level=Level4&locale=nb",
 			extraParams: map[string]string{
 				"acr_values": "Level4",
 				"ui_locales": "nb",
@@ -54,21 +55,20 @@ func TestLogin_URL(t *testing.T) {
 			error: nil,
 		},
 		{
-			url:   "http://localhost:1234/oauth2/login?locale=es",
+			url:   mock.Ingress + "/oauth2/login?locale=es",
 			error: client.InvalidLocaleError,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.url, func(t *testing.T) {
-			req := httptest.NewRequest("GET", test.url, nil)
-
 			cfg := mock.Config()
 			openidConfig := mock.NewTestConfiguration(cfg)
 			c := client.NewClient(openidConfig)
 			lsc := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
 
-			result, err := c.Login(req, cfg.Ingress, lsc)
+			req := mock.NewGetRequest(test.url, openidConfig)
+			result, err := c.Login(req, lsc)
 
 			if test.error != nil {
 				assert.True(t, errors.Is(err, test.error))
@@ -90,9 +90,12 @@ func TestLogin_URL(t *testing.T) {
 				assert.Contains(t, query, "code_challenge_method")
 				assert.NotContains(t, query, "resource")
 
+				callbackURL, err := urlpkg.CallbackURL(req)
+				assert.NoError(t, err)
+
 				assert.ElementsMatch(t, query["response_type"], []string{"code"})
 				assert.ElementsMatch(t, query["client_id"], []string{openidConfig.Client().ClientID()})
-				assert.ElementsMatch(t, query["redirect_uri"], []string{openidConfig.Client().CallbackURI()})
+				assert.ElementsMatch(t, query["redirect_uri"], []string{callbackURL})
 				assert.ElementsMatch(t, query["scope"], []string{openidConfig.Client().Scopes().String()})
 				assert.ElementsMatch(t, query["state"], []string{result.State()})
 				assert.ElementsMatch(t, query["nonce"], []string{result.Nonce()})
@@ -112,8 +115,6 @@ func TestLogin_URL(t *testing.T) {
 }
 
 func TestLoginURL_WithResourceIndicator(t *testing.T) {
-	req := httptest.NewRequest("GET", "http://localhost:1234/oauth2/login", nil)
-
 	cfg := mock.Config()
 	cfg.Loginstatus.Enabled = true
 	cfg.Loginstatus.ResourceIndicator = "https://some-resource"
@@ -125,7 +126,9 @@ func TestLoginURL_WithResourceIndicator(t *testing.T) {
 
 	c := client.NewClient(openidConfig)
 
-	result, err := c.Login(req, cfg.Ingress, lsc)
+	req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", openidConfig)
+
+	result, err := c.Login(req, lsc)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
 	parsed, err := url.Parse(result.AuthCodeURL())
@@ -148,33 +151,33 @@ func TestLoginURLParameter(t *testing.T) {
 	}{
 		{
 			name:     "no URL parameter should use fallback value",
-			url:      "http://localhost:8080/oauth2/login",
+			url:      mock.Ingress + "/oauth2/login",
 			expected: "valid",
 		},
 		{
 			name:     "non-matching URL parameter should be ignored",
-			url:      "http://localhost:8080/oauth2/login?other_param=value2",
+			url:      mock.Ingress + "/oauth2/login?other_param=value2",
 			expected: "valid",
 		},
 		{
 			name:     "matching URL parameter should take precedence",
-			url:      "http://localhost:8080/oauth2/login?param=valid2",
+			url:      mock.Ingress + "/oauth2/login?param=valid2",
 			expected: "valid2",
 		},
 		{
 			name:      "invalid URL parameter value should return error",
-			url:       "http://localhost:8080/oauth2/login?param=invalid",
+			url:       mock.Ingress + "/oauth2/login?param=invalid",
 			expectErr: client.InvalidLoginParameterError,
 		},
 		{
 			name:      "invalid fallback value should return error",
 			fallback:  "invalid",
-			url:       "http://localhost:8080/oauth2/login",
+			url:       mock.Ingress + "/oauth2/login",
 			expectErr: client.InvalidLoginParameterError,
 		},
 		{
 			name:      "no supported values should return error",
-			url:       "http://localhost:8080/oauth2/login",
+			url:       mock.Ingress + "/oauth2/login",
 			supported: openidconfig.Supported{""},
 			expectErr: client.InvalidLoginParameterError,
 		},

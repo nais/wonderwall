@@ -10,6 +10,7 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/loginstatus"
+	"github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/openid/provider"
@@ -27,8 +28,6 @@ type Handler struct {
 	Provider      provider.Provider
 	ReverseProxy  *httputil.ReverseProxy
 	Sessions      session.Store
-
-	path string
 }
 
 func NewHandler(
@@ -52,15 +51,23 @@ func NewHandler(
 		AutoLogin:     autoLogin,
 		Client:        client.NewClient(openidConfig),
 		Config:        cfg,
-		CookieOptions: cookie.DefaultOptions().WithPath(config.ParseIngress(cfg.Ingress)),
+		CookieOptions: cookie.DefaultOptions(),
 		Crypter:       crypter,
 		Loginstatus:   loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient),
 		OpenIDConfig:  openidConfig,
 		Provider:      openidProvider,
 		ReverseProxy:  newReverseProxy(cfg.UpstreamHost),
 		Sessions:      sessionStore,
-		path:          config.ParseIngress(cfg.Ingress),
 	}, nil
+}
+
+func (h *Handler) Path(r *http.Request) string {
+	path, ok := middleware.PathFrom(r.Context())
+	if !ok {
+		path = h.OpenIDConfig.Client().Ingresses().MatchingPath(r)
+	}
+
+	return path
 }
 
 func newReverseProxy(upstreamHost string) *httputil.ReverseProxy {
@@ -83,8 +90,4 @@ func newReverseProxy(upstreamHost string) *httputil.ReverseProxy {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 		},
 	}
-}
-
-func (h *Handler) Path() string {
-	return h.path
 }
