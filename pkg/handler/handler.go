@@ -71,7 +71,6 @@ func newReverseProxy(upstreamHost string) *httputil.ReverseProxy {
 			// Instruct http.ReverseProxy to not modify X-Forwarded-For header
 			r.Header["X-Forwarded-For"] = nil
 			// Request should go to correct host
-			r.Host = upstreamHost
 			r.URL.Host = upstreamHost
 			r.URL.Scheme = "http"
 
