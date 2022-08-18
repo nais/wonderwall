@@ -36,10 +36,10 @@ func (h *Handler) getSessionFromCookie(r *http.Request) (*session.Data, error) {
 	}
 
 	if errors.Is(err, session.KeyNotFoundError) {
-		return nil, fmt.Errorf("session not found in store: %w", err)
+		return nil, fmt.Errorf("session not found: %w", err)
 	}
 
-	return nil, fmt.Errorf("get session: store is unavailable: %+v", err)
+	return nil, err
 }
 
 func (h *Handler) getSession(r *http.Request, sessionID string) (*session.Data, error) {
@@ -52,7 +52,6 @@ func (h *Handler) getSession(r *http.Request, sessionID string) (*session.Data, 
 			return nil
 		}
 
-		err = fmt.Errorf("reading session data from store: %w", err)
 		if errors.Is(err, session.KeyNotFoundError) {
 			return err
 		}
@@ -61,7 +60,7 @@ func (h *Handler) getSession(r *http.Request, sessionID string) (*session.Data, 
 	}
 
 	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading from store: %w", err)
 	}
 
 	sessionData, err := encryptedSessionData.Decrypt(h.Crypter)
@@ -122,7 +121,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, tokens *
 	}
 
 	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
-		return fmt.Errorf("create session: store is unavailable: %+v", err)
+		return fmt.Errorf("writing to store: %w", err)
 	}
 
 	return nil
@@ -135,7 +134,6 @@ func (h *Handler) destroySession(r *http.Request, sessionID string) error {
 			return nil
 		}
 
-		err = fmt.Errorf("deleting session from store: %w", err)
 		if errors.Is(err, session.KeyNotFoundError) {
 			return err
 		}
@@ -144,7 +142,7 @@ func (h *Handler) destroySession(r *http.Request, sessionID string) error {
 	}
 
 	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
-		return err
+		return fmt.Errorf("deleting from store: %w", err)
 	}
 
 	return nil

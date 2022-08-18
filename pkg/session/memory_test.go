@@ -52,5 +52,6 @@ func TestMemory(t *testing.T) {
 
 	result, err = sess.Read(context.Background(), "key")
 	assert.Error(t, err)
+	assert.ErrorIs(t, err, session.KeyNotFoundError)
 	assert.Nil(t, result)
 }

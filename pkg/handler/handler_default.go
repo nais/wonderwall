@@ -1,10 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/handler/url"
 	mw "github.com/nais/wonderwall/pkg/middleware"
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 // Default proxies all requests upstream.
@@ -12,7 +16,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntry(r).WithField("request_path", r.URL.Path)
 	isAuthenticated := false
 
-	accessToken, ok := h.accessToken(r)
+	accessToken, ok := h.accessToken(r, logger)
 	if ok {
 		// add authentication if session cookie and token checks out
 		isAuthenticated = true
@@ -44,11 +48,15 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	h.ReverseProxy.ServeHTTP(w, r.WithContext(ctx))
 }
 
-func (h *Handler) accessToken(r *http.Request) (string, bool) {
+func (h *Handler) accessToken(r *http.Request, logger *log.Entry) (string, bool) {
 	sessionData, err := h.getSessionFromCookie(r)
-	if err != nil || sessionData == nil || len(sessionData.AccessToken) == 0 {
-		return "", false
+	if err == nil && sessionData != nil && len(sessionData.AccessToken) > 0 {
+		return sessionData.AccessToken, true
 	}
 
-	return sessionData.AccessToken, true
+	if errors.Is(err, session.UnexpectedError) {
+		logger.Errorf("default: getting session: %+v", err)
+	}
+
+	return "", false
 }
