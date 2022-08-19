@@ -82,10 +82,13 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	openidConfig.TestProvider.SetTokenEndpoint(server.URL + "/token")
 
 	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
-	sessionStore := session.NewMemory()
+	sessionHandler, err := session.NewHandler(cfg, openidConfig, crypter)
+	if err != nil {
+		panic(err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	rpHandler, err := handlerpkg.NewHandler(ctx, cfg, openidConfig, crypter, sessionStore)
+	rpHandler, err := handlerpkg.NewHandler(ctx, cfg, openidConfig, crypter, sessionHandler)
 	if err != nil {
 		panic(err)
 	}

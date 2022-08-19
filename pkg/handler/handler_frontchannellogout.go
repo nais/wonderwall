@@ -27,15 +27,14 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sid := logoutFrontchannel.Sid()
-	sessionID := h.localSessionID(sid)
-	sessionData, err := h.getSession(r, sessionID)
+	sessionData, err := h.Sessions.GetForID(r, sid)
 	if err != nil {
 		logger.Debugf("front-channel logout: could not get session (user might already be logged out): %+v", err)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
-	err = h.destroySession(r, sessionID)
+	err = h.Sessions.DestroyForID(r, sid)
 	if err != nil {
 		logger.Warnf("front-channel logout: destroying session: %+v", err)
 		w.WriteHeader(http.StatusAccepted)

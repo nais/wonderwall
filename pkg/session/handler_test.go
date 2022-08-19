@@ -14,7 +14,7 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-func TestSessionID(t *testing.T) {
+func TestNewSessionID(t *testing.T) {
 	for _, test := range []struct {
 		name       string
 		config     config.Provider

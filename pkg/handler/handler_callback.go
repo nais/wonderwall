@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/metrics"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
@@ -54,9 +56,19 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.createSession(w, r, tokens)
+	expiresIn := h.getSessionLifetime(tokens.Expiry)
+	key, err := h.Sessions.Create(r, tokens, expiresIn)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
+		return
+	}
+
+	opts := h.CookieOptions.
+		WithExpiresIn(expiresIn).
+		WithPath(h.Path(r))
+	err = cookie.EncryptAndSet(w, cookie.Session, key, opts, h.Crypter)
+	if err != nil {
+		h.InternalError(w, r, fmt.Errorf("callback: setting session cookie: %w", err))
 		return
 	}
 
@@ -93,6 +105,18 @@ func (h *Handler) redeemValidTokens(r *http.Request, loginCallback client.LoginC
 	}
 
 	return tokens, nil
+}
+
+func (h *Handler) getSessionLifetime(tokenExpiry time.Time) time.Duration {
+	defaultSessionLifetime := h.Config.SessionMaxLifetime
+
+	tokenDuration := tokenExpiry.Sub(time.Now())
+
+	if tokenDuration <= defaultSessionLifetime {
+		return tokenDuration
+	}
+
+	return defaultSessionLifetime
 }
 
 func (h *Handler) getLoginstatusToken(r *http.Request, tokens *openid.Tokens) (*loginstatus.TokenResponse, error) {

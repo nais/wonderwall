@@ -27,7 +27,7 @@ type Handler struct {
 	OpenIDConfig  openidconfig.Config
 	Provider      provider.Provider
 	ReverseProxy  *httputil.ReverseProxy
-	Sessions      session.Store
+	Sessions      *session.Handler
 }
 
 func NewHandler(
@@ -35,7 +35,7 @@ func NewHandler(
 	cfg *config.Config,
 	openidConfig openidconfig.Config,
 	crypter crypto.Crypter,
-	sessionStore session.Store,
+	sessionHandler *session.Handler,
 ) (*Handler, error) {
 	openidProvider, err := provider.NewProvider(ctx, openidConfig)
 	if err != nil {
@@ -57,7 +57,7 @@ func NewHandler(
 		OpenIDConfig:  openidConfig,
 		Provider:      openidProvider,
 		ReverseProxy:  newReverseProxy(cfg.UpstreamHost),
-		Sessions:      sessionStore,
+		Sessions:      sessionHandler,
 	}, nil
 }
 

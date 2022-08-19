@@ -32,7 +32,7 @@ func (s *memorySessionStore) Read(_ context.Context, key string) (*EncryptedData
 	return data, nil
 }
 
-func (s *memorySessionStore) Write(_ context.Context, key string, value *EncryptedData, expiration time.Duration) error {
+func (s *memorySessionStore) Write(_ context.Context, key string, value *EncryptedData, _ time.Duration) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

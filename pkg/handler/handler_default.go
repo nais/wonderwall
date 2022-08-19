@@ -49,7 +49,7 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) accessToken(r *http.Request, logger *log.Entry) (string, bool) {
-	sessionData, err := h.getSessionFromCookie(r)
+	sessionData, err := h.Sessions.Get(r)
 	if err == nil && sessionData != nil && len(sessionData.AccessToken) > 0 {
 		return sessionData.AccessToken, true
 	}
