@@ -71,10 +71,9 @@ func (h *Handler) setLoginCookies(w http.ResponseWriter, r *http.Request, loginC
 		return fmt.Errorf("marshalling login cookie: %w", err)
 	}
 
-	opts := h.CookieOptions.
+	opts := h.CookieOptsPathAware(r).
 		WithExpiresIn(LoginCookieLifetime).
-		WithSameSite(http.SameSiteNoneMode).
-		WithPath(h.Path(r))
+		WithSameSite(http.SameSiteNoneMode)
 	value := string(loginCookieJson)
 
 	err = cookie.EncryptAndSet(w, cookie.Login, value, opts, h.Crypter)
@@ -92,7 +91,7 @@ func (h *Handler) setLoginCookies(w http.ResponseWriter, r *http.Request, loginC
 }
 
 func (h *Handler) clearLoginCookies(w http.ResponseWriter, r *http.Request) {
-	opts := h.CookieOptions.WithPath(h.Path(r))
+	opts := h.CookieOptsPathAware(r)
 	cookie.Clear(w, cookie.Login, opts.WithSameSite(http.SameSiteNoneMode))
 	cookie.Clear(w, cookie.LoginLegacy, opts.WithSameSite(http.SameSiteDefaultMode))
 }

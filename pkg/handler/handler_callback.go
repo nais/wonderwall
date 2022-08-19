@@ -63,9 +63,8 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	opts := h.CookieOptions.
-		WithExpiresIn(expiresIn).
-		WithPath(h.Path(r))
+	opts := h.CookieOptsPathAware(r).
+		WithExpiresIn(expiresIn)
 	err = cookie.EncryptAndSet(w, cookie.Session, key, opts, h.Crypter)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: setting session cookie: %w", err))

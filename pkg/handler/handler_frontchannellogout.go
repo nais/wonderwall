@@ -13,7 +13,7 @@ func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntry(r)
 
 	// Unconditionally destroy all local references to the session.
-	cookie.Clear(w, cookie.Session, h.CookieOptions.WithPath(h.Path(r)))
+	cookie.Clear(w, cookie.Session, h.CookieOptsPathAware(r))
 
 	if h.Loginstatus.Enabled() {
 		h.Loginstatus.ClearCookie(w, h.CookieOptions)

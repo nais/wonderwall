@@ -61,6 +61,11 @@ func NewHandler(
 	}, nil
 }
 
+func (h *Handler) CookieOptsPathAware(r *http.Request) cookie.Options {
+	path := h.Path(r)
+	return h.CookieOptions.WithPath(path)
+}
+
 func (h *Handler) Path(r *http.Request) string {
 	path, ok := middleware.PathFrom(r.Context())
 	if !ok {
