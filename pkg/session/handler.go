@@ -172,11 +172,6 @@ func (h *Handler) Key(sessionID string) string {
 	return fmt.Sprintf("%s:%s:%s", provider.Name(), client.ClientID(), sessionID)
 }
 
-const (
-	// TODO - move to url_params consts for openid pkg
-	SessionStateParamKey = "session_state"
-)
-
 func NewSessionID(cfg openidconfig.Provider, idToken *openid.IDToken, params url.Values) (string, error) {
 	// 1. check for 'sid' claim in id_token
 	sessionID, err := idToken.GetSidClaim()
@@ -207,9 +202,9 @@ func NewSessionID(cfg openidconfig.Provider, idToken *openid.IDToken, params url
 }
 
 func getSessionStateFrom(params url.Values) (string, error) {
-	sessionState := params.Get(SessionStateParamKey)
+	sessionState := params.Get(openid.SessionState)
 	if len(sessionState) == 0 {
-		return "", fmt.Errorf("missing required '%s' in params", SessionStateParamKey)
+		return "", fmt.Errorf("missing required '%s' in params", openid.SessionState)
 	}
 	return sessionState, nil
 }

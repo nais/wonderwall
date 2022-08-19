@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
+	"github.com/nais/wonderwall/pkg/openid"
 )
 
 type Logout interface {
@@ -33,10 +34,10 @@ func NewLogout(c Client, r *http.Request) (Logout, error) {
 func (in *logout) SingleLogoutURL(idToken string) string {
 	endSessionEndpoint := in.config().Provider().EndSessionEndpointURL()
 	v := endSessionEndpoint.Query()
-	v.Add("post_logout_redirect_uri", in.logoutCallbackURL)
+	v.Add(openid.PostLogoutRedirectURI, in.logoutCallbackURL)
 
 	if len(idToken) > 0 {
-		v.Add("id_token_hint", idToken)
+		v.Add(openid.IDTokenHint, idToken)
 	}
 
 	endSessionEndpoint.RawQuery = v.Encode()

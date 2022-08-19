@@ -19,6 +19,10 @@ import (
 const (
 	LocaleURLParameter        = "locale"
 	SecurityLevelURLParameter = "level"
+
+	ResponseModeQuery = "query"
+
+	CodeChallengeMethodS256 = "S256"
 )
 
 var (
@@ -28,8 +32,8 @@ var (
 
 	// LoginParameterMapping maps incoming login parameters to OpenID Connect parameters
 	LoginParameterMapping = map[string]string{
-		LocaleURLParameter:        "ui_locales",
-		SecurityLevelURLParameter: "acr_values",
+		LocaleURLParameter:        openid.UILocales,
+		SecurityLevelURLParameter: openid.ACRValues,
 	}
 )
 
@@ -141,15 +145,15 @@ func newLoginParameters(c Client) (*loginParameters, error) {
 
 func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, loginstatus loginstatus.Loginstatus) (string, error) {
 	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("nonce", in.Nonce),
-		oauth2.SetAuthURLParam("response_mode", "query"),
-		oauth2.SetAuthURLParam("code_challenge", in.CodeChallenge),
-		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
-		oauth2.SetAuthURLParam("redirect_uri", callbackURL),
+		oauth2.SetAuthURLParam(openid.Nonce, in.Nonce),
+		oauth2.SetAuthURLParam(openid.ResponseMode, ResponseModeQuery),
+		oauth2.SetAuthURLParam(openid.CodeChallenge, in.CodeChallenge),
+		oauth2.SetAuthURLParam(openid.CodeChallengeMethod, CodeChallengeMethodS256),
+		oauth2.SetAuthURLParam(openid.RedirectURI, callbackURL),
 	}
 
 	if loginstatus.NeedsResourceIndicator() {
-		opts = append(opts, oauth2.SetAuthURLParam("resource", loginstatus.ResourceIndicator()))
+		opts = append(opts, oauth2.SetAuthURLParam(openid.Resource, loginstatus.ResourceIndicator()))
 	}
 
 	opts, err := in.withSecurityLevel(r, opts)

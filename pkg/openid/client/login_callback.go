@@ -13,6 +13,10 @@ import (
 	"github.com/nais/wonderwall/pkg/openid/provider"
 )
 
+const (
+	ClientAssertionTypeJwtBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+)
+
 type LoginCallback interface {
 	IdentityProviderError() error
 	StateMismatchError() error
@@ -42,9 +46,9 @@ func NewLoginCallback(c Client, r *http.Request, p provider.Provider, cookie *op
 }
 
 func (in *loginCallback) IdentityProviderError() error {
-	if in.requestParams.Get("error") != "" {
-		oauthError := in.requestParams.Get("error")
-		oauthErrorDescription := in.requestParams.Get("error_description")
+	if in.requestParams.Get(openid.Error) != "" {
+		oauthError := in.requestParams.Get(openid.Error)
+		oauthErrorDescription := in.requestParams.Get(openid.ErrorDescription)
 		return fmt.Errorf("error from identity provider: %s: %s", oauthError, oauthErrorDescription)
 	}
 
@@ -53,7 +57,7 @@ func (in *loginCallback) IdentityProviderError() error {
 
 func (in *loginCallback) StateMismatchError() error {
 	expectedState := in.cookie.State
-	actualState := in.requestParams.Get("state")
+	actualState := in.requestParams.Get(openid.State)
 
 	if len(actualState) <= 0 {
 		return fmt.Errorf("missing state parameter in request (possible csrf)")
@@ -73,12 +77,12 @@ func (in *loginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, erro
 	}
 
 	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("code_verifier", in.cookie.CodeVerifier),
-		oauth2.SetAuthURLParam("client_assertion", clientAssertion),
-		oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
+		oauth2.SetAuthURLParam(openid.CodeVerifier, in.cookie.CodeVerifier),
+		oauth2.SetAuthURLParam(openid.ClientAssertion, clientAssertion),
+		oauth2.SetAuthURLParam(openid.ClientAssertionType, ClientAssertionTypeJwtBearer),
 	}
 
-	code := in.requestParams.Get("code")
+	code := in.requestParams.Get(openid.Code)
 	rawTokens, err := in.client.AuthCodeGrant(ctx, code, opts)
 	if err != nil {
 		return nil, fmt.Errorf("exchanging authorization code for token: %w", err)

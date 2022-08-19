@@ -1,6 +1,10 @@
 package client
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/nais/wonderwall/pkg/openid"
+)
 
 type LogoutFrontchannel interface {
 	// Sid is the session identifier which SHOULD be included as a parameter in the front-channel logout request.
@@ -14,7 +18,7 @@ type logoutFrontchannel struct {
 
 func NewLogoutFrontchannel(r *http.Request) LogoutFrontchannel {
 	params := r.URL.Query()
-	sid := params.Get("sid")
+	sid := params.Get(openid.Sid)
 
 	return &logoutFrontchannel{
 		sid: sid,
