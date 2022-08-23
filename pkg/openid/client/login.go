@@ -63,12 +63,12 @@ func NewLogin(c Client, r *http.Request, loginstatus loginstatus.Loginstatus) (L
 		return nil, fmt.Errorf("generating auth code url: %w", err)
 	}
 
-	redirect := urlpkg.CanonicalRedirect(r)
-	cookie := params.cookie(redirect)
+	referer := urlpkg.CanonicalRedirect(r)
+	cookie := params.cookie(referer, callbackURL)
 
 	return &login{
 		authCodeURL:       url,
-		canonicalRedirect: redirect,
+		canonicalRedirect: referer,
 		cookie:            cookie,
 		params:            params,
 	}, nil
@@ -170,12 +170,13 @@ func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, logi
 	return authCodeUrl, nil
 }
 
-func (in *loginParameters) cookie(redirect string) *openid.LoginCookie {
+func (in *loginParameters) cookie(referer, redirectURI string) *openid.LoginCookie {
 	return &openid.LoginCookie{
 		State:        in.State,
 		Nonce:        in.Nonce,
 		CodeVerifier: in.CodeVerifier,
-		Referer:      redirect,
+		Referer:      referer,
+		RedirectURI:  redirectURI,
 	}
 }
 

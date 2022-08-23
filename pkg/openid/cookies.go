@@ -5,4 +5,5 @@ type LoginCookie struct {
 	Nonce        string `json:"nonce"`
 	CodeVerifier string `json:"code_verifier"`
 	Referer      string `json:"referer"`
+	RedirectURI  string `json:"redirect_uri"`
 }

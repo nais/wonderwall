@@ -80,6 +80,7 @@ func (in *loginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, erro
 		oauth2.SetAuthURLParam(openid.CodeVerifier, in.cookie.CodeVerifier),
 		oauth2.SetAuthURLParam(openid.ClientAssertion, clientAssertion),
 		oauth2.SetAuthURLParam(openid.ClientAssertionType, ClientAssertionTypeJwtBearer),
+		oauth2.SetAuthURLParam(openid.RedirectURI, in.cookie.RedirectURI),
 	}
 
 	code := in.requestParams.Get(openid.Code)

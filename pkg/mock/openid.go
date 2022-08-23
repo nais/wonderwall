@@ -143,6 +143,7 @@ type AuthorizeRequest struct {
 	CodeChallenge string
 	Locale        string
 	Nonce         string
+	RedirectUri   string
 	SessionID     string
 }
 
@@ -263,6 +264,7 @@ func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 		CodeChallenge: codeChallenge,
 		Locale:        locale,
 		Nonce:         nonce,
+		RedirectUri:   redirect,
 		SessionID:     sessionID,
 	}
 
@@ -329,6 +331,25 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 	if len(clientID) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("missing client_assertion"))
+		return
+	}
+
+	redirect := r.PostForm.Get("redirect_uri")
+	if len(redirect) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing redirect_uri"))
+		return
+	}
+
+	if len(auth.RedirectUri) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("redirect_uri was not set in auth code request"))
+		return
+	}
+
+	if auth.RedirectUri != redirect {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("redirect_uri does not match redirect_uri used to acquire code"))
 		return
 	}
 

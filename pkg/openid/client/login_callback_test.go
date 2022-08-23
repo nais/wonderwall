@@ -2,13 +2,12 @@ package client_test
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
+	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/client"
@@ -90,6 +89,16 @@ func TestLoginCallback_RedeemTokens(t *testing.T) {
 		assert.Nil(t, tokens)
 	})
 
+	t.Run("redirect_uri mismatch", func(t *testing.T) {
+		idp, lc := newLoginCallback(t, url)
+		defer idp.Close()
+		idp.ProviderHandler.Codes["some-code"].RedirectUri = "http://not-wonderwall/oauth2/callback"
+
+		tokens, err := lc.RedeemTokens(context.Background())
+		assert.Error(t, err)
+		assert.Nil(t, tokens)
+	})
+
 	t.Run("unexpected audience", func(t *testing.T) {
 		idp, lc := newLoginCallback(t, url)
 		defer idp.Close()
@@ -102,24 +111,29 @@ func TestLoginCallback_RedeemTokens(t *testing.T) {
 }
 
 func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, client.LoginCallback) {
-	cookie := &openid.LoginCookie{
-		State:        "some-state",
-		Nonce:        "some-nonce",
-		CodeVerifier: "some-verifier",
-	}
-
-	req := httptest.NewRequest(http.MethodGet, url, nil)
-
 	idp := mock.NewIdentityProvider(mock.Config())
+	idp.SetIngresses(mock.Ingress)
+	req := idp.GetRequest(url)
 
 	cfg := idp.OpenIDConfig
+
+	redirect, err := urlpkg.CallbackURL(req)
+	assert.NoError(t, err)
 
 	idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
 		"some-code": {
 			ClientID:      idp.OpenIDConfig.Client().ClientID(),
 			CodeChallenge: client.CodeChallenge("some-verifier"),
 			Nonce:         "some-nonce",
+			RedirectUri:   redirect,
 		},
+	}
+
+	cookie := &openid.LoginCookie{
+		State:        "some-state",
+		Nonce:        "some-nonce",
+		CodeVerifier: "some-verifier",
+		RedirectURI:  redirect,
 	}
 
 	loginCallback, err := newTestClientWithConfig(cfg).LoginCallback(req, idp.Provider, cookie)
