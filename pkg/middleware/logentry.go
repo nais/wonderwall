@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -70,13 +71,20 @@ type requestLoggerEntry struct {
 }
 
 func (l *requestLoggerEntry) WithRequestLogFields(r *http.Request) *log.Entry {
+	referer := r.Referer()
+	refererUrl, err := url.Parse(referer)
+	if err == nil {
+		refererUrl.RawQuery = ""
+		referer = refererUrl.String()
+	}
+
 	fields := log.Fields{
 		"request_cookies":    nonEmptyRequestCookies(r),
 		"request_host":       r.Host,
 		"request_method":     r.Method,
 		"request_path":       r.URL.Path,
 		"request_protocol":   r.Proto,
-		"request_referer":    r.Referer(),
+		"request_referer":    referer,
 		"request_user_agent": r.UserAgent(),
 	}
 
