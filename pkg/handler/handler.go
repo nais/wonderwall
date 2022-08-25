@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httputil"
+	"time"
 
 	"github.com/nais/wonderwall/pkg/autologin"
 	"github.com/nais/wonderwall/pkg/config"
@@ -35,7 +36,6 @@ func NewHandler(
 	cfg *config.Config,
 	openidConfig openidconfig.Config,
 	crypter crypto.Crypter,
-	sessionHandler *session.Handler,
 ) (*Handler, error) {
 	openidProvider, err := provider.NewProvider(ctx, openidConfig)
 	if err != nil {
@@ -47,13 +47,25 @@ func NewHandler(
 		return nil, err
 	}
 
+	httpClient := &http.Client{
+		Timeout: time.Second * 10,
+	}
+
+	openidClient := client.NewClient(openidConfig)
+	openidClient.SetHttpClient(httpClient)
+
+	sessionHandler, err := session.NewHandler(cfg, openidConfig, crypter, openidClient)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Handler{
 		AutoLogin:     autoLogin,
-		Client:        client.NewClient(openidConfig),
+		Client:        openidClient,
 		Config:        cfg,
 		CookieOptions: cookie.DefaultOptions(),
 		Crypter:       crypter,
-		Loginstatus:   loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient),
+		Loginstatus:   loginstatus.NewClient(cfg.Loginstatus, httpClient),
 		OpenIDConfig:  openidConfig,
 		Provider:      openidProvider,
 		ReverseProxy:  newReverseProxy(cfg.UpstreamHost),

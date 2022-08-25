@@ -2,8 +2,12 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,6 +24,8 @@ type Client interface {
 	config() openidconfig.Config
 	oAuth2Config() *oauth2.Config
 
+	SetHttpClient(c *http.Client)
+
 	Login(r *http.Request, loginstatus loginstatus.Loginstatus) (Login, error)
 	LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) (LoginCallback, error)
 	Logout(r *http.Request) (Logout, error)
@@ -28,11 +34,12 @@ type Client interface {
 
 	AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error)
 	MakeAssertion(expiration time.Duration) (string, error)
-	RefreshGrant(r *http.Request) error
+	RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error)
 }
 
 type client struct {
 	cfg          openidconfig.Config
+	httpClient   *http.Client
 	oauth2Config *oauth2.Config
 }
 
@@ -49,6 +56,7 @@ func NewClient(cfg openidconfig.Config) Client {
 
 	return &client{
 		cfg:          cfg,
+		httpClient:   http.DefaultClient,
 		oauth2Config: oauth2Config,
 	}
 }
@@ -59,6 +67,10 @@ func (c *client) config() openidconfig.Config {
 
 func (c *client) oAuth2Config() *oauth2.Config {
 	return c.oauth2Config
+}
+
+func (c *client) SetHttpClient(httpClient *http.Client) {
+	c.httpClient = httpClient
 }
 
 func (c *client) Login(r *http.Request, loginstatus loginstatus.Loginstatus) (Login, error) {
@@ -132,7 +144,50 @@ func (c *client) MakeAssertion(expiration time.Duration) (string, error) {
 	return string(encoded), nil
 }
 
-func (c *client) RefreshGrant(r *http.Request) error {
-	//TODO implement me
-	panic("implement me")
+func (c *client) RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error) {
+	assertion, err := c.MakeAssertion(30 * time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("creating client assertion: %w", err)
+	}
+
+	v := url.Values{}
+	v.Set(openid.GrantType, openid.RefreshTokenValue)
+	v.Set(openid.RefreshToken, refreshToken)
+	v.Set(openid.ClientID, c.config().Client().ClientID())
+	v.Set(openid.ClientAssertion, assertion)
+	v.Set(openid.ClientAssertionType, openid.ClientAssertionTypeJwtBearer)
+
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, c.config().Provider().TokenEndpoint(), strings.NewReader(v.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := c.httpClient.Do(r)
+	if err != nil {
+		return nil, fmt.Errorf("performing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading server response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+		var errorResponse openid.TokenErrorResponse
+		if err := json.Unmarshal(body, &errorResponse); err != nil {
+			return nil, fmt.Errorf("client error: HTTP %d: unmarshalling error response: %w", resp.StatusCode, err)
+		}
+		return nil, fmt.Errorf("client error: HTTP %d: %s: %s", resp.StatusCode, errorResponse.Error, errorResponse.ErrorDescription)
+	} else if resp.StatusCode >= 500 {
+		return nil, fmt.Errorf("server error: HTTP %d: %s", resp.StatusCode, body)
+	}
+
+	var tokenResponse openid.TokenResponse
+	if err := json.Unmarshal(body, &tokenResponse); err != nil {
+		return nil, fmt.Errorf("unmarshalling token response: %w", err)
+	}
+
+	return &tokenResponse, nil
 }

@@ -13,10 +13,6 @@ import (
 	"github.com/nais/wonderwall/pkg/openid/provider"
 )
 
-const (
-	ClientAssertionTypeJwtBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
-)
-
 type LoginCallback interface {
 	IdentityProviderError() error
 	StateMismatchError() error
@@ -79,7 +75,7 @@ func (in *loginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, erro
 	opts := []oauth2.AuthCodeOption{
 		oauth2.SetAuthURLParam(openid.CodeVerifier, in.cookie.CodeVerifier),
 		oauth2.SetAuthURLParam(openid.ClientAssertion, clientAssertion),
-		oauth2.SetAuthURLParam(openid.ClientAssertionType, ClientAssertionTypeJwtBearer),
+		oauth2.SetAuthURLParam(openid.ClientAssertionType, openid.ClientAssertionTypeJwtBearer),
 		oauth2.SetAuthURLParam(openid.RedirectURI, in.cookie.RedirectURI),
 	}
 

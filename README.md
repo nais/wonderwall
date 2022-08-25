@@ -81,7 +81,7 @@ The following flags are available:
 --bind-address string                      Listen address for public connections. (default "127.0.0.1:3000")
 --encryption-key string                    Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
 --error-redirect-uri string                URI to redirect user to on errors for custom error handling.
---ingress string                           Comma separated list of ingresses used to access the main application.
+--ingress strings                          Comma separated list of ingresses used to access the main application.
 --log-format string                        Log format, either 'json' or 'text'. (default "json")
 --log-level string                         Logging verbosity level. (default "info")
 --loginstatus.cookie-domain string         The domain that the cookie should be set for.
@@ -102,9 +102,12 @@ The following flags are available:
 --redis.password string                    Password for Redis.
 --redis.tls                                Whether or not to use TLS for connecting to Redis. (default true)
 --redis.username string                    Username for Redis.
---session-max-lifetime duration            Max lifetime for user sessions. (default 1h0m0s)
+--session.max-lifetime duration            Max lifetime for user sessions. (default 1h0m0s)
+--session.refresh                          Automatically refresh the tokens for user sessions if they are expired, as long as the session exists (indicated by the session max lifetime).
 --upstream-host string                     Address of upstream host. (default "127.0.0.1:8080")
 ```
+
+Boolean flags/options are by default set to `false` unless noted otherwise.
 
 At minimum, the following configuration must be provided:
 

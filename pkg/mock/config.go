@@ -23,7 +23,9 @@ func Config() *config.Config {
 			Scopes:                []string{"some-scope"},
 			UILocales:             "nb",
 		},
-		SessionMaxLifetime: time.Hour,
+		Session: config.Session{
+			MaxLifetime: time.Hour,
+		},
 	}
 }
 

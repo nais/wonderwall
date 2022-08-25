@@ -20,6 +20,7 @@ type Store interface {
 	Write(ctx context.Context, key string, value *EncryptedData, expiration time.Duration) error
 	Read(ctx context.Context, key string) (*EncryptedData, error)
 	Delete(ctx context.Context, keys ...string) error
+	Update(ctx context.Context, key string, value *EncryptedData) error
 }
 
 func NewStore(cfg *config.Config) (Store, error) {

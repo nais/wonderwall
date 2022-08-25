@@ -17,13 +17,13 @@ type Config struct {
 	LogLevel           string `json:"log-level"`
 	MetricsBindAddress string `json:"metrics-bind-address"`
 
-	AutoLogin            bool          `json:"auto-login"`
-	AutoLoginIgnorePaths []string      `json:"auto-login-ignore-paths"`
-	EncryptionKey        string        `json:"encryption-key"`
-	ErrorRedirectURI     string        `json:"error-redirect-uri"`
-	Ingresses            []string      `json:"ingress"`
-	SessionMaxLifetime   time.Duration `json:"session-max-lifetime"`
-	UpstreamHost         string        `json:"upstream-host"`
+	AutoLogin            bool     `json:"auto-login"`
+	AutoLoginIgnorePaths []string `json:"auto-login-ignore-paths"`
+	EncryptionKey        string   `json:"encryption-key"`
+	ErrorRedirectURI     string   `json:"error-redirect-uri"`
+	Ingresses            []string `json:"ingress"`
+	Session              Session  `json:"session"`
+	UpstreamHost         string   `json:"upstream-host"`
 
 	OpenID OpenID `json:"openid"`
 	Redis  Redis  `json:"redis"`
@@ -39,6 +39,11 @@ type Loginstatus struct {
 	TokenURL          string `json:"token-url"`
 }
 
+type Session struct {
+	MaxLifetime time.Duration `json:"max-lifetime"`
+	Refresh     bool          `json:"refresh"`
+}
+
 const (
 	BindAddress        = "bind-address"
 	LogFormat          = "log-format"
@@ -50,8 +55,10 @@ const (
 	EncryptionKey        = "encryption-key"
 	ErrorRedirectURI     = "error-redirect-uri"
 	Ingress              = "ingress"
-	SessionMaxLifetime   = "session-max-lifetime"
 	UpstreamHost         = "upstream-host"
+
+	SessionMaxLifetime = "session.max-lifetime"
+	SessionRefresh     = "session.refresh"
 
 	LoginstatusEnabled           = "loginstatus.enabled"
 	LoginstatusCookieDomain      = "loginstatus.cookie-domain"
@@ -74,6 +81,7 @@ func Initialize() (*Config, error) {
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
 	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
+	flag.Bool(SessionRefresh, false, "Automatically refresh the tokens for user sessions if they are expired, as long as the session exists (indicated by the session max lifetime).")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 
 	flag.Bool(LoginstatusEnabled, false, "Feature toggle for Loginstatus, a separate service that should provide an opaque token to indicate that a user has been authenticated previously, e.g. by another application in another subdomain.")

@@ -7,6 +7,7 @@ import (
 
 const (
 	OpenID           = "openid"
+	OfflineAccess    = "offline_access"
 	AzureAPITemplate = "api://%s/.default"
 )
 
@@ -22,6 +23,10 @@ func (s Scopes) WithAdditional(scopes ...string) Scopes {
 
 func (s Scopes) WithAzureScope(clientID string) Scopes {
 	return append(s, fmt.Sprintf(AzureAPITemplate, clientID))
+}
+
+func (s Scopes) WithOfflineAccess() Scopes {
+	return append(s, OfflineAccess)
 }
 
 func DefaultScopes() Scopes {

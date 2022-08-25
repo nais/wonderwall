@@ -132,6 +132,7 @@ func (in *client) Azure() Client {
 func (in *azure) Scopes() scopes.Scopes {
 	return scopes.DefaultScopes().
 		WithAzureScope(in.OpenID.ClientID).
+		WithOfflineAccess().
 		WithAdditional(in.OpenID.Scopes...)
 }
 

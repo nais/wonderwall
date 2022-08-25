@@ -13,54 +13,59 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
+	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
+	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	retrypkg "github.com/nais/wonderwall/pkg/retry"
 	"github.com/nais/wonderwall/pkg/strings"
 )
 
+var (
+	CookieNotFoundError = errors.New("cookie not found")
+)
+
 type Handler struct {
-	cfg       *config.Config
-	openidCfg openidconfig.Config
-	crypter   crypto.Crypter
-	store     Store
+	client         openidclient.Client
+	crypter        crypto.Crypter
+	openidCfg      openidconfig.Config
+	refreshEnabled bool
+	store          Store
 }
 
-func NewHandler(cfg *config.Config, openidCfg openidconfig.Config, crypter crypto.Crypter) (*Handler, error) {
+func NewHandler(cfg *config.Config, openidCfg openidconfig.Config, crypter crypto.Crypter, openidClient openidclient.Client) (*Handler, error) {
 	store, err := NewStore(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Handler{
-		cfg:       cfg,
-		crypter:   crypter,
-		openidCfg: openidCfg,
-		store:     store,
+		crypter:        crypter,
+		client:         openidClient,
+		openidCfg:      openidCfg,
+		store:          store,
+		refreshEnabled: cfg.Session.Refresh,
 	}, nil
 }
 
 // Create creates and stores a session in the Store, and returns the session's key.
-func (h *Handler) Create(r *http.Request, tokens *openid.Tokens, expiresIn time.Duration) (string, error) {
+func (h *Handler) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime time.Duration) (string, error) {
 	externalSessionID, err := h.IDOrGenerate(r, tokens)
 	if err != nil {
 		return "", fmt.Errorf("generating session ID: %w", err)
 	}
 
 	key := h.Key(externalSessionID)
-	metadata := NewMetadata(time.Now().Add(expiresIn))
+	tokenExpiresIn := tokens.Expiry.Sub(time.Now())
+	metadata := NewMetadata(tokenExpiresIn, sessionLifetime)
 	encrypted, err := NewData(externalSessionID, tokens, metadata).Encrypt(h.crypter)
 	if err != nil {
 		return "", fmt.Errorf("encrypting session data: %w", err)
 	}
 
 	retryable := func(ctx context.Context) error {
-		err = h.store.Write(r.Context(), key, encrypted, expiresIn)
-		if err != nil {
-			return retry.RetryableError(err)
-		}
-
-		return nil
+		err = h.store.Write(r.Context(), key, encrypted, sessionLifetime)
+		return retry.RetryableError(err)
 	}
 
 	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
@@ -99,21 +104,12 @@ func (h *Handler) destroyForKey(r *http.Request, key string) error {
 
 // Get returns the session data for a given http.Request, matching by the session cookie.
 func (h *Handler) Get(r *http.Request) (*Data, error) {
-	key, err := cookie.GetDecrypted(r, cookie.Session, h.crypter)
+	key, err := h.GetKey(r)
 	if err != nil {
 		return nil, fmt.Errorf("no session cookie: %w", err)
 	}
 
-	sessionData, err := h.GetForKey(r, key)
-	if err == nil {
-		return sessionData, nil
-	}
-
-	if errors.Is(err, KeyNotFoundError) {
-		return nil, fmt.Errorf("session not found: %w", err)
-	}
-
-	return nil, err
+	return h.GetForKey(r, key)
 }
 
 // GetForID returns the session data for a given session ID.
@@ -152,6 +148,42 @@ func (h *Handler) GetForKey(r *http.Request, key string) (*Data, error) {
 	return sessionData, nil
 }
 
+// GetKey extracts the session Key from the session cookie found in the request, if any.
+func (h *Handler) GetKey(r *http.Request) (string, error) {
+	key, err := cookie.GetDecrypted(r, cookie.Session, h.crypter)
+	if err != nil {
+		return "", fmt.Errorf("%w: %+v", CookieNotFoundError, err)
+	}
+
+	return key, nil
+}
+
+// GetOrRefresh returns the session data, performing refreshes if enabled and necessary.
+func (h *Handler) GetOrRefresh(r *http.Request) (*Data, error) {
+	key, err := h.GetKey(r)
+	if err != nil {
+		return nil, err
+	}
+
+	sessionData, err := h.GetForKey(r, key)
+	if err != nil {
+		return nil, err
+	}
+
+	if !h.refreshEnabled || !sessionData.HasRefreshToken() || !sessionData.Metadata.ShouldRefresh() {
+		return sessionData, nil
+	}
+
+	refreshed, err := h.Refresh(r, key, sessionData)
+	if err != nil {
+		mw.LogEntryFrom(r).Warnf("session: could not refresh tokens, falling back to existing token: %+v", err)
+	} else {
+		sessionData = refreshed
+	}
+
+	return sessionData, nil
+}
+
 // IDOrGenerate returns the session ID, derived from the given request or id_token; e.g. `sid` or `session_state`.
 // If none are present, a generated ID is returned.
 func (h *Handler) IDOrGenerate(r *http.Request, tokens *openid.Tokens) (string, error) {
@@ -170,6 +202,48 @@ func (h *Handler) Key(sessionID string) string {
 	client := h.openidCfg.Client()
 
 	return fmt.Sprintf("%s:%s:%s", provider.Name(), client.ClientID(), sessionID)
+}
+
+// Refresh refreshes the user's session and returns the updated session data.
+func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error) {
+	if !h.refreshEnabled || !data.HasRefreshToken() || data.Metadata.RefreshOnCooldown() {
+		return data, nil
+	}
+
+	logger := mw.LogEntryFrom(r)
+	logger.Info("session: refreshing token...")
+
+	var resp *openid.TokenResponse
+	var err error
+
+	refresh := func(ctx context.Context) error {
+		resp, err = h.client.RefreshGrant(r.Context(), data.RefreshToken)
+		return retry.RetryableError(err)
+	}
+	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, refresh); err != nil {
+		return nil, fmt.Errorf("performing refresh: %w", err)
+	}
+
+	data.AccessToken = resp.AccessToken
+	data.RefreshToken = resp.RefreshToken
+	data.Metadata.Refresh(resp.ExpiresIn)
+
+	encrypted, err := data.Encrypt(h.crypter)
+	if err != nil {
+		return nil, fmt.Errorf("encrypting session data: %w", err)
+	}
+
+	update := func(ctx context.Context) error {
+		err = h.store.Update(r.Context(), key, encrypted)
+		return retry.RetryableError(err)
+	}
+
+	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, update); err != nil {
+		return nil, fmt.Errorf("updating in store: %w", err)
+	}
+
+	logger.Info("session: successfully refreshed")
+	return data, nil
 }
 
 func NewSessionID(cfg openidconfig.Provider, idToken *openid.IDToken, params url.Values) (string, error) {

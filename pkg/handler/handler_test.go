@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,12 +11,14 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/mock"
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 func TestHandler_Login(t *testing.T) {
@@ -122,10 +125,8 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 		return data.ExternalSessionID
 	}
 
-	frontchannelLogoutURL, err := url.Parse(idp.RelyingPartyServer.URL)
+	frontchannelLogoutURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/logout/frontchannel")
 	assert.NoError(t, err)
-
-	frontchannelLogoutURL.Path = "/oauth2/logout/frontchannel"
 
 	req := idp.GetRequest(frontchannelLogoutURL.String())
 
@@ -152,6 +153,161 @@ func TestHandler_SessionStateRequired(t *testing.T) {
 	params := resp.Location.Query()
 	sessionState := params.Get("session_state")
 	assert.NotEmpty(t, sessionState)
+}
+
+func TestHandler_SessionInfo(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.Refresh = true
+
+	idp := mock.NewIdentityProvider(cfg)
+	idp.ProviderHandler.TokenDuration = 5 * time.Minute
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+
+	resp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var data session.MetadataVerbose
+	err := json.Unmarshal([]byte(resp.Body), &data)
+	assert.NoError(t, err)
+
+	allowedSkew := 5 * time.Second
+	assert.WithinDuration(t, time.Now(), data.SessionCreatedAt, allowedSkew)
+	assert.WithinDuration(t, time.Now().Add(cfg.Session.MaxLifetime), data.SessionEndsAt, allowedSkew)
+	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), data.TokensExpireAt, allowedSkew)
+	assert.WithinDuration(t, time.Now(), data.TokensRefreshedAt, allowedSkew)
+
+	sessionEndDuration := time.Duration(data.SessionEndsInSeconds) * time.Second
+	// 1 second < time until session ends <= configured max session lifetime
+	assert.LessOrEqual(t, sessionEndDuration, cfg.Session.MaxLifetime)
+	assert.Greater(t, sessionEndDuration, time.Second)
+
+	tokenExpiryDuration := time.Duration(data.TokensExpireInSeconds) * time.Second
+	// 1 second < time until token expires <= max duration for tokens from IDP
+	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
+	assert.Greater(t, tokenExpiryDuration, time.Second)
+
+	// 1 second < next token refresh <= seconds until token expires
+	assert.LessOrEqual(t, data.TokensNextRefreshInSeconds, data.TokensExpireInSeconds)
+	assert.Greater(t, data.TokensNextRefreshInSeconds, int64(1))
+
+	assert.True(t, data.TokensRefreshCooldown)
+	// 1 second < refresh cooldown <= minimum refresh interval
+	assert.LessOrEqual(t, data.TokensRefreshCooldownSeconds, session.RefreshMinInterval)
+	assert.Greater(t, data.TokensRefreshCooldownSeconds, int64(1))
+}
+
+func TestHandler_SessionInfo_Disabled(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.Refresh = false
+
+	idp := mock.NewIdentityProvider(cfg)
+	idp.ProviderHandler.TokenDuration = 5 * time.Second
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+
+	resp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+func TestHandler_SessionRefresh(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.Refresh = true
+
+	idp := mock.NewIdentityProvider(cfg)
+	idp.ProviderHandler.TokenDuration = 5 * time.Second
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+
+	// get initial session info
+	resp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var data session.MetadataVerbose
+	err := json.Unmarshal([]byte(resp.Body), &data)
+	assert.NoError(t, err)
+
+	// wait until refresh cooldown has reached zero before refresh
+	func() {
+		timeout := time.After(5 * time.Second)
+		ticker := time.Tick(500 * time.Millisecond)
+		for {
+			select {
+			case <-timeout:
+				assert.Fail(t, "refresh cooldown timer exceeded timeout")
+			case <-ticker:
+				resp := sessionInfo(t, idp, rpClient)
+				assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+				var temp session.MetadataVerbose
+				err = json.Unmarshal([]byte(resp.Body), &temp)
+				assert.NoError(t, err)
+
+				if !temp.TokensRefreshCooldown {
+					return
+				}
+			}
+		}
+	}()
+
+	resp = sessionRefresh(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var refreshedData session.MetadataVerbose
+	err = json.Unmarshal([]byte(resp.Body), &refreshedData)
+	assert.NoError(t, err)
+
+	// session create and end times should be unchanged
+	assert.WithinDuration(t, data.SessionCreatedAt, refreshedData.SessionCreatedAt, 0)
+	assert.WithinDuration(t, data.SessionEndsAt, refreshedData.SessionEndsAt, 0)
+
+	// token expiration and refresh times should be later than before
+	assert.True(t, refreshedData.TokensExpireAt.After(data.TokensExpireAt))
+	assert.True(t, refreshedData.TokensRefreshedAt.After(data.TokensRefreshedAt))
+
+	allowedSkew := 5 * time.Second
+	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), refreshedData.TokensExpireAt, allowedSkew)
+	assert.WithinDuration(t, time.Now(), refreshedData.TokensRefreshedAt, allowedSkew)
+
+	sessionEndDuration := time.Duration(refreshedData.SessionEndsInSeconds) * time.Second
+	// 1 second < time until session ends <= configured max session lifetime
+	assert.LessOrEqual(t, sessionEndDuration, cfg.Session.MaxLifetime)
+	assert.Greater(t, sessionEndDuration, time.Second)
+
+	tokenExpiryDuration := time.Duration(refreshedData.TokensExpireInSeconds) * time.Second
+	// 1 second < time until token expires <= max duration for tokens from IDP
+	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
+	assert.Greater(t, tokenExpiryDuration, time.Second)
+
+	// 1 second < next token refresh <= seconds until token expires
+	assert.LessOrEqual(t, refreshedData.TokensNextRefreshInSeconds, refreshedData.TokensExpireInSeconds)
+	assert.Greater(t, refreshedData.TokensNextRefreshInSeconds, int64(1))
+
+	assert.True(t, refreshedData.TokensRefreshCooldown)
+	// 1 second < refresh cooldown <= minimum refresh interval
+	assert.LessOrEqual(t, refreshedData.TokensRefreshCooldownSeconds, session.RefreshMinInterval)
+	assert.Greater(t, refreshedData.TokensRefreshCooldownSeconds, int64(1))
+}
+
+func TestHandler_SessionRefresh_Disabled(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.Refresh = false
+
+	idp := mock.NewIdentityProvider(cfg)
+	idp.ProviderHandler.TokenDuration = 5 * time.Second
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+
+	resp := sessionRefresh(t, idp, rpClient)
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
 
 func TestHandler_Default(t *testing.T) {
@@ -411,6 +567,20 @@ func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)
 
 	assert.Nil(t, sessionCookie)
+}
+
+func sessionInfo(t *testing.T, idp *mock.IdentityProvider, rpClient *http.Client) response {
+	sessionInfoURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/session")
+	assert.NoError(t, err)
+
+	return get(t, rpClient, sessionInfoURL.String())
+}
+
+func sessionRefresh(t *testing.T, idp *mock.IdentityProvider, rpClient *http.Client) response {
+	sessionRefreshURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/session/refresh")
+	assert.NoError(t, err)
+
+	return get(t, rpClient, sessionRefreshURL.String())
 }
 
 type response struct {

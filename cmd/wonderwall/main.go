@@ -13,7 +13,6 @@ import (
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/server"
-	"github.com/nais/wonderwall/pkg/session"
 )
 
 func run() error {
@@ -36,12 +35,7 @@ func run() error {
 	defer cancel()
 
 	crypt := crypto.NewCrypter(key)
-	sessionHandler, err := session.NewHandler(cfg, openidConfig, crypt)
-	if err != nil {
-		return err
-	}
-
-	h, err := handler.NewHandler(ctx, cfg, openidConfig, crypt, sessionHandler)
+	h, err := handler.NewHandler(ctx, cfg, openidConfig, crypt)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}

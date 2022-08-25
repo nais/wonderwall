@@ -20,11 +20,11 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
 	handlerpkg "github.com/nais/wonderwall/pkg/handler"
+	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	scopespkg "github.com/nais/wonderwall/pkg/openid/scopes"
 	"github.com/nais/wonderwall/pkg/router"
-	"github.com/nais/wonderwall/pkg/session"
 )
 
 type IdentityProvider struct {
@@ -82,13 +82,9 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	openidConfig.TestProvider.SetTokenEndpoint(server.URL + "/token")
 
 	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
-	sessionHandler, err := session.NewHandler(cfg, openidConfig, crypter)
-	if err != nil {
-		panic(err)
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	rpHandler, err := handlerpkg.NewHandler(ctx, cfg, openidConfig, crypter, sessionHandler)
+	rpHandler, err := handlerpkg.NewHandler(ctx, cfg, openidConfig, crypter)
 	if err != nil {
 		panic(err)
 	}
@@ -98,7 +94,6 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 
 	// reconfigure client after Relying Party server is started
 	openidConfig.TestClient.SetIngresses(rpServer.URL)
-	rpHandler.Client = openidclient.NewClient(openidConfig)
 
 	return &IdentityProvider{
 		cancelFunc:          cancel,
@@ -122,18 +117,22 @@ func identityProviderRouter(ip *IdentityProviderHandler) chi.Router {
 }
 
 type IdentityProviderHandler struct {
-	Codes    map[string]*AuthorizeRequest
-	Config   openidconfig.Config
-	Provider *TestProvider
-	Sessions map[string]string
+	Codes         map[string]*AuthorizeRequest
+	Config        openidconfig.Config
+	Provider      *TestProvider
+	Sessions      map[string]string
+	RefreshTokens map[string]*RefreshTokenData
+	TokenDuration time.Duration
 }
 
 func newIdentityProviderHandler(provider *TestProvider, cfg openidconfig.Config) *IdentityProviderHandler {
 	return &IdentityProviderHandler{
-		Codes:    make(map[string]*AuthorizeRequest),
-		Config:   cfg,
-		Provider: provider,
-		Sessions: make(map[string]string),
+		Codes:         make(map[string]*AuthorizeRequest),
+		Config:        cfg,
+		Provider:      provider,
+		Sessions:      make(map[string]string),
+		RefreshTokens: make(map[string]*RefreshTokenData),
+		TokenDuration: time.Minute,
 	}
 }
 
@@ -145,6 +144,13 @@ type AuthorizeRequest struct {
 	Nonce         string
 	RedirectUri   string
 	SessionID     string
+}
+
+type RefreshTokenData struct {
+	ClientID        string
+	RefreshToken    string
+	OriginalIDToken jwt.Token
+	SessionID       string
 }
 
 type tokenResponse struct {
@@ -299,8 +305,23 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	code := r.PostForm.Get("code")
+	grantType := r.PostForm.Get(openid.GrantType)
+	switch grantType {
+	case "authorization_code":
+		ip.TokenCodeGrant(w, r)
+		return
+	case "refresh_token":
+		ip.RefreshTokenGrant(w, r)
+		return
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("unsupported grant_type: " + grantType))
+		return
+	}
+}
 
+func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http.Request) {
+	code := r.PostForm.Get("code")
 	if len(code) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("missing code"))
@@ -314,23 +335,9 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	clientID := r.PostForm.Get("client_id")
-	if len(clientID) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("missing client_id"))
-		return
-	}
-
-	if auth.ClientID != clientID {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("client_id does not match client_id used to acquire code"))
-		return
-	}
-
-	clientAssertion := r.PostForm.Get("client_assertion")
-	if len(clientID) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("missing client_assertion"))
+	err := ip.validateClientAuthentication(w, r, auth.ClientID)
+	if err != nil {
+		w.Write([]byte(err.Error()))
 		return
 	}
 
@@ -353,34 +360,6 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	clientJwk := ip.Config.Client().ClientJWK()
-	clientJwkSet := jwk.NewSet()
-	clientJwkSet.AddKey(clientJwk)
-	publicClientJwkSet, err := jwk.PublicSetOf(clientJwkSet)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to create public client jwk set"))
-		return
-	}
-
-	opts := []jwt.ParseOption{
-		jwt.WithValidate(true),
-		jwt.WithKeySet(publicClientJwkSet),
-		jwt.WithIssuer(ip.Config.Client().ClientID()),
-		jwt.WithSubject(ip.Config.Client().ClientID()),
-		jwt.WithAudience(ip.Config.Provider().Issuer()),
-	}
-	_, err = jwt.Parse([]byte(clientAssertion), opts...)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		v := url.Values{}
-		v.Set("error", "Unauthenticated")
-		v.Set("error_description", "invalid client assertion")
-		v.Encode()
-		w.Write([]byte(fmt.Sprintf(v.Encode()+"%+v", err)))
-		return
-	}
-
 	codeVerifier := r.PostForm.Get("code_verifier")
 	if len(codeVerifier) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
@@ -396,9 +375,8 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	expires := int64(1200)
 	iat := time.Now().Truncate(time.Second)
-	exp := iat.Add(time.Duration(expires) * time.Second)
+	exp := iat.Add(ip.TokenDuration)
 	sub := uuid.New().String()
 
 	accessToken := jwt.New()
@@ -438,17 +416,136 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	refreshToken := code + "some-refresh-token"
+
 	token := &tokenResponse{
 		AccessToken:  signedAccessToken,
 		TokenType:    "Bearer",
 		IDToken:      signedIdToken,
-		RefreshToken: code + "some-refresh-token",
-		ExpiresIn:    expires,
+		RefreshToken: refreshToken,
+		ExpiresIn:    int64(ip.TokenDuration.Seconds()),
+	}
+
+	ip.RefreshTokens[refreshToken] = &RefreshTokenData{
+		ClientID:        auth.ClientID,
+		RefreshToken:    refreshToken,
+		OriginalIDToken: idToken,
+		SessionID:       auth.SessionID,
 	}
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(token)
+}
+
+func (ip *IdentityProviderHandler) RefreshTokenGrant(w http.ResponseWriter, r *http.Request) {
+	refreshToken := r.PostForm.Get("refresh_token")
+	if len(refreshToken) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing refresh_token"))
+		return
+	}
+
+	data, ok := ip.RefreshTokens[refreshToken]
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("no matching refresh_token"))
+		return
+	}
+
+	err := ip.validateClientAuthentication(w, r, data.ClientID)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	iat := time.Now().Truncate(time.Second)
+	exp := iat.Add(ip.TokenDuration)
+	sub := data.OriginalIDToken.Subject()
+
+	accessToken := jwt.New()
+	accessToken.Set("sub", sub)
+	accessToken.Set("iss", ip.Config.Provider().Issuer())
+	accessToken.Set("iat", iat.Unix())
+	accessToken.Set("exp", exp.Unix())
+	accessToken.Set("jti", uuid.NewString())
+	signedAccessToken, err := ip.signToken(accessToken)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("could not sign access token: " + err.Error()))
+		return
+	}
+
+	// remove provided refresh_token as it is now used
+	delete(ip.RefreshTokens, refreshToken)
+
+	// generate and store a new refresh_token
+	refreshToken = uuid.NewString() + "some-new-refresh-token"
+
+	token := &tokenResponse{
+		AccessToken:  signedAccessToken,
+		TokenType:    "Bearer",
+		RefreshToken: refreshToken,
+		ExpiresIn:    int64(ip.TokenDuration.Seconds()),
+	}
+
+	ip.RefreshTokens[refreshToken] = &RefreshTokenData{
+		ClientID:        data.ClientID,
+		RefreshToken:    refreshToken,
+		OriginalIDToken: data.OriginalIDToken,
+		SessionID:       data.SessionID,
+	}
+
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(token)
+}
+
+func (ip *IdentityProviderHandler) validateClientAuthentication(w http.ResponseWriter, r *http.Request, expectedClientID string) error {
+	clientID := r.PostForm.Get("client_id")
+	if len(clientID) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return fmt.Errorf("missing client_id")
+	}
+
+	if expectedClientID != clientID {
+		w.WriteHeader(http.StatusBadRequest)
+		return fmt.Errorf("client_id does not match client_id for original authorization")
+	}
+
+	clientAssertion := r.PostForm.Get("client_assertion")
+	if len(clientAssertion) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return fmt.Errorf("missing client_assertion")
+	}
+
+	clientJwk := ip.Config.Client().ClientJWK()
+	clientJwkSet := jwk.NewSet()
+	clientJwkSet.AddKey(clientJwk)
+	publicClientJwkSet, err := jwk.PublicSetOf(clientJwkSet)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return fmt.Errorf("failed to create public client jwk set")
+	}
+
+	opts := []jwt.ParseOption{
+		jwt.WithValidate(true),
+		jwt.WithKeySet(publicClientJwkSet),
+		jwt.WithIssuer(ip.Config.Client().ClientID()),
+		jwt.WithSubject(ip.Config.Client().ClientID()),
+		jwt.WithAudience(ip.Config.Provider().Issuer()),
+	}
+	_, err = jwt.Parse([]byte(clientAssertion), opts...)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		v := url.Values{}
+		v.Set("error", "Unauthenticated")
+		v.Set("error_description", "invalid client assertion")
+		v.Encode()
+		return fmt.Errorf("%s: %+v", v.Encode(), err)
+	}
+
+	return nil
 }
 
 func (ip *IdentityProviderHandler) EndSession(w http.ResponseWriter, r *http.Request) {

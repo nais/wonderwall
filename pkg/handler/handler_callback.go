@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
@@ -56,15 +55,16 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expiresIn := h.getSessionLifetime(tokens.Expiry)
-	key, err := h.Sessions.Create(r, tokens, expiresIn)
+	sessionLifetime := h.Config.Session.MaxLifetime
+
+	key, err := h.Sessions.Create(r, tokens, sessionLifetime)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return
 	}
 
 	opts := h.CookieOptsPathAware(r).
-		WithExpiresIn(expiresIn)
+		WithExpiresIn(sessionLifetime)
 	err = cookie.EncryptAndSet(w, cookie.Session, key, opts, h.Crypter)
 	if err != nil {
 		h.InternalError(w, r, fmt.Errorf("callback: setting session cookie: %w", err))
@@ -92,11 +92,7 @@ func (h *Handler) redeemValidTokens(r *http.Request, loginCallback client.LoginC
 
 	retryable := func(ctx context.Context) error {
 		tokens, err = loginCallback.RedeemTokens(ctx)
-		if err != nil {
-			return retry.RetryableError(err)
-		}
-
-		return nil
+		return retry.RetryableError(err)
 	}
 
 	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
@@ -106,18 +102,6 @@ func (h *Handler) redeemValidTokens(r *http.Request, loginCallback client.LoginC
 	return tokens, nil
 }
 
-func (h *Handler) getSessionLifetime(tokenExpiry time.Time) time.Duration {
-	defaultSessionLifetime := h.Config.SessionMaxLifetime
-
-	tokenDuration := tokenExpiry.Sub(time.Now())
-
-	if tokenDuration <= defaultSessionLifetime {
-		return tokenDuration
-	}
-
-	return defaultSessionLifetime
-}
-
 func (h *Handler) getLoginstatusToken(r *http.Request, tokens *openid.Tokens) (*loginstatus.TokenResponse, error) {
 	var tokenResponse *loginstatus.TokenResponse
 
@@ -125,11 +109,7 @@ func (h *Handler) getLoginstatusToken(r *http.Request, tokens *openid.Tokens) (*
 		var err error
 
 		tokenResponse, err = h.Loginstatus.ExchangeToken(ctx, tokens.AccessToken)
-		if err != nil {
-			return retry.RetryableError(err)
-		}
-
-		return nil
+		return retry.RetryableError(err)
 	}
 	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
 		return nil, err
