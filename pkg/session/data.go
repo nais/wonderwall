@@ -120,6 +120,14 @@ func NewMetadata(expiresIn time.Duration, endsIn time.Duration) *Metadata {
 	}
 }
 
+func (in *Metadata) IsExpired() bool {
+	return time.Now().After(in.TokensExpireAt)
+}
+
+func (in *Metadata) IsRefreshOnCooldown() bool {
+	return time.Now().Before(in.RefreshCooldown())
+}
+
 func (in *Metadata) NextRefresh() time.Time {
 	// subtract the leeway to ensure that we refresh before expiry
 	next := in.TokensExpireAt.Add(-RefreshLeeway)
@@ -150,12 +158,8 @@ func (in *Metadata) RefreshCooldown() time.Time {
 	return refreshed.Add(RefreshMinInterval)
 }
 
-func (in *Metadata) RefreshOnCooldown() bool {
-	return time.Now().Before(in.RefreshCooldown())
-}
-
 func (in *Metadata) ShouldRefresh() bool {
-	if in.RefreshOnCooldown() {
+	if in.IsRefreshOnCooldown() {
 		return false
 	}
 
@@ -178,7 +182,7 @@ func (in *Metadata) Verbose() MetadataVerbose {
 		SessionEndsInSeconds:         toSeconds(endTime.Sub(now)),
 		TokensExpireInSeconds:        toSeconds(expireTime.Sub(now)),
 		TokensNextRefreshInSeconds:   toSeconds(nextRefreshTime.Sub(now)),
-		TokensRefreshCooldown:        in.RefreshOnCooldown(),
+		TokensRefreshCooldown:        in.IsRefreshOnCooldown(),
 		TokensRefreshCooldownSeconds: toSeconds(in.RefreshCooldown().Sub(now)),
 	}
 }

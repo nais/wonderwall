@@ -4,8 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/nais/wonderwall/pkg/handler/url"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/session"
@@ -16,8 +14,8 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r).WithField("request_path", r.URL.Path)
 	isAuthenticated := false
 
-	accessToken, ok := h.accessToken(r, logger)
-	if ok {
+	accessToken, err := h.Sessions.GetAccessToken(r)
+	if err == nil {
 		// add authentication if session cookie and token checks out
 		isAuthenticated = true
 
@@ -26,6 +24,8 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 			isAuthenticated = false
 			logger.Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
 		}
+	} else if errors.Is(err, session.UnexpectedError) {
+		logger.Errorf("default: getting session: %+v", err)
 	}
 
 	if h.AutoLogin.NeedsLogin(r, isAuthenticated) {
@@ -46,17 +46,4 @@ func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.ReverseProxy.ServeHTTP(w, r.WithContext(ctx))
-}
-
-func (h *Handler) accessToken(r *http.Request, logger *log.Entry) (string, bool) {
-	sessionData, err := h.Sessions.GetOrRefresh(r)
-	if err == nil && sessionData != nil && sessionData.HasAccessToken() {
-		return sessionData.AccessToken, true
-	}
-
-	if errors.Is(err, session.UnexpectedError) {
-		logger.Errorf("default: getting session: %+v", err)
-	}
-
-	return "", false
 }

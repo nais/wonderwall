@@ -22,7 +22,10 @@ import (
 )
 
 var (
-	CookieNotFoundError = errors.New("cookie not found")
+	CookieNotFoundError     = errors.New("cookie not found")
+	NoSessionDataError      = errors.New("no session data")
+	NoAccessTokenError      = errors.New("no access token in session data")
+	ExpiredAccessTokenError = errors.New("access token is expired")
 )
 
 type Handler struct {
@@ -110,6 +113,27 @@ func (h *Handler) Get(r *http.Request) (*Data, error) {
 	}
 
 	return h.GetForKey(r, key)
+}
+
+func (h *Handler) GetAccessToken(r *http.Request) (string, error) {
+	sessionData, err := h.GetOrRefresh(r)
+	if err != nil {
+		return "", err
+	}
+
+	if sessionData == nil {
+		return "", NoSessionDataError
+	}
+
+	if !sessionData.HasAccessToken() {
+		return "", NoAccessTokenError
+	}
+
+	if sessionData.Metadata.IsExpired() {
+		return "", ExpiredAccessTokenError
+	}
+
+	return sessionData.AccessToken, nil
 }
 
 // GetForID returns the session data for a given session ID.
@@ -206,7 +230,7 @@ func (h *Handler) Key(sessionID string) string {
 
 // Refresh refreshes the user's session and returns the updated session data.
 func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error) {
-	if !h.refreshEnabled || !data.HasRefreshToken() || data.Metadata.RefreshOnCooldown() {
+	if !h.refreshEnabled || !data.HasRefreshToken() || data.Metadata.IsRefreshOnCooldown() {
 		return data, nil
 	}
 
