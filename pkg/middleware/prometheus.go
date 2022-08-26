@@ -19,6 +19,7 @@ var (
 )
 
 const (
+	serviceName = "wonderwall"
 	reqsName    = "requests_total"
 	latencyName = "request_duration_seconds"
 )
@@ -30,14 +31,14 @@ type PrometheusMiddleware struct {
 	latency *prometheus.HistogramVec
 }
 
-// NewPrometheusMiddleware returns a new PrometheusMiddleware handler.
-func NewPrometheusMiddleware(name, provider string, buckets ...float64) *PrometheusMiddleware {
+// Prometheus returns a new PrometheusMiddleware handler.
+func Prometheus(provider string, buckets ...float64) *PrometheusMiddleware {
 	var m PrometheusMiddleware
 	m.reqs = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name:        reqsName,
 			Help:        "How many HTTP requests processed, partitioned by status code, method and HTTP path.",
-			ConstLabels: prometheus.Labels{"service": name, metrics.LabelProvider: provider},
+			ConstLabels: prometheus.Labels{"service": serviceName, metrics.LabelProvider: provider},
 		},
 		[]string{"code", "method", "path", "host"},
 	)
@@ -48,7 +49,7 @@ func NewPrometheusMiddleware(name, provider string, buckets ...float64) *Prometh
 	m.latency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:        latencyName,
 		Help:        "How long it took to process the request, partitioned by status code, method and HTTP path.",
-		ConstLabels: prometheus.Labels{"service": name, metrics.LabelProvider: provider},
+		ConstLabels: prometheus.Labels{"service": serviceName, metrics.LabelProvider: provider},
 		Buckets:     buckets,
 	},
 		[]string{"code", "method", "path", "host"},

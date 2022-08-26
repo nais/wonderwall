@@ -41,14 +41,14 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	fields := log.Fields{
 		"redirect_after_login": login.CanonicalRedirect(),
 	}
-	logentry.LogEntry(r).WithFields(fields).Debug("login: redirecting to identity provider")
+	logentry.LogEntryFrom(r).WithFields(fields).Debug("login: redirecting to identity provider")
 	http.Redirect(w, r, login.AuthCodeURL(), http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) getLoginCookie(r *http.Request) (*openid.LoginCookie, error) {
 	loginCookieJson, err := cookie.GetDecrypted(r, cookie.Login, h.Crypter)
 	if err != nil {
-		logentry.LogEntry(r).Debugf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
+		logentry.LogEntryFrom(r).Debugf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
 
 		loginCookieJson, err = cookie.GetDecrypted(r, cookie.LoginLegacy, h.Crypter)
 		if err != nil {

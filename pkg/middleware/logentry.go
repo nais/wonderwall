@@ -15,28 +15,31 @@ import (
 
 var logger *requestLogger
 
-// LogEntryHandler is copied verbatim from httplog package to replace with our own requestLogger implementation.
-func LogEntryHandler(provider string) func(next http.Handler) http.Handler {
+type LogEntryMiddleware struct{}
+
+// LogEntry is copied verbatim from httplog package to replace with our own requestLogger implementation.
+func LogEntry(provider string) LogEntryMiddleware {
 	logger = &requestLogger{Logger: log.StandardLogger(), Provider: provider}
-
-	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			entry := logger.NewLogEntry(r)
-			entry.WithRequestLogFields(r).Infof("%s - %s", r.Method, r.URL.Path)
-
-			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-			t1 := time.Now()
-			defer func() {
-				entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(t1), nil)
-			}()
-
-			next.ServeHTTP(ww, middleware.WithLogEntry(r, entry))
-		}
-		return http.HandlerFunc(fn)
-	}
+	return LogEntryMiddleware{}
 }
 
-func LogEntry(r *http.Request) *log.Entry {
+func (l *LogEntryMiddleware) Handler(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		entry := logger.NewLogEntry(r)
+		entry.WithRequestLogFields(r).Infof("%s - %s", r.Method, r.URL.Path)
+
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+		t1 := time.Now()
+		defer func() {
+			entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(t1), nil)
+		}()
+
+		next.ServeHTTP(ww, middleware.WithLogEntry(r, entry))
+	}
+	return http.HandlerFunc(fn)
+}
+
+func LogEntryFrom(r *http.Request) *log.Entry {
 	ctx := r.Context()
 	val := ctx.Value(middleware.LogEntryCtxKey)
 	entry, ok := val.(*requestLoggerEntry)
@@ -75,6 +78,7 @@ func (l *requestLoggerEntry) WithRequestLogFields(r *http.Request) *log.Entry {
 	refererUrl, err := url.Parse(referer)
 	if err == nil {
 		refererUrl.RawQuery = ""
+		refererUrl.RawFragment = ""
 		referer = refererUrl.String()
 	}
 

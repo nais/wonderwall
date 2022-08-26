@@ -37,7 +37,7 @@ func init() {
 }
 
 func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level log.Level) {
-	logger := mw.LogEntry(r)
+	logger := mw.LogEntryFrom(r)
 	msg := "error in route: %+v"
 
 	switch level {
@@ -71,7 +71,7 @@ func (h *Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, s
 	}
 	err = errorTemplate.Execute(w, errorPage)
 	if err != nil {
-		mw.LogEntry(r).Errorf("executing error template: %+v", err)
+		mw.LogEntryFrom(r).Errorf("executing error template: %+v", err)
 	}
 }
 

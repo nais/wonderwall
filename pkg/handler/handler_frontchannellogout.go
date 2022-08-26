@@ -10,7 +10,7 @@ import (
 
 // FrontChannelLogout performs a local logout initiated by a third party in the SSO circle-of-trust.
 func (h *Handler) FrontChannelLogout(w http.ResponseWriter, r *http.Request) {
-	logger := mw.LogEntry(r)
+	logger := mw.LogEntryFrom(r)
 
 	// Unconditionally destroy all local references to the session.
 	cookie.Clear(w, cookie.Session, h.CookieOptsPathAware(r))

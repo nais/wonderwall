@@ -15,7 +15,7 @@ import (
 
 // Logout triggers self-initiated logout for the current user.
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	logger := logentry.LogEntry(r)
+	logger := logentry.LogEntryFrom(r)
 	logout, err := h.Client.Logout(r)
 	if err != nil {
 		h.InternalError(w, r, err)

@@ -6,22 +6,28 @@ import (
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 )
 
-func Ingress(config openidconfig.Config) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			ingresses := config.Client().Ingresses()
-			ctx := r.Context()
+type IngressMiddleware struct {
+	config openidconfig.Config
+}
 
-			path := ingresses.MatchingPath(r)
-			ctx = WithPath(ctx, path)
+func Ingress(config openidconfig.Config) IngressMiddleware {
+	return IngressMiddleware{config: config}
+}
 
-			matchingIngress, ok := ingresses.MatchingIngress(r)
-			if ok {
-				ctx = WithIngress(ctx, matchingIngress)
-			}
+func (i *IngressMiddleware) Handler(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		ingresses := i.config.Client().Ingresses()
+		ctx := r.Context()
 
-			next.ServeHTTP(w, r.WithContext(ctx))
+		path := ingresses.MatchingPath(r)
+		ctx = WithPath(ctx, path)
+
+		matchingIngress, ok := ingresses.MatchingIngress(r)
+		if ok {
+			ctx = WithIngress(ctx, matchingIngress)
 		}
-		return http.HandlerFunc(fn)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
 	}
+	return http.HandlerFunc(fn)
 }

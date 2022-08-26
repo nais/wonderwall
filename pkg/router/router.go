@@ -10,17 +10,23 @@ import (
 )
 
 func New(handler *handler.Handler) chi.Router {
+	providerCfg := handler.OpenIDConfig.Provider()
+	clientCfg := handler.OpenIDConfig.Client()
+
+	prometheus := middleware.Prometheus(providerCfg.Name())
+	ingress := middleware.Ingress(handler.OpenIDConfig)
+	logentry := middleware.LogEntry(providerCfg.Name())
+
 	r := chi.NewRouter()
 	r.Use(middleware.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)
-	r.Use(middleware.Ingress(handler.OpenIDConfig))
-	prometheusMiddleware := middleware.NewPrometheusMiddleware("wonderwall", handler.OpenIDConfig.Provider().Name())
+	r.Use(ingress.Handler)
 
-	prefixes := handler.OpenIDConfig.Client().Ingresses().Paths()
+	prefixes := clientCfg.Ingresses().Paths()
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.LogEntryHandler(handler.OpenIDConfig.Provider().Name()))
-		r.Use(prometheusMiddleware.Handler)
+		r.Use(logentry.Handler)
+		r.Use(prometheus.Handler)
 		r.Use(chi_middleware.NoCache)
 
 		for _, prefix := range prefixes {

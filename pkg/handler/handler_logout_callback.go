@@ -10,6 +10,6 @@ import (
 func (h *Handler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 	redirect := h.Client.LogoutCallback(r).PostLogoutRedirectURI()
 
-	logentry.LogEntry(r).Debugf("logout/callback: redirecting to %s", redirect)
+	logentry.LogEntryFrom(r).Debugf("logout/callback: redirecting to %s", redirect)
 	http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
 }

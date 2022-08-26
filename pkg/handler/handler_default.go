@@ -13,7 +13,7 @@ import (
 
 // Default proxies all requests upstream.
 func (h *Handler) Default(w http.ResponseWriter, r *http.Request) {
-	logger := mw.LogEntry(r).WithField("request_path", r.URL.Path)
+	logger := mw.LogEntryFrom(r).WithField("request_path", r.URL.Path)
 	isAuthenticated := false
 
 	accessToken, ok := h.accessToken(r, logger)

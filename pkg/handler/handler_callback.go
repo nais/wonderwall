@@ -79,7 +79,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Loginstatus.SetCookie(w, tokenResponse, h.CookieOptions)
-		logentry.LogEntry(r).Debug("callback: successfully fetched loginstatus token")
+		logentry.LogEntryFrom(r).Debug("callback: successfully fetched loginstatus token")
 	}
 
 	logSuccessfulLogin(r, tokens, loginCookie.Referer)
@@ -144,6 +144,6 @@ func logSuccessfulLogin(r *http.Request, tokens *openid.Tokens, referer string) 
 		"jti":         tokens.IDToken.GetJwtID(),
 	}
 
-	logentry.LogEntry(r).WithFields(fields).Info("callback: successful login")
+	logentry.LogEntryFrom(r).WithFields(fields).Info("callback: successful login")
 	metrics.ObserveLogin()
 }
