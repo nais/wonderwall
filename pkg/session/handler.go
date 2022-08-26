@@ -115,6 +115,7 @@ func (h *Handler) Get(r *http.Request) (*Data, error) {
 	return h.GetForKey(r, key)
 }
 
+// GetAccessToken returns an access token from the session. If the token is empty or expired, an error is returned.
 func (h *Handler) GetAccessToken(r *http.Request) (string, error) {
 	sessionData, err := h.GetOrRefresh(r)
 	if err != nil {
@@ -194,7 +195,7 @@ func (h *Handler) GetOrRefresh(r *http.Request) (*Data, error) {
 		return nil, err
 	}
 
-	if !h.refreshEnabled || !sessionData.HasRefreshToken() || !sessionData.Metadata.ShouldRefresh() {
+	if !h.shouldRefresh(sessionData) {
 		return sessionData, nil
 	}
 
@@ -230,7 +231,7 @@ func (h *Handler) Key(sessionID string) string {
 
 // Refresh refreshes the user's session and returns the updated session data.
 func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error) {
-	if !h.refreshEnabled || !data.HasRefreshToken() || data.Metadata.IsRefreshOnCooldown() {
+	if !h.canRefresh(data) {
 		return data, nil
 	}
 
@@ -268,6 +269,14 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 
 	logger.Info("session: successfully refreshed")
 	return data, nil
+}
+
+func (h *Handler) canRefresh(data *Data) bool {
+	return h.refreshEnabled && data.HasRefreshToken() && !data.Metadata.IsRefreshOnCooldown()
+}
+
+func (h *Handler) shouldRefresh(data *Data) bool {
+	return h.refreshEnabled && data.HasRefreshToken() && data.Metadata.ShouldRefresh()
 }
 
 func NewSessionID(cfg openidconfig.Provider, idToken *openid.IDToken, params url.Values) (string, error) {
