@@ -174,29 +174,29 @@ func TestHandler_SessionInfo(t *testing.T) {
 	assert.NoError(t, err)
 
 	allowedSkew := 5 * time.Second
-	assert.WithinDuration(t, time.Now(), data.SessionCreatedAt, allowedSkew)
-	assert.WithinDuration(t, time.Now().Add(cfg.Session.MaxLifetime), data.SessionEndsAt, allowedSkew)
-	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), data.TokensExpireAt, allowedSkew)
-	assert.WithinDuration(t, time.Now(), data.TokensRefreshedAt, allowedSkew)
+	assert.WithinDuration(t, time.Now(), data.Session.CreatedAt, allowedSkew)
+	assert.WithinDuration(t, time.Now().Add(cfg.Session.MaxLifetime), data.Session.EndsAt, allowedSkew)
+	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), data.Tokens.ExpireAt, allowedSkew)
+	assert.WithinDuration(t, time.Now(), data.Tokens.RefreshedAt, allowedSkew)
 
-	sessionEndDuration := time.Duration(data.SessionEndsInSeconds) * time.Second
+	sessionEndDuration := time.Duration(data.Session.EndsInSeconds) * time.Second
 	// 1 second < time until session ends <= configured max session lifetime
 	assert.LessOrEqual(t, sessionEndDuration, cfg.Session.MaxLifetime)
 	assert.Greater(t, sessionEndDuration, time.Second)
 
-	tokenExpiryDuration := time.Duration(data.TokensExpireInSeconds) * time.Second
+	tokenExpiryDuration := time.Duration(data.Tokens.ExpireInSeconds) * time.Second
 	// 1 second < time until token expires <= max duration for tokens from IDP
 	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
 	assert.Greater(t, tokenExpiryDuration, time.Second)
 
 	// 1 second < next token refresh <= seconds until token expires
-	assert.LessOrEqual(t, data.TokensNextRefreshInSeconds, data.TokensExpireInSeconds)
-	assert.Greater(t, data.TokensNextRefreshInSeconds, int64(1))
+	assert.LessOrEqual(t, data.Tokens.NextAutoRefreshInSeconds, data.Tokens.ExpireInSeconds)
+	assert.Greater(t, data.Tokens.NextAutoRefreshInSeconds, int64(1))
 
-	assert.True(t, data.TokensRefreshCooldown)
+	assert.True(t, data.Tokens.RefreshCooldown)
 	// 1 second < refresh cooldown <= minimum refresh interval
-	assert.LessOrEqual(t, data.TokensRefreshCooldownSeconds, session.RefreshMinInterval)
-	assert.Greater(t, data.TokensRefreshCooldownSeconds, int64(1))
+	assert.LessOrEqual(t, data.Tokens.RefreshCooldownSeconds, session.RefreshMinInterval)
+	assert.Greater(t, data.Tokens.RefreshCooldownSeconds, int64(1))
 }
 
 func TestHandler_SessionInfo_Disabled(t *testing.T) {
@@ -249,7 +249,7 @@ func TestHandler_SessionRefresh(t *testing.T) {
 				err = json.Unmarshal([]byte(resp.Body), &temp)
 				assert.NoError(t, err)
 
-				if !temp.TokensRefreshCooldown {
+				if !temp.Tokens.RefreshCooldown {
 					return
 				}
 			}
@@ -264,35 +264,35 @@ func TestHandler_SessionRefresh(t *testing.T) {
 	assert.NoError(t, err)
 
 	// session create and end times should be unchanged
-	assert.WithinDuration(t, data.SessionCreatedAt, refreshedData.SessionCreatedAt, 0)
-	assert.WithinDuration(t, data.SessionEndsAt, refreshedData.SessionEndsAt, 0)
+	assert.WithinDuration(t, data.Session.CreatedAt, refreshedData.Session.CreatedAt, 0)
+	assert.WithinDuration(t, data.Session.EndsAt, refreshedData.Session.EndsAt, 0)
 
 	// token expiration and refresh times should be later than before
-	assert.True(t, refreshedData.TokensExpireAt.After(data.TokensExpireAt))
-	assert.True(t, refreshedData.TokensRefreshedAt.After(data.TokensRefreshedAt))
+	assert.True(t, refreshedData.Tokens.ExpireAt.After(data.Tokens.ExpireAt))
+	assert.True(t, refreshedData.Tokens.RefreshedAt.After(data.Tokens.RefreshedAt))
 
 	allowedSkew := 5 * time.Second
-	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), refreshedData.TokensExpireAt, allowedSkew)
-	assert.WithinDuration(t, time.Now(), refreshedData.TokensRefreshedAt, allowedSkew)
+	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), refreshedData.Tokens.ExpireAt, allowedSkew)
+	assert.WithinDuration(t, time.Now(), refreshedData.Tokens.RefreshedAt, allowedSkew)
 
-	sessionEndDuration := time.Duration(refreshedData.SessionEndsInSeconds) * time.Second
+	sessionEndDuration := time.Duration(refreshedData.Session.EndsInSeconds) * time.Second
 	// 1 second < time until session ends <= configured max session lifetime
 	assert.LessOrEqual(t, sessionEndDuration, cfg.Session.MaxLifetime)
 	assert.Greater(t, sessionEndDuration, time.Second)
 
-	tokenExpiryDuration := time.Duration(refreshedData.TokensExpireInSeconds) * time.Second
+	tokenExpiryDuration := time.Duration(refreshedData.Tokens.ExpireInSeconds) * time.Second
 	// 1 second < time until token expires <= max duration for tokens from IDP
 	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
 	assert.Greater(t, tokenExpiryDuration, time.Second)
 
 	// 1 second < next token refresh <= seconds until token expires
-	assert.LessOrEqual(t, refreshedData.TokensNextRefreshInSeconds, refreshedData.TokensExpireInSeconds)
-	assert.Greater(t, refreshedData.TokensNextRefreshInSeconds, int64(1))
+	assert.LessOrEqual(t, refreshedData.Tokens.NextAutoRefreshInSeconds, refreshedData.Tokens.ExpireInSeconds)
+	assert.Greater(t, refreshedData.Tokens.NextAutoRefreshInSeconds, int64(1))
 
-	assert.True(t, refreshedData.TokensRefreshCooldown)
+	assert.True(t, refreshedData.Tokens.RefreshCooldown)
 	// 1 second < refresh cooldown <= minimum refresh interval
-	assert.LessOrEqual(t, refreshedData.TokensRefreshCooldownSeconds, session.RefreshMinInterval)
-	assert.Greater(t, refreshedData.TokensRefreshCooldownSeconds, int64(1))
+	assert.LessOrEqual(t, refreshedData.Tokens.RefreshCooldownSeconds, session.RefreshMinInterval)
+	assert.Greater(t, refreshedData.Tokens.RefreshCooldownSeconds, int64(1))
 }
 
 func TestHandler_SessionRefresh_Disabled(t *testing.T) {

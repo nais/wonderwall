@@ -12,6 +12,14 @@ func TestData_HasRefreshToken(t *testing.T) {
 	// TODO
 }
 
+func TestMetadata_IsExpired(t *testing.T) {
+	// TODO
+}
+
+func TestMetadata_IsRefreshOnCooldown(t *testing.T) {
+	// TODO
+}
+
 func TestMetadata_NextRefresh(t *testing.T) {
 	// TODO
 }
@@ -24,15 +32,11 @@ func TestMetadata_RefreshCooldown(t *testing.T) {
 	// TODO
 }
 
-func TestMetadata_RefreshOnCooldown(t *testing.T) {
-	// TODO
-}
-
 func TestMetadata_ShouldRefresh(t *testing.T) {
 	// TODO
 }
 
-func TestMetadata_TokenAge(t *testing.T) {
+func TestMetadata_TokenLifetime(t *testing.T) {
 	// TODO
 }
 

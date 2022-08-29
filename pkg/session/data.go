@@ -100,28 +100,40 @@ func (in *Data) HasRefreshToken() bool {
 }
 
 type Metadata struct {
-	// SessionCreatedAt is the time when the session was created.
-	SessionCreatedAt time.Time `json:"session_created_at"`
-	// SessionEndsAt is the time when the session will end, i.e. the absolute lifetime/time-to-live for the session.
-	SessionEndsAt time.Time `json:"session_ends_at"`
-	// TokensExpireAt is the time when the tokens within the session expires.
-	TokensExpireAt time.Time `json:"tokens_expire_at"`
-	// TokensRefreshedAt is the time when the tokens within the session was refreshed.
-	TokensRefreshedAt time.Time `json:"tokens_refreshed_at"`
+	Session MetadataSession `json:"session"`
+	Tokens  MetadataTokens  `json:"tokens"`
+}
+
+type MetadataSession struct {
+	// CreatedAt is the time when the session was created.
+	CreatedAt time.Time `json:"created_at"`
+	// EndsAt is the time when the session will end, i.e. the absolute lifetime/time-to-live for the session.
+	EndsAt time.Time `json:"ends_at"`
+}
+
+type MetadataTokens struct {
+	// ExpireAt is the time when the tokens will expire.
+	ExpireAt time.Time `json:"expire_at"`
+	// RefreshedAt is the time when the tokens were last refreshed.
+	RefreshedAt time.Time `json:"refreshed_at"`
 }
 
 func NewMetadata(expiresIn time.Duration, endsIn time.Duration) *Metadata {
 	now := time.Now()
 	return &Metadata{
-		SessionCreatedAt:  now,
-		SessionEndsAt:     now.Add(endsIn),
-		TokensRefreshedAt: now,
-		TokensExpireAt:    now.Add(expiresIn),
+		Session: MetadataSession{
+			CreatedAt: now,
+			EndsAt:    now.Add(endsIn),
+		},
+		Tokens: MetadataTokens{
+			ExpireAt:    now.Add(expiresIn),
+			RefreshedAt: now,
+		},
 	}
 }
 
 func (in *Metadata) IsExpired() bool {
-	return time.Now().After(in.TokensExpireAt)
+	return time.Now().After(in.Tokens.ExpireAt)
 }
 
 func (in *Metadata) IsRefreshOnCooldown() bool {
@@ -130,7 +142,7 @@ func (in *Metadata) IsRefreshOnCooldown() bool {
 
 func (in *Metadata) NextRefresh() time.Time {
 	// subtract the leeway to ensure that we refresh before expiry
-	next := in.TokensExpireAt.Add(-RefreshLeeway)
+	next := in.Tokens.ExpireAt.Add(-RefreshLeeway)
 
 	// try to refresh at the first opportunity if the next refresh is in the past
 	if next.Before(time.Now()) {
@@ -142,12 +154,12 @@ func (in *Metadata) NextRefresh() time.Time {
 
 func (in *Metadata) Refresh(nextExpirySeconds int64) {
 	now := time.Now()
-	in.TokensRefreshedAt = now
-	in.TokensExpireAt = now.Add(time.Duration(nextExpirySeconds) * time.Second)
+	in.Tokens.RefreshedAt = now
+	in.Tokens.ExpireAt = now.Add(time.Duration(nextExpirySeconds) * time.Second)
 }
 
 func (in *Metadata) RefreshCooldown() time.Time {
-	refreshed := in.TokensRefreshedAt
+	refreshed := in.Tokens.RefreshedAt
 	tokenLifetime := in.TokenLifetime()
 
 	// if token lifetime is less than the minimum refresh interval * 2, we'll allow refreshes at the token half-life
@@ -167,33 +179,47 @@ func (in *Metadata) ShouldRefresh() bool {
 }
 
 func (in *Metadata) TokenLifetime() time.Duration {
-	return in.TokensExpireAt.Sub(in.TokensRefreshedAt)
+	return in.Tokens.ExpireAt.Sub(in.Tokens.RefreshedAt)
 }
 
 func (in *Metadata) Verbose() MetadataVerbose {
 	now := time.Now()
 
-	expireTime := in.TokensExpireAt
-	endTime := in.SessionEndsAt
+	expireTime := in.Tokens.ExpireAt
+	endTime := in.Session.EndsAt
 	nextRefreshTime := in.NextRefresh()
 
 	return MetadataVerbose{
-		Metadata:                     *in,
-		SessionEndsInSeconds:         toSeconds(endTime.Sub(now)),
-		TokensExpireInSeconds:        toSeconds(expireTime.Sub(now)),
-		TokensNextRefreshInSeconds:   toSeconds(nextRefreshTime.Sub(now)),
-		TokensRefreshCooldown:        in.IsRefreshOnCooldown(),
-		TokensRefreshCooldownSeconds: toSeconds(in.RefreshCooldown().Sub(now)),
+		Session: MetadataSessionVerbose{
+			MetadataSession: in.Session,
+			EndsInSeconds:   toSeconds(endTime.Sub(now)),
+		},
+		Tokens: MetadataTokensVerbose{
+			MetadataTokens:           in.Tokens,
+			ExpireInSeconds:          toSeconds(expireTime.Sub(now)),
+			NextAutoRefreshInSeconds: toSeconds(nextRefreshTime.Sub(now)),
+			RefreshCooldown:          in.IsRefreshOnCooldown(),
+			RefreshCooldownSeconds:   toSeconds(in.RefreshCooldown().Sub(now)),
+		},
 	}
 }
 
 type MetadataVerbose struct {
-	Metadata
-	SessionEndsInSeconds         int64 `json:"session_ends_in_seconds"`
-	TokensExpireInSeconds        int64 `json:"tokens_expire_in_seconds"`
-	TokensNextRefreshInSeconds   int64 `json:"tokens_next_refresh_in_seconds"`
-	TokensRefreshCooldown        bool  `json:"tokens_refresh_cooldown"`
-	TokensRefreshCooldownSeconds int64 `json:"tokens_refresh_cooldown_seconds"`
+	Session MetadataSessionVerbose `json:"session"`
+	Tokens  MetadataTokensVerbose  `json:"tokens"`
+}
+
+type MetadataSessionVerbose struct {
+	MetadataSession
+	EndsInSeconds int64 `json:"ends_in_seconds"`
+}
+
+type MetadataTokensVerbose struct {
+	MetadataTokens
+	ExpireInSeconds          int64 `json:"expire_in_seconds"`
+	NextAutoRefreshInSeconds int64 `json:"next_auto_refresh_in_seconds"`
+	RefreshCooldown          bool  `json:"refresh_cooldown"`
+	RefreshCooldownSeconds   int64 `json:"refresh_cooldown_seconds"`
 }
 
 func toSeconds(d time.Duration) int64 {
