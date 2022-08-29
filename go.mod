@@ -7,7 +7,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.3.0
-	github.com/lestrrat-go/jwx/v2 v2.0.5
+	github.com/lestrrat-go/jwx/v2 v2.0.6
 	github.com/nais/liberator v0.0.0-20220819123006-123b0f7e2e5b
 	github.com/prometheus/client_golang v1.13.0
 	github.com/sethvargo/go-retry v0.2.3
