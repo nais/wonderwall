@@ -40,8 +40,9 @@ type Loginstatus struct {
 }
 
 type Session struct {
-	MaxLifetime time.Duration `json:"max-lifetime"`
-	Refresh     bool          `json:"refresh"`
+	MaxLifetime     time.Duration `json:"max-lifetime"`
+	Refresh         bool          `json:"refresh"`
+	MetadataRollout bool          `json:"metadata-rollout"`
 }
 
 const (
@@ -57,8 +58,9 @@ const (
 	Ingress              = "ingress"
 	UpstreamHost         = "upstream-host"
 
-	SessionMaxLifetime = "session.max-lifetime"
-	SessionRefresh     = "session.refresh"
+	SessionMaxLifetime     = "session.max-lifetime"
+	SessionRefresh         = "session.refresh"
+	SessionMetadataRollout = "session.metadata-rollout"
 
 	LoginstatusEnabled           = "loginstatus.enabled"
 	LoginstatusCookieDomain      = "loginstatus.cookie-domain"
@@ -80,9 +82,11 @@ func Initialize() (*Config, error) {
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")
 	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
+	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
+
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 	flag.Bool(SessionRefresh, false, "Automatically refresh the tokens for user sessions if they are expired, as long as the session exists (indicated by the session max lifetime).")
-	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
+	flag.Bool(SessionMetadataRollout, false, "Feature toggle for metadata rollout.")
 
 	flag.Bool(LoginstatusEnabled, false, "Feature toggle for Loginstatus, a separate service that should provide an opaque token to indicate that a user has been authenticated previously, e.g. by another application in another subdomain.")
 	flag.String(LoginstatusCookieDomain, "", "The domain that the cookie should be set for.")
