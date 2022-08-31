@@ -27,7 +27,13 @@ func (h *Handler) SessionInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(data.Metadata.Verbose())
+
+	if h.Config.Session.Refresh {
+		err = json.NewEncoder(w).Encode(data.Metadata.VerboseWithRefresh())
+	} else {
+		err = json.NewEncoder(w).Encode(data.Metadata.Verbose())
+	}
+
 	if err != nil {
 		logger.Warnf("session/info: marshalling metadata: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

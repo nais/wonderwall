@@ -42,12 +42,12 @@ Wonderwall exposes and owns these endpoints (which means they will never be prox
 
 Endpoints that are available for use by applications:
 
-| Path                      | Description                                          |
-|---------------------------|------------------------------------------------------|
-| `/oauth2/login`           | Initiates the OpenID Connect Authorization Code flow |
-| `/oauth2/logout`          | Initiates local and global/single-logout             |
-| `/oauth2/session`         | Returns the current user's session metadata          |
-| `/oauth2/session/refresh` | Refreshes the tokens for the user's session          |
+| Path                      | Description                                                                                    |
+|---------------------------|------------------------------------------------------------------------------------------------|
+| `/oauth2/login`           | Initiates the OpenID Connect Authorization Code flow                                           |
+| `/oauth2/logout`          | Initiates local and global/single-logout                                                       |
+| `/oauth2/session`         | Returns the current user's session metadata                                                    |
+| `/oauth2/session/refresh` | Refreshes the tokens for the user's session. Requires the `session.refresh` flag to be enabled |
 
 Endpoints that should be registered at and only be triggered by identity providers:
 

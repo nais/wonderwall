@@ -188,6 +188,41 @@ func TestHandler_SessionInfo(t *testing.T) {
 	// 1 second < time until token expires <= max duration for tokens from IDP
 	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
 	assert.Greater(t, tokenExpiryDuration, time.Second)
+}
+
+func TestHandler_SessionInfo_WithRefresh(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.Refresh = true
+
+	idp := mock.NewIdentityProvider(cfg)
+	idp.ProviderHandler.TokenDuration = 5 * time.Minute
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+
+	resp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var data session.MetadataVerboseWithRefresh
+	err := json.Unmarshal([]byte(resp.Body), &data)
+	assert.NoError(t, err)
+
+	allowedSkew := 5 * time.Second
+	assert.WithinDuration(t, time.Now(), data.Session.CreatedAt, allowedSkew)
+	assert.WithinDuration(t, time.Now().Add(cfg.Session.MaxLifetime), data.Session.EndsAt, allowedSkew)
+	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), data.Tokens.ExpireAt, allowedSkew)
+	assert.WithinDuration(t, time.Now(), data.Tokens.RefreshedAt, allowedSkew)
+
+	sessionEndDuration := time.Duration(data.Session.EndsInSeconds) * time.Second
+	// 1 second < time until session ends <= configured max session lifetime
+	assert.LessOrEqual(t, sessionEndDuration, cfg.Session.MaxLifetime)
+	assert.Greater(t, sessionEndDuration, time.Second)
+
+	tokenExpiryDuration := time.Duration(data.Tokens.ExpireInSeconds) * time.Second
+	// 1 second < time until token expires <= max duration for tokens from IDP
+	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
+	assert.Greater(t, tokenExpiryDuration, time.Second)
 
 	// 1 second < next token refresh <= seconds until token expires
 	assert.LessOrEqual(t, data.Tokens.NextAutoRefreshInSeconds, data.Tokens.ExpireInSeconds)
@@ -197,21 +232,6 @@ func TestHandler_SessionInfo(t *testing.T) {
 	// 1 second < refresh cooldown <= minimum refresh interval
 	assert.LessOrEqual(t, data.Tokens.RefreshCooldownSeconds, session.RefreshMinInterval)
 	assert.Greater(t, data.Tokens.RefreshCooldownSeconds, int64(1))
-}
-
-func TestHandler_SessionInfo_Disabled(t *testing.T) {
-	cfg := mock.Config()
-	cfg.Session.Refresh = false
-
-	idp := mock.NewIdentityProvider(cfg)
-	idp.ProviderHandler.TokenDuration = 5 * time.Second
-	defer idp.Close()
-
-	rpClient := idp.RelyingPartyClient()
-	login(t, rpClient, idp)
-
-	resp := sessionInfo(t, idp, rpClient)
-	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
 
 func TestHandler_SessionRefresh(t *testing.T) {
@@ -229,7 +249,7 @@ func TestHandler_SessionRefresh(t *testing.T) {
 	resp := sessionInfo(t, idp, rpClient)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var data session.MetadataVerbose
+	var data session.MetadataVerboseWithRefresh
 	err := json.Unmarshal([]byte(resp.Body), &data)
 	assert.NoError(t, err)
 
@@ -245,7 +265,7 @@ func TestHandler_SessionRefresh(t *testing.T) {
 				resp := sessionInfo(t, idp, rpClient)
 				assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-				var temp session.MetadataVerbose
+				var temp session.MetadataVerboseWithRefresh
 				err = json.Unmarshal([]byte(resp.Body), &temp)
 				assert.NoError(t, err)
 
@@ -259,7 +279,7 @@ func TestHandler_SessionRefresh(t *testing.T) {
 	resp = sessionRefresh(t, idp, rpClient)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var refreshedData session.MetadataVerbose
+	var refreshedData session.MetadataVerboseWithRefresh
 	err = json.Unmarshal([]byte(resp.Body), &refreshedData)
 	assert.NoError(t, err)
 

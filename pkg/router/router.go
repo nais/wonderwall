@@ -36,9 +36,9 @@ func New(handler *handler.Handler) chi.Router {
 				r.Get(paths.Logout, handler.Logout)
 				r.Get(paths.FrontChannelLogout, handler.FrontChannelLogout)
 				r.Get(paths.LogoutCallback, handler.LogoutCallback)
+				r.Get(paths.Session, handler.SessionInfo)
 
 				if handler.Config.Session.Refresh {
-					r.Get(paths.Session, handler.SessionInfo)
 					r.Get(paths.SessionRefresh, handler.SessionRefresh)
 				}
 			})

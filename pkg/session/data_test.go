@@ -214,6 +214,24 @@ func TestMetadata_Verbose(t *testing.T) {
 	expected = time.Now().Add(tokenLifetime)
 	actual = time.Now().Add(durationSeconds(verbose.Tokens.ExpireInSeconds))
 	assert.WithinDuration(t, expected, actual, maxDelta)
+}
+
+func TestMetadata_VerboseWithRefresh(t *testing.T) {
+	tokenLifetime := 30 * time.Minute
+	sessionLifetime := time.Hour
+
+	metadata := session.NewMetadata(tokenLifetime, sessionLifetime)
+
+	verbose := metadata.VerboseWithRefresh()
+	maxDelta := time.Second
+
+	expected := time.Now().Add(sessionLifetime)
+	actual := time.Now().Add(durationSeconds(verbose.Session.EndsInSeconds))
+	assert.WithinDuration(t, expected, actual, maxDelta)
+
+	expected = time.Now().Add(tokenLifetime)
+	actual = time.Now().Add(durationSeconds(verbose.Tokens.ExpireInSeconds))
+	assert.WithinDuration(t, expected, actual, maxDelta)
 
 	expected = time.Now().Add(tokenLifetime).Add(-session.RefreshLeeway)
 	actual = time.Now().Add(durationSeconds(verbose.Tokens.NextAutoRefreshInSeconds))
@@ -230,7 +248,7 @@ func TestMetadata_Verbose(t *testing.T) {
 	t.Run("refresh not on cooldown", func(t *testing.T) {
 		metadata := session.NewMetadata(tokenLifetime, sessionLifetime)
 		metadata.Tokens.RefreshedAt = time.Now().Add(-5 * time.Minute)
-		verbose := metadata.Verbose()
+		verbose := metadata.VerboseWithRefresh()
 
 		assert.False(t, verbose.Tokens.RefreshCooldown)
 		assert.Equal(t, int64(0), verbose.Tokens.RefreshCooldownSeconds)

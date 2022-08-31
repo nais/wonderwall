@@ -41,7 +41,7 @@ func (h *Handler) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(data.Metadata.Verbose())
+	err = json.NewEncoder(w).Encode(data.Metadata.VerboseWithRefresh())
 	if err != nil {
 		logger.Warnf("session/refresh: marshalling metadata: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
