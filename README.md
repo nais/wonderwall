@@ -38,13 +38,22 @@ application's ingress.
 
 ## Endpoints
 
-Wonderwall exposes and owns these endpoints (which means they will never be proxied downstream):
+Wonderwall exposes and owns these endpoints (which means they will never be proxied downstream).
+
+Endpoints that are available for use by applications:
+
+| Path                      | Description                                          |
+|---------------------------|------------------------------------------------------|
+| `/oauth2/login`           | Initiates the OpenID Connect Authorization Code flow |
+| `/oauth2/logout`          | Initiates local and global/single-logout             |
+| `/oauth2/session`         | Returns the current user's session metadata          |
+| `/oauth2/session/refresh` | Refreshes the tokens for the user's session          |
+
+Endpoints that should be registered at and only be triggered by identity providers:
 
 | Path                          | Description                                                                                |
 |-------------------------------|--------------------------------------------------------------------------------------------|
-| `/oauth2/login`               | Initiates the OpenID Connect Authorization Code flow                                       |
 | `/oauth2/callback`            | Handles the callback from the identity provider                                            |
-| `/oauth2/logout`              | Initiates local and global/single-logout                                                   |
 | `/oauth2/logout/callback`     | Handles the logout callback from the identity provider                                     |
 | `/oauth2/logout/frontchannel` | Handles global logout request (initiated by identity provider on behalf of another client) |
 
@@ -146,6 +155,93 @@ described previously:
   Private key belonging to the client in JWK format.
 - `AZURE_APP_WELL_KNOWN_URL`  
   Well-known OpenID Configuration endpoint for Azure AD.
+
+## Session Management
+
+Sessions are stored server-side; we only store a session identifier at the end-user's user agent. 
+For production use, we strongly recommend setting up and connecting to Redis.
+
+Sessions can be configured with a maximum lifetime with the `session.max-lifetime` flag, which accepts Go duration strings
+(e.g. `10h`, `5m`, `30s`, etc.).
+
+There's also an endpoint that returns metadata about the user's session as a JSON object at `/oauth2/session`. This
+endpoint will respond with HTTP status codes on errors:
+
+- `401 Unauthorized` - no session cookie or matching session found (e.g. user is not authenticated, or has logged out)
+- `500 Internal Server Error` - the session store is unavailable, or Wonderwall wasn't able to process the request
+
+Otherwise, an `HTTP 200 OK` is returned with the metadata with the `application/json` as the `Content-Type`, e.g:
+
+```json
+{
+  "session": {
+    "created_at": "2022-08-31T06:58:38.724717899Z", 
+    "ends_at": "2022-08-31T16:58:38.724717899Z",
+    "ends_in_seconds": 14658
+  },
+  "tokens": {
+    "expire_at": "2022-08-31T14:03:47.318251953Z",
+    "refreshed_at": "2022-08-31T12:53:58.318251953Z",
+    "expire_in_seconds": 4166
+  }
+}
+```
+
+Most of these fields should be self-explanatory, but we'll be explicit with their description:
+
+| Field                                 | Description                                                                                     |
+|---------------------------------------|-------------------------------------------------------------------------------------------------|
+| `session.created_at`                  | The timestamp that denotes when the session was first created.                                  |
+| `session.ends_at`                     | The timestamp that denotes when the session will end.                                           |
+| `session.ends_in_seconds`             | The number of seconds until the session ends.                                                   |
+| `tokens.expire_at`                    | The timestamp that denotes when the tokens within the session will expire.                      |
+| `tokens.refreshed_at`                 | The timestamp that denotes when the tokens within the session was last refreshed.               |
+| `tokens.expire_in_seconds`            | The number of seconds until the tokens expire.                                                  |
+
+### Refresh Tokens
+
+Tokens within the session will usually expire before the session itself. If you've configured a longer session lifetime,
+you'll probably want to use refresh tokens to avoid redirecting end-users to the `/oauth2/login` endpoint whenever the
+access tokens have expired. This can be enabled by using the `session.refresh` flag.
+
+If session refresh is enabled, tokens will at the earliest be automatically renewed 5 minutes before they expire. This
+happens whenever the end-user visits any path that is proxied to the upstream application.
+
+The `session.refresh` flag also enables a new endpoint:
+
+- `/oauth2/session/refresh` - manually refreshes the tokens for the user's session, and returns the metadata like in 
+`/oauth2/session` described previously
+
+```json
+{
+  "session": {
+    "created_at": "2022-08-31T06:58:38.724717899Z", 
+    "ends_at": "2022-08-31T16:58:38.724717899Z",
+    "ends_in_seconds": 14658
+  },
+  "tokens": {
+    "expire_at": "2022-08-31T14:03:47.318251953Z",
+    "refreshed_at": "2022-08-31T12:53:58.318251953Z",
+    "expire_in_seconds": 4166,
+    "next_auto_refresh_in_seconds": 3866,
+    "refresh_cooldown": true,
+    "refresh_cooldown_seconds": 37
+  }
+}
+```
+
+Additionally, the metadata object returned by both the `/oauth2/session` and `/oauth2/session/refresh` endpoints now 
+contain three new fields in addition to the previous fields:
+
+| Field                                 | Description                                                                                     |
+|---------------------------------------|-------------------------------------------------------------------------------------------------|
+| `tokens.next_auto_refresh_in_seconds` | The number of seconds until the earliest time where the tokens will automatically be refreshed. |
+| `tokens.refresh_cooldown`             | A boolean indicating whether or not the refresh operation is on cooldown or not.                |
+| `tokens.refresh_cooldown_seconds`     | The number of seconds until the refresh operation is no longer on cooldown.                     |
+
+Note that the refresh operation has a default cooldown period of 1 minute, which may be shorter depending on the token lifetime
+of the tokens returned by the identity provider. In other words, a request to the `/oauth2/sesion/refresh` endpoint will 
+only trigger a refresh the cooldown is not active.
 
 ## Development
 
