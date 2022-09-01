@@ -8,17 +8,17 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 )
 
-type Options struct {
+type AutoLogin struct {
 	Enabled        bool
 	IgnorePatterns []string
 }
 
-func (o *Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
-	if isAuthenticated || !o.Enabled {
+func (a *AutoLogin) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
+	if isAuthenticated || !a.Enabled {
 		return false
 	}
 
-	for _, pattern := range o.IgnorePatterns {
+	for _, pattern := range a.IgnorePatterns {
 		path := r.URL.Path
 		if !strings.HasPrefix(path, "/") {
 			path = "/" + path
@@ -33,7 +33,7 @@ func (o *Options) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 	return true
 }
 
-func NewOptions(cfg *config.Config) (*Options, error) {
+func New(cfg *config.Config) (*AutoLogin, error) {
 	seen := make(map[string]bool)
 	patterns := make([]string, 0)
 
@@ -48,7 +48,7 @@ func NewOptions(cfg *config.Config) (*Options, error) {
 		}
 	}
 
-	return &Options{
+	return &AutoLogin{
 		Enabled:        cfg.AutoLogin,
 		IgnorePatterns: patterns,
 	}, nil

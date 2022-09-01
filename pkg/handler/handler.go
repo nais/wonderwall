@@ -6,10 +6,10 @@ import (
 	"net/http/httputil"
 	"time"
 
-	"github.com/nais/wonderwall/pkg/autologin"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/pkg/handler/autologin"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid/client"
@@ -19,7 +19,7 @@ import (
 )
 
 type Handler struct {
-	AutoLogin     *autologin.Options
+	AutoLogin     *autologin.AutoLogin
 	Client        client.Client
 	Config        *config.Config
 	CookieOptions cookie.Options
@@ -42,7 +42,7 @@ func NewHandler(
 		return nil, err
 	}
 
-	autoLogin, err := autologin.NewOptions(cfg)
+	autoLogin, err := autologin.New(cfg)
 	if err != nil {
 		return nil, err
 	}
