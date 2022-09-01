@@ -1,28 +1,45 @@
 package router
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
 
-	"github.com/nais/wonderwall/pkg/handler"
+	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
-func New(handler *handler.Handler) chi.Router {
-	providerCfg := handler.OpenIDConfig.Provider()
-	clientCfg := handler.OpenIDConfig.Client()
+type Handler interface {
+	Login(http.ResponseWriter, *http.Request)
+	Callback(http.ResponseWriter, *http.Request)
 
-	prometheus := middleware.Prometheus(providerCfg.Name())
-	ingress := middleware.Ingress(handler.OpenIDConfig)
-	logentry := middleware.LogEntry(providerCfg.Name())
+	Logout(http.ResponseWriter, *http.Request)
+	LogoutCallback(http.ResponseWriter, *http.Request)
+
+	FrontChannelLogout(http.ResponseWriter, *http.Request)
+
+	SessionInfo(http.ResponseWriter, *http.Request)
+	SessionRefresh(http.ResponseWriter, *http.Request)
+
+	Default(http.ResponseWriter, *http.Request)
+
+	Ingresses() *ingress.Ingresses
+	ProviderName() string
+}
+
+func New(handler Handler) chi.Router {
+	ingressMw := middleware.Ingress(handler)
+	prometheus := middleware.Prometheus(handler.ProviderName())
+	logentry := middleware.LogEntry(handler.ProviderName())
 
 	r := chi.NewRouter()
 	r.Use(middleware.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)
-	r.Use(ingress.Handler)
+	r.Use(ingressMw.Handler)
 
-	prefixes := clientCfg.Ingresses().Paths()
+	prefixes := handler.Ingresses().Paths()
 
 	r.Group(func(r chi.Router) {
 		r.Use(logentry.Handler)
@@ -37,10 +54,7 @@ func New(handler *handler.Handler) chi.Router {
 				r.Get(paths.FrontChannelLogout, handler.FrontChannelLogout)
 				r.Get(paths.LogoutCallback, handler.LogoutCallback)
 				r.Get(paths.Session, handler.SessionInfo)
-
-				if handler.Config.Session.Refresh {
-					r.Get(paths.SessionRefresh, handler.SessionRefresh)
-				}
+				r.Get(paths.SessionRefresh, handler.SessionRefresh)
 			})
 		}
 	})

@@ -10,6 +10,7 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
+	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid/client"
@@ -78,6 +79,10 @@ func (h *Handler) CookieOptsPathAware(r *http.Request) cookie.Options {
 	return h.CookieOptions.WithPath(path)
 }
 
+func (h *Handler) Ingresses() *ingress.Ingresses {
+	return h.OpenIDConfig.Client().Ingresses()
+}
+
 func (h *Handler) Path(r *http.Request) string {
 	path, ok := middleware.PathFrom(r.Context())
 	if !ok {
@@ -85,6 +90,10 @@ func (h *Handler) Path(r *http.Request) string {
 	}
 
 	return path
+}
+
+func (h *Handler) ProviderName() string {
+	return h.OpenIDConfig.Provider().Name()
 }
 
 func newReverseProxy(upstreamHost string) *httputil.ReverseProxy {

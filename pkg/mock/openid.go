@@ -90,7 +90,8 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	}
 
 	rpHandler.CookieOptions = rpHandler.CookieOptions.WithSecure(false)
-	rpServer := httptest.NewServer(router.New(rpHandler))
+	rpRouter := router.New(rpHandler)
+	rpServer := httptest.NewServer(rpRouter)
 
 	// reconfigure client after Relying Party server is started
 	openidConfig.TestClient.SetIngresses(rpServer.URL)

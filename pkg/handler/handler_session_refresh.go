@@ -11,6 +11,11 @@ import (
 
 // SessionRefresh refreshes current user's session and returns the associated updated metadata.
 func (h *Handler) SessionRefresh(w http.ResponseWriter, r *http.Request) {
+	if !h.Config.Session.Refresh {
+		http.NotFound(w, r)
+		return
+	}
+
 	logger := mw.LogEntryFrom(r)
 
 	key, err := h.Sessions.GetKey(r)

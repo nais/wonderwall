@@ -3,20 +3,24 @@ package middleware
 import (
 	"net/http"
 
-	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	"github.com/nais/wonderwall/pkg/ingress"
 )
 
-type IngressMiddleware struct {
-	config openidconfig.Config
+type IngressSource interface {
+	Ingresses() *ingress.Ingresses
 }
 
-func Ingress(config openidconfig.Config) IngressMiddleware {
-	return IngressMiddleware{config: config}
+type IngressMiddleware struct {
+	IngressSource
+}
+
+func Ingress(source IngressSource) IngressMiddleware {
+	return IngressMiddleware{IngressSource: source}
 }
 
 func (i *IngressMiddleware) Handler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		ingresses := i.config.Client().Ingresses()
+		ingresses := i.Ingresses()
 		ctx := r.Context()
 
 		path := ingresses.MatchingPath(r)
