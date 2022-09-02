@@ -195,7 +195,7 @@ func TestLoginCallbackURL(t *testing.T) {
 		"https://nav.no/dagpenger",
 		"https://nav.no/dagpenger/soknad",
 	}
-	openidConfig := mock.NewTestConfiguration(cfg)
+	ingresses := mock.Ingresses(cfg)
 
 	for _, test := range []struct {
 		input string
@@ -224,7 +224,7 @@ func TestLoginCallbackURL(t *testing.T) {
 		},
 	} {
 		t.Run(test.input, func(t *testing.T) {
-			req := mock.NewGetRequest(test.input, openidConfig)
+			req := mock.NewGetRequest(test.input, ingresses)
 
 			actual, err := urlpkg.LoginCallbackURL(req)
 			if test.err != nil {
@@ -245,7 +245,7 @@ func TestLogoutCallbackURL(t *testing.T) {
 		"https://nav.no/dagpenger",
 		"https://nav.no/dagpenger/soknad",
 	}
-	openidConfig := mock.NewTestConfiguration(cfg)
+	ingresses := mock.Ingresses(cfg)
 
 	for _, test := range []struct {
 		input string
@@ -274,7 +274,7 @@ func TestLogoutCallbackURL(t *testing.T) {
 		},
 	} {
 		t.Run(test.input, func(t *testing.T) {
-			req := mock.NewGetRequest(test.input, openidConfig)
+			req := mock.NewGetRequest(test.input, ingresses)
 
 			actual, err := urlpkg.LogoutCallbackURL(req)
 			if test.err != nil {

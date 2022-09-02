@@ -70,8 +70,9 @@ func newLogout(t *testing.T) client.Logout {
 	openidCfg := mock.NewTestConfiguration(cfg)
 	openidCfg.TestClient.SetPostLogoutRedirectURI(PostLogoutRedirectURI)
 	openidCfg.TestProvider.SetEndSessionEndpoint(EndSessionEndpoint)
+	ingresses := mock.Ingresses(cfg)
 
-	req := mock.NewGetRequest(mock.Ingress+"/oauth2/logout", openidCfg)
+	req := mock.NewGetRequest(mock.Ingress+"/oauth2/logout", ingresses)
 
 	logout, err := newTestClientWithConfig(openidCfg).Logout(req)
 	assert.NoError(t, err)

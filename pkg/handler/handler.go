@@ -10,6 +10,7 @@ import (
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	"github.com/nais/wonderwall/pkg/handler/reverseproxy"
+	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
@@ -46,12 +47,18 @@ func NewHandler(
 		return nil, err
 	}
 
+	ingresses, err := ingress.ParseIngresses(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &StandardHandler{
 		autoLogin:     autoLogin,
 		client:        openidClient,
 		config:        cfg,
 		cookieOptions: cookieOpts,
 		crypter:       crypter,
+		ingresses:     ingresses,
 		loginstatus:   loginstatus.NewClient(cfg.Loginstatus, httpClient),
 		openidConfig:  openidConfig,
 		provider:      openidProvider,

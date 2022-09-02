@@ -64,10 +64,12 @@ func TestLogin_URL(t *testing.T) {
 		t.Run(test.url, func(t *testing.T) {
 			cfg := mock.Config()
 			openidConfig := mock.NewTestConfiguration(cfg)
+			ingresses := mock.Ingresses(cfg)
+
 			c := client.NewClient(openidConfig)
 			lsc := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
 
-			req := mock.NewGetRequest(test.url, openidConfig)
+			req := mock.NewGetRequest(test.url, ingresses)
 			result, err := c.Login(req, lsc)
 
 			if test.error != nil {
@@ -125,8 +127,9 @@ func TestLoginURL_WithResourceIndicator(t *testing.T) {
 	openidConfig.TestProvider.SetAuthorizationEndpoint("https://provider/authorize")
 
 	c := client.NewClient(openidConfig)
+	ingresses := mock.Ingresses(cfg)
 
-	req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", openidConfig)
+	req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", ingresses)
 
 	result, err := c.Login(req, lsc)
 	assert.NoError(t, err)

@@ -21,6 +21,7 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	handlerpkg "github.com/nais/wonderwall/pkg/handler"
+	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
@@ -62,11 +63,17 @@ func (in *IdentityProvider) RelyingPartyClient() *http.Client {
 
 func (in *IdentityProvider) SetIngresses(ingresses ...string) {
 	in.Cfg.Ingresses = ingresses
-	in.OpenIDConfig.TestClient.SetIngresses(ingresses...)
+
+	parsed, err := ingress.ParseIngresses(in.Cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	in.RelyingPartyHandler.SetIngresses(parsed)
 }
 
 func (in *IdentityProvider) GetRequest(target string) *http.Request {
-	return NewGetRequest(target, in.OpenIDConfig)
+	return NewGetRequest(target, in.RelyingPartyHandler.GetIngresses())
 }
 
 func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
@@ -94,10 +101,7 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	rpRouter := router.New(rpHandler)
 	rpServer := httptest.NewServer(rpRouter)
 
-	// reconfigure client after Relying Party server is started
-	openidConfig.TestClient.SetIngresses(rpServer.URL)
-
-	return &IdentityProvider{
+	ip := &IdentityProvider{
 		cancelFunc:          cancel,
 		Cfg:                 cfg,
 		RelyingPartyHandler: rpHandler,
@@ -107,6 +111,10 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 		ProviderHandler:     handler,
 		ProviderServer:      server,
 	}
+
+	// reconfigure ingresses after Relying Party server is started
+	ip.SetIngresses(rpServer.URL)
+	return ip
 }
 
 func identityProviderRouter(ip *IdentityProviderHandler) chi.Router {

@@ -5,14 +5,12 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
-	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
 )
 
 type TestClientConfiguration struct {
 	*config.Config
 	clientJwk jwk.Key
-	ingresses *ingress.Ingresses
 }
 
 func (c *TestClientConfiguration) ACRValues() string {
@@ -25,21 +23,6 @@ func (c *TestClientConfiguration) ClientID() string {
 
 func (c *TestClientConfiguration) ClientJWK() jwk.Key {
 	return c.clientJwk
-}
-
-func (c *TestClientConfiguration) Ingresses() *ingress.Ingresses {
-	return c.ingresses
-}
-
-func (c *TestClientConfiguration) SetIngresses(ingresses ...string) {
-	c.Config.Ingresses = ingresses
-
-	parsed, err := ingress.ParseIngresses(c.Config)
-	if err != nil {
-		panic(err)
-	}
-
-	c.ingresses = parsed
 }
 
 func (c *TestClientConfiguration) SetPostLogoutRedirectURI(uri string) {
@@ -70,14 +53,8 @@ func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
 		panic(err)
 	}
 
-	ingresses, err := ingress.ParseIngresses(cfg)
-	if err != nil {
-		panic(err)
-	}
-
 	return &TestClientConfiguration{
 		Config:    cfg,
 		clientJwk: key,
-		ingresses: ingresses,
 	}
 }

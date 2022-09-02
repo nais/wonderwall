@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	wonderwallconfig "github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
 )
 
@@ -15,7 +14,6 @@ type Client interface {
 	ACRValues() string
 	ClientID() string
 	ClientJWK() jwk.Key
-	Ingresses() *ingress.Ingresses
 	PostLogoutRedirectURI() string
 	Scopes() scopes.Scopes
 	UILocales() string
@@ -27,7 +25,6 @@ type Client interface {
 type client struct {
 	wonderwallconfig.OpenID
 	clientJwk jwk.Key
-	ingresses *ingress.Ingresses
 }
 
 func (in *client) ACRValues() string {
@@ -40,10 +37,6 @@ func (in *client) ClientID() string {
 
 func (in *client) ClientJWK() jwk.Key {
 	return in.clientJwk
-}
-
-func (in *client) Ingresses() *ingress.Ingresses {
-	return in.ingresses
 }
 
 func (in *client) PostLogoutRedirectURI() string {
@@ -84,15 +77,9 @@ func NewClientConfig(cfg *wonderwallconfig.Config) (Client, error) {
 		return nil, fmt.Errorf("parsing client JWK: %w", err)
 	}
 
-	ingresses, err := ingress.ParseIngresses(cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	c := &client{
 		OpenID:    cfg.OpenID,
 		clientJwk: clientJwk,
-		ingresses: ingresses,
 	}
 
 	var clientConfig Client

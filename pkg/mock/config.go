@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/ingress"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 )
 
@@ -47,4 +48,13 @@ func NewTestConfiguration(cfg *config.Config) *TestConfiguration {
 		TestClient:   clientConfiguration(cfg),
 		TestProvider: providerConfiguration(cfg),
 	}
+}
+
+func Ingresses(cfg *config.Config) *ingress.Ingresses {
+	parsed, err := ingress.ParseIngresses(cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	return parsed
 }

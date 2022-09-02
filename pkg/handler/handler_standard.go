@@ -34,6 +34,7 @@ type StandardHandler struct {
 	config        *config.Config
 	cookieOptions cookie.Options
 	crypter       crypto.Crypter
+	ingresses     *ingress.Ingresses
 	loginstatus   loginstatus.Loginstatus
 	openidConfig  openidconfig.Config
 	provider      provider.Provider
@@ -71,7 +72,11 @@ func (s *StandardHandler) GetErrorRedirectURI() string {
 }
 
 func (s *StandardHandler) GetIngresses() *ingress.Ingresses {
-	return s.openidConfig.Client().Ingresses()
+	return s.ingresses
+}
+
+func (s *StandardHandler) SetIngresses(ingresses *ingress.Ingresses) {
+	s.ingresses = ingresses
 }
 
 func (s *StandardHandler) GetLoginstatus() loginstatus.Loginstatus {
