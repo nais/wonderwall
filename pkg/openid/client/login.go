@@ -37,17 +37,7 @@ var (
 	}
 )
 
-type Login interface {
-	AuthCodeURL() string
-	CanonicalRedirect() string
-	CodeChallenge() string
-	CodeVerifier() string
-	Cookie() *openid.LoginCookie
-	Nonce() string
-	State() string
-}
-
-func NewLogin(c Client, r *http.Request, loginstatus loginstatus.Loginstatus) (Login, error) {
+func NewLogin(c *Client, r *http.Request, loginstatus *loginstatus.Loginstatus) (*Login, error) {
 	params, err := newLoginParameters(c)
 	if err != nil {
 		return nil, fmt.Errorf("generating parameters: %w", err)
@@ -66,7 +56,7 @@ func NewLogin(c Client, r *http.Request, loginstatus loginstatus.Loginstatus) (L
 	referer := urlpkg.CanonicalRedirect(r)
 	cookie := params.cookie(referer, callbackURL)
 
-	return &login{
+	return &Login{
 		authCodeURL:       url,
 		canonicalRedirect: referer,
 		cookie:            cookie,
@@ -74,7 +64,7 @@ func NewLogin(c Client, r *http.Request, loginstatus loginstatus.Loginstatus) (L
 	}, nil
 }
 
-type login struct {
+type Login struct {
 	authCodeURL       string
 	callbackURL       string
 	canonicalRedirect string
@@ -82,43 +72,43 @@ type login struct {
 	params            *loginParameters
 }
 
-func (l *login) AuthCodeURL() string {
+func (l *Login) AuthCodeURL() string {
 	return l.authCodeURL
 }
 
-func (l *login) CanonicalRedirect() string {
+func (l *Login) CanonicalRedirect() string {
 	return l.canonicalRedirect
 }
 
-func (l *login) CodeChallenge() string {
+func (l *Login) CodeChallenge() string {
 	return l.params.CodeChallenge
 }
 
-func (l *login) CodeVerifier() string {
+func (l *Login) CodeVerifier() string {
 	return l.params.CodeVerifier
 }
 
-func (l *login) Cookie() *openid.LoginCookie {
+func (l *Login) Cookie() *openid.LoginCookie {
 	return l.cookie
 }
 
-func (l *login) Nonce() string {
+func (l *Login) Nonce() string {
 	return l.params.Nonce
 }
 
-func (l *login) State() string {
+func (l *Login) State() string {
 	return l.params.State
 }
 
 type loginParameters struct {
-	Client
+	*Client
 	CodeVerifier  string
 	CodeChallenge string
 	Nonce         string
 	State         string
 }
 
-func newLoginParameters(c Client) (*loginParameters, error) {
+func newLoginParameters(c *Client) (*loginParameters, error) {
 	codeVerifier, err := strings.GenerateBase64(64)
 	if err != nil {
 		return nil, fmt.Errorf("creating code verifier: %w", err)
@@ -143,7 +133,7 @@ func newLoginParameters(c Client) (*loginParameters, error) {
 	}, nil
 }
 
-func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, loginstatus loginstatus.Loginstatus) (string, error) {
+func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, loginstatus *loginstatus.Loginstatus) (string, error) {
 	opts := []oauth2.AuthCodeOption{
 		oauth2.SetAuthURLParam(openid.Nonce, in.Nonce),
 		oauth2.SetAuthURLParam(openid.ResponseMode, ResponseModeQuery),

@@ -6,23 +6,19 @@ import (
 	mw "github.com/nais/wonderwall/pkg/middleware"
 )
 
-type LogoutCallback interface {
-	PostLogoutRedirectURI() string
-}
-
-type logoutCallback struct {
-	Client
+type LogoutCallback struct {
+	*Client
 	request *http.Request
 }
 
-func NewLogoutCallback(c Client, r *http.Request) LogoutCallback {
-	return &logoutCallback{
+func NewLogoutCallback(c *Client, r *http.Request) *LogoutCallback {
+	return &LogoutCallback{
 		Client:  c,
 		request: r,
 	}
 }
 
-func (in *logoutCallback) PostLogoutRedirectURI() string {
+func (in *LogoutCallback) PostLogoutRedirectURI() string {
 	redirect := in.config().Client().PostLogoutRedirectURI()
 
 	if len(redirect) > 0 {

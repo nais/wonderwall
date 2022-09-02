@@ -18,19 +18,18 @@ import (
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
-	openidprovider "github.com/nais/wonderwall/pkg/openid/provider"
 	retrypkg "github.com/nais/wonderwall/pkg/retry"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
 type Source interface {
-	GetClient() openidclient.Client
+	GetClient() *openidclient.Client
 	GetCookieOptions() cookie.Options
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetErrorHandler() errorhandler.Handler
-	GetLoginstatus() loginstatus.Loginstatus
-	GetProvider() openidprovider.Provider
+	GetLoginstatus() *loginstatus.Loginstatus
+	GetProvider() openidclient.OpenIDProvider
 	GetSessions() *session.Handler
 	GetSessionConfig() config.Session
 }
@@ -108,7 +107,7 @@ func clearLoginCookies(src Source, w http.ResponseWriter, r *http.Request) {
 	cookie.Clear(w, cookie.LoginLegacy, opts.WithSameSite(http.SameSiteDefaultMode))
 }
 
-func redeemValidTokens(r *http.Request, loginCallback openidclient.LoginCallback) (*openid.Tokens, error) {
+func redeemValidTokens(r *http.Request, loginCallback *openidclient.LoginCallback) (*openid.Tokens, error) {
 	var tokens *openid.Tokens
 	var err error
 

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"net/http"
 	"time"
 
@@ -14,22 +13,16 @@ import (
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
-	"github.com/nais/wonderwall/pkg/openid/provider"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
 func NewHandler(
-	ctx context.Context,
 	cfg *config.Config,
 	cookieOpts cookie.Options,
 	openidConfig openidconfig.Config,
+	openidProvider client.OpenIDProvider,
 	crypter crypto.Crypter,
 ) (*StandardHandler, error) {
-	openidProvider, err := provider.NewProvider(ctx, openidConfig)
-	if err != nil {
-		return nil, err
-	}
-
 	autoLogin, err := autologin.New(cfg)
 	if err != nil {
 		return nil, err

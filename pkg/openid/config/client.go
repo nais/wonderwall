@@ -110,7 +110,7 @@ type azure struct {
 	*client
 }
 
-func (in *client) Azure() Client {
+func (in *client) Azure() *azure {
 	return &azure{
 		client: in,
 	}
@@ -127,7 +127,7 @@ type idporten struct {
 	*client
 }
 
-func (in *client) IDPorten() Client {
+func (in *client) IDPorten() *idporten {
 	return &idporten{
 		client: in,
 	}

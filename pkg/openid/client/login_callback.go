@@ -7,32 +7,31 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/openid/provider"
 )
 
-type LoginCallback interface {
-	IdentityProviderError() error
-	StateMismatchError() error
-	RedeemTokens(ctx context.Context) (*openid.Tokens, error)
+type OpenIDProvider interface {
+	GetPublicJwkSet(ctx context.Context) (*jwk.Set, error)
+	RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error)
 }
 
-type loginCallback struct {
-	client        Client
+type LoginCallback struct {
+	client        *Client
 	cookie        *openid.LoginCookie
-	provider      provider.Provider
+	provider      OpenIDProvider
 	request       *http.Request
 	requestParams url.Values
 }
 
-func NewLoginCallback(c Client, r *http.Request, p provider.Provider, cookie *openid.LoginCookie) (LoginCallback, error) {
+func NewLoginCallback(c *Client, r *http.Request, p OpenIDProvider, cookie *openid.LoginCookie) (*LoginCallback, error) {
 	if cookie == nil {
 		return nil, fmt.Errorf("cookie is nil")
 	}
 
-	return &loginCallback{
+	return &LoginCallback{
 		client:        c,
 		cookie:        cookie,
 		provider:      p,
@@ -41,7 +40,7 @@ func NewLoginCallback(c Client, r *http.Request, p provider.Provider, cookie *op
 	}, nil
 }
 
-func (in *loginCallback) IdentityProviderError() error {
+func (in *LoginCallback) IdentityProviderError() error {
 	if in.requestParams.Get(openid.Error) != "" {
 		oauthError := in.requestParams.Get(openid.Error)
 		oauthErrorDescription := in.requestParams.Get(openid.ErrorDescription)
@@ -51,7 +50,7 @@ func (in *loginCallback) IdentityProviderError() error {
 	return nil
 }
 
-func (in *loginCallback) StateMismatchError() error {
+func (in *LoginCallback) StateMismatchError() error {
 	expectedState := in.cookie.State
 	actualState := in.requestParams.Get(openid.State)
 
@@ -66,7 +65,7 @@ func (in *loginCallback) StateMismatchError() error {
 	return nil
 }
 
-func (in *loginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
+func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
 	clientAssertion, err := in.client.MakeAssertion(time.Second * 30)
 	if err != nil {
 		return nil, fmt.Errorf("creating client assertion: %w", err)

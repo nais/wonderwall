@@ -12,6 +12,7 @@ import (
 	"github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/metrics"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	"github.com/nais/wonderwall/pkg/openid/provider"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/server"
 )
@@ -36,8 +37,15 @@ func run() error {
 	defer cancel()
 
 	crypt := crypto.NewCrypter(key)
+
 	cookieOpts := cookie.DefaultOptions()
-	h, err := handler.NewHandler(ctx, cfg, cookieOpts, openidConfig, crypt)
+
+	openidProvider, err := provider.NewProvider(ctx, openidConfig)
+	if err != nil {
+		return err
+	}
+
+	h, err := handler.NewHandler(cfg, cookieOpts, openidConfig, openidProvider, crypt)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}

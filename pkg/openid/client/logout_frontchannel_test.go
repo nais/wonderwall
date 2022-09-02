@@ -28,7 +28,7 @@ func TestLogoutFrontchannel_Sid(t *testing.T) {
 	})
 }
 
-func newLogoutFrontchannel(url string) client.LogoutFrontchannel {
+func newLogoutFrontchannel(url string) *client.LogoutFrontchannel {
 	req := httptest.NewRequest(http.MethodGet, url, nil)
 	return newTestClient().LogoutFrontchannel(req)
 }

@@ -64,7 +64,7 @@ func TestLogout_SingleLogoutURL(t *testing.T) {
 	})
 }
 
-func newLogout(t *testing.T) client.Logout {
+func newLogout(t *testing.T) *client.Logout {
 	cfg := mock.Config()
 
 	openidCfg := mock.NewTestConfiguration(cfg)

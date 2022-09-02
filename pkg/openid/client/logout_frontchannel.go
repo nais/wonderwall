@@ -6,29 +6,24 @@ import (
 	"github.com/nais/wonderwall/pkg/openid"
 )
 
-type LogoutFrontchannel interface {
-	// Sid is the session identifier which SHOULD be included as a parameter in the front-channel logout request.
-	Sid() string
-	MissingSidParameter() bool
-}
-
-type logoutFrontchannel struct {
+type LogoutFrontchannel struct {
 	sid string
 }
 
-func NewLogoutFrontchannel(r *http.Request) LogoutFrontchannel {
+func NewLogoutFrontchannel(r *http.Request) *LogoutFrontchannel {
 	params := r.URL.Query()
 	sid := params.Get(openid.Sid)
 
-	return &logoutFrontchannel{
+	return &LogoutFrontchannel{
 		sid: sid,
 	}
 }
 
-func (l *logoutFrontchannel) Sid() string {
+// Sid is the session identifier which SHOULD be included as a parameter in the front-channel logout request.
+func (l *LogoutFrontchannel) Sid() string {
 	return l.sid
 }
 
-func (l *logoutFrontchannel) MissingSidParameter() bool {
+func (l *LogoutFrontchannel) MissingSidParameter() bool {
 	return len(l.sid) <= 0
 }

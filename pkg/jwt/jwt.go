@@ -17,24 +17,16 @@ const (
 	UtiClaim = "uti"
 )
 
-type Token interface {
-	GetExpiration() time.Time
-	GetJwtID() string
-	GetSerialized() string
-	GetStringClaim(claim string) (string, error)
-	GetToken() jwt.Token
-}
-
-type token struct {
+type Token struct {
 	serialized string
 	token      jwt.Token
 }
 
-func (in *token) GetExpiration() time.Time {
+func (in *Token) GetExpiration() time.Time {
 	return in.token.Expiration()
 }
 
-func (in *token) GetJwtID() string {
+func (in *Token) GetJwtID() string {
 	jti := in.GetStringClaimOrEmpty(JtiClaim)
 	uti := in.GetStringClaimOrEmpty(UtiClaim)
 
@@ -47,11 +39,11 @@ func (in *token) GetJwtID() string {
 	return uti
 }
 
-func (in *token) GetSerialized() string {
+func (in *Token) GetSerialized() string {
 	return in.serialized
 }
 
-func (in *token) GetStringClaim(claim string) (string, error) {
+func (in *Token) GetStringClaim(claim string) (string, error) {
 	if in.token == nil {
 		return "", fmt.Errorf("token is nil")
 	}
@@ -69,7 +61,7 @@ func (in *token) GetStringClaim(claim string) (string, error) {
 	return claimString, nil
 }
 
-func (in *token) GetStringClaimOrEmpty(claim string) string {
+func (in *Token) GetStringClaimOrEmpty(claim string) string {
 	str, err := in.GetStringClaim(claim)
 	if err != nil {
 		return ""
@@ -78,12 +70,12 @@ func (in *token) GetStringClaimOrEmpty(claim string) string {
 	return str
 }
 
-func (in *token) GetToken() jwt.Token {
+func (in *Token) GetToken() jwt.Token {
 	return in.token
 }
 
 func NewToken(raw string, jwtToken jwt.Token) Token {
-	return &token{
+	return Token{
 		serialized: raw,
 		token:      jwtToken,
 	}

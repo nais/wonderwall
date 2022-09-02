@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -30,7 +29,6 @@ import (
 )
 
 type IdentityProvider struct {
-	cancelFunc          context.CancelFunc
 	Cfg                 *config.Config
 	OpenIDConfig        *TestConfiguration
 	Provider            *TestProvider
@@ -41,7 +39,6 @@ type IdentityProvider struct {
 }
 
 func (in *IdentityProvider) Close() {
-	in.cancelFunc()
 	in.ProviderServer.Close()
 	in.RelyingPartyServer.Close()
 }
@@ -91,9 +88,8 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 
 	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
 
-	ctx, cancel := context.WithCancel(context.Background())
 	cookieOpts := cookie.DefaultOptions().WithSecure(false)
-	rpHandler, err := handlerpkg.NewHandler(ctx, cfg, cookieOpts, openidConfig, crypter)
+	rpHandler, err := handlerpkg.NewHandler(cfg, cookieOpts, openidConfig, provider, crypter)
 	if err != nil {
 		panic(err)
 	}
@@ -102,7 +98,6 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	rpServer := httptest.NewServer(rpRouter)
 
 	ip := &IdentityProvider{
-		cancelFunc:          cancel,
 		Cfg:                 cfg,
 		RelyingPartyHandler: rpHandler,
 		RelyingPartyServer:  rpServer,

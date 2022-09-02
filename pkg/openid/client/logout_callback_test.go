@@ -34,7 +34,7 @@ func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 	})
 }
 
-func newLogoutCallback(cfg *config.Config) client.LogoutCallback {
+func newLogoutCallback(cfg *config.Config) *client.LogoutCallback {
 	openidCfg := mock.NewTestConfiguration(cfg)
 	ingresses := mock.Ingresses(cfg)
 	req := mock.NewGetRequest(mock.Ingress+"/oauth2/logout/callback", ingresses)

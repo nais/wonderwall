@@ -21,7 +21,6 @@ import (
 	"github.com/nais/wonderwall/pkg/middleware"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
-	"github.com/nais/wonderwall/pkg/openid/provider"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -30,14 +29,14 @@ var _ router.Source = &StandardHandler{}
 
 type StandardHandler struct {
 	autoLogin     *autologin.AutoLogin
-	client        openidclient.Client
+	client        *openidclient.Client
 	config        *config.Config
 	cookieOptions cookie.Options
 	crypter       crypto.Crypter
 	ingresses     *ingress.Ingresses
-	loginstatus   loginstatus.Loginstatus
+	loginstatus   *loginstatus.Loginstatus
 	openidConfig  openidconfig.Config
-	provider      provider.Provider
+	provider      openidclient.OpenIDProvider
 	sessions      *session.Handler
 	upstreamProxy *reverseproxy.ReverseProxy
 }
@@ -46,7 +45,7 @@ func (s *StandardHandler) GetAutoLogin() *autologin.AutoLogin {
 	return s.autoLogin
 }
 
-func (s *StandardHandler) GetClient() openidclient.Client {
+func (s *StandardHandler) GetClient() *openidclient.Client {
 	return s.client
 }
 
@@ -79,7 +78,7 @@ func (s *StandardHandler) SetIngresses(ingresses *ingress.Ingresses) {
 	s.ingresses = ingresses
 }
 
-func (s *StandardHandler) GetLoginstatus() loginstatus.Loginstatus {
+func (s *StandardHandler) GetLoginstatus() *loginstatus.Loginstatus {
 	return s.loginstatus
 }
 
@@ -92,7 +91,7 @@ func (s *StandardHandler) GetPath(r *http.Request) string {
 	return path
 }
 
-func (s *StandardHandler) GetProvider() provider.Provider {
+func (s *StandardHandler) GetProvider() openidclient.OpenIDProvider {
 	return s.provider
 }
 

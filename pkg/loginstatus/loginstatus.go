@@ -17,22 +17,8 @@ const (
 	SameSiteMode = http.SameSiteDefaultMode
 )
 
-type Loginstatus interface {
-	Enabled() bool
-	NeedsLogin(r *http.Request) bool
-	NeedsResourceIndicator() bool
-	ResourceIndicator() string
-
-	ExchangeToken(ctx context.Context, accessToken string) (*TokenResponse, error)
-
-	CookieOptions(opts cookie.Options) cookie.Options
-	ClearCookie(w http.ResponseWriter, opts cookie.Options)
-	HasCookie(r *http.Request) bool
-	SetCookie(w http.ResponseWriter, token *TokenResponse, opts cookie.Options)
-}
-
-func NewClient(config config.Loginstatus, httpClient *http.Client) Loginstatus {
-	return &client{
+func NewClient(config config.Loginstatus, httpClient *http.Client) *Loginstatus {
+	return &Loginstatus{
 		config:     config,
 		httpClient: httpClient,
 	}
@@ -48,24 +34,24 @@ type ErrorResponse struct {
 	ErrorDescription string `json:"error_description"`
 }
 
-type client struct {
+type Loginstatus struct {
 	config     config.Loginstatus
 	httpClient *http.Client
 }
 
-func (c *client) NeedsResourceIndicator() bool {
+func (c *Loginstatus) NeedsResourceIndicator() bool {
 	return c.Enabled() && len(c.ResourceIndicator()) > 0
 }
 
-func (c *client) ResourceIndicator() string {
+func (c *Loginstatus) ResourceIndicator() string {
 	return c.config.ResourceIndicator
 }
 
-func (c *client) Enabled() bool {
+func (c *Loginstatus) Enabled() bool {
 	return c.config.Enabled
 }
 
-func (c *client) ExchangeToken(ctx context.Context, accessToken string) (*TokenResponse, error) {
+func (c *Loginstatus) ExchangeToken(ctx context.Context, accessToken string) (*TokenResponse, error) {
 	req, err := request(ctx, c.config.TokenURL, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("creating request %w", err)
@@ -85,7 +71,7 @@ func (c *client) ExchangeToken(ctx context.Context, accessToken string) (*TokenR
 	return tokenResponse, nil
 }
 
-func (c *client) SetCookie(w http.ResponseWriter, token *TokenResponse, opts cookie.Options) {
+func (c *Loginstatus) SetCookie(w http.ResponseWriter, token *TokenResponse, opts cookie.Options) {
 	name := c.config.CookieName
 	expiresIn := time.Duration(token.ExpiresIn) * time.Second
 
@@ -96,7 +82,7 @@ func (c *client) SetCookie(w http.ResponseWriter, token *TokenResponse, opts coo
 	cookie.Set(w, newCookie)
 }
 
-func (c *client) HasCookie(r *http.Request) bool {
+func (c *Loginstatus) HasCookie(r *http.Request) bool {
 	_, err := r.Cookie(c.config.CookieName)
 	if errors.Is(err, http.ErrNoCookie) {
 		return false
@@ -104,21 +90,21 @@ func (c *client) HasCookie(r *http.Request) bool {
 	return true
 }
 
-func (c *client) ClearCookie(w http.ResponseWriter, opts cookie.Options) {
+func (c *Loginstatus) ClearCookie(w http.ResponseWriter, opts cookie.Options) {
 	cookieName := c.config.CookieName
 	opts = c.CookieOptions(opts)
 
 	cookie.Clear(w, cookieName, opts)
 }
 
-func (c *client) CookieOptions(opts cookie.Options) cookie.Options {
+func (c *Loginstatus) CookieOptions(opts cookie.Options) cookie.Options {
 	domain := c.config.CookieDomain
 	return opts.WithDomain(domain).
 		WithSameSite(SameSiteMode).
 		WithPath("/")
 }
 
-func (c *client) NeedsLogin(r *http.Request) bool {
+func (c *Loginstatus) NeedsLogin(r *http.Request) bool {
 	if c.config.Enabled && !c.HasCookie(r) {
 		return true
 	}

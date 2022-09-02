@@ -14,7 +14,7 @@ import (
 
 type Source interface {
 	GetAutoLogin() *autologin.AutoLogin
-	GetLoginstatus() loginstatus.Loginstatus
+	GetLoginstatus() *loginstatus.Loginstatus
 	GetPath(r *http.Request) string
 	GetSessions() *session.Handler
 }

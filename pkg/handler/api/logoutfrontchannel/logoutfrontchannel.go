@@ -12,10 +12,10 @@ import (
 )
 
 type Source interface {
-	GetClient() openidclient.Client
+	GetClient() *openidclient.Client
 	GetCookieOptions() cookie.Options
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
-	GetLoginstatus() loginstatus.Loginstatus
+	GetLoginstatus() *loginstatus.Loginstatus
 	GetSessions() *session.Handler
 }
 

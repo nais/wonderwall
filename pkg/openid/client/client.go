@@ -17,33 +17,15 @@ import (
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
-	"github.com/nais/wonderwall/pkg/openid/provider"
 )
 
-type Client interface {
-	config() openidconfig.Config
-	oAuth2Config() *oauth2.Config
-
-	SetHttpClient(c *http.Client)
-
-	Login(r *http.Request, loginstatus loginstatus.Loginstatus) (Login, error)
-	LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) (LoginCallback, error)
-	Logout(r *http.Request) (Logout, error)
-	LogoutCallback(r *http.Request) LogoutCallback
-	LogoutFrontchannel(r *http.Request) LogoutFrontchannel
-
-	AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error)
-	MakeAssertion(expiration time.Duration) (string, error)
-	RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error)
-}
-
-type client struct {
+type Client struct {
 	cfg          openidconfig.Config
 	httpClient   *http.Client
 	oauth2Config *oauth2.Config
 }
 
-func NewClient(cfg openidconfig.Config) Client {
+func NewClient(cfg openidconfig.Config) *Client {
 	oauth2Config := &oauth2.Config{
 		ClientID: cfg.Client().ClientID(),
 		Endpoint: oauth2.Endpoint{
@@ -54,26 +36,26 @@ func NewClient(cfg openidconfig.Config) Client {
 		Scopes: cfg.Client().Scopes(),
 	}
 
-	return &client{
+	return &Client{
 		cfg:          cfg,
 		httpClient:   http.DefaultClient,
 		oauth2Config: oauth2Config,
 	}
 }
 
-func (c *client) config() openidconfig.Config {
+func (c *Client) config() openidconfig.Config {
 	return c.cfg
 }
 
-func (c *client) oAuth2Config() *oauth2.Config {
+func (c *Client) oAuth2Config() *oauth2.Config {
 	return c.oauth2Config
 }
 
-func (c *client) SetHttpClient(httpClient *http.Client) {
+func (c *Client) SetHttpClient(httpClient *http.Client) {
 	c.httpClient = httpClient
 }
 
-func (c *client) Login(r *http.Request, loginstatus loginstatus.Loginstatus) (Login, error) {
+func (c *Client) Login(r *http.Request, loginstatus *loginstatus.Loginstatus) (*Login, error) {
 	login, err := NewLogin(c, r, loginstatus)
 	if err != nil {
 		return nil, fmt.Errorf("login: %w", err)
@@ -82,7 +64,7 @@ func (c *client) Login(r *http.Request, loginstatus loginstatus.Loginstatus) (Lo
 	return login, nil
 }
 
-func (c *client) LoginCallback(r *http.Request, p provider.Provider, cookie *openid.LoginCookie) (LoginCallback, error) {
+func (c *Client) LoginCallback(r *http.Request, p OpenIDProvider, cookie *openid.LoginCookie) (*LoginCallback, error) {
 	loginCallback, err := NewLoginCallback(c, r, p, cookie)
 	if err != nil {
 		return nil, fmt.Errorf("callback: %w", err)
@@ -91,7 +73,7 @@ func (c *client) LoginCallback(r *http.Request, p provider.Provider, cookie *ope
 	return loginCallback, nil
 }
 
-func (c *client) Logout(r *http.Request) (Logout, error) {
+func (c *Client) Logout(r *http.Request) (*Logout, error) {
 	logout, err := NewLogout(c, r)
 	if err != nil {
 		return nil, fmt.Errorf("logout: %w", err)
@@ -100,19 +82,19 @@ func (c *client) Logout(r *http.Request) (Logout, error) {
 	return logout, nil
 }
 
-func (c *client) LogoutCallback(r *http.Request) LogoutCallback {
+func (c *Client) LogoutCallback(r *http.Request) *LogoutCallback {
 	return NewLogoutCallback(c, r)
 }
 
-func (c *client) LogoutFrontchannel(r *http.Request) LogoutFrontchannel {
+func (c *Client) LogoutFrontchannel(r *http.Request) *LogoutFrontchannel {
 	return NewLogoutFrontchannel(r)
 }
 
-func (c *client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error) {
+func (c *Client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error) {
 	return c.oauth2Config.Exchange(ctx, code, opts...)
 }
 
-func (c *client) MakeAssertion(expiration time.Duration) (string, error) {
+func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
 	clientCfg := c.config().Client()
 	providerCfg := c.config().Provider()
 	key := clientCfg.ClientJWK()
@@ -144,7 +126,7 @@ func (c *client) MakeAssertion(expiration time.Duration) (string, error) {
 	return string(encoded), nil
 }
 
-func (c *client) RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error) {
+func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error) {
 	assertion, err := c.MakeAssertion(30 * time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("creating client assertion: %w", err)

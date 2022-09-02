@@ -29,7 +29,7 @@ var (
 )
 
 type Handler struct {
-	client                 openidclient.Client
+	client                 *openidclient.Client
 	crypter                crypto.Crypter
 	openidCfg              openidconfig.Config
 	refreshEnabled         bool
@@ -37,7 +37,7 @@ type Handler struct {
 	store                  Store
 }
 
-func NewHandler(cfg *config.Config, openidCfg openidconfig.Config, crypter crypto.Crypter, openidClient openidclient.Client) (*Handler, error) {
+func NewHandler(cfg *config.Config, openidCfg openidconfig.Config, crypter crypto.Crypter, openidClient *openidclient.Client) (*Handler, error) {
 	store, err := NewStore(cfg)
 	if err != nil {
 		return nil, err

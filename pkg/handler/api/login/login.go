@@ -23,11 +23,11 @@ const (
 )
 
 type Source interface {
-	GetClient() openidclient.Client
+	GetClient() *openidclient.Client
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetErrorHandler() errorhandler.Handler
-	GetLoginstatus() loginstatus.Loginstatus
+	GetLoginstatus() *loginstatus.Loginstatus
 }
 
 func Handler(src Source, w http.ResponseWriter, r *http.Request) {

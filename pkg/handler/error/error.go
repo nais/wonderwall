@@ -17,13 +17,6 @@ import (
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
-type Handler interface {
-	InternalError(w http.ResponseWriter, r *http.Request, cause error)
-	BadRequest(w http.ResponseWriter, r *http.Request, cause error)
-	Unauthorized(w http.ResponseWriter, r *http.Request, cause error)
-	Retry(r *http.Request, loginCookie *openid.LoginCookie) string
-}
-
 type Source interface {
 	GetCrypter() crypto.Crypter
 	GetErrorRedirectURI() string
@@ -35,23 +28,23 @@ type Page struct {
 	RetryURI      string
 }
 
-type handler struct {
+type Handler struct {
 	Source
 }
 
 func New(src Source) Handler {
-	return handler{src}
+	return Handler{src}
 }
 
-func (h handler) InternalError(w http.ResponseWriter, r *http.Request, cause error) {
+func (h Handler) InternalError(w http.ResponseWriter, r *http.Request, cause error) {
 	h.respondError(w, r, http.StatusInternalServerError, cause, log.ErrorLevel)
 }
 
-func (h handler) BadRequest(w http.ResponseWriter, r *http.Request, cause error) {
+func (h Handler) BadRequest(w http.ResponseWriter, r *http.Request, cause error) {
 	h.respondError(w, r, http.StatusBadRequest, cause, log.ErrorLevel)
 }
 
-func (h handler) Unauthorized(w http.ResponseWriter, r *http.Request, cause error) {
+func (h Handler) Unauthorized(w http.ResponseWriter, r *http.Request, cause error) {
 	h.respondError(w, r, http.StatusUnauthorized, cause, log.WarnLevel)
 }
 
@@ -59,7 +52,7 @@ func (h handler) Unauthorized(w http.ResponseWriter, r *http.Request, cause erro
 // It only handles the routes exposed by Wonderwall, i.e. `/oauth2/*`. As these routes
 // are related to the authentication flow, we default to redirecting back to the handled
 // `/oauth2/login` endpoint unless the original request attempted to reach the logout-flow.
-func (h handler) Retry(r *http.Request, loginCookie *openid.LoginCookie) string {
+func (h Handler) Retry(r *http.Request, loginCookie *openid.LoginCookie) string {
 	requestPath := r.URL.Path
 	ingressPath := h.GetPath(r)
 
@@ -76,7 +69,7 @@ func (h handler) Retry(r *http.Request, loginCookie *openid.LoginCookie) string 
 	return urlpkg.LoginURL(ingressPath, redirect)
 }
 
-func (h handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level log.Level) {
+func (h Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level log.Level) {
 	logger := mw.LogEntryFrom(r)
 	msg := "error in route: %+v"
 
@@ -97,7 +90,7 @@ func (h handler) respondError(w http.ResponseWriter, r *http.Request, statusCode
 	h.defaultErrorResponse(w, r, statusCode)
 }
 
-func (h handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int) {
+func (h Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int) {
 	w.WriteHeader(statusCode)
 
 	loginCookie, err := openid.GetLoginCookie(r, h.GetCrypter())
@@ -115,7 +108,7 @@ func (h handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, st
 	}
 }
 
-func (h handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, statusCode int) error {
+func (h Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, statusCode int) error {
 	override, err := url.Parse(h.GetErrorRedirectURI())
 	if err != nil {
 		return err

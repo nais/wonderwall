@@ -8,7 +8,7 @@ import (
 )
 
 type Source interface {
-	GetClient() openidclient.Client
+	GetClient() *openidclient.Client
 }
 
 func Handler(src Source, w http.ResponseWriter, r *http.Request) {
