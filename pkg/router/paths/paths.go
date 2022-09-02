@@ -3,10 +3,10 @@ package paths
 const (
 	OAuth2             = "/oauth2"
 	Login              = "/login"
-	Callback           = "/callback"
+	LoginCallback      = "/callback"
 	Logout             = "/logout"
 	LogoutCallback     = "/logout/callback"
-	FrontChannelLogout = "/logout/frontchannel"
+	LogoutFrontChannel = "/logout/frontchannel"
 	Session            = "/session"
 	SessionRefresh     = "/session/refresh"
 )

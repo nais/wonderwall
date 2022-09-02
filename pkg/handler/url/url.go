@@ -68,8 +68,8 @@ func LoginURL(prefix, redirectTarget string) string {
 	return loginPath + redirectParam
 }
 
-func CallbackURL(r *http.Request) (string, error) {
-	return makeCallbackURL(r, paths.Callback)
+func LoginCallbackURL(r *http.Request) (string, error) {
+	return makeCallbackURL(r, paths.LoginCallback)
 }
 
 func LogoutCallbackURL(r *http.Request) (string, error) {

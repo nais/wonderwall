@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/metrics"
@@ -35,7 +36,8 @@ func run() error {
 	defer cancel()
 
 	crypt := crypto.NewCrypter(key)
-	h, err := handler.NewHandler(ctx, cfg, openidConfig, crypt)
+	cookieOpts := cookie.DefaultOptions()
+	h, err := handler.NewHandler(ctx, cfg, cookieOpts, openidConfig, crypt)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}

@@ -1,19 +1,24 @@
-package handler
+package session
 
 import (
 	"encoding/json"
 	"errors"
 	"net/http"
 
+	"github.com/nais/wonderwall/pkg/config"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-// SessionInfo returns metadata for the current user's session.
-func (h *Handler) SessionInfo(w http.ResponseWriter, r *http.Request) {
+type Source interface {
+	GetSessions() *session.Handler
+	GetSessionConfig() config.Session
+}
+
+func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r)
 
-	data, err := h.Sessions.Get(r)
+	data, err := src.GetSessions().Get(r)
 	if err != nil {
 		if errors.Is(err, session.CookieNotFoundError) || errors.Is(err, session.KeyNotFoundError) {
 			logger.Infof("session/info: getting session: %+v", err)
@@ -28,7 +33,7 @@ func (h *Handler) SessionInfo(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if h.Config.Session.Refresh {
+	if src.GetSessionConfig().Refresh {
 		err = json.NewEncoder(w).Encode(data.Metadata.VerboseWithRefresh())
 	} else {
 		err = json.NewEncoder(w).Encode(data.Metadata.Verbose())

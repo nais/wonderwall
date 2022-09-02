@@ -90,7 +90,7 @@ func TestLogin_URL(t *testing.T) {
 				assert.Contains(t, query, "code_challenge_method")
 				assert.NotContains(t, query, "resource")
 
-				callbackURL, err := urlpkg.CallbackURL(req)
+				callbackURL, err := urlpkg.LoginCallbackURL(req)
 				assert.NoError(t, err)
 
 				assert.ElementsMatch(t, query["response_type"], []string{"code"})

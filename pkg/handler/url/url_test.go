@@ -187,7 +187,7 @@ func TestLoginURL(t *testing.T) {
 	}
 }
 
-func TestClient_CallbackURL(t *testing.T) {
+func TestLoginCallbackURL(t *testing.T) {
 	cfg := mock.Config()
 	cfg.Ingresses = []string{
 		"https://nav.no",
@@ -226,7 +226,7 @@ func TestClient_CallbackURL(t *testing.T) {
 		t.Run(test.input, func(t *testing.T) {
 			req := mock.NewGetRequest(test.input, openidConfig)
 
-			actual, err := urlpkg.CallbackURL(req)
+			actual, err := urlpkg.LoginCallbackURL(req)
 			if test.err != nil {
 				assert.EqualError(t, err, test.err.Error())
 			} else {
@@ -237,7 +237,7 @@ func TestClient_CallbackURL(t *testing.T) {
 	}
 }
 
-func TestClient_LogoutCallbackURL(t *testing.T) {
+func TestLogoutCallbackURL(t *testing.T) {
 	cfg := mock.Config()
 	cfg.Ingresses = []string{
 		"https://nav.no",

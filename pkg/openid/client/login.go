@@ -53,7 +53,7 @@ func NewLogin(c Client, r *http.Request, loginstatus loginstatus.Loginstatus) (L
 		return nil, fmt.Errorf("generating parameters: %w", err)
 	}
 
-	callbackURL, err := urlpkg.CallbackURL(r)
+	callbackURL, err := urlpkg.LoginCallbackURL(r)
 	if err != nil {
 		return nil, fmt.Errorf("generating callback url: %w", err)
 	}

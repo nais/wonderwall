@@ -1,4 +1,4 @@
-package handler_test
+package error_test
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ func TestHandler_Error(t *testing.T) {
 	idp := mock.NewIdentityProvider(cfg)
 	defer idp.Close()
 
-	rpHandler := idp.RelyingPartyHandler
+	rpHandler := idp.RelyingPartyHandler.GetErrorHandler()
 
 	for _, test := range []struct {
 		name               string
@@ -57,7 +57,7 @@ func TestHandler_Retry(t *testing.T) {
 	idp := mock.NewIdentityProvider(cfg)
 	defer idp.Close()
 
-	handler := idp.RelyingPartyHandler
+	handler := idp.RelyingPartyHandler.GetErrorHandler()
 
 	httpRequest := func(url string, referer ...string) *http.Request {
 		req := httptest.NewRequest(http.MethodGet, url, nil)

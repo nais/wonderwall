@@ -7,7 +7,7 @@ import (
 )
 
 type IngressSource interface {
-	Ingresses() *ingress.Ingresses
+	GetIngresses() *ingress.Ingresses
 }
 
 type IngressMiddleware struct {
@@ -20,7 +20,7 @@ func Ingress(source IngressSource) IngressMiddleware {
 
 func (i *IngressMiddleware) Handler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		ingresses := i.Ingresses()
+		ingresses := i.GetIngresses()
 		ctx := r.Context()
 
 		path := ingresses.MatchingPath(r)

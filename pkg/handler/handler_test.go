@@ -31,9 +31,9 @@ func TestHandler_Login(t *testing.T) {
 	resp := localLogin(t, rpClient, idp)
 	loginURL := resp.Location
 
-	req := idp.GetRequest(idp.RelyingPartyServer.URL + "/oauth2/logout")
+	req := idp.GetRequest(idp.RelyingPartyServer.URL + "/oauth2/login")
 
-	expectedCallbackURL, err := urlpkg.CallbackURL(req)
+	expectedCallbackURL, err := urlpkg.LoginCallbackURL(req)
 	assert.NoError(t, err)
 
 	assert.Equal(t, idp.ProviderServer.URL, fmt.Sprintf("%s://%s", loginURL.Scheme, loginURL.Host))
@@ -116,10 +116,10 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 		ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
 		assert.NoError(t, err)
 
-		sessionKey, err := idp.RelyingPartyHandler.Crypter.Decrypt(ciphertext)
+		sessionKey, err := idp.RelyingPartyHandler.GetCrypter().Decrypt(ciphertext)
 		assert.NoError(t, err)
 
-		data, err := idp.RelyingPartyHandler.Sessions.GetForKey(r, string(sessionKey))
+		data, err := idp.RelyingPartyHandler.GetSessions().GetForKey(r, string(sessionKey))
 		assert.NoError(t, err)
 
 		return data.ExternalSessionID
@@ -399,7 +399,7 @@ func TestHandler_Default(t *testing.T) {
 		callbackEndpoint.RawQuery = ""
 
 		req := idp.GetRequest(callbackLocation.String())
-		expectedCallbackURL, err := urlpkg.CallbackURL(req)
+		expectedCallbackURL, err := urlpkg.LoginCallbackURL(req)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedCallbackURL, callbackEndpoint.String())
 

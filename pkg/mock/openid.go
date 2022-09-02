@@ -18,6 +18,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	handlerpkg "github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/openid"
@@ -34,7 +35,7 @@ type IdentityProvider struct {
 	Provider            *TestProvider
 	ProviderHandler     *IdentityProviderHandler
 	ProviderServer      *httptest.Server
-	RelyingPartyHandler *handlerpkg.Handler
+	RelyingPartyHandler *handlerpkg.StandardHandler
 	RelyingPartyServer  *httptest.Server
 }
 
@@ -84,12 +85,12 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
 
 	ctx, cancel := context.WithCancel(context.Background())
-	rpHandler, err := handlerpkg.NewHandler(ctx, cfg, openidConfig, crypter)
+	cookieOpts := cookie.DefaultOptions().WithSecure(false)
+	rpHandler, err := handlerpkg.NewHandler(ctx, cfg, cookieOpts, openidConfig, crypter)
 	if err != nil {
 		panic(err)
 	}
 
-	rpHandler.CookieOptions = rpHandler.CookieOptions.WithSecure(false)
 	rpRouter := router.New(rpHandler)
 	rpServer := httptest.NewServer(rpRouter)
 

@@ -117,7 +117,7 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, client.
 
 	cfg := idp.OpenIDConfig
 
-	redirect, err := urlpkg.CallbackURL(req)
+	redirect, err := urlpkg.LoginCallbackURL(req)
 	assert.NoError(t, err)
 
 	idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
