@@ -40,12 +40,12 @@ func run() error {
 
 	cookieOpts := cookie.DefaultOptions()
 
-	openidProvider, err := provider.NewProvider(ctx, openidConfig)
+	jwksProvider, err := provider.NewJwksProvider(ctx, openidConfig)
 	if err != nil {
 		return err
 	}
 
-	h, err := handler.NewHandler(cfg, cookieOpts, openidConfig, openidProvider, crypt)
+	h, err := handler.NewHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypt)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}

@@ -28,7 +28,7 @@ func (p *TestProvider) PrivateJwkSet() *jwk.Set {
 	return &p.JwksPair.Private
 }
 
-func newTestProvider() *TestProvider {
+func NewTestJwksProvider() *TestProvider {
 	jwksPair, err := crypto.NewJwkSet()
 	if err != nil {
 		log.Fatal(err)

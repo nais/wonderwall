@@ -17,7 +17,7 @@ func TestMakeAssertion(t *testing.T) {
 
 	openidConfig := mock.NewTestConfiguration(cfg)
 	openidConfig.TestProvider.SetIssuer("some-issuer")
-	c := client.NewClient(openidConfig)
+	c := newTestClientWithConfig(openidConfig)
 
 	expiry := 30 * time.Second
 	assertionString, err := c.MakeAssertion(expiry)
@@ -46,7 +46,8 @@ func TestMakeAssertion(t *testing.T) {
 }
 
 func newTestClientWithConfig(config *mock.TestConfiguration) *client.Client {
-	return client.NewClient(config)
+	jwksProvider := mock.NewTestJwksProvider()
+	return client.NewClient(config, nil, jwksProvider)
 }
 
 func newTestClient() *client.Client {

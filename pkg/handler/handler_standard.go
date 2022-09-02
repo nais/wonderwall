@@ -36,7 +36,6 @@ type StandardHandler struct {
 	ingresses     *ingress.Ingresses
 	loginstatus   *loginstatus.Loginstatus
 	openidConfig  openidconfig.Config
-	provider      openidclient.OpenIDProvider
 	sessions      *session.Handler
 	upstreamProxy *reverseproxy.ReverseProxy
 }
@@ -89,10 +88,6 @@ func (s *StandardHandler) GetPath(r *http.Request) string {
 	}
 
 	return path
-}
-
-func (s *StandardHandler) GetProvider() openidclient.OpenIDProvider {
-	return s.provider
 }
 
 func (s *StandardHandler) GetProviderName() string {

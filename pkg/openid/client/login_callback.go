@@ -7,34 +7,26 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/openid"
 )
 
-type OpenIDProvider interface {
-	GetPublicJwkSet(ctx context.Context) (*jwk.Set, error)
-	RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error)
-}
-
 type LoginCallback struct {
-	client        *Client
+	*Client
 	cookie        *openid.LoginCookie
-	provider      OpenIDProvider
 	request       *http.Request
 	requestParams url.Values
 }
 
-func NewLoginCallback(c *Client, r *http.Request, p OpenIDProvider, cookie *openid.LoginCookie) (*LoginCallback, error) {
+func NewLoginCallback(c *Client, r *http.Request, cookie *openid.LoginCookie) (*LoginCallback, error) {
 	if cookie == nil {
 		return nil, fmt.Errorf("cookie is nil")
 	}
 
 	return &LoginCallback{
-		client:        c,
+		Client:        c,
 		cookie:        cookie,
-		provider:      p,
 		request:       r,
 		requestParams: r.URL.Query(),
 	}, nil
@@ -66,7 +58,7 @@ func (in *LoginCallback) StateMismatchError() error {
 }
 
 func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
-	clientAssertion, err := in.client.MakeAssertion(time.Second * 30)
+	clientAssertion, err := in.MakeAssertion(time.Second * 30)
 	if err != nil {
 		return nil, fmt.Errorf("creating client assertion: %w", err)
 	}
@@ -79,12 +71,12 @@ func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, erro
 	}
 
 	code := in.requestParams.Get(openid.Code)
-	rawTokens, err := in.client.AuthCodeGrant(ctx, code, opts)
+	rawTokens, err := in.AuthCodeGrant(ctx, code, opts)
 	if err != nil {
 		return nil, fmt.Errorf("exchanging authorization code for token: %w", err)
 	}
 
-	jwkSet, err := in.provider.GetPublicJwkSet(ctx)
+	jwkSet, err := in.jwksProvider.GetPublicJwkSet(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting jwks: %w", err)
 	}
@@ -92,11 +84,11 @@ func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, erro
 	tokens, err := openid.NewTokens(rawTokens, *jwkSet)
 	if err != nil {
 		// JWKS might not be up-to-date, so we'll want to force a refresh for the next attempt
-		_, _ = in.provider.RefreshPublicJwkSet(ctx)
+		_, _ = in.jwksProvider.RefreshPublicJwkSet(ctx)
 		return nil, fmt.Errorf("parsing tokens: %w", err)
 	}
 
-	err = tokens.IDToken.Validate(in.client.config(), in.cookie.Nonce)
+	err = tokens.IDToken.Validate(in.cfg, in.cookie.Nonce)
 	if err != nil {
 		return nil, fmt.Errorf("validating id_token: %w", err)
 	}

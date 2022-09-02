@@ -12,7 +12,6 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
-	"github.com/nais/wonderwall/pkg/loginstatus"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
@@ -27,11 +26,10 @@ type Source interface {
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetErrorHandler() errorhandler.Handler
-	GetLoginstatus() *loginstatus.Loginstatus
 }
 
 func Handler(src Source, w http.ResponseWriter, r *http.Request) {
-	login, err := src.GetClient().Login(r, src.GetLoginstatus())
+	login, err := src.GetClient().Login(r)
 	if err != nil {
 		if errors.Is(err, openidclient.InvalidSecurityLevelError) || errors.Is(err, openidclient.InvalidLocaleError) {
 			src.GetErrorHandler().BadRequest(w, r, err)

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"golang.org/x/oauth2"
 
@@ -19,13 +20,20 @@ import (
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 )
 
+type JwksProvider interface {
+	GetPublicJwkSet(ctx context.Context) (*jwk.Set, error)
+	RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error)
+}
+
 type Client struct {
 	cfg          openidconfig.Config
 	httpClient   *http.Client
+	jwksProvider JwksProvider
+	loginstatus  *loginstatus.Loginstatus
 	oauth2Config *oauth2.Config
 }
 
-func NewClient(cfg openidconfig.Config) *Client {
+func NewClient(cfg openidconfig.Config, loginstatus *loginstatus.Loginstatus, jwksProvider JwksProvider) *Client {
 	oauth2Config := &oauth2.Config{
 		ClientID: cfg.Client().ClientID(),
 		Endpoint: oauth2.Endpoint{
@@ -39,24 +47,18 @@ func NewClient(cfg openidconfig.Config) *Client {
 	return &Client{
 		cfg:          cfg,
 		httpClient:   http.DefaultClient,
+		jwksProvider: jwksProvider,
+		loginstatus:  loginstatus,
 		oauth2Config: oauth2Config,
 	}
-}
-
-func (c *Client) config() openidconfig.Config {
-	return c.cfg
-}
-
-func (c *Client) oAuth2Config() *oauth2.Config {
-	return c.oauth2Config
 }
 
 func (c *Client) SetHttpClient(httpClient *http.Client) {
 	c.httpClient = httpClient
 }
 
-func (c *Client) Login(r *http.Request, loginstatus *loginstatus.Loginstatus) (*Login, error) {
-	login, err := NewLogin(c, r, loginstatus)
+func (c *Client) Login(r *http.Request) (*Login, error) {
+	login, err := NewLogin(c, r)
 	if err != nil {
 		return nil, fmt.Errorf("login: %w", err)
 	}
@@ -64,8 +66,8 @@ func (c *Client) Login(r *http.Request, loginstatus *loginstatus.Loginstatus) (*
 	return login, nil
 }
 
-func (c *Client) LoginCallback(r *http.Request, p OpenIDProvider, cookie *openid.LoginCookie) (*LoginCallback, error) {
-	loginCallback, err := NewLoginCallback(c, r, p, cookie)
+func (c *Client) LoginCallback(r *http.Request, cookie *openid.LoginCookie) (*LoginCallback, error) {
+	loginCallback, err := NewLoginCallback(c, r, cookie)
 	if err != nil {
 		return nil, fmt.Errorf("callback: %w", err)
 	}
@@ -95,8 +97,8 @@ func (c *Client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.A
 }
 
 func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
-	clientCfg := c.config().Client()
-	providerCfg := c.config().Provider()
+	clientCfg := c.cfg.Client()
+	providerCfg := c.cfg.Provider()
 	key := clientCfg.ClientJWK()
 
 	iat := time.Now().Truncate(time.Second)
@@ -135,11 +137,11 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid
 	v := url.Values{}
 	v.Set(openid.GrantType, openid.RefreshTokenValue)
 	v.Set(openid.RefreshToken, refreshToken)
-	v.Set(openid.ClientID, c.config().Client().ClientID())
+	v.Set(openid.ClientID, c.cfg.Client().ClientID())
 	v.Set(openid.ClientAssertion, assertion)
 	v.Set(openid.ClientAssertionType, openid.ClientAssertionTypeJwtBearer)
 
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, c.config().Provider().TokenEndpoint(), strings.NewReader(v.Encode()))
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.Provider().TokenEndpoint(), strings.NewReader(v.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}

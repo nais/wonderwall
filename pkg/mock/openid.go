@@ -31,7 +31,6 @@ import (
 type IdentityProvider struct {
 	Cfg                 *config.Config
 	OpenIDConfig        *TestConfiguration
-	Provider            *TestProvider
 	ProviderHandler     *IdentityProviderHandler
 	ProviderServer      *httptest.Server
 	RelyingPartyHandler *handlerpkg.StandardHandler
@@ -75,8 +74,8 @@ func (in *IdentityProvider) GetRequest(target string) *http.Request {
 
 func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	openidConfig := NewTestConfiguration(cfg)
-	provider := newTestProvider()
-	handler := newIdentityProviderHandler(provider, openidConfig)
+	jwksProvider := NewTestJwksProvider()
+	handler := newIdentityProviderHandler(jwksProvider, openidConfig)
 	idpRouter := identityProviderRouter(handler)
 	server := httptest.NewServer(idpRouter)
 
@@ -89,7 +88,7 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
 
 	cookieOpts := cookie.DefaultOptions().WithSecure(false)
-	rpHandler, err := handlerpkg.NewHandler(cfg, cookieOpts, openidConfig, provider, crypter)
+	rpHandler, err := handlerpkg.NewHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypter)
 	if err != nil {
 		panic(err)
 	}
@@ -102,7 +101,6 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 		RelyingPartyHandler: rpHandler,
 		RelyingPartyServer:  rpServer,
 		OpenIDConfig:        openidConfig,
-		Provider:            provider,
 		ProviderHandler:     handler,
 		ProviderServer:      server,
 	}

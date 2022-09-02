@@ -15,7 +15,7 @@ const (
 	JwkMinimumRefreshInterval = 5 * time.Second
 )
 
-type Provider struct {
+type JwksProvider struct {
 	config    openidconfig.Provider
 	jwksCache *jwk.Cache
 	jwksLock  *jwksLock
@@ -26,7 +26,7 @@ type jwksLock struct {
 	sync.Mutex
 }
 
-func (p *Provider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
+func (p *JwksProvider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 	url := p.config.JwksURI()
 	set, err := p.jwksCache.Get(ctx, url)
 	if err != nil {
@@ -36,7 +36,7 @@ func (p *Provider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 	return &set, nil
 }
 
-func (p *Provider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
+func (p *JwksProvider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 	p.jwksLock.Lock()
 	defer p.jwksLock.Unlock()
 
@@ -57,7 +57,7 @@ func (p *Provider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 	return &set, nil
 }
 
-func NewProvider(ctx context.Context, openidCfg openidconfig.Config) (*Provider, error) {
+func NewJwksProvider(ctx context.Context, openidCfg openidconfig.Config) (*JwksProvider, error) {
 	providerCfg := openidCfg.Provider()
 
 	uri := providerCfg.JwksURI()
@@ -74,7 +74,7 @@ func NewProvider(ctx context.Context, openidCfg openidconfig.Config) (*Provider,
 		return nil, fmt.Errorf("initial fetch of jwks from provider: %w", err)
 	}
 
-	return &Provider{
+	return &JwksProvider{
 		config:    providerCfg,
 		jwksCache: cache,
 		jwksLock:  &jwksLock{},

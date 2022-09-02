@@ -115,8 +115,6 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, *client
 	idp.SetIngresses(mock.Ingress)
 	req := idp.GetRequest(url)
 
-	cfg := idp.OpenIDConfig
-
 	redirect, err := urlpkg.LoginCallbackURL(req)
 	assert.NoError(t, err)
 
@@ -136,7 +134,7 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, *client
 		RedirectURI:  redirect,
 	}
 
-	loginCallback, err := newTestClientWithConfig(cfg).LoginCallback(req, idp.Provider, cookie)
+	loginCallback, err := idp.RelyingPartyHandler.GetClient().LoginCallback(req, cookie)
 	assert.NoError(t, err)
 
 	return idp, loginCallback

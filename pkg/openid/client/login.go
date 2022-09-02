@@ -37,7 +37,7 @@ var (
 	}
 )
 
-func NewLogin(c *Client, r *http.Request, loginstatus *loginstatus.Loginstatus) (*Login, error) {
+func NewLogin(c *Client, r *http.Request) (*Login, error) {
 	params, err := newLoginParameters(c)
 	if err != nil {
 		return nil, fmt.Errorf("generating parameters: %w", err)
@@ -48,7 +48,7 @@ func NewLogin(c *Client, r *http.Request, loginstatus *loginstatus.Loginstatus) 
 		return nil, fmt.Errorf("generating callback url: %w", err)
 	}
 
-	url, err := params.authCodeURL(r, callbackURL, loginstatus)
+	url, err := params.authCodeURL(r, callbackURL, c.loginstatus)
 	if err != nil {
 		return nil, fmt.Errorf("generating auth code url: %w", err)
 	}
@@ -156,7 +156,7 @@ func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, logi
 		return "", fmt.Errorf("%w: %+v", InvalidLocaleError, err)
 	}
 
-	authCodeUrl := in.oAuth2Config().AuthCodeURL(in.State, opts...)
+	authCodeUrl := in.oauth2Config.AuthCodeURL(in.State, opts...)
 	return authCodeUrl, nil
 }
 
@@ -174,8 +174,8 @@ func (in *loginParameters) withLocale(r *http.Request, opts []oauth2.AuthCodeOpt
 	return withParamMapping(r,
 		opts,
 		LocaleURLParameter,
-		in.config().Client().UILocales(),
-		in.config().Provider().UILocalesSupported(),
+		in.cfg.Client().UILocales(),
+		in.cfg.Provider().UILocalesSupported(),
 	)
 }
 
@@ -183,8 +183,8 @@ func (in *loginParameters) withSecurityLevel(r *http.Request, opts []oauth2.Auth
 	return withParamMapping(r,
 		opts,
 		SecurityLevelURLParameter,
-		in.config().Client().ACRValues(),
-		in.config().Provider().ACRValuesSupported(),
+		in.cfg.Client().ACRValues(),
+		in.cfg.Provider().ACRValuesSupported(),
 	)
 }
 

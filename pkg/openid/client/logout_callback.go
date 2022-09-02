@@ -19,7 +19,7 @@ func NewLogoutCallback(c *Client, r *http.Request) *LogoutCallback {
 }
 
 func (in *LogoutCallback) PostLogoutRedirectURI() string {
-	redirect := in.config().Client().PostLogoutRedirectURI()
+	redirect := in.cfg.Client().PostLogoutRedirectURI()
 
 	if len(redirect) > 0 {
 		return redirect

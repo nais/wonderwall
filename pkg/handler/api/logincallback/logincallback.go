@@ -29,7 +29,6 @@ type Source interface {
 	GetCrypter() crypto.Crypter
 	GetErrorHandler() errorhandler.Handler
 	GetLoginstatus() *loginstatus.Loginstatus
-	GetProvider() openidclient.OpenIDProvider
 	GetSessions() *session.Handler
 	GetSessionConfig() config.Session
 }
@@ -48,7 +47,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loginCallback, err := src.GetClient().LoginCallback(r, src.GetProvider(), loginCookie)
+	loginCallback, err := src.GetClient().LoginCallback(r, loginCookie)
 	if err != nil {
 		src.GetErrorHandler().InternalError(w, r, err)
 		return

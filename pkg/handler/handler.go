@@ -19,8 +19,8 @@ import (
 func NewHandler(
 	cfg *config.Config,
 	cookieOpts cookie.Options,
+	jwksProvider client.JwksProvider,
 	openidConfig openidconfig.Config,
-	openidProvider client.OpenIDProvider,
 	crypter crypto.Crypter,
 ) (*StandardHandler, error) {
 	autoLogin, err := autologin.New(cfg)
@@ -32,7 +32,9 @@ func NewHandler(
 		Timeout: time.Second * 10,
 	}
 
-	openidClient := client.NewClient(openidConfig)
+	loginstatusClient := loginstatus.NewClient(cfg.Loginstatus, httpClient)
+
+	openidClient := client.NewClient(openidConfig, loginstatusClient, jwksProvider)
 	openidClient.SetHttpClient(httpClient)
 
 	sessionHandler, err := session.NewHandler(cfg, openidConfig, crypter, openidClient)
@@ -52,9 +54,8 @@ func NewHandler(
 		cookieOptions: cookieOpts,
 		crypter:       crypter,
 		ingresses:     ingresses,
-		loginstatus:   loginstatus.NewClient(cfg.Loginstatus, httpClient),
+		loginstatus:   loginstatusClient,
 		openidConfig:  openidConfig,
-		provider:      openidProvider,
 		sessions:      sessionHandler,
 		upstreamProxy: reverseproxy.New(cfg.UpstreamHost),
 	}, nil
