@@ -20,20 +20,31 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	handlerpkg "github.com/nais/wonderwall/pkg/handler"
+	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
 	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	scopespkg "github.com/nais/wonderwall/pkg/openid/scopes"
 	"github.com/nais/wonderwall/pkg/router"
+	"github.com/nais/wonderwall/pkg/session"
 )
+
+type RelyingPartyHandler interface {
+	router.Source
+	GetClient() *openidclient.Client
+	GetCrypter() crypto.Crypter
+	GetErrorHandler() errorhandler.Handler
+	GetSessions() *session.Handler
+	SetIngresses(ingresses *ingress.Ingresses)
+}
 
 type IdentityProvider struct {
 	Cfg                 *config.Config
 	OpenIDConfig        *TestConfiguration
 	ProviderHandler     *IdentityProviderHandler
 	ProviderServer      *httptest.Server
-	RelyingPartyHandler *handlerpkg.StandardHandler
+	RelyingPartyHandler RelyingPartyHandler
 	RelyingPartyServer  *httptest.Server
 }
 
