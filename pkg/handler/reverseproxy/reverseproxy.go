@@ -47,7 +47,7 @@ func New(upstreamHost string) *ReverseProxy {
 }
 
 func (rp *ReverseProxy) Handler(src Source, w http.ResponseWriter, r *http.Request) {
-	logger := mw.LogEntryFrom(r).WithField("request_path", r.URL.Path)
+	logger := mw.LogEntryFrom(r)
 	isAuthenticated := false
 
 	accessToken, err := src.GetSessions().GetAccessToken(r)

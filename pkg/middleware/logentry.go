@@ -61,8 +61,12 @@ func (l *requestLogger) NewLogEntry(r *http.Request) *requestLoggerEntry {
 	correlationID := middleware.GetReqID(r.Context())
 
 	fields := log.Fields{
-		"correlation_id": correlationID,
-		"provider":       l.Provider,
+		"correlation_id":     correlationID,
+		"provider":           l.Provider,
+		"request_host":       r.Host,
+		"request_method":     r.Method,
+		"request_path":       r.URL.Path,
+		"request_user_agent": r.UserAgent(),
 	}
 
 	entry.Logger = l.Logger.WithFields(fields)
