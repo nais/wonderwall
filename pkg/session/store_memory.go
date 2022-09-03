@@ -51,7 +51,12 @@ func (s *memorySessionStore) Delete(_ context.Context, keys ...string) error {
 	return nil
 }
 
-func (s *memorySessionStore) Update(_ context.Context, key string, value *EncryptedData) error {
+func (s *memorySessionStore) Update(ctx context.Context, key string, value *EncryptedData) error {
+	_, err := s.Read(ctx, key)
+	if err != nil {
+		return err
+	}
+
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

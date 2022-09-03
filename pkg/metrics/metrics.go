@@ -36,6 +36,7 @@ type RedisOperation = string
 const (
 	RedisOperationRead   = "Read"
 	RedisOperationWrite  = "Write"
+	RedisOperationUpdate = "Update"
 	RedisOperationDelete = "Delete"
 )
 

@@ -66,7 +66,12 @@ func (s *redisSessionStore) Delete(ctx context.Context, keys ...string) error {
 }
 
 func (s *redisSessionStore) Update(ctx context.Context, key string, value *EncryptedData) error {
-	err := metrics.ObserveRedisLatency(metrics.RedisOperationWrite, func() error {
+	_, err := s.Read(ctx, key)
+	if err != nil {
+		return err
+	}
+
+	err = metrics.ObserveRedisLatency(metrics.RedisOperationUpdate, func() error {
 		return s.client.Set(ctx, key, value, redis.KeepTTL).Err()
 	})
 	if err != nil {
