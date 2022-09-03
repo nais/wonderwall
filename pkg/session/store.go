@@ -21,6 +21,8 @@ type Store interface {
 	Read(ctx context.Context, key string) (*EncryptedData, error)
 	Delete(ctx context.Context, keys ...string) error
 	Update(ctx context.Context, key string, value *EncryptedData) error
+
+	MakeLock(key string) Lock
 }
 
 func NewStore(cfg *config.Config) (Store, error) {

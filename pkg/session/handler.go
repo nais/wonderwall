@@ -28,6 +28,12 @@ var (
 	ExpiredAccessTokenError = errors.New("access token is expired")
 )
 
+const (
+	refreshAcquireLockRetryInterval = 10 * time.Millisecond
+	refreshAcquireLockTimeout       = 5 * time.Second
+	refreshLockDuration             = 2 * time.Second
+)
+
 type Handler struct {
 	client                 *openidclient.Client
 	crypter                crypto.Crypter
@@ -203,7 +209,7 @@ func (h *Handler) GetOrRefresh(r *http.Request) (*Data, error) {
 
 	refreshed, err := h.Refresh(r, key, sessionData)
 	if err != nil {
-		mw.LogEntryFrom(r).Warnf("session: could not refresh tokens, falling back to existing token: %+v", err)
+		mw.LogEntryFrom(r).Warnf("session: could not refresh tokens; falling back to existing token: %+v", err)
 	} else {
 		sessionData = refreshed
 	}
@@ -238,16 +244,64 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	}
 
 	logger := mw.LogEntryFrom(r)
-	logger.Info("session: refreshing token...")
+	logger.Debug("session: initiating refresh attempt...")
 
-	var resp *openid.TokenResponse
-	var err error
+	ctx := r.Context()
+	lock := h.store.MakeLock(key)
 
-	refresh := func(ctx context.Context) error {
-		resp, err = h.client.RefreshGrant(r.Context(), data.RefreshToken)
-		return retry.RetryableError(err)
+	logger.Debug("session: acquiring lock...")
+	err := func() error {
+		timeout := time.NewTimer(refreshAcquireLockTimeout)
+		defer timeout.Stop()
+
+		ticker := time.NewTicker(refreshAcquireLockRetryInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context done: %w", ctx.Err())
+			case <-timeout.C:
+				return fmt.Errorf("timed out")
+			case <-ticker.C:
+				err := lock.Acquire(ctx, refreshLockDuration)
+				if err == nil {
+					return nil
+				}
+
+				if !errors.Is(err, AcquireLockError) {
+					return fmt.Errorf("unexpected error: %+v", err)
+				}
+			}
+		}
+	}()
+	if err != nil {
+		return nil, fmt.Errorf("while acquiring lock: %w", err)
 	}
-	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, refresh); err != nil {
+	defer lock.Release(ctx)
+
+	// Get the latest session state again in case it was changed while acquiring the lock
+	data, err = h.Get(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if !h.canRefresh(data) {
+		logger.Debug("session: already refreshed, aborting refresh attempt.")
+		return data, nil
+	}
+
+	logger.Debug("session: performing refresh grant...")
+	var resp *openid.TokenResponse
+	refresh := func(ctx context.Context) error {
+		resp, err = h.client.RefreshGrant(ctx, data.RefreshToken)
+		if errors.Is(err, openidclient.ServerError) {
+			return retry.RetryableError(err)
+		}
+
+		return err
+	}
+	if err := retry.Do(ctx, retrypkg.DefaultBackoff, refresh); err != nil {
 		return nil, fmt.Errorf("performing refresh: %w", err)
 	}
 
@@ -261,11 +315,14 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	}
 
 	update := func(ctx context.Context) error {
-		err = h.store.Update(r.Context(), key, encrypted)
+		err = h.store.Update(ctx, key, encrypted)
+		if errors.Is(err, KeyNotFoundError) {
+			return err
+		}
 		return retry.RetryableError(err)
 	}
 
-	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, update); err != nil {
+	if err := retry.Do(ctx, retrypkg.DefaultBackoff, update); err != nil {
 		return nil, fmt.Errorf("updating in store: %w", err)
 	}
 

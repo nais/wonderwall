@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,11 @@ import (
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+)
+
+var (
+	ClientError = errors.New("client error")
+	ServerError = errors.New("server error")
 )
 
 type JwksProvider interface {
@@ -161,11 +167,11 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid
 	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 		var errorResponse openid.TokenErrorResponse
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
-			return nil, fmt.Errorf("client error: HTTP %d: unmarshalling error response: %w", resp.StatusCode, err)
+			return nil, fmt.Errorf("%w: HTTP %d: unmarshalling error response: %+v", ClientError, resp.StatusCode, err)
 		}
-		return nil, fmt.Errorf("client error: HTTP %d: %s: %s", resp.StatusCode, errorResponse.Error, errorResponse.ErrorDescription)
+		return nil, fmt.Errorf("%w: HTTP %d: %s: %s", ClientError, resp.StatusCode, errorResponse.Error, errorResponse.ErrorDescription)
 	} else if resp.StatusCode >= 500 {
-		return nil, fmt.Errorf("server error: HTTP %d: %s", resp.StatusCode, body)
+		return nil, fmt.Errorf("%w: HTTP %d: %s", ServerError, resp.StatusCode, body)
 	}
 
 	var tokenResponse openid.TokenResponse

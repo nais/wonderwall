@@ -63,3 +63,7 @@ func (s *memorySessionStore) Update(ctx context.Context, key string, value *Encr
 	s.sessions[key] = value
 	return nil
 }
+
+func (s *memorySessionStore) MakeLock(_ string) Lock {
+	return NewNoOpLock()
+}

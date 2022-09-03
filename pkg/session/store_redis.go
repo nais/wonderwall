@@ -80,3 +80,7 @@ func (s *redisSessionStore) Update(ctx context.Context, key string, value *Encry
 
 	return nil
 }
+
+func (s *redisSessionStore) MakeLock(key string) Lock {
+	return NewRedisLock(s.client, key)
+}
