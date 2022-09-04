@@ -38,6 +38,12 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 
 	data, err = src.GetSessions().Refresh(r, key, data)
 	if err != nil {
+		if errors.Is(err, session.InvalidStateError) {
+			logger.Infof("session/refresh: refreshing: %+v", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
 		logger.Warnf("session/refresh: refreshing: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

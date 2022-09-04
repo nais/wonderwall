@@ -62,6 +62,8 @@ func (rp *ReverseProxy) Handler(src Source, w http.ResponseWriter, r *http.Reque
 		}
 	} else if errors.Is(err, session.UnexpectedError) {
 		logger.Errorf("default: getting session: %+v", err)
+	} else if errors.Is(err, session.InvalidStateError) {
+		logger.Errorf("default: refreshing session: %+v", err)
 	}
 
 	if src.GetAutoLogin().NeedsLogin(r, isAuthenticated) {

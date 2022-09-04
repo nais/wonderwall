@@ -26,6 +26,7 @@ var (
 	NoSessionDataError      = errors.New("no session data")
 	NoAccessTokenError      = errors.New("no access token in session data")
 	ExpiredAccessTokenError = errors.New("access token is expired")
+	InvalidStateError       = errors.New("invalid state")
 )
 
 const (
@@ -208,7 +209,9 @@ func (h *Handler) GetOrRefresh(r *http.Request) (*Data, error) {
 	}
 
 	refreshed, err := h.Refresh(r, key, sessionData)
-	if err != nil {
+	if errors.Is(err, InvalidStateError) {
+		return nil, err
+	} else if err != nil {
 		mw.LogEntryFrom(r).Warnf("session: could not refresh tokens; falling back to existing token: %+v", err)
 	} else {
 		sessionData = refreshed
@@ -302,6 +305,9 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 		return err
 	}
 	if err := retry.Do(ctx, retrypkg.DefaultBackoff, refresh); err != nil {
+		if errors.Is(err, openidclient.ClientError) {
+			return nil, fmt.Errorf("%w: authorization might be invalid: %+v", InvalidStateError, err)
+		}
 		return nil, fmt.Errorf("performing refresh: %w", err)
 	}
 
