@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"time"
 
 	"golang.org/x/oauth2"
 
@@ -58,7 +57,7 @@ func (in *LoginCallback) StateMismatchError() error {
 }
 
 func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
-	clientAssertion, err := in.MakeAssertion(time.Second * 30)
+	clientAssertion, err := in.MakeAssertion(DefaultClientAssertionLifetime)
 	if err != nil {
 		return nil, fmt.Errorf("creating client assertion: %w", err)
 	}

@@ -26,6 +26,10 @@ var (
 	ServerError = errors.New("server error")
 )
 
+const (
+	DefaultClientAssertionLifetime = 30 * time.Second
+)
+
 type JwksProvider interface {
 	GetPublicJwkSet(ctx context.Context) (*jwk.Set, error)
 	RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error)
@@ -107,7 +111,7 @@ func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
 	providerCfg := c.cfg.Provider()
 	key := clientCfg.ClientJWK()
 
-	iat := time.Now().Truncate(time.Second)
+	iat := time.Now().Add(-5 * time.Second).Truncate(time.Second)
 	exp := iat.Add(expiration)
 
 	errs := make([]error, 0)
@@ -135,7 +139,7 @@ func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
 }
 
 func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error) {
-	assertion, err := c.MakeAssertion(30 * time.Second)
+	assertion, err := c.MakeAssertion(DefaultClientAssertionLifetime)
 	if err != nil {
 		return nil, fmt.Errorf("creating client assertion: %w", err)
 	}
