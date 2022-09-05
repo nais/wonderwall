@@ -40,7 +40,9 @@ func New(upstreamHost string) *ReverseProxy {
 			}
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			logger := mw.LogEntryFrom(r)
+			logger.Warnf("reverseproxy: proxy error: %+v", err)
+			w.WriteHeader(http.StatusBadGateway)
 		},
 	}
 	return &ReverseProxy{rp}
