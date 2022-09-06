@@ -2,8 +2,11 @@ package reverseproxy
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"net/http/httputil"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	"github.com/nais/wonderwall/pkg/handler/url"
@@ -44,6 +47,7 @@ func New(upstreamHost string) *ReverseProxy {
 			logger.Warnf("reverseproxy: proxy error: %+v", err)
 			w.WriteHeader(http.StatusBadGateway)
 		},
+		ErrorLog: log.New(logrusErrorWriter{}, "reverseproxy: ", 0),
 	}
 	return &ReverseProxy{rp}
 }
@@ -86,4 +90,11 @@ func (rp *ReverseProxy) Handler(src Source, w http.ResponseWriter, r *http.Reque
 	}
 
 	rp.ServeHTTP(w, r.WithContext(ctx))
+}
+
+type logrusErrorWriter struct{}
+
+func (w logrusErrorWriter) Write(p []byte) (n int, err error) {
+	logrus.Warnf("%s", string(p))
+	return len(p), nil
 }
