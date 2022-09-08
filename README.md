@@ -231,7 +231,7 @@ The `session.refresh` flag also enables a new endpoint:
 ```
 
 Additionally, the metadata object returned by both the `/oauth2/session` and `/oauth2/session/refresh` endpoints now 
-contain three new fields in addition to the previous fields:
+contain some new fields in addition to the previous fields:
 
 | Field                                 | Description                                                                                     |
 |---------------------------------------|-------------------------------------------------------------------------------------------------|
@@ -240,8 +240,8 @@ contain three new fields in addition to the previous fields:
 | `tokens.refresh_cooldown_seconds`     | The number of seconds until the refresh operation is no longer on cooldown.                     |
 
 Note that the refresh operation has a default cooldown period of 1 minute, which may be shorter depending on the token lifetime
-of the tokens returned by the identity provider. In other words, a request to the `/oauth2/sesion/refresh` endpoint will 
-only trigger a refresh the cooldown is not active.
+of the tokens returned by the identity provider. In other words, a request to the `/oauth2/session/refresh` endpoint will 
+only trigger a refresh if `tokens.refresh_cooldown` is `false`.
 
 ## Development
 
