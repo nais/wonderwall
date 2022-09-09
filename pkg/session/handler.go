@@ -281,7 +281,12 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	if err != nil {
 		return nil, fmt.Errorf("while acquiring lock: %w", err)
 	}
-	defer lock.Release(ctx)
+	defer func(lock Lock, ctx context.Context) {
+		err := lock.Release(ctx)
+		if err != nil {
+			logger.Errorf("session: releasing lock: %+v", err)
+		}
+	}(lock, ctx)
 
 	// Get the latest session state again in case it was changed while acquiring the lock
 	data, err = h.Get(r)
