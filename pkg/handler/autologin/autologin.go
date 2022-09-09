@@ -8,6 +8,11 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 )
 
+var DefaultIgnorePatterns = []string{
+	"/favicon.ico",
+	"/robots.txt",
+}
+
 type AutoLogin struct {
 	Enabled        bool
 	IgnorePatterns []string
@@ -37,7 +42,7 @@ func New(cfg *config.Config) (*AutoLogin, error) {
 	seen := make(map[string]bool)
 	patterns := make([]string, 0)
 
-	for _, path := range cfg.AutoLoginIgnorePaths {
+	for _, path := range append(DefaultIgnorePatterns, cfg.AutoLoginIgnorePaths...) {
 		if len(path) == 0 {
 			continue
 		}
