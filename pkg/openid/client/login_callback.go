@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/openid"
 )
 
@@ -21,6 +22,16 @@ type LoginCallback struct {
 func NewLoginCallback(c *Client, r *http.Request, cookie *openid.LoginCookie) (*LoginCallback, error) {
 	if cookie == nil {
 		return nil, fmt.Errorf("cookie is nil")
+	}
+
+	// redirect_uri not set in cookie (e.g. login initiated at instance running older version, callback handled at newer version)
+	if len(cookie.RedirectURI) == 0 {
+		callbackURL, err := urlpkg.LoginCallbackURL(r)
+		if err != nil {
+			return nil, fmt.Errorf("generating callback url: %w", err)
+		}
+
+		cookie.RedirectURI = callbackURL
 	}
 
 	return &LoginCallback{
