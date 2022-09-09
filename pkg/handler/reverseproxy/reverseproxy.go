@@ -1,6 +1,7 @@
 package reverseproxy
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -44,7 +45,13 @@ func New(upstreamHost string) *ReverseProxy {
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			logger := mw.LogEntryFrom(r)
-			logger.Warnf("reverseproxy: proxy error: %+v", err)
+
+			msg := "reverseproxy: proxy error: %+v"
+			if errors.Is(err, context.Canceled) {
+				msg += " (incoming client connection or request was closed/disconnected before we could respond)"
+			}
+
+			logger.Warnf(msg, err)
 			w.WriteHeader(http.StatusBadGateway)
 		},
 		ErrorLog: log.New(logrusErrorWriter{}, "reverseproxy: ", 0),
