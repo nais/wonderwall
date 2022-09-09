@@ -371,7 +371,7 @@ func TestHandler_Default(t *testing.T) {
 		target := idp.RelyingPartyServer.URL + "/"
 
 		resp := get(t, rpClient, target)
-		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 
 		// redirect should point to local login endpoint
 		loginLocation := resp.Location
@@ -480,7 +480,7 @@ func TestHandler_Default(t *testing.T) {
 					target := idp.RelyingPartyServer.URL + path
 					resp := get(t, rpClient, target)
 
-					assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+					assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 				})
 			}
 		})

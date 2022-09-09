@@ -86,7 +86,7 @@ func (rp *ReverseProxy) Handler(src Source, w http.ResponseWriter, r *http.Reque
 		path := src.GetPath(r)
 
 		loginUrl := url.LoginURL(path, redirectTarget)
-		http.Redirect(w, r, loginUrl, http.StatusTemporaryRedirect)
+		http.Redirect(w, r, loginUrl, http.StatusSeeOther)
 		return
 	}
 
