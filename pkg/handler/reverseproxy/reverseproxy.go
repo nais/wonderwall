@@ -46,13 +46,12 @@ func New(upstreamHost string) *ReverseProxy {
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			logger := mw.LogEntryFrom(r)
 
-			msg := "reverseproxy: proxy error: %+v"
 			if errors.Is(err, context.Canceled) {
-				msg += " (incoming client connection or request was closed/disconnected before we could respond)"
+				w.WriteHeader(499)
+			} else {
+				logger.Warnf("reverseproxy: proxy error: %+v", err)
+				w.WriteHeader(http.StatusBadGateway)
 			}
-
-			logger.Warnf(msg, err)
-			w.WriteHeader(http.StatusBadGateway)
 		},
 		ErrorLog: log.New(logrusErrorWriter{}, "reverseproxy: ", 0),
 	}
