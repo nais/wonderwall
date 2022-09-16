@@ -66,7 +66,6 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 
 type Login struct {
 	authCodeURL       string
-	callbackURL       string
 	canonicalRedirect string
 	cookie            *openid.LoginCookie
 	params            *loginParameters
