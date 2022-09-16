@@ -41,7 +41,7 @@ func (p *JwksProvider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error
 	defer p.jwksLock.Unlock()
 
 	// redirect to cache if recently refreshed to avoid overwhelming provider
-	diff := time.Now().Sub(p.jwksLock.lastRefresh)
+	diff := time.Since(p.jwksLock.lastRefresh)
 	if diff < JwkMinimumRefreshInterval {
 		return p.GetPublicJwkSet(ctx)
 	}

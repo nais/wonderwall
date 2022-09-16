@@ -68,7 +68,7 @@ func (h *Handler) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime
 	}
 
 	key := h.Key(externalSessionID)
-	tokenExpiresIn := tokens.Expiry.Sub(time.Now())
+	tokenExpiresIn := time.Until(tokens.Expiry)
 	metadata := NewMetadata(tokenExpiresIn, sessionLifetime)
 	encrypted, err := NewData(externalSessionID, tokens, metadata).Encrypt(h.crypter)
 	if err != nil {
