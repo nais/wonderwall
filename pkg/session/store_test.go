@@ -83,6 +83,7 @@ func update(t *testing.T, store session.Store, key string, data *session.Data, c
 
 func del(t *testing.T, store session.Store, key string) {
 	err := store.Delete(context.Background(), key)
+	assert.NoError(t, err)
 
 	result, err := store.Read(context.Background(), key)
 	assert.Error(t, err)
