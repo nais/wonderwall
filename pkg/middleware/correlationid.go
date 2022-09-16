@@ -10,7 +10,10 @@ import (
 
 func CorrelationIDHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		id := uuid.New().String()
+		id := r.Header.Get(chi_middleware.RequestIDHeader)
+		if len(id) == 0 {
+			id = uuid.New().String()
+		}
 
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, chi_middleware.RequestIDKey, id)
