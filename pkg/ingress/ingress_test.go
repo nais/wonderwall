@@ -1,6 +1,7 @@
 package ingress_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -335,6 +336,91 @@ func TestIngresses_MatchingIngress(t *testing.T) {
 	} {
 		t.Run(test.target, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, test.target, nil)
+			match, ok := ingresses.MatchingIngress(req)
+			if test.want != nil {
+				assert.True(t, ok)
+				assert.Equal(t, test.want.path, match.Path())
+				assert.Equal(t, test.want.domain, match.Host())
+				assert.Equal(t, test.want.urlString, match.String())
+			} else {
+				assert.False(t, ok)
+			}
+		})
+	}
+}
+
+func TestIngresses_MatchingIngress_XForwardedHost(t *testing.T) {
+	cfg := &config.Config{
+		Ingresses: []string{
+			"https://domain.wonderwall.io",
+			"https://domain.wonderwall.io/path",
+			"https://another-domain.wonderwall.io",
+			"https://another-domain.wonderwall.io/path",
+		},
+	}
+
+	ingresses, err := ingress.ParseIngresses(cfg)
+	assert.NoError(t, err)
+
+	for _, test := range []struct {
+		target         string
+		xForwardedHost string
+		want           *ingressWant
+	}{
+		{
+			target:         "http://localhost:3000",
+			xForwardedHost: "domain.wonderwall.io",
+			want: &ingressWant{
+				path:      "",
+				domain:    "domain.wonderwall.io",
+				urlString: "https://domain.wonderwall.io",
+			},
+		},
+		{
+			target:         "http://localhost:3000/path/hello/yes/no",
+			xForwardedHost: "domain.wonderwall.io",
+			want: &ingressWant{
+				path:      "/path",
+				domain:    "domain.wonderwall.io",
+				urlString: "https://domain.wonderwall.io/path",
+			},
+		},
+		{
+			target:         "http://localhost:3000/test",
+			xForwardedHost: "another-domain.wonderwall.io",
+			want: &ingressWant{
+				path:      "",
+				domain:    "another-domain.wonderwall.io",
+				urlString: "https://another-domain.wonderwall.io",
+			},
+		},
+		{
+			target:         "http://localhost:3000/path/hello/yes/no",
+			xForwardedHost: "another-domain.wonderwall.io",
+			want: &ingressWant{
+				path:      "/path",
+				domain:    "another-domain.wonderwall.io",
+				urlString: "https://another-domain.wonderwall.io/path",
+			},
+		},
+		// no matches
+		{
+			target:         "http://localhost:3000",
+			xForwardedHost: "not.domain.wonderwall.io",
+		},
+		{
+			target:         "http://localhost:3000",
+			xForwardedHost: "test.example.com",
+		},
+		{
+			target:         "http://localhost:3000",
+			xForwardedHost: "localhost:3000",
+		},
+	} {
+		t.Run(fmt.Sprintf("%s - %s", test.target, test.xForwardedHost), func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, test.target, nil)
+			req.Header.Set(ingress.XForwardedHost, test.xForwardedHost)
+
 			match, ok := ingresses.MatchingIngress(req)
 			if test.want != nil {
 				assert.True(t, ok)

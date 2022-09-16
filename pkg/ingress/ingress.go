@@ -9,6 +9,10 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 )
 
+const (
+	XForwardedHost = "X-Forwarded-Host"
+)
+
 type Ingresses struct {
 	ingressMap map[string]Ingress
 	hosts      []string
@@ -60,7 +64,7 @@ func (i *Ingresses) MatchingIngress(r *http.Request) (Ingress, bool) {
 	found := false
 
 	for _, ingress := range i.ingressMap {
-		hostMatch := ingress.Host() == r.Host
+		hostMatch := ingress.Host() == r.Host || ingress.Host() == r.Header.Get(XForwardedHost)
 		pathMatch := ingress.Path() == i.MatchingPath(r)
 
 		if hostMatch && pathMatch {
