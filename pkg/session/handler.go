@@ -22,11 +22,11 @@ import (
 )
 
 var (
-	CookieNotFoundError     = errors.New("cookie not found")
-	NoSessionDataError      = errors.New("no session data")
-	NoAccessTokenError      = errors.New("no access token in session data")
-	ExpiredAccessTokenError = errors.New("access token is expired")
-	InvalidStateError       = errors.New("invalid state")
+	ErrCookieNotFound     = errors.New("cookie not found")
+	ErrNoSessionData      = errors.New("no session data")
+	ErrNoAccessToken      = errors.New("no access token in session data")
+	ErrExpiredAccessToken = errors.New("access token is expired")
+	ErrInvalidState       = errors.New("invalid state")
 )
 
 const (
@@ -100,7 +100,7 @@ func (h *Handler) destroyForKey(r *http.Request, key string) error {
 			return nil
 		}
 
-		if errors.Is(err, KeyNotFoundError) {
+		if errors.Is(err, ErrKeyNotFound) {
 			return err
 		}
 
@@ -132,15 +132,15 @@ func (h *Handler) GetAccessToken(r *http.Request) (string, error) {
 	}
 
 	if sessionData == nil {
-		return "", NoSessionDataError
+		return "", ErrNoSessionData
 	}
 
 	if !sessionData.HasAccessToken() {
-		return "", NoAccessTokenError
+		return "", ErrNoAccessToken
 	}
 
 	if h.metadataRolloutEnabled && sessionData.Metadata.IsExpired() {
-		return "", ExpiredAccessTokenError
+		return "", ErrExpiredAccessToken
 	}
 
 	return sessionData.AccessToken, nil
@@ -163,7 +163,7 @@ func (h *Handler) GetForKey(r *http.Request, key string) (*Data, error) {
 			return nil
 		}
 
-		if errors.Is(err, KeyNotFoundError) {
+		if errors.Is(err, ErrKeyNotFound) {
 			return err
 		}
 
@@ -186,7 +186,7 @@ func (h *Handler) GetForKey(r *http.Request, key string) (*Data, error) {
 func (h *Handler) GetKey(r *http.Request) (string, error) {
 	key, err := cookie.GetDecrypted(r, cookie.Session, h.crypter)
 	if err != nil {
-		return "", fmt.Errorf("%w: %+v", CookieNotFoundError, err)
+		return "", fmt.Errorf("%w: %+v", ErrCookieNotFound, err)
 	}
 
 	return key, nil
@@ -209,7 +209,7 @@ func (h *Handler) GetOrRefresh(r *http.Request) (*Data, error) {
 	}
 
 	refreshed, err := h.Refresh(r, key, sessionData)
-	if errors.Is(err, InvalidStateError) {
+	if errors.Is(err, ErrInvalidState) {
 		return nil, err
 	} else if err != nil {
 		mw.LogEntryFrom(r).Warnf("session: could not refresh tokens; falling back to existing token: %+v", err)
@@ -272,7 +272,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 					return nil
 				}
 
-				if !errors.Is(err, AcquireLockError) {
+				if !errors.Is(err, ErrAcquireLock) {
 					return fmt.Errorf("unexpected error: %+v", err)
 				}
 			}
@@ -303,15 +303,15 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	var resp *openid.TokenResponse
 	refresh := func(ctx context.Context) error {
 		resp, err = h.client.RefreshGrant(ctx, data.RefreshToken)
-		if errors.Is(err, openidclient.ServerError) {
+		if errors.Is(err, openidclient.ErrOpenIDServer) {
 			return retry.RetryableError(err)
 		}
 
 		return err
 	}
 	if err := retry.Do(ctx, retrypkg.DefaultBackoff, refresh); err != nil {
-		if errors.Is(err, openidclient.ClientError) {
-			return nil, fmt.Errorf("%w: authorization might be invalid: %+v", InvalidStateError, err)
+		if errors.Is(err, openidclient.ErrOpenIDClient) {
+			return nil, fmt.Errorf("%w: authorization might be invalid: %+v", ErrInvalidState, err)
 		}
 		return nil, fmt.Errorf("performing refresh: %w", err)
 	}
@@ -327,7 +327,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 
 	update := func(ctx context.Context) error {
 		err = h.store.Update(ctx, key, encrypted)
-		if errors.Is(err, KeyNotFoundError) {
+		if errors.Is(err, ErrKeyNotFound) {
 			return err
 		}
 		return retry.RetryableError(err)

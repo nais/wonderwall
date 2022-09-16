@@ -25,7 +25,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 
 	data, err := src.GetSessions().Get(r)
 	if err != nil {
-		if errors.Is(err, session.KeyNotFoundError) {
+		if errors.Is(err, session.ErrKeyNotFound) {
 			logger.Infof("session/refresh: getting session: %+v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -38,7 +38,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 
 	data, err = src.GetSessions().Refresh(r, key, data)
 	if err != nil {
-		if errors.Is(err, session.InvalidStateError) {
+		if errors.Is(err, session.ErrInvalidState) {
 			logger.Infof("session/refresh: refreshing: %+v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return

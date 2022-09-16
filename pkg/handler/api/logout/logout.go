@@ -40,7 +40,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 		idToken = sessionData.IDToken
 
 		err = src.GetSessions().DestroyForID(r, sessionData.ExternalSessionID)
-		if err != nil && !errors.Is(err, session.KeyNotFoundError) {
+		if err != nil && !errors.Is(err, session.ErrKeyNotFound) {
 			src.GetErrorHandler().InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
 			return
 		}

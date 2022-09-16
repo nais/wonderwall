@@ -20,7 +20,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 
 	data, err := src.GetSessions().Get(r)
 	if err != nil {
-		if errors.Is(err, session.CookieNotFoundError) || errors.Is(err, session.KeyNotFoundError) {
+		if errors.Is(err, session.ErrCookieNotFound) || errors.Is(err, session.ErrKeyNotFound) {
 			logger.Infof("session/info: getting session: %+v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return

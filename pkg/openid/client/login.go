@@ -26,9 +26,9 @@ const (
 )
 
 var (
-	InvalidSecurityLevelError  = errors.New("InvalidSecurityLevel")
-	InvalidLocaleError         = errors.New("InvalidLocale")
-	InvalidLoginParameterError = errors.New("InvalidLoginParameter")
+	ErrInvalidSecurityLevel  = errors.New("InvalidSecurityLevel")
+	ErrInvalidLocale         = errors.New("InvalidLocale")
+	ErrInvalidLoginParameter = errors.New("InvalidLoginParameter")
 
 	// LoginParameterMapping maps incoming login parameters to OpenID Connect parameters
 	LoginParameterMapping = map[string]string{
@@ -147,12 +147,12 @@ func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, logi
 
 	opts, err := in.withSecurityLevel(r, opts)
 	if err != nil {
-		return "", fmt.Errorf("%w: %+v", InvalidSecurityLevelError, err)
+		return "", fmt.Errorf("%w: %+v", ErrInvalidSecurityLevel, err)
 	}
 
 	opts, err = in.withLocale(r, opts)
 	if err != nil {
-		return "", fmt.Errorf("%w: %+v", InvalidLocaleError, err)
+		return "", fmt.Errorf("%w: %+v", ErrInvalidLocale, err)
 	}
 
 	authCodeUrl := in.oauth2Config.AuthCodeURL(in.State, opts...)
@@ -214,7 +214,7 @@ func LoginURLParameter(r *http.Request, parameter, fallback string, supported co
 		return value, nil
 	}
 
-	return value, fmt.Errorf("%w: invalid value for %s=%s", InvalidLoginParameterError, parameter, value)
+	return value, fmt.Errorf("%w: invalid value for %s=%s", ErrInvalidLoginParameter, parameter, value)
 }
 
 func CodeChallenge(codeVerifier string) string {

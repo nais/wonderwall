@@ -87,6 +87,6 @@ func del(t *testing.T, store session.Store, key string) {
 
 	result, err := store.Read(context.Background(), key)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, session.KeyNotFoundError)
+	assert.ErrorIs(t, err, session.ErrKeyNotFound)
 	assert.Nil(t, result)
 }

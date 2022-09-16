@@ -31,7 +31,7 @@ type Source interface {
 func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 	login, err := src.GetClient().Login(r)
 	if err != nil {
-		if errors.Is(err, openidclient.InvalidSecurityLevelError) || errors.Is(err, openidclient.InvalidLocaleError) {
+		if errors.Is(err, openidclient.ErrInvalidSecurityLevel) || errors.Is(err, openidclient.ErrInvalidLocale) {
 			src.GetErrorHandler().BadRequest(w, r, err)
 		} else {
 			src.GetErrorHandler().InternalError(w, r, err)

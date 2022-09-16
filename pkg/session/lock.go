@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	AcquireLockError = errors.New("could not acquire lock")
+	ErrAcquireLock = errors.New("could not acquire lock")
 )
 
 type Lock interface {
@@ -41,7 +41,7 @@ func NewRedisLock(client redis.Cmdable, key string) *RedisLock {
 func (r *RedisLock) Acquire(ctx context.Context, duration time.Duration) error {
 	lock, err := r.locker.Obtain(ctx, lockKey(r.key), duration, nil)
 	if errors.Is(err, redislock.ErrNotObtained) {
-		return AcquireLockError
+		return ErrAcquireLock
 	}
 	if err != nil {
 		return err

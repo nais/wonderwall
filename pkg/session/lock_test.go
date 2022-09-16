@@ -33,7 +33,7 @@ func TestRedisLock(t *testing.T) {
 
 	err = lock.Acquire(ctx, time.Minute)
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, session.AcquireLockError)
+	assert.ErrorIs(t, err, session.ErrAcquireLock)
 
 	err = lock.Release(ctx)
 	assert.NoError(t, err)

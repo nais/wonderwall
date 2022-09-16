@@ -37,7 +37,7 @@ func TestLogin_URL(t *testing.T) {
 		},
 		{
 			url:   mock.Ingress + "/oauth2/login?level=NoLevel",
-			error: client.InvalidSecurityLevelError,
+			error: client.ErrInvalidSecurityLevel,
 		},
 		{
 			url: mock.Ingress + "/oauth2/login?locale=nb",
@@ -56,7 +56,7 @@ func TestLogin_URL(t *testing.T) {
 		},
 		{
 			url:   mock.Ingress + "/oauth2/login?locale=es",
-			error: client.InvalidLocaleError,
+			error: client.ErrInvalidLocale,
 		},
 	}
 
@@ -170,19 +170,19 @@ func TestLoginURLParameter(t *testing.T) {
 		{
 			name:      "invalid URL parameter value should return error",
 			url:       mock.Ingress + "/oauth2/login?param=invalid",
-			expectErr: client.InvalidLoginParameterError,
+			expectErr: client.ErrInvalidLoginParameter,
 		},
 		{
 			name:      "invalid fallback value should return error",
 			fallback:  "invalid",
 			url:       mock.Ingress + "/oauth2/login",
-			expectErr: client.InvalidLoginParameterError,
+			expectErr: client.ErrInvalidLoginParameter,
 		},
 		{
 			name:      "no supported values should return error",
 			url:       mock.Ingress + "/oauth2/login",
 			supported: openidconfig.Supported{""},
-			expectErr: client.InvalidLoginParameterError,
+			expectErr: client.ErrInvalidLoginParameter,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
