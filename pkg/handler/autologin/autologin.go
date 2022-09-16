@@ -29,7 +29,7 @@ func (a *AutoLogin) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 			path = "/" + path
 		}
 
-		match, _ := pathlib.Match(pattern, r.URL.Path)
+		match, _ := pathlib.Match(pattern, path)
 		if match {
 			return false
 		}
