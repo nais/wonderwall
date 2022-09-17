@@ -137,6 +137,26 @@ func TestCanonicalRedirect(t *testing.T) {
 				value:    "/path?gnu=notunix",
 				expected: "/path?gnu=notunix",
 			},
+			{
+				name:     "url encoded path",
+				value:    "%2Fpath",
+				expected: "/path",
+			},
+			{
+				name:     "url encoded path and query parameters",
+				value:    "%2Fpath%3Fgnu%3Dnotunix",
+				expected: "/path?gnu=notunix",
+			},
+			{
+				name:     "url encoded url",
+				value:    "http%3A%2F%2Flocalhost%3A8080%2Fpath",
+				expected: "http://localhost:8080/path",
+			},
+			{
+				name:     "url encoded url and multiple query parameters",
+				value:    "http%3A%2F%2Flocalhost%3A8080%2Fpath%3Fgnu%3Dnotunix%26foo%3Dbar",
+				expected: "http://localhost:8080/path?gnu=notunix&foo=bar",
+			},
 		} {
 			t.Run(test.name, func(t *testing.T) {
 				v := &url.Values{}
@@ -159,25 +179,25 @@ func TestLoginURL(t *testing.T) {
 			name:           "no prefix",
 			prefix:         "",
 			redirectTarget: "https://test.example.com?some=param&other=param2",
-			want:           "/oauth2/login?redirect=https://test.example.com?some=param&other=param2",
+			want:           "/oauth2/login?redirect=" + url.QueryEscape("https://test.example.com?some=param&other=param2"),
 		},
 		{
 			name:           "with prefix",
 			prefix:         "/path",
 			redirectTarget: "https://test.example.com?some=param&other=param2",
-			want:           "/path/oauth2/login?redirect=https://test.example.com?some=param&other=param2",
+			want:           "/path/oauth2/login?redirect=" + url.QueryEscape("https://test.example.com?some=param&other=param2"),
 		},
 		{
 			name:           "we need to go deeper",
 			prefix:         "/deeper/path",
 			redirectTarget: "https://test.example.com?some=param&other=param2",
-			want:           "/deeper/path/oauth2/login?redirect=https://test.example.com?some=param&other=param2",
+			want:           "/deeper/path/oauth2/login?redirect=" + url.QueryEscape("https://test.example.com?some=param&other=param2"),
 		},
 		{
 			name:           "relative target",
 			prefix:         "",
 			redirectTarget: "/path?some=param&other=param2",
-			want:           "/oauth2/login?redirect=/path?some=param&other=param2",
+			want:           "/oauth2/login?redirect=" + url.QueryEscape("/path?some=param&other=param2"),
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {

@@ -39,7 +39,7 @@ func CanonicalRedirect(r *http.Request) string {
 	parsed, err := url.Parse(redirect)
 	if err != nil {
 		// Silently fall back to ingress path
-		redirect = ingressPath
+		return ingressPath
 	}
 
 	// Strip scheme and host to avoid cross-domain redirects
@@ -47,6 +47,12 @@ func CanonicalRedirect(r *http.Request) string {
 	parsed.Host = ""
 
 	redirect = parsed.String()
+
+	// Ensure URL isn't encoded
+	redirect, err = url.QueryUnescape(redirect)
+	if err != nil {
+		return ingressPath
+	}
 
 	// Root path without trailing slash is empty
 	if len(parsed.Path) == 0 {
@@ -62,10 +68,14 @@ func CanonicalRedirect(r *http.Request) string {
 }
 
 func LoginURL(prefix, redirectTarget string) string {
-	loginPath := prefix + paths.OAuth2 + paths.Login
-	redirectParam := fmt.Sprintf("?%s=%s", RedirectURLParameter, redirectTarget)
+	u := new(url.URL)
+	u.Path = path.Join(prefix, paths.OAuth2, paths.Login)
 
-	return loginPath + redirectParam
+	v := url.Values{}
+	v.Set(RedirectURLParameter, redirectTarget)
+	u.RawQuery = v.Encode()
+
+	return u.String()
 }
 
 func LoginCallbackURL(r *http.Request) (string, error) {

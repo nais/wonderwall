@@ -375,7 +375,7 @@ func TestHandler_Default(t *testing.T) {
 
 		// redirect should point to local login endpoint
 		loginLocation := resp.Location
-		assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login?redirect=/", loginLocation.String())
+		assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login?redirect="+url.QueryEscape("/"), loginLocation.String())
 
 		// follow redirect to local login endpoint
 		resp = get(t, rpClient, loginLocation.String())
