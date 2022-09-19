@@ -77,7 +77,7 @@ func Initialize() (*Config, error) {
 	flag.String(LogLevel, "info", "Logging verbosity level.")
 	flag.String(MetricsBindAddress, "127.0.0.1:3001", "Listen address for metrics only.")
 
-	flag.Bool(AutoLogin, false, "Automatically redirect user to login if the user does not have a valid session for all proxied downstream requests.")
+	flag.Bool(AutoLogin, false, "Automatically redirect all HTTP GET requests to login if the user does not have a valid session for all matching upstream paths.")
 	flag.StringSlice(AutoLoginIgnorePaths, []string{}, "Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style single asterisks using the stdlib path.Match. Invalid patterns are ignored.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.String(ErrorRedirectURI, "", "URI to redirect user to on errors for custom error handling.")

@@ -371,7 +371,7 @@ func TestHandler_Default(t *testing.T) {
 		target := idp.RelyingPartyServer.URL + "/"
 
 		resp := get(t, rpClient, target)
-		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
+		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 
 		// redirect should point to local login endpoint
 		loginLocation := resp.Location
@@ -414,6 +414,39 @@ func TestHandler_Default(t *testing.T) {
 		resp = get(t, rpClient, targetLocation.String())
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Equal(t, "ok", resp.Body)
+	})
+
+	t.Run("with auto-login for non-GET requests", func(t *testing.T) {
+		for _, method := range []string{
+			http.MethodConnect,
+			http.MethodDelete,
+			http.MethodHead,
+			http.MethodOptions,
+			http.MethodPatch,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodTrace,
+		} {
+			t.Run(method, func(t *testing.T) {
+				cfg := mock.Config()
+				cfg.AutoLogin = true
+				cfg.UpstreamHost = up.URL.Host
+				idp := mock.NewIdentityProvider(cfg)
+				defer idp.Close()
+
+				up.SetReverseProxyUrl(idp.RelyingPartyServer.URL)
+				rpClient := idp.RelyingPartyClient()
+
+				req, err := http.NewRequest(method, idp.RelyingPartyServer.URL, nil)
+				assert.NoError(t, err)
+
+				resp, err := rpClient.Do(req)
+				assert.NoError(t, err)
+				defer resp.Body.Close()
+
+				assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+			})
+		}
 	})
 
 	t.Run("with auto-login and ignored paths", func(t *testing.T) {
@@ -480,7 +513,7 @@ func TestHandler_Default(t *testing.T) {
 					target := idp.RelyingPartyServer.URL + path
 					resp := get(t, rpClient, target)
 
-					assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
+					assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
 				})
 			}
 		})
