@@ -1,6 +1,7 @@
 package url
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -11,7 +12,8 @@ import (
 )
 
 const (
-	RedirectURLParameter = "redirect"
+	RedirectURLParameter        = "redirect"
+	RedirectURLEncodedParameter = "redirect-encoded"
 )
 
 // CanonicalRedirect constructs a redirect URL that points back to the application.
@@ -36,6 +38,21 @@ func CanonicalRedirect(r *http.Request) string {
 		redirect = redirectParam
 	}
 
+	// 4. Redirect-encoded parameter is set
+	redirectEncodedParam := r.URL.Query().Get(RedirectURLEncodedParameter)
+	if len(redirectEncodedParam) > 0 {
+		decodedBytes, err := base64.RawURLEncoding.DecodeString(redirectEncodedParam)
+		if err == nil {
+			redirect = string(decodedBytes)
+		}
+	}
+
+	// Ensure URL isn't encoded
+	redirect, err := url.QueryUnescape(redirect)
+	if err != nil {
+		return ingressPath
+	}
+
 	parsed, err := url.Parse(redirect)
 	if err != nil {
 		// Silently fall back to ingress path
@@ -47,12 +64,6 @@ func CanonicalRedirect(r *http.Request) string {
 	parsed.Host = ""
 
 	redirect = parsed.String()
-
-	// Ensure URL isn't encoded
-	redirect, err = url.QueryUnescape(redirect)
-	if err != nil {
-		return ingressPath
-	}
 
 	// Root path without trailing slash is empty
 	if len(parsed.Path) == 0 {
@@ -72,10 +83,14 @@ func LoginURL(prefix, redirectTarget string) string {
 	u.Path = path.Join(prefix, paths.OAuth2, paths.Login)
 
 	v := url.Values{}
-	v.Set(RedirectURLParameter, redirectTarget)
+	v.Set(RedirectURLEncodedParameter, RedirectEncoded(redirectTarget))
 	u.RawQuery = v.Encode()
 
 	return u.String()
+}
+
+func RedirectEncoded(s string) string {
+	return base64.RawURLEncoding.EncodeToString([]byte(s))
 }
 
 func LoginCallbackURL(r *http.Request) (string, error) {
