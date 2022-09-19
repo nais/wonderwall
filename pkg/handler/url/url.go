@@ -39,12 +39,9 @@ func CanonicalRedirect(r *http.Request) string {
 	}
 
 	// 4. Redirect-encoded parameter is set
-	redirectEncodedParam := r.URL.Query().Get(RedirectURLEncodedParameter)
-	if len(redirectEncodedParam) > 0 {
-		decodedBytes, err := base64.RawURLEncoding.DecodeString(redirectEncodedParam)
-		if err == nil {
-			redirect = string(decodedBytes)
-		}
+	redirectEncoded := RedirectDecoded(r)
+	if len(redirectEncoded) > 0 {
+		redirect = redirectEncoded
 	}
 
 	// Ensure URL isn't encoded
@@ -91,6 +88,20 @@ func LoginURL(prefix, redirectTarget string) string {
 
 func RedirectEncoded(s string) string {
 	return base64.RawURLEncoding.EncodeToString([]byte(s))
+}
+
+func RedirectDecoded(r *http.Request) string {
+	paramValue := r.URL.Query().Get(RedirectURLEncodedParameter)
+	if len(paramValue) == 0 {
+		return ""
+	}
+
+	bytes, err := base64.RawURLEncoding.DecodeString(paramValue)
+	if err == nil {
+		return string(bytes)
+	}
+
+	return ""
 }
 
 func LoginCallbackURL(r *http.Request) (string, error) {
