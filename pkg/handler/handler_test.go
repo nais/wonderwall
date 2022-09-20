@@ -450,73 +450,126 @@ func TestHandler_Default(t *testing.T) {
 	})
 
 	t.Run("with auto-login and ignored paths", func(t *testing.T) {
-		cfg := mock.Config()
-		cfg.UpstreamHost = up.URL.Host
-		cfg.AutoLogin = true
-		cfg.AutoLoginIgnorePaths = []string{
-			"/exact/match",
-			"/allowed",
-			"/wildcard/*",
-			"/deeper/*/*",
-			"/any*",
+		for pattern, tt := range map[string]struct {
+			match    []string
+			nonMatch []string
+		}{
+			"/": {
+				match: []string{
+					"/",
+					"",
+				},
+				nonMatch: []string{
+					"/a",
+					"/a/b",
+				},
+			},
+			"/exact/match": {
+				match: []string{
+					"/exact/match",
+					"/exact/match/",
+				},
+				nonMatch: []string{
+					"/exact/match/huh",
+				},
+			},
+			"/allowed": {
+				match: []string{
+					"/allowed",
+					"/allowed/",
+				},
+				nonMatch: []string{
+					"/allowe",
+					"/allowed/no",
+					"/not-allowed",
+					"/not-allowed/allowed",
+				},
+			},
+			"/wildcard/*": {
+				match: []string{
+					"/wildcard/very",
+					"/wildcard/very/",
+				},
+				nonMatch: []string{
+					"/wildcard",
+					"/wildcard/",
+					"/wildcard/yup/nope",
+				},
+			},
+			"/deeper/*/*": {
+				match: []string{
+					"/deeper/1/2",
+					"/deeper/1/2/",
+				},
+				nonMatch: []string{
+					"/deeper",
+					"/deeper/",
+					"/deeper/1",
+					"/deeper/1/",
+					"/deeper/1/2/3",
+				},
+			},
+			"/any*": {
+				match: []string{
+					"/any",
+					"/any/",
+					"/anything",
+					"/anything/",
+					"/anywho",
+					"/anywho/",
+				},
+				nonMatch: []string{
+					"/any/thing",
+					"/any/thing/",
+					"/anywho/mst/ve",
+				},
+			},
+			"/trailing/": {
+				match: []string{
+					"/trailing",
+					"/trailing/",
+				},
+				nonMatch: []string{
+					"/trailing/path",
+					"/trailing/path/",
+				},
+			},
+		} {
+			t.Run(pattern, func(t *testing.T) {
+				cfg := mock.Config()
+				cfg.UpstreamHost = up.URL.Host
+				cfg.AutoLogin = true
+				cfg.AutoLoginIgnorePaths = []string{pattern}
+
+				idp := mock.NewIdentityProvider(cfg)
+				defer idp.Close()
+				up.SetReverseProxyUrl(idp.RelyingPartyServer.URL)
+				rpClient := idp.RelyingPartyClient()
+
+				t.Run("match", func(t *testing.T) {
+					for _, path := range tt.match {
+						t.Run(path, func(t *testing.T) {
+							target := idp.RelyingPartyServer.URL + path
+							resp := get(t, rpClient, target)
+
+							assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+							assert.Equal(t, "not ok", resp.Body)
+						})
+					}
+				})
+
+				t.Run("non-match", func(t *testing.T) {
+					for _, path := range tt.nonMatch {
+						t.Run(path, func(t *testing.T) {
+							target := idp.RelyingPartyServer.URL + path
+							resp := get(t, rpClient, target)
+
+							assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+						})
+					}
+				})
+			})
 		}
-
-		idp := mock.NewIdentityProvider(cfg)
-		defer idp.Close()
-
-		up.SetReverseProxyUrl(idp.RelyingPartyServer.URL)
-		rpClient := idp.RelyingPartyClient()
-
-		t.Run("matched paths should not trigger login", func(t *testing.T) {
-			matched := []string{
-				"/exact/match",
-				"/allowed",
-				"/wildcard/",
-				"/wildcard/very",
-				"/deeper/1/",
-				"/deeper/1/2",
-				"/anything",
-				"/anywho",
-			}
-			for _, path := range matched {
-				t.Run(path, func(t *testing.T) {
-					target := idp.RelyingPartyServer.URL + path
-					resp := get(t, rpClient, target)
-
-					assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-					assert.Equal(t, "not ok", resp.Body)
-				})
-			}
-		})
-
-		t.Run("non-matched paths should trigger login", func(t *testing.T) {
-			nonMatched := []string{
-				"",
-				"/",
-				"/exact/match/",
-				"/exact/match/huh",
-				"/allowed/",
-				"/not-allowed",
-				"/not-allowed/allowed",
-				"/wildcard",
-				"/wildcard/yup/nope",
-				"/deeper",
-				"/deeper/",
-				"/deeper/1",
-				"/deeper/1/2/",
-				"/deeper/1/2/3",
-				"/any/",
-				"/anywho/stvent",
-			}
-			for _, path := range nonMatched {
-				t.Run(path, func(t *testing.T) {
-					target := idp.RelyingPartyServer.URL + path
-					resp := get(t, rpClient, target)
-
-					assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-				})
-			}
-		})
 	})
 }
 

@@ -29,6 +29,10 @@ func (a *AutoLogin) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 			path = "/" + path
 		}
 
+		if path != "/" {
+			path = strings.TrimSuffix(path, "/")
+		}
+
 		match, _ := pathlib.Match(pattern, path)
 		if match {
 			return false
@@ -45,6 +49,10 @@ func New(cfg *config.Config) (*AutoLogin, error) {
 	for _, path := range append(DefaultIgnorePatterns, cfg.AutoLoginIgnorePaths...) {
 		if len(path) == 0 {
 			continue
+		}
+
+		if path != "/" {
+			path = strings.TrimSuffix(path, "/")
 		}
 
 		if _, found := seen[path]; !found {
