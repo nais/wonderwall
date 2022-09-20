@@ -63,7 +63,8 @@ func (rp *ReverseProxy) Handler(src Source, w http.ResponseWriter, r *http.Reque
 	isAuthenticated := false
 
 	accessToken, err := src.GetSessions().GetAccessToken(r)
-	if err == nil {
+	switch {
+	case err == nil:
 		// add authentication if session cookie and token checks out
 		isAuthenticated = true
 
@@ -72,19 +73,27 @@ func (rp *ReverseProxy) Handler(src Source, w http.ResponseWriter, r *http.Reque
 			isAuthenticated = false
 			logger.Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
 		}
-	} else if errors.Is(err, session.ErrUnexpected) {
-		logger.Errorf("default: getting session: %+v", err)
-	} else if errors.Is(err, session.ErrInvalidState) {
-		logger.Errorf("default: refreshing session: %+v", err)
+	case errors.Is(err, session.ErrUnexpected), errors.Is(err, session.ErrInvalidState):
+		logger.Errorf("default: unauthenticated: %+v", err)
+	case errors.Is(err, session.ErrKeyNotFound):
+		logger.Debug("default: unauthenticated: session not found")
+	case errors.Is(err, session.ErrCookieNotFound):
+		logger.Debug("default: unauthenticated: session cookie not found")
+	default:
+		logger.Infof("default: unauthenticated: %+v", err)
 	}
 
 	if src.GetAutoLogin().NeedsLogin(r, isAuthenticated) {
-		logger.Debug("default: auto-login is enabled; request does not match any configured ignorable paths")
-
 		redirectTarget := r.URL.String()
 		path := src.GetPath(r)
 
 		loginUrl := url.LoginURL(path, redirectTarget)
+		fields := logrus.Fields{
+			"redirect_after_login": redirectTarget,
+			"redirect_to":          loginUrl,
+		}
+
+		logger.WithFields(fields).Info("default: unauthenticated: request matches auto-login; redirecting to login...")
 		http.Redirect(w, r, loginUrl, http.StatusTemporaryRedirect)
 		return
 	}
