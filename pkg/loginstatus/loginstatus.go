@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	SameSiteMode = http.SameSiteDefaultMode
+	SameSiteMode           = http.SameSiteDefaultMode
+	LoginserviceCookieName = "selvbetjening-idtoken"
 )
 
 func NewClient(config config.Loginstatus, httpClient *http.Client) *Loginstatus {
@@ -95,6 +96,7 @@ func (c *Loginstatus) ClearCookie(w http.ResponseWriter, opts cookie.Options) {
 	opts = c.CookieOptions(opts)
 
 	cookie.Clear(w, cookieName, opts)
+	cookie.Clear(w, LoginserviceCookieName, opts.WithSameSite(http.SameSiteNoneMode))
 }
 
 func (c *Loginstatus) CookieOptions(opts cookie.Options) cookie.Options {
