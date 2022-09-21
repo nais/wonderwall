@@ -65,8 +65,8 @@ func (s *StandardHandler) GetErrorHandler() errorhandler.Handler {
 	return errorhandler.New(s)
 }
 
-func (s *StandardHandler) GetErrorRedirectURI() string {
-	return s.config.ErrorRedirectURI
+func (s *StandardHandler) GetErrorPath() string {
+	return s.config.ErrorPath
 }
 
 func (s *StandardHandler) GetIngresses() *ingress.Ingresses {

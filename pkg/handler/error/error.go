@@ -19,7 +19,7 @@ import (
 
 type Source interface {
 	GetCrypter() crypto.Crypter
-	GetErrorRedirectURI() string
+	GetErrorPath() string
 	GetPath(r *http.Request) string
 }
 
@@ -80,7 +80,7 @@ func (h Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode
 		logger.Errorf(msg, cause)
 	}
 
-	if len(h.GetErrorRedirectURI()) > 0 {
+	if len(h.GetErrorPath()) > 0 {
 		err := h.customErrorRedirect(w, r, statusCode)
 		if err == nil {
 			return
@@ -109,10 +109,11 @@ func (h Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, st
 }
 
 func (h Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, statusCode int) error {
-	override, err := url.Parse(h.GetErrorRedirectURI())
+	override, err := url.Parse(h.GetErrorPath())
 	if err != nil {
 		return err
 	}
+
 	// strip scheme and host to avoid cross-domain redirects
 	override.Scheme = ""
 	override.Host = ""
