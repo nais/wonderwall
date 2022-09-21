@@ -40,9 +40,8 @@ type Loginstatus struct {
 }
 
 type Session struct {
-	MaxLifetime     time.Duration `json:"max-lifetime"`
-	Refresh         bool          `json:"refresh"`
-	MetadataRollout bool          `json:"metadata-rollout"`
+	MaxLifetime time.Duration `json:"max-lifetime"`
+	Refresh     bool          `json:"refresh"`
 }
 
 const (
@@ -58,9 +57,8 @@ const (
 	Ingress              = "ingress"
 	UpstreamHost         = "upstream-host"
 
-	SessionMaxLifetime     = "session.max-lifetime"
-	SessionRefresh         = "session.refresh"
-	SessionMetadataRollout = "session.metadata-rollout"
+	SessionMaxLifetime = "session.max-lifetime"
+	SessionRefresh     = "session.refresh"
 
 	LoginstatusEnabled           = "loginstatus.enabled"
 	LoginstatusCookieDomain      = "loginstatus.cookie-domain"
@@ -86,7 +84,6 @@ func Initialize() (*Config, error) {
 
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 	flag.Bool(SessionRefresh, false, "Automatically refresh the tokens for user sessions if they are expired, as long as the session exists (indicated by the session max lifetime).")
-	flag.Bool(SessionMetadataRollout, false, "Feature toggle for metadata rollout.")
 
 	flag.Bool(LoginstatusEnabled, false, "Feature toggle for Loginstatus, a separate service that should provide an opaque token to indicate that a user has been authenticated previously, e.g. by another application in another subdomain.")
 	flag.String(LoginstatusCookieDomain, "", "The domain that the cookie should be set for.")

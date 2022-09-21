@@ -36,12 +36,11 @@ const (
 )
 
 type Handler struct {
-	client                 *openidclient.Client
-	crypter                crypto.Crypter
-	openidCfg              openidconfig.Config
-	refreshEnabled         bool
-	metadataRolloutEnabled bool
-	store                  Store
+	client         *openidclient.Client
+	crypter        crypto.Crypter
+	openidCfg      openidconfig.Config
+	refreshEnabled bool
+	store          Store
 }
 
 func NewHandler(cfg *config.Config, openidCfg openidconfig.Config, crypter crypto.Crypter, openidClient *openidclient.Client) (*Handler, error) {
@@ -51,12 +50,11 @@ func NewHandler(cfg *config.Config, openidCfg openidconfig.Config, crypter crypt
 	}
 
 	return &Handler{
-		crypter:                crypter,
-		client:                 openidClient,
-		openidCfg:              openidCfg,
-		store:                  store,
-		refreshEnabled:         cfg.Session.Refresh,
-		metadataRolloutEnabled: cfg.Session.MetadataRollout,
+		crypter:        crypter,
+		client:         openidClient,
+		openidCfg:      openidCfg,
+		store:          store,
+		refreshEnabled: cfg.Session.Refresh,
 	}, nil
 }
 
@@ -139,7 +137,7 @@ func (h *Handler) GetAccessToken(r *http.Request) (string, error) {
 		return "", ErrNoAccessToken
 	}
 
-	if h.metadataRolloutEnabled && sessionData.Metadata.IsExpired() {
+	if sessionData.Metadata.IsExpired() {
 		return "", ErrExpiredAccessToken
 	}
 
