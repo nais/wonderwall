@@ -111,6 +111,8 @@ The following flags are available:
 --redis.password string                    Password for Redis.
 --redis.tls                                Whether or not to use TLS for connecting to Redis. (default true)
 --redis.username string                    Username for Redis.
+--session.inactivity                       Automatically expire user sessions if they have not refreshed their tokens within a given duration.
+--session.inactivity-timeout duration      Inactivity timeout for user sessions. (default 30m0s)
 --session.max-lifetime duration            Max lifetime for user sessions. (default 1h0m0s)
 --session.refresh                          Automatically refresh the tokens for user sessions if they are expired, as long as the session exists (indicated by the session max lifetime).
 --upstream-host string                     Address of upstream host. (default "127.0.0.1:8080")
@@ -177,7 +179,10 @@ Otherwise, an `HTTP 200 OK` is returned with the metadata with the `application/
   "session": {
     "created_at": "2022-08-31T06:58:38.724717899Z", 
     "ends_at": "2022-08-31T16:58:38.724717899Z",
-    "ends_in_seconds": 14658
+    "timeout_at": "0001-01-01T00:00:00Z",
+    "ends_in_seconds": 14658,
+    "active": true,
+    "timeout_in_seconds": -1
   },
   "tokens": {
     "expire_at": "2022-08-31T14:03:47.318251953Z",
@@ -189,14 +194,17 @@ Otherwise, an `HTTP 200 OK` is returned with the metadata with the `application/
 
 Most of these fields should be self-explanatory, but we'll be explicit with their description:
 
-| Field                                 | Description                                                                                     |
-|---------------------------------------|-------------------------------------------------------------------------------------------------|
-| `session.created_at`                  | The timestamp that denotes when the session was first created.                                  |
-| `session.ends_at`                     | The timestamp that denotes when the session will end.                                           |
-| `session.ends_in_seconds`             | The number of seconds until the session ends.                                                   |
-| `tokens.expire_at`                    | The timestamp that denotes when the tokens within the session will expire.                      |
-| `tokens.refreshed_at`                 | The timestamp that denotes when the tokens within the session was last refreshed.               |
-| `tokens.expire_in_seconds`            | The number of seconds until the tokens expire.                                                  |
+| Field                        | Description                                                                                                          |
+|------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `session.created_at`         | The timestamp that denotes when the session was first created.                                                       |
+| `session.ends_at`            | The timestamp that denotes when the session will end.                                                                |
+| `session.timeout_at`         | The timestamp that denotes when the session will time out. The zero-value, `0001-01-01T00:00:00Z`, means no timeout. |
+| `session.ends_in_seconds`    | The number of seconds until the session ends.                                                                        |
+| `session.active`             | Whether or not the session is marked as active.                                                                      |
+| `session.timeout_in_seconds` | The number of seconds until the session times out. A value of `-1` means no timeout.                                 |
+| `tokens.expire_at`           | The timestamp that denotes when the tokens within the session will expire.                                           |
+| `tokens.refreshed_at`        | The timestamp that denotes when the tokens within the session was last refreshed.                                    |
+| `tokens.expire_in_seconds`   | The number of seconds until the tokens expire.                                                                       |
 
 ### Refresh Tokens
 
@@ -242,6 +250,20 @@ contain some new fields in addition to the previous fields:
 Note that the refresh operation has a default cooldown period of 1 minute, which may be shorter depending on the token lifetime
 of the tokens returned by the identity provider. In other words, a request to the `/oauth2/session/refresh` endpoint will 
 only trigger a refresh if `tokens.refresh_cooldown` is `false`.
+
+### Inactivity
+
+A session can be marked as inactive if the time since last refresh exceeds a given timeout. This is useful if you want
+to ensure that an end-user can re-authenticate with the identity provider if they've been gone from an authenticated
+session for some time. 
+
+This is enabled with the `session.inactivity` option, which also requires `session.refresh`.
+
+The `/oauth2/session` endpoint returns `session.active`, `session.timeout_at` and `session.timeout_in_seconds` that
+indicates the state of the session and when it times out.
+
+The timeout is configured with `session.inactivity-timeout`. If this timeout is shorter than the token lifetime, you 
+should implement mechanisms to trigger refreshes before the timeout is reached.
 
 ## Development
 

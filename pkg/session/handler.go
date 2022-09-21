@@ -23,10 +23,11 @@ import (
 
 var (
 	ErrCookieNotFound     = errors.New("cookie not found")
-	ErrNoSessionData      = errors.New("no session data")
-	ErrNoAccessToken      = errors.New("no access token in session data")
 	ErrExpiredAccessToken = errors.New("access token is expired")
 	ErrInvalidState       = errors.New("invalid state")
+	ErrNoSessionData      = errors.New("no session data")
+	ErrNoAccessToken      = errors.New("no access token in session data")
+	ErrSessionInactive    = errors.New("session is inactive")
 )
 
 const (
@@ -36,11 +37,11 @@ const (
 )
 
 type Handler struct {
-	client         *openidclient.Client
-	crypter        crypto.Crypter
-	openidCfg      openidconfig.Config
-	refreshEnabled bool
-	store          Store
+	cfg       config.Session
+	client    *openidclient.Client
+	crypter   crypto.Crypter
+	openidCfg openidconfig.Config
+	store     Store
 }
 
 func NewHandler(cfg *config.Config, openidCfg openidconfig.Config, crypter crypto.Crypter, openidClient *openidclient.Client) (*Handler, error) {
@@ -50,11 +51,11 @@ func NewHandler(cfg *config.Config, openidCfg openidconfig.Config, crypter crypt
 	}
 
 	return &Handler{
-		crypter:        crypter,
-		client:         openidClient,
-		openidCfg:      openidCfg,
-		store:          store,
-		refreshEnabled: cfg.Session.Refresh,
+		crypter:   crypter,
+		client:    openidClient,
+		openidCfg: openidCfg,
+		store:     store,
+		cfg:       cfg.Session,
 	}, nil
 }
 
@@ -68,6 +69,11 @@ func (h *Handler) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime
 	key := h.Key(externalSessionID)
 	tokenExpiresIn := time.Until(tokens.Expiry)
 	metadata := NewMetadata(tokenExpiresIn, sessionLifetime)
+
+	if h.cfg.Inactivity {
+		metadata.WithTimeout(h.cfg.InactivityTimeout)
+	}
+
 	encrypted, err := NewData(externalSessionID, tokens, metadata).Encrypt(h.crypter)
 	if err != nil {
 		return "", fmt.Errorf("encrypting session data: %w", err)
@@ -202,12 +208,16 @@ func (h *Handler) GetOrRefresh(r *http.Request) (*Data, error) {
 		return nil, err
 	}
 
+	if h.isTimedOut(sessionData) {
+		return nil, ErrSessionInactive
+	}
+
 	if !h.shouldRefresh(sessionData) {
 		return sessionData, nil
 	}
 
 	refreshed, err := h.Refresh(r, key, sessionData)
-	if errors.Is(err, ErrInvalidState) {
+	if errors.Is(err, ErrInvalidState) || errors.Is(err, ErrSessionInactive) {
 		return nil, err
 	} else if err != nil {
 		mw.LogEntryFrom(r).Warnf("session: could not refresh tokens; falling back to existing token: %+v", err)
@@ -287,7 +297,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	}(lock, ctx)
 
 	// Get the latest session state again in case it was changed while acquiring the lock
-	data, err = h.Get(r)
+	data, err = h.GetForKey(r, key)
 	if err != nil {
 		return nil, err
 	}
@@ -295,6 +305,10 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	if !h.canRefresh(data) {
 		logger.Debug("session: already refreshed, aborting refresh attempt.")
 		return data, nil
+	}
+
+	if h.isTimedOut(data) {
+		return nil, ErrSessionInactive
 	}
 
 	logger.Debug("session: performing refresh grant...")
@@ -318,9 +332,23 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	data.RefreshToken = resp.RefreshToken
 	data.Metadata.Refresh(resp.ExpiresIn)
 
+	if h.cfg.Inactivity {
+		data.Metadata.ExtendTimeout(h.cfg.InactivityTimeout)
+	}
+
+	err = h.Update(ctx, key, data)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Info("session: successfully refreshed")
+	return data, nil
+}
+
+func (h *Handler) Update(ctx context.Context, key string, data *Data) error {
 	encrypted, err := data.Encrypt(h.crypter)
 	if err != nil {
-		return nil, fmt.Errorf("encrypting session data: %w", err)
+		return fmt.Errorf("encrypting session data: %w", err)
 	}
 
 	update := func(ctx context.Context) error {
@@ -332,19 +360,22 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	}
 
 	if err := retry.Do(ctx, retrypkg.DefaultBackoff, update); err != nil {
-		return nil, fmt.Errorf("updating in store: %w", err)
+		return fmt.Errorf("updating in store: %w", err)
 	}
 
-	logger.Info("session: successfully refreshed")
-	return data, nil
+	return nil
 }
 
 func (h *Handler) canRefresh(data *Data) bool {
-	return h.refreshEnabled && data.HasRefreshToken() && !data.Metadata.IsRefreshOnCooldown()
+	return h.cfg.Refresh && data.HasRefreshToken() && !data.Metadata.IsRefreshOnCooldown()
 }
 
 func (h *Handler) shouldRefresh(data *Data) bool {
-	return h.refreshEnabled && data.HasRefreshToken() && data.Metadata.ShouldRefresh()
+	return h.cfg.Refresh && data.HasRefreshToken() && data.Metadata.ShouldRefresh()
+}
+
+func (h *Handler) isTimedOut(data *Data) bool {
+	return h.cfg.Inactivity && data.Metadata.IsTimedOut()
 }
 
 func NewSessionID(cfg openidconfig.Provider, idToken *openid.IDToken, params url.Values) (string, error) {

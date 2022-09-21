@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nais/liberator/pkg/conftools"
@@ -40,8 +41,10 @@ type Loginstatus struct {
 }
 
 type Session struct {
-	MaxLifetime time.Duration `json:"max-lifetime"`
-	Refresh     bool          `json:"refresh"`
+	Inactivity        bool          `json:"inactivity"`
+	InactivityTimeout time.Duration `json:"inactivity-timeout"`
+	MaxLifetime       time.Duration `json:"max-lifetime"`
+	Refresh           bool          `json:"refresh"`
 }
 
 const (
@@ -57,8 +60,10 @@ const (
 	Ingress              = "ingress"
 	UpstreamHost         = "upstream-host"
 
-	SessionMaxLifetime = "session.max-lifetime"
-	SessionRefresh     = "session.refresh"
+	SessionInactivity        = "session.inactivity"
+	SessionInactivityTimeout = "session.inactivity-timeout"
+	SessionMaxLifetime       = "session.max-lifetime"
+	SessionRefresh           = "session.refresh"
 
 	LoginstatusEnabled           = "loginstatus.enabled"
 	LoginstatusCookieDomain      = "loginstatus.cookie-domain"
@@ -82,6 +87,8 @@ func Initialize() (*Config, error) {
 	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 
+	flag.Bool(SessionInactivity, false, "Automatically expire user sessions if they have not refreshed their tokens within a given duration.")
+	flag.Duration(SessionInactivityTimeout, 30*time.Minute, "Inactivity timeout for user sessions.")
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 	flag.Bool(SessionRefresh, false, "Automatically refresh the tokens for user sessions if they are expired, as long as the session exists (indicated by the session max lifetime).")
 
@@ -137,5 +144,18 @@ func Initialize() (*Config, error) {
 		log.WithField("logger", "wonderwall.config").Info(line)
 	}
 
+	err := cfg.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("validating config: %w", err)
+	}
+
 	return cfg, nil
+}
+
+func (c *Config) Validate() error {
+	if c.Session.Inactivity && !c.Session.Refresh {
+		return fmt.Errorf("%q cannot be enabled without %q", SessionInactivity, SessionRefresh)
+	}
+
+	return nil
 }

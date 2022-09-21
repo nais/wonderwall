@@ -25,14 +25,14 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 
 	data, err := src.GetSessions().Get(r)
 	if err != nil {
-		if errors.Is(err, session.ErrKeyNotFound) {
+		switch {
+		case errors.Is(err, session.ErrKeyNotFound), errors.Is(err, session.ErrSessionInactive):
 			logger.Infof("session/refresh: getting session: %+v", err)
 			w.WriteHeader(http.StatusUnauthorized)
-			return
+		default:
+			logger.Warnf("session/refresh: getting session: %+v", err)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
-
-		logger.Warnf("session/refresh: getting session: %+v", err)
-		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

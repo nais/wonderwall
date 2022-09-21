@@ -109,6 +109,8 @@ type MetadataSession struct {
 	CreatedAt time.Time `json:"created_at"`
 	// EndsAt is the time when the session will end, i.e. the absolute lifetime/time-to-live for the session.
 	EndsAt time.Time `json:"ends_at"`
+	// TimeoutAt is the time when the session will be marked as inactive. A zero value means no timeout. The timeout is extended whenever the tokens are refreshed.
+	TimeoutAt time.Time `json:"timeout_at"`
 }
 
 type MetadataTokens struct {
@@ -118,7 +120,7 @@ type MetadataTokens struct {
 	RefreshedAt time.Time `json:"refreshed_at"`
 }
 
-func NewMetadata(expiresIn time.Duration, endsIn time.Duration) *Metadata {
+func NewMetadata(expiresIn, endsIn time.Duration) *Metadata {
 	now := time.Now()
 	return &Metadata{
 		Session: MetadataSession{
@@ -182,22 +184,47 @@ func (in *Metadata) TokenLifetime() time.Duration {
 	return in.Tokens.ExpireAt.Sub(in.Tokens.RefreshedAt)
 }
 
+func (in *Metadata) ExtendTimeout(duration time.Duration) {
+	in.Session.TimeoutAt = time.Now().Add(duration)
+}
+
+func (in *Metadata) IsTimedOut() bool {
+	if in.Session.TimeoutAt.IsZero() {
+		return false
+	}
+
+	return time.Now().After(in.Session.TimeoutAt)
+}
+
+func (in *Metadata) WithTimeout(timeoutIn time.Duration) {
+	in.Session.TimeoutAt = time.Now().Add(timeoutIn)
+}
+
 func (in *Metadata) Verbose() MetadataVerbose {
 	now := time.Now()
 
 	expireTime := in.Tokens.ExpireAt
 	endTime := in.Session.EndsAt
+	timeoutTime := in.Session.TimeoutAt
 
-	return MetadataVerbose{
+	mv := MetadataVerbose{
 		Session: MetadataSessionVerbose{
-			MetadataSession: in.Session,
-			EndsInSeconds:   toSeconds(endTime.Sub(now)),
+			MetadataSession:  in.Session,
+			EndsInSeconds:    toSeconds(endTime.Sub(now)),
+			Active:           !in.IsTimedOut(),
+			TimeoutInSeconds: toSeconds(timeoutTime.Sub(now)),
 		},
 		Tokens: MetadataTokensVerbose{
 			MetadataTokens:  in.Tokens,
 			ExpireInSeconds: toSeconds(expireTime.Sub(now)),
 		},
 	}
+
+	if timeoutTime.IsZero() {
+		mv.Session.TimeoutInSeconds = int64(-1)
+	}
+
+	return mv
 }
 
 func (in *Metadata) VerboseWithRefresh() MetadataVerboseWithRefresh {
@@ -229,7 +256,9 @@ type MetadataVerboseWithRefresh struct {
 
 type MetadataSessionVerbose struct {
 	MetadataSession
-	EndsInSeconds int64 `json:"ends_in_seconds"`
+	EndsInSeconds    int64 `json:"ends_in_seconds"`
+	Active           bool  `json:"active"`
+	TimeoutInSeconds int64 `json:"timeout_in_seconds"`
 }
 
 type MetadataTokensVerbose struct {

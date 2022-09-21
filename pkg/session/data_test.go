@@ -25,6 +25,50 @@ func TestData_HasRefreshToken(t *testing.T) {
 	assert.True(t, data.HasRefreshToken())
 }
 
+func TestNewMetadata(t *testing.T) {
+	tokenLifetime := 30 * time.Minute
+	sessionLifetime := time.Hour
+
+	metadata := session.NewMetadata(tokenLifetime, sessionLifetime)
+
+	maxDelta := time.Second
+
+	expected := time.Now()
+	actual := metadata.Session.CreatedAt
+	assert.WithinDuration(t, expected, actual, maxDelta)
+
+	expected = time.Now().Add(sessionLifetime)
+	actual = metadata.Session.EndsAt
+	assert.WithinDuration(t, expected, actual, maxDelta)
+
+	assert.True(t, metadata.Session.TimeoutAt.IsZero())
+
+	expected = time.Now()
+	actual = metadata.Tokens.RefreshedAt
+	assert.WithinDuration(t, expected, actual, maxDelta)
+
+	expected = time.Now().Add(tokenLifetime)
+	actual = metadata.Tokens.ExpireAt
+	assert.WithinDuration(t, expected, actual, maxDelta)
+}
+
+func TestMetadata_WithTimeout(t *testing.T) {
+	tokenLifetime := 30 * time.Minute
+	sessionLifetime := time.Hour
+	sessionInactivityTimeout := 15 * time.Minute
+
+	metadata := session.NewMetadata(tokenLifetime, sessionLifetime)
+	metadata.WithTimeout(sessionInactivityTimeout)
+
+	maxDelta := time.Second
+
+	assert.False(t, metadata.Session.TimeoutAt.IsZero())
+
+	expected := time.Now().Add(sessionInactivityTimeout)
+	actual := metadata.Session.TimeoutAt
+	assert.WithinDuration(t, expected, actual, maxDelta)
+}
+
 func TestMetadata_IsExpired(t *testing.T) {
 	t.Run("expired", func(t *testing.T) {
 		metadata := session.Metadata{
@@ -214,6 +258,10 @@ func TestMetadata_Verbose(t *testing.T) {
 	expected = time.Now().Add(tokenLifetime)
 	actual = time.Now().Add(durationSeconds(verbose.Tokens.ExpireInSeconds))
 	assert.WithinDuration(t, expected, actual, maxDelta)
+
+	assert.True(t, verbose.Session.Active)
+	assert.True(t, verbose.Session.TimeoutAt.IsZero())
+	assert.Equal(t, int64(-1), verbose.Session.TimeoutInSeconds)
 }
 
 func TestMetadata_VerboseWithRefresh(t *testing.T) {
@@ -252,6 +300,66 @@ func TestMetadata_VerboseWithRefresh(t *testing.T) {
 
 		assert.False(t, verbose.Tokens.RefreshCooldown)
 		assert.Equal(t, int64(0), verbose.Tokens.RefreshCooldownSeconds)
+	})
+}
+
+func TestMetadata_Verbose_WithTimeout(t *testing.T) {
+	tokenLifetime := 30 * time.Minute
+	sessionLifetime := time.Hour
+	timeout := 15 * time.Minute
+
+	metadata := session.NewMetadata(tokenLifetime, sessionLifetime)
+	metadata.WithTimeout(timeout)
+
+	maxDelta := time.Second
+
+	verbose := metadata.Verbose()
+
+	assert.True(t, verbose.Session.Active)
+	assert.False(t, verbose.Session.TimeoutAt.IsZero())
+
+	expected := time.Now().Add(timeout)
+	actual := verbose.Session.TimeoutAt
+	assert.WithinDuration(t, expected, actual, maxDelta)
+
+	expected = time.Now().Add(durationSeconds(verbose.Session.TimeoutInSeconds))
+	actual = verbose.Session.TimeoutAt
+	assert.WithinDuration(t, expected, actual, maxDelta)
+}
+
+func TestMetadata_ExtendTimeout(t *testing.T) {
+	tokenLifetime := 30 * time.Minute
+	sessionLifetime := time.Hour
+
+	timeout := 15 * time.Minute
+
+	metadata := session.NewMetadata(tokenLifetime, sessionLifetime)
+	metadata.WithTimeout(timeout)
+
+	previousTimeoutAt := metadata.Session.TimeoutAt
+
+	metadata.ExtendTimeout(timeout)
+	assert.True(t, metadata.Session.TimeoutAt.After(previousTimeoutAt))
+}
+
+func TestMetadata_IsTimedOut(t *testing.T) {
+	tokenLifetime := 30 * time.Minute
+	sessionLifetime := time.Hour
+
+	t.Run("timeout is zero", func(t *testing.T) {
+		metadata := session.NewMetadata(tokenLifetime, sessionLifetime)
+		assert.False(t, metadata.IsTimedOut())
+	})
+
+	t.Run("timeout is non-zero", func(t *testing.T) {
+		timeout := 15 * time.Minute
+
+		metadata := session.NewMetadata(tokenLifetime, sessionLifetime)
+		metadata.WithTimeout(timeout)
+		assert.False(t, metadata.IsTimedOut())
+
+		metadata.WithTimeout(-timeout)
+		assert.True(t, metadata.IsTimedOut())
 	})
 }
 

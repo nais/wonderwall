@@ -188,6 +188,41 @@ func TestHandler_SessionInfo(t *testing.T) {
 	// 1 second < time until token expires <= max duration for tokens from IDP
 	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
 	assert.Greater(t, tokenExpiryDuration, time.Second)
+
+	assert.True(t, data.Session.Active)
+	assert.True(t, data.Session.TimeoutAt.IsZero())
+	assert.Equal(t, int64(-1), data.Session.TimeoutInSeconds)
+}
+
+func TestHandler_SessionInfo_WithInactivity(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.Refresh = true
+	cfg.Session.Inactivity = true
+	cfg.Session.InactivityTimeout = 10 * time.Minute
+
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+
+	resp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var data session.MetadataVerbose
+	err := json.Unmarshal([]byte(resp.Body), &data)
+	assert.NoError(t, err)
+
+	maxDelta := 5 * time.Second
+
+	assert.True(t, data.Session.Active)
+	assert.False(t, data.Session.TimeoutAt.IsZero())
+
+	expectedTimeoutAt := time.Now().Add(cfg.Session.InactivityTimeout)
+	assert.WithinDuration(t, expectedTimeoutAt, data.Session.TimeoutAt, maxDelta)
+
+	actualTimeoutDuration := time.Duration(data.Session.TimeoutInSeconds) * time.Second
+	assert.WithinDuration(t, expectedTimeoutAt, time.Now().Add(actualTimeoutDuration), maxDelta)
 }
 
 func TestHandler_SessionInfo_WithRefresh(t *testing.T) {
@@ -232,6 +267,10 @@ func TestHandler_SessionInfo_WithRefresh(t *testing.T) {
 	// 1 second < refresh cooldown <= minimum refresh interval
 	assert.LessOrEqual(t, data.Tokens.RefreshCooldownSeconds, session.RefreshMinInterval)
 	assert.Greater(t, data.Tokens.RefreshCooldownSeconds, int64(1))
+
+	assert.True(t, data.Session.Active)
+	assert.True(t, data.Session.TimeoutAt.IsZero())
+	assert.Equal(t, int64(-1), data.Session.TimeoutInSeconds)
 }
 
 func TestHandler_SessionRefresh(t *testing.T) {
@@ -254,27 +293,7 @@ func TestHandler_SessionRefresh(t *testing.T) {
 	assert.NoError(t, err)
 
 	// wait until refresh cooldown has reached zero before refresh
-	func() {
-		timeout := time.After(5 * time.Second)
-		ticker := time.Tick(500 * time.Millisecond)
-		for {
-			select {
-			case <-timeout:
-				assert.Fail(t, "refresh cooldown timer exceeded timeout")
-			case <-ticker:
-				resp := sessionInfo(t, idp, rpClient)
-				assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-				var temp session.MetadataVerboseWithRefresh
-				err = json.Unmarshal([]byte(resp.Body), &temp)
-				assert.NoError(t, err)
-
-				if !temp.Tokens.RefreshCooldown {
-					return
-				}
-			}
-		}
-	}()
+	waitForRefreshCooldownTimer(t, idp, rpClient)
 
 	resp = sessionRefresh(t, idp, rpClient)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -313,6 +332,15 @@ func TestHandler_SessionRefresh(t *testing.T) {
 	// 1 second < refresh cooldown <= minimum refresh interval
 	assert.LessOrEqual(t, refreshedData.Tokens.RefreshCooldownSeconds, session.RefreshMinInterval)
 	assert.Greater(t, refreshedData.Tokens.RefreshCooldownSeconds, int64(1))
+
+	assert.True(t, data.Session.Active)
+	assert.True(t, refreshedData.Session.Active)
+
+	assert.True(t, data.Session.TimeoutAt.IsZero())
+	assert.True(t, refreshedData.Session.TimeoutAt.IsZero())
+
+	assert.Equal(t, int64(-1), data.Session.TimeoutInSeconds)
+	assert.Equal(t, int64(-1), refreshedData.Session.TimeoutInSeconds)
 }
 
 func TestHandler_SessionRefresh_Disabled(t *testing.T) {
@@ -328,6 +356,58 @@ func TestHandler_SessionRefresh_Disabled(t *testing.T) {
 
 	resp := sessionRefresh(t, idp, rpClient)
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+func TestHandler_SessionRefresh_WithInactivity(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.Refresh = true
+	cfg.Session.Inactivity = true
+	cfg.Session.InactivityTimeout = 10 * time.Minute
+
+	idp := mock.NewIdentityProvider(cfg)
+	idp.ProviderHandler.TokenDuration = 5 * time.Second
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+
+	// get initial session info
+	resp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var data session.MetadataVerboseWithRefresh
+	err := json.Unmarshal([]byte(resp.Body), &data)
+	assert.NoError(t, err)
+
+	// wait until refresh cooldown has reached zero before refresh
+	waitForRefreshCooldownTimer(t, idp, rpClient)
+
+	resp = sessionRefresh(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var refreshedData session.MetadataVerboseWithRefresh
+	err = json.Unmarshal([]byte(resp.Body), &refreshedData)
+	assert.NoError(t, err)
+
+	maxDelta := 5 * time.Second
+
+	assert.True(t, data.Session.Active)
+	assert.True(t, refreshedData.Session.Active)
+
+	assert.False(t, data.Session.TimeoutAt.IsZero())
+	assert.False(t, refreshedData.Session.TimeoutAt.IsZero())
+
+	expectedTimeoutAt := time.Now().Add(cfg.Session.InactivityTimeout)
+	assert.WithinDuration(t, expectedTimeoutAt, data.Session.TimeoutAt, maxDelta)
+	assert.WithinDuration(t, expectedTimeoutAt, refreshedData.Session.TimeoutAt, maxDelta)
+
+	assert.True(t, refreshedData.Session.TimeoutAt.After(data.Session.TimeoutAt))
+
+	previousTimeoutDuration := time.Duration(data.Session.TimeoutInSeconds) * time.Second
+	assert.WithinDuration(t, expectedTimeoutAt, time.Now().Add(previousTimeoutDuration), maxDelta)
+
+	refreshedTimeoutDuration := time.Duration(refreshedData.Session.TimeoutInSeconds) * time.Second
+	assert.WithinDuration(t, expectedTimeoutAt, time.Now().Add(refreshedTimeoutDuration), maxDelta)
 }
 
 func TestHandler_Default(t *testing.T) {
@@ -687,6 +767,28 @@ func sessionRefresh(t *testing.T, idp *mock.IdentityProvider, rpClient *http.Cli
 	assert.NoError(t, err)
 
 	return get(t, rpClient, sessionRefreshURL.String())
+}
+
+func waitForRefreshCooldownTimer(t *testing.T, idp *mock.IdentityProvider, rpClient *http.Client) {
+	timeout := time.After(5 * time.Second)
+	ticker := time.Tick(500 * time.Millisecond)
+	for {
+		select {
+		case <-timeout:
+			assert.Fail(t, "refresh cooldown timer exceeded timeout")
+		case <-ticker:
+			resp := sessionInfo(t, idp, rpClient)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+			var temp session.MetadataVerboseWithRefresh
+			err := json.Unmarshal([]byte(resp.Body), &temp)
+			assert.NoError(t, err)
+
+			if !temp.Tokens.RefreshCooldown {
+				return
+			}
+		}
+	}
 }
 
 type response struct {
