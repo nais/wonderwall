@@ -60,41 +60,6 @@ func TestCanonicalRedirect(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, defaultIngress+"/oauth2/login", nil)
 	r = mw.RequestWithPath(r, "/some-path")
 
-	// HTTP Referer header is 2nd priority
-	t.Run("Referer header is set", func(t *testing.T) {
-		for _, test := range []struct {
-			name     string
-			value    string
-			expected string
-		}{
-			{
-				name:     "full URL",
-				value:    "http://localhost:8080/foo/bar/baz",
-				expected: "/foo/bar/baz",
-			},
-			{
-				name:     "full URL with query parameters",
-				value:    "http://localhost:8080/foo/bar/baz?gnu=notunix",
-				expected: "/foo/bar/baz?gnu=notunix",
-			},
-			{
-				name:     "absolute path",
-				value:    "/foo/bar/baz",
-				expected: "/foo/bar/baz",
-			},
-			{
-				name:     "absolute path with query parameters",
-				value:    "/foo/bar/baz?gnu=notunix",
-				expected: "/foo/bar/baz?gnu=notunix",
-			},
-		} {
-			t.Run(test.name, func(t *testing.T) {
-				r.Header.Set("Referer", test.value)
-				assert.Equal(t, test.expected, urlpkg.CanonicalRedirect(r))
-			})
-		}
-	})
-
 	// If either redirect or redirect-encoded parameter is set, use that
 	t.Run("redirect parameter is set", func(t *testing.T) {
 		for _, test := range []struct {

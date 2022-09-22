@@ -26,19 +26,13 @@ func CanonicalRedirect(r *http.Request) string {
 	// 1. Default
 	redirect := ingressPath
 
-	// 2. Referer header is set
-	referer := r.Referer()
-	if len(referer) > 0 {
-		redirect = referer
-	}
-
-	// 3. Redirect parameter is set
+	// 2. Redirect parameter is set
 	redirectParam := r.URL.Query().Get(RedirectURLParameter)
 	if len(redirectParam) > 0 {
 		redirect = redirectParam
 	}
 
-	// 4. Redirect-encoded parameter is set
+	// 3. Redirect-encoded parameter is set
 	redirectEncoded := RedirectDecoded(r)
 	if len(redirectEncoded) > 0 {
 		redirect = redirectEncoded

@@ -60,12 +60,8 @@ func TestHandler_Retry(t *testing.T) {
 
 	handler := idp.RelyingPartyHandler.GetErrorHandler()
 
-	httpRequest := func(url string, referer ...string) *http.Request {
-		req := httptest.NewRequest(http.MethodGet, url, nil)
-		if len(referer) > 0 {
-			req.Header.Add("Referer", referer[0])
-		}
-		return req
+	get := func(url string) *http.Request {
+		return httptest.NewRequest(http.MethodGet, url, nil)
 	}
 
 	for _, test := range []struct {
@@ -77,134 +73,96 @@ func TestHandler_Retry(t *testing.T) {
 	}{
 		{
 			name:    "login path",
-			request: httpRequest("/oauth2/login"),
+			request: get("/oauth2/login"),
 			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
 		},
 		{
 			name:    "callback path",
-			request: httpRequest("/oauth2/callback"),
+			request: get("/oauth2/callback"),
 			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
 		},
 		{
 			name:    "logout path",
-			request: httpRequest("/oauth2/logout"),
+			request: get("/oauth2/logout"),
 			want:    "/oauth2/logout",
 		},
 		{
 			name:    "front-channel logout path",
-			request: httpRequest("/oauth2/logout/frontchannel"),
+			request: get("/oauth2/logout/frontchannel"),
 			want:    "/oauth2/logout/frontchannel",
 		},
 		{
 			name:    "login with non-default ingress",
-			request: httpRequest("/domene/oauth2/login"),
+			request: get("/domene/oauth2/login"),
 			ingress: "https://test.nav.no/domene",
 			want:    "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/domene"),
 		},
 		{
 			name:    "logout with non-default ingress",
-			request: httpRequest("/domene/oauth2/logout"),
+			request: get("/domene/oauth2/logout"),
 			ingress: "https://test.nav.no/domene",
 			want:    "/domene/oauth2/logout",
 		},
 		{
-			name:    "login with referer",
-			request: httpRequest("/oauth2/login", "/api/me"),
-			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/api/me"),
-		},
-		{
-			name:    "login with referer on non-default ingress",
-			request: httpRequest("/domene/oauth2/login", "/api/me"),
-			ingress: "https://test.nav.no/domene",
-			want:    "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/api/me"),
-		},
-		{
-			name:    "login with root referer",
-			request: httpRequest("/oauth2/login", "/"),
-			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
-		},
-		{
-			name:    "login with root referer on non-default ingress",
-			request: httpRequest("/domene/oauth2/login", "/"),
-			ingress: "https://test.nav.no/domene",
-			want:    "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
-		},
-		{
 			name:        "login with cookie referer",
-			request:     httpRequest("/oauth2/login"),
+			request:     get("/oauth2/login"),
 			loginCookie: &openid.LoginCookie{Referer: "/"},
 			want:        "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
 		},
 		{
 			name:        "login with empty cookie referer",
-			request:     httpRequest("/oauth2/login"),
+			request:     get("/oauth2/login"),
 			loginCookie: &openid.LoginCookie{Referer: ""},
 			want:        "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
 		},
 		{
-			name:        "login with cookie referer takes precedence over referer header",
-			request:     httpRequest("/oauth2/login", "/api/me"),
-			loginCookie: &openid.LoginCookie{Referer: "/api/headers"},
-			want:        "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/api/headers"),
-		},
-		{
 			name:        "login with cookie referer on non-default ingress",
-			request:     httpRequest("/domene/oauth2/login"),
+			request:     get("/domene/oauth2/login"),
 			loginCookie: &openid.LoginCookie{Referer: "/domene/api/me"},
 			ingress:     "https://test.nav.no/domene",
 			want:        "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/domene/api/me"),
 		},
 		{
 			name:    "login with redirect parameter set",
-			request: httpRequest("/oauth2/login?redirect=/api/me"),
+			request: get("/oauth2/login?redirect=/api/me"),
 			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/api/me"),
 		},
 		{
 			name:    "login with redirect parameter set and query parameters",
-			request: httpRequest("/oauth2/login?redirect=/api/me?a=b%26c=d"),
+			request: get("/oauth2/login?redirect=/api/me?a=b%26c=d"),
 			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/api/me?a=b&c=d"),
 		},
 		{
 			name:    "login with redirect parameter set on non-default ingress",
-			request: httpRequest("/domene/oauth2/login?redirect=/api/me"),
+			request: get("/domene/oauth2/login?redirect=/api/me"),
 			ingress: "https://test.nav.no/domene",
 			want:    "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/api/me"),
 		},
 		{
-			name:    "login with redirect parameter set takes precedence over referer header",
-			request: httpRequest("/oauth2/login?redirect=/other", "/api/me"),
-			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/other"),
-		},
-		{
-			name:    "login with redirect parameter set to relative root takes precedence over referer header",
-			request: httpRequest("/oauth2/login?redirect=/", "/api/me"),
-			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
-		},
-		{
-			name:    "login with redirect parameter set to relative root on non-default ingress takes precedence over referer header",
-			request: httpRequest("/domene/oauth2/login?redirect=/", "/api/me"),
+			name:    "login with redirect parameter set to relative root on non-default ingress",
+			request: get("/domene/oauth2/login?redirect=/"),
 			ingress: "https://test.nav.no/domene",
 			want:    "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
 		},
 		{
-			name:    "login with redirect parameter set to absolute url takes precedence over referer header",
-			request: httpRequest("/oauth2/login?redirect=http://localhost:8080", "/api/me"),
+			name:    "login with redirect parameter set to absolute url",
+			request: get("/oauth2/login?redirect=http://localhost:8080"),
 			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
 		},
 		{
-			name:    "login with redirect parameter set to absolute url with trailing slash takes precedence over referer header",
-			request: httpRequest("/oauth2/login?redirect=http://localhost:8080/", "/api/me"),
+			name:    "login with redirect parameter set to absolute url with trailing slash",
+			request: get("/oauth2/login?redirect=http://localhost:8080/"),
 			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
 		},
 		{
-			name:    "login with redirect parameter set to absolute url on non-default ingress takes precedence over referer header",
-			request: httpRequest("/domene/oauth2/login?redirect=http://localhost:8080/", "/api/me"),
+			name:    "login with redirect parameter set to absolute url on non-default ingress",
+			request: get("/domene/oauth2/login?redirect=http://localhost:8080/"),
 			ingress: "https://test.nav.no/domene",
 			want:    "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
 		},
 		{
 			name:        "login with cookie referer takes precedence over redirect parameter",
-			request:     httpRequest("/oauth2/login?redirect=/other"),
+			request:     get("/oauth2/login?redirect=/other"),
 			loginCookie: &openid.LoginCookie{Referer: "/domene/api/me"},
 			want:        "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/domene/api/me"),
 		},
