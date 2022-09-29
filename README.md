@@ -166,13 +166,28 @@ For production use, we strongly recommend setting up and connecting to Redis.
 Sessions can be configured with a maximum lifetime with the `session.max-lifetime` flag, which accepts Go duration strings
 (e.g. `10h`, `5m`, `30s`, etc.).
 
-There's also an endpoint that returns metadata about the user's session as a JSON object at `/oauth2/session`. This
+There's also an endpoint that returns metadata about the user's session as a JSON object at `GET /oauth2/session`. This
 endpoint will respond with HTTP status codes on errors:
 
 - `401 Unauthorized` - no session cookie or matching session found (e.g. user is not authenticated, or has logged out)
 - `500 Internal Server Error` - the session store is unavailable, or Wonderwall wasn't able to process the request
 
-Otherwise, an `HTTP 200 OK` is returned with the metadata with the `application/json` as the `Content-Type`, e.g:
+Otherwise, an `HTTP 200 OK` is returned with the metadata with the `application/json` as the `Content-Type`.
+
+#### Example
+
+Request:
+
+```
+GET /oauth2/session
+```
+
+Response:
+
+```
+HTTP/2 200 OK
+Content-Type: application/json
+```
 
 ```json
 {
@@ -217,8 +232,23 @@ happens whenever the end-user visits any path that is proxied to the upstream ap
 
 The `session.refresh` flag also enables a new endpoint:
 
-- `/oauth2/session/refresh` - manually refreshes the tokens for the user's session, and returns the metadata like in 
+- `POST /oauth2/session/refresh` - manually refreshes the tokens for the user's session, and returns the metadata like in 
 `/oauth2/session` described previously
+
+#### Example
+
+Request:
+
+```
+POST /oauth2/session/refresh
+```
+
+Response:
+
+```
+HTTP/2 200 OK
+Content-Type: application/json
+```
 
 ```json
 {

@@ -766,7 +766,7 @@ func sessionRefresh(t *testing.T, idp *mock.IdentityProvider, rpClient *http.Cli
 	sessionRefreshURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/session/refresh")
 	assert.NoError(t, err)
 
-	return get(t, rpClient, sessionRefreshURL.String())
+	return post(t, rpClient, sessionRefreshURL.String())
 }
 
 func waitForRefreshCooldownTimer(t *testing.T, idp *mock.IdentityProvider, rpClient *http.Client) {
@@ -799,6 +799,29 @@ type response struct {
 
 func get(t *testing.T, client *http.Client, url string) response {
 	resp, err := client.Get(url)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	location, err := resp.Location()
+	if !errors.Is(http.ErrNoLocation, err) {
+		assert.NoError(t, err)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+
+	return response{
+		Body:       string(body),
+		Location:   location,
+		StatusCode: resp.StatusCode,
+	}
+}
+
+func post(t *testing.T, client *http.Client, url string) response {
+	req, err := http.NewRequest(http.MethodPost, url, nil)
+	assert.NoError(t, err)
+
+	resp, err := client.Do(req)
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
