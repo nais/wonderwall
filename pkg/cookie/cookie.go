@@ -13,6 +13,7 @@ const (
 	Session     = "io.nais.wonderwall.session"
 	Login       = "io.nais.wonderwall.callback"
 	LoginLegacy = "io.nais.wonderwall.callback.legacy"
+	Retry       = "io.nais.wonderwall.retry"
 )
 
 type Cookie struct {
@@ -43,6 +44,15 @@ func (in *Cookie) Decrypt(crypter crypto.Crypter) (string, error) {
 	}
 
 	return string(plaintext), err
+}
+
+// UnsetExpiry sets the MaxAge and Expires fields to their 'nil' values to unset them. For most user agents, this means
+// that the cookie should expire at the 'end of a session', typically when the browser is closed.
+//
+// The cookie should still be explicitly cleared/expired whenever it is no longer needed.
+func (in *Cookie) UnsetExpiry() {
+	in.MaxAge = 0
+	in.Expires = time.Time{}
 }
 
 func Clear(w http.ResponseWriter, name string, opts Options) {

@@ -97,6 +97,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 	}
 
 	logSuccessfulLogin(r, tokens, loginCookie.Referer)
+	cookie.Clear(w, cookie.Retry, src.GetCookieOptsPathAware(r))
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 

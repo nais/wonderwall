@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler/templates"
 	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
@@ -17,7 +18,13 @@ import (
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
+const (
+	// MaxAutoRetryAttempts is the maximum number of times to automatically redirect the user to retry their original request.
+	MaxAutoRetryAttempts = 3
+)
+
 type Source interface {
+	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetErrorPath() string
 	GetPath(r *http.Request) string
@@ -73,12 +80,32 @@ func (h Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode
 	logger := mw.LogEntryFrom(r)
 	msg := "error in route: %+v"
 
+	incrementRetryAttempt(w, r, h.GetCookieOptsPathAware(r))
+
+	attempts, ok := getRetryAttempts(r)
+	if !ok || ok && attempts < MaxAutoRetryAttempts {
+		loginCookie, err := openid.GetLoginCookie(r, h.GetCrypter())
+		if err != nil {
+			loginCookie = nil
+		}
+
+		retryUri := h.Retry(r, loginCookie)
+		logger.Warnf(msg, cause)
+
+		logger.Infof("errorhandler: auto-retry (attempt %d/%d) redirecting to %q...", attempts+1, MaxAutoRetryAttempts, retryUri)
+		http.Redirect(w, r, retryUri, http.StatusTemporaryRedirect)
+
+		return
+	}
+
 	switch level {
 	case log.WarnLevel:
 		logger.Warnf(msg, cause)
 	default:
 		logger.Errorf(msg, cause)
 	}
+
+	logger.Info("errorhandler: maximum retry attempts exceeded; executing error template...")
 
 	if len(h.GetErrorPath()) > 0 {
 		err := h.customErrorRedirect(w, r, statusCode)
@@ -104,7 +131,7 @@ func (h Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, st
 	}
 	err = templates.ErrorTemplate.Execute(w, errorPage)
 	if err != nil {
-		mw.LogEntryFrom(r).Errorf("executing error template: %+v", err)
+		mw.LogEntryFrom(r).Errorf("errorhandler: executing error template: %+v", err)
 	}
 }
 
@@ -127,4 +154,31 @@ func (h Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, sta
 	errorRedirectURI := override.String()
 	http.Redirect(w, r, errorRedirectURI, http.StatusFound)
 	return nil
+}
+
+func getRetryAttempts(r *http.Request) (int, bool) {
+	c, err := cookie.Get(r, cookie.Retry)
+	if err != nil {
+		return 0, false
+	}
+
+	val, err := strconv.Atoi(c.Value)
+	if err != nil {
+		return 0, false
+	}
+
+	return val, true
+}
+
+func incrementRetryAttempt(w http.ResponseWriter, r *http.Request, opts cookie.Options) {
+	val := 1
+
+	prev, ok := getRetryAttempts(r)
+	if ok {
+		val = prev + 1
+	}
+
+	c := cookie.Make(cookie.Retry, strconv.Itoa(val), opts)
+	c.UnsetExpiry()
+	cookie.Set(w, c)
 }

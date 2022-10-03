@@ -53,6 +53,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 		logger.WithField("jti", sessionData.IDTokenJwtID).Info("front-channel logout: successful logout")
 	}
 
+	cookie.Clear(w, cookie.Retry, src.GetCookieOptsPathAware(r))
 	metrics.ObserveLogout(metrics.LogoutOperationFrontChannel)
 	w.WriteHeader(http.StatusOK)
 }
