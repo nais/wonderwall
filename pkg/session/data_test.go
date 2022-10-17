@@ -73,7 +73,7 @@ func TestMetadata_IsExpired(t *testing.T) {
 	t.Run("expired", func(t *testing.T) {
 		metadata := session.Metadata{
 			Tokens: session.MetadataTokens{
-				ExpireAt: time.Now(),
+				ExpireAt: time.Now().Add(-time.Second),
 			},
 		}
 
