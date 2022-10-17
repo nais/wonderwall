@@ -338,6 +338,8 @@ func TestMetadata_ExtendTimeout(t *testing.T) {
 
 	previousTimeoutAt := metadata.Session.TimeoutAt
 
+	time.Sleep(100 * time.Millisecond)
+
 	metadata.ExtendTimeout(timeout)
 	assert.True(t, metadata.Session.TimeoutAt.After(previousTimeoutAt))
 }
