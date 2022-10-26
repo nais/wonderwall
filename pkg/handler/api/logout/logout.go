@@ -25,7 +25,11 @@ type Source interface {
 	GetSessions() *session.Handler
 }
 
-func Handler(src Source, w http.ResponseWriter, r *http.Request) {
+type Options struct {
+	GlobalLogout bool
+}
+
+func Handler(src Source, w http.ResponseWriter, r *http.Request, opts Options) {
 	logger := logentry.LogEntryFrom(r)
 	logout, err := src.GetClient().Logout(r)
 	if err != nil {
@@ -49,6 +53,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 			"jti": sessionData.IDTokenJwtID,
 		}
 		logger.WithFields(fields).Info("logout: successful local logout")
+		metrics.ObserveLogout(metrics.LogoutOperationLocal)
 	}
 
 	cookie.Clear(w, cookie.Session, src.GetCookieOptsPathAware(r))
@@ -57,7 +62,9 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 		src.GetLoginstatus().ClearCookie(w, src.GetCookieOptions())
 	}
 
-	logger.Debug("logout: redirecting to identity provider")
-	metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
-	http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
+	if opts.GlobalLogout {
+		logger.Debug("logout: redirecting to identity provider for global/single-logout")
+		metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
+		http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
+	}
 }

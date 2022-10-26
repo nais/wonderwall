@@ -73,7 +73,7 @@ func TestHandler_Logout(t *testing.T) {
 	rpClient := idp.RelyingPartyClient()
 	login(t, rpClient, idp)
 
-	resp := localLogout(t, rpClient, idp)
+	resp := selfInitiatedLogout(t, rpClient, idp)
 
 	// Get endsession endpoint after local logout
 	endsessionURL := resp.Location
@@ -81,7 +81,7 @@ func TestHandler_Logout(t *testing.T) {
 	idpserverURL, err := url.Parse(idp.ProviderServer.URL)
 	assert.NoError(t, err)
 
-	req := idp.GetRequest(idp.RelyingPartyServer.URL + "/oauth2/logout")
+	req := idp.GetRequest(idp.RelyingPartyServer.URL + "/oauth2/logout/callback")
 	expectedLogoutCallbackURL, err := urlpkg.LogoutCallbackURL(req)
 	assert.NoError(t, err)
 
@@ -137,6 +137,17 @@ func TestHandler_FrontChannelLogout(t *testing.T) {
 
 	resp := get(t, rpClient, frontchannelLogoutURL.String())
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestHandler_LogoutLocal(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+
+	localLogout(t, rpClient, idp)
 }
 
 func TestHandler_SessionStateRequired(t *testing.T) {
@@ -708,7 +719,7 @@ func login(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) *htt
 	return callback(t, rpClient, resp)
 }
 
-func localLogout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) response {
+func selfInitiatedLogout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) response {
 	// Request self-initiated logout
 	logoutURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/logout")
 	assert.NoError(t, err)
@@ -726,7 +737,7 @@ func localLogout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider
 
 func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
 	// Get endsession endpoint after local logout
-	resp := localLogout(t, rpClient, idp)
+	resp := selfInitiatedLogout(t, rpClient, idp)
 
 	// Follow redirect to endsession endpoint at identity provider
 	resp = get(t, rpClient, resp.Location.String())
@@ -753,6 +764,21 @@ func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)
 
 	assert.Nil(t, sessionCookie)
+}
+
+func localLogout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) response {
+	logoutURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/logout/local")
+	assert.NoError(t, err)
+
+	resp := get(t, rpClient, logoutURL.String())
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	cookies := rpClient.Jar.Cookies(logoutURL)
+	sessionCookie := getCookieFromJar(cookie.Session, cookies)
+
+	assert.Nil(t, sessionCookie)
+
+	return resp
 }
 
 func sessionInfo(t *testing.T, idp *mock.IdentityProvider, rpClient *http.Client) response {

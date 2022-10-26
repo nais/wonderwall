@@ -27,8 +27,9 @@ const (
 type LogoutOperation = string
 
 const (
-	LogoutOperationSelfInitiated = "self_initiated"
 	LogoutOperationFrontChannel  = "front_channel"
+	LogoutOperationLocal         = "local"
+	LogoutOperationSelfInitiated = "self_initiated"
 )
 
 type RedisOperation = string

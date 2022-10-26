@@ -111,7 +111,17 @@ func (s *StandardHandler) LoginCallback(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *StandardHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	apilogout.Handler(s, w, r)
+	opts := apilogout.Options{
+		GlobalLogout: true,
+	}
+	apilogout.Handler(s, w, r, opts)
+}
+
+func (s *StandardHandler) LogoutLocal(w http.ResponseWriter, r *http.Request) {
+	opts := apilogout.Options{
+		GlobalLogout: false,
+	}
+	apilogout.Handler(s, w, r, opts)
 }
 
 func (s *StandardHandler) LogoutCallback(w http.ResponseWriter, r *http.Request) {

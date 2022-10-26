@@ -21,12 +21,14 @@ type Handlers interface {
 	Login(http.ResponseWriter, *http.Request)
 	// LoginCallback handles the authentication response from the identity provider.
 	LoginCallback(http.ResponseWriter, *http.Request)
-	// Logout triggers self-initiated logout for the current user.
+	// Logout triggers self-initiated logout for the current user, as well as single-logout at the identity provider.
 	Logout(http.ResponseWriter, *http.Request)
 	// LogoutCallback handles the callback initiated by the self-initiated logout after single-logout at the identity provider.
 	LogoutCallback(http.ResponseWriter, *http.Request)
 	// LogoutFrontChannel performs a local logout initiated by a third party in the SSO circle-of-trust.
 	LogoutFrontChannel(http.ResponseWriter, *http.Request)
+	// LogoutLocal clears the current user's local session for logout, without triggering single-logout at the identity provider.
+	LogoutLocal(http.ResponseWriter, *http.Request)
 	// Session returns metadata for the current user's session.
 	Session(http.ResponseWriter, *http.Request)
 	// SessionRefresh refreshes current user's session and returns the associated updated metadata.
@@ -62,8 +64,9 @@ func New(src Source) chi.Router {
 				r.Get(paths.Login, src.Login)
 				r.Get(paths.LoginCallback, src.LoginCallback)
 				r.Get(paths.Logout, src.Logout)
-				r.Get(paths.LogoutFrontChannel, src.LogoutFrontChannel)
 				r.Get(paths.LogoutCallback, src.LogoutCallback)
+				r.Get(paths.LogoutFrontChannel, src.LogoutFrontChannel)
+				r.Get(paths.LogoutLocal, src.LogoutLocal)
 				r.Get(paths.Session, src.Session)
 				r.Get(paths.SessionRefresh, src.SessionRefresh) // TODO: for legacy purposes, remove after grace period
 				r.Post(paths.SessionRefresh, src.SessionRefresh)

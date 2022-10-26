@@ -42,20 +42,21 @@ Wonderwall exposes and owns these endpoints (which means they will never be prox
 
 Endpoints that are available for use by applications:
 
-| Path                      | Description                                                                                    |
-|---------------------------|------------------------------------------------------------------------------------------------|
-| `/oauth2/login`           | Initiates the OpenID Connect Authorization Code flow                                           |
-| `/oauth2/logout`          | Initiates local and global/single-logout                                                       |
-| `/oauth2/session`         | Returns the current user's session metadata                                                    |
-| `/oauth2/session/refresh` | Refreshes the tokens for the user's session. Requires the `session.refresh` flag to be enabled |
+| Path                           | Description                                                                                    |
+|--------------------------------|------------------------------------------------------------------------------------------------|
+| `GET /oauth2/login`            | Initiates the OpenID Connect Authorization Code flow                                           |
+| `GET /oauth2/logout`           | Performs local logout and redirects the user to global/single-logout                           |
+| `GET /oauth2/logout/local`     | Performs local logout only                                                                     |
+| `GET /oauth2/session`          | Returns the current user's session metadata                                                    |
+| `POST /oauth2/session/refresh` | Refreshes the tokens for the user's session. Requires the `session.refresh` flag to be enabled |
 
 Endpoints that should be registered at and only be triggered by identity providers:
 
-| Path                          | Description                                                                                |
-|-------------------------------|--------------------------------------------------------------------------------------------|
-| `/oauth2/callback`            | Handles the callback from the identity provider                                            |
-| `/oauth2/logout/callback`     | Handles the logout callback from the identity provider                                     |
-| `/oauth2/logout/frontchannel` | Handles global logout request (initiated by identity provider on behalf of another client) |
+| Path                              | Description                                                                                |
+|-----------------------------------|--------------------------------------------------------------------------------------------|
+| `GET /oauth2/callback`            | Handles the callback from the identity provider                                            |
+| `GET /oauth2/logout/callback`     | Handles the logout callback from the identity provider                                     |
+| `GET /oauth2/logout/frontchannel` | Handles global logout request (initiated by identity provider on behalf of another client) |
 
 ## Usage
 
