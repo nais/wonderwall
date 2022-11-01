@@ -625,6 +625,35 @@ func TestHandler_Default(t *testing.T) {
 					"/trailing/path/",
 				},
 			},
+			"/nested/**": {
+				match: []string{
+					"/nested",
+					"/nested/",
+					"/nested/very",
+					"/nested/very/deep",
+					"/nested/very/deep/deeper",
+				},
+				nonMatch: []string{
+					"/not/nested",
+					"/not/nested/very",
+				},
+			},
+			"/static/**/*.js": {
+				match: []string{
+					"/static/bundle.js",
+					"/static/min/bundle.js",
+					"/static/vendor/min/bundle.js",
+				},
+				nonMatch: []string{
+					"/static",
+					"/static/",
+					"/static/some.css",
+					"/static/min",
+					"/static/min/",
+					"/static/min/some.css",
+					"/static/vendor/min/some.css",
+				},
+			},
 		} {
 			t.Run(pattern, func(t *testing.T) {
 				cfg := mock.Config()

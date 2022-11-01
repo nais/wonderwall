@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/alicebob/miniredis/v2 v2.23.0
+	github.com/bmatcuk/doublestar/v4 v4.3.0
 	github.com/bsm/redislock v0.7.2
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-redis/redis/v8 v8.11.5

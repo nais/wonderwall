@@ -2,8 +2,9 @@ package autologin
 
 import (
 	"net/http"
-	pathlib "path"
 	"strings"
+
+	"github.com/bmatcuk/doublestar/v4"
 
 	"github.com/nais/wonderwall/pkg/config"
 )
@@ -33,7 +34,7 @@ func (a *AutoLogin) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 			path = strings.TrimSuffix(path, "/")
 		}
 
-		match, _ := pathlib.Match(pattern, path)
+		match, _ := doublestar.Match(pattern, path)
 		if match {
 			return false
 		}

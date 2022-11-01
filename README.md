@@ -87,7 +87,7 @@ The following flags are available:
 
 ```shell
 --auto-login                               Automatically redirect all HTTP GET requests to login if the user does not have a valid session for all matching upstream paths.
---auto-login-ignore-paths strings          Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style single asterisks using the stdlib path.Match. Invalid patterns are ignored.
+--auto-login-ignore-paths strings          Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style asterisks. Invalid patterns are ignored.
 --bind-address string                      Listen address for public connections. (default "127.0.0.1:3000")
 --encryption-key string                    Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
 --error-path string                        Absolute path to redirect user to on errors for custom error handling.
