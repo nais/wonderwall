@@ -32,8 +32,8 @@ var (
 
 const (
 	refreshAcquireLockRetryInterval = 10 * time.Millisecond
-	refreshAcquireLockTimeout       = 5 * time.Second
-	refreshLockDuration             = 2 * time.Second
+	refreshAcquireLockTimeout       = 15 * time.Second
+	refreshLockDuration             = 10 * time.Second
 )
 
 type Handler struct {
@@ -292,7 +292,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	defer func(lock Lock, ctx context.Context) {
 		err := lock.Release(ctx)
 		if err != nil {
-			logger.Errorf("session: releasing lock: %+v", err)
+			logger.Warnf("session: releasing lock: %+v", err)
 		}
 	}(lock, ctx)
 
