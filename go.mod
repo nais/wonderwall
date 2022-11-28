@@ -8,14 +8,14 @@ require (
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.3.0
-	github.com/lestrrat-go/jwx/v2 v2.0.6
+	github.com/lestrrat-go/jwx/v2 v2.0.8
 	github.com/nais/liberator v0.0.0-20220912093159-eedd304fc123
 	github.com/prometheus/client_golang v1.13.0
 	github.com/sethvargo/go-retry v0.2.3
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.13.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1
 )
 
