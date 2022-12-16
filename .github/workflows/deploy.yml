@@ -3,7 +3,8 @@ name: Build wonderwall
 on: [push]
 
 env:
-  image_base: ghcr.io/${{ github.repository }}
+  GOOGLE_REGISTRY: europe-north1-docker.pkg.dev/nais-io/nais/images
+  GITHUB_REGISTRY: ghcr.io
 
 jobs:
   test:
@@ -11,61 +12,71 @@ jobs:
     steps:
       - name: Checkout latest code
         uses: actions/checkout@v3
-      - name: Extract version of Go to use
-        run: echo "GOVERSION=$(cat go.mod | grep -w "go" | awk ' { print $2 } ' | grep -w "^[^v]")" >> $GITHUB_ENV
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ${{ env.GOVERSION }}
+          go-version: ">=1.19.4"
       - name: Test Go
         run: |
           make test
-  build-and-deploy:
-    needs:
-      - test
-    name: Build, push and deploy
+  publish-images:
+    needs: test
+    name: Publish to Google and GitHub registries
     if: github.ref == 'refs/heads/master'
+    permissions:
+      contents: "read"
+      id-token: "write"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Docker login
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: docker login ghcr.io -u ${GITHUB_REPOSITORY} -p ${GITHUB_TOKEN}
-      - name: Set version
-        run: |
-          echo "VERSION=$(./version.sh)" >> $GITHUB_ENV
-      - name: Build Docker image
-        run: |
-          docker build . --tag ${{ env.image_base }}:${{ env.VERSION }}  --tag ${{ env.image_base }}:latest
-      - name: Push versioned docker image
-        run: |
-          docker push ${{ env.image_base }}:${{ env.VERSION }}
-      - name: Push latest docker image
-        if: github.ref == 'refs/heads/master'
-        run: docker push ${{ env.image_base }}:latest
-      - uses: navikt/github-app-token-generator@v1
-        id: get-token
-        if: github.ref == 'refs/heads/master'
-        with:
-          private-key: ${{ secrets.NAIS_APP_PRIVATE_KEY }}
-          app-id: ${{ secrets.NAIS_APP_ID }}
-          repo: navikt/nais-yaml
-      - name: Checkout nais-yaml
-        if: github.ref == 'refs/heads/master'
+      - name: Checkout
         uses: actions/checkout@v3
+      - id: "auth"
+        name: "Authenticate to Google Cloud"
+        uses: "google-github-actions/auth@v1"
         with:
-          repository: navikt/nais-yaml
-          token: ${{ steps.get-token.outputs.token }}
-          path: nais-yaml
-      - name: Update nais-yaml
-        if: github.ref == 'refs/heads/master'
-        run: |
-          cd nais-yaml
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-          sed -E -i "s#wonderwall_image:.+#wonderwall_image: ${{ env.image_base }}:${{ env.VERSION }}#" vars/global.yaml
-          git add .
-          git --no-pager diff --cached
-          git commit -a -m "Bump Wonderwall image version ${{ env.VERSION }}"
-          git push
+          workload_identity_provider: ${{ secrets.NAIS_IO_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: "gh-wonderwall@nais-io.iam.gserviceaccount.com"
+          token_format: "access_token"
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Login to Google Artifact Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.GOOGLE_REGISTRY }}
+          username: "oauth2accesstoken"
+          password: "${{ steps.auth.outputs.access_token }}"
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.GITHUB_REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker meta
+        id: metadata
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ${{ env.GOOGLE_REGISTRY }}/wonderwall
+            ${{ env.GITHUB_REGISTRY }}/${{ github.repository }}
+          flavor: |
+            latest=true
+          # Docker tags based on the following events/attributes
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=semver,pattern=v{{major}}
+            type=sha
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
