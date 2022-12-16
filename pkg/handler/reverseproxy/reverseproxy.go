@@ -71,8 +71,10 @@ func (rp *ReverseProxy) Handler(src Source, w http.ResponseWriter, r *http.Reque
 			isAuthenticated = false
 			logger.Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
 		}
-	case errors.Is(err, session.ErrUnexpected), errors.Is(err, session.ErrInvalidState):
+	case errors.Is(err, session.ErrUnexpected):
 		logger.Errorf("default: unauthenticated: %+v", err)
+	case errors.Is(err, session.ErrInvalidState):
+		logger.Warnf("default: unauthenticated: %+v", err)
 	case errors.Is(err, session.ErrKeyNotFound):
 		logger.Debug("default: unauthenticated: session not found")
 	case errors.Is(err, session.ErrCookieNotFound):
