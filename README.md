@@ -18,8 +18,7 @@ Wonderwall aims to be compliant with OAuth 2.1, and supports the following:
 
 Wonderwall functions as an optionally intercepting reverse proxy that proxies requests to a downstream host.
 
-By default, it does not actually intercept any requests other than to remove the `Authorization` header if the user
-agent does not have a valid session with Wonderwall.
+By default, it does not actually modify any proxied request if the user agent does not have a valid session with Wonderwall.
 
 ## Overview
 
@@ -29,7 +28,29 @@ The image below shows the overall architecture of an application when using Wond
 
 The sequence diagram below shows the default behavior of Wonderwall:
 
-![Wonderwall sequence diagram](docs/assets/wonderwall-sequence.png)
+```mermaid
+sequenceDiagram
+    actor User
+    User->>Ingress: visits /path
+    Ingress-->>Wonderwall: forwards request
+    activate Wonderwall
+    Wonderwall-->>Session Storage: checks for session
+    alt has session
+        Session Storage-->>Wonderwall: session found
+        activate Wonderwall
+        Wonderwall-->>Application: attaches Authorization header and proxies request
+        Application-->>Wonderwall: returns response
+        Wonderwall->>User: returns response
+        deactivate Wonderwall
+    else does not have session
+        Session Storage-->>Wonderwall: no session found
+        activate Wonderwall
+        Wonderwall-->>Application: proxies request as-is
+        Application-->>Wonderwall: returns response
+        Wonderwall->>User: returns response
+        deactivate Wonderwall
+    end
+```
 
 Generally speaking, the recommended approach when using the Wonderwall sidecar is to put it in front of
 your backend-for-frontend server that serves your frontend. Otherwise, you might run into issues with the cookie
