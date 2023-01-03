@@ -400,6 +400,7 @@ func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http
 	accessToken.Set("iat", iat.Unix())
 	accessToken.Set("exp", exp.Unix())
 	accessToken.Set("jti", uuid.NewString())
+	accessToken.Set("aud", auth.ClientID)
 	signedAccessToken, err := ip.signToken(accessToken)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

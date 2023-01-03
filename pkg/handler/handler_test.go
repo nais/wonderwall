@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/cookie"
@@ -431,7 +432,7 @@ func TestHandler_Default(t *testing.T) {
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
-		up.SetReverseProxyUrl(idp.RelyingPartyServer.URL)
+		up.SetIdentityProvider(idp)
 		rpClient := idp.RelyingPartyClient()
 
 		// initial request without session
@@ -455,7 +456,7 @@ func TestHandler_Default(t *testing.T) {
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
-		up.SetReverseProxyUrl(idp.RelyingPartyServer.URL)
+		up.SetIdentityProvider(idp)
 		rpClient := idp.RelyingPartyClient()
 
 		// initial request without session
@@ -525,7 +526,7 @@ func TestHandler_Default(t *testing.T) {
 				idp := mock.NewIdentityProvider(cfg)
 				defer idp.Close()
 
-				up.SetReverseProxyUrl(idp.RelyingPartyServer.URL)
+				up.SetIdentityProvider(idp)
 				rpClient := idp.RelyingPartyClient()
 
 				req, err := http.NewRequest(method, idp.RelyingPartyServer.URL, nil)
@@ -663,7 +664,8 @@ func TestHandler_Default(t *testing.T) {
 
 				idp := mock.NewIdentityProvider(cfg)
 				defer idp.Close()
-				up.SetReverseProxyUrl(idp.RelyingPartyServer.URL)
+
+				up.SetIdentityProvider(idp)
 				rpClient := idp.RelyingPartyClient()
 
 				t.Run("match", func(t *testing.T) {
@@ -690,6 +692,45 @@ func TestHandler_Default(t *testing.T) {
 				})
 			})
 		}
+	})
+
+	t.Run("request with authorization header set", func(t *testing.T) {
+		cfg := mock.Config()
+		cfg.UpstreamHost = up.URL.Host
+		idp := mock.NewIdentityProvider(cfg)
+		defer idp.Close()
+
+		up.SetIdentityProvider(idp)
+		rpClient := idp.RelyingPartyClient()
+
+		t.Run("should be preserved if no session found", func(t *testing.T) {
+			up.requestCallback = func(r *http.Request) {
+				authorization := r.Header.Get("Authorization")
+				assert.Equal(t, "Bearer some-authorization", authorization)
+			}
+
+			resp := getWithHeaders(t, rpClient, idp.RelyingPartyServer.URL, map[string]string{
+				"Authorization": "Bearer some-authorization",
+			})
+			assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+			assert.Equal(t, "not ok", resp.Body)
+		})
+
+		t.Run("should be overwritten if session found", func(t *testing.T) {
+			// acquire session
+			login(t, rpClient, idp)
+
+			up.requestCallback = func(r *http.Request) {
+				authorization := r.Header.Get("Authorization")
+				assert.NotEqual(t, "Bearer some-authorization", authorization)
+			}
+
+			resp := getWithHeaders(t, rpClient, idp.RelyingPartyServer.URL, map[string]string{
+				"Authorization": "Bearer some-authorization",
+			})
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, "ok", resp.Body)
+		})
 	})
 }
 
@@ -855,18 +896,37 @@ type response struct {
 func get(t *testing.T, client *http.Client, url string) response {
 	resp, err := client.Get(url)
 	assert.NoError(t, err)
-	defer resp.Body.Close()
 
 	location, err := resp.Location()
 	if !errors.Is(http.ErrNoLocation, err) {
 		assert.NoError(t, err)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	return response{
+		Body:       body(t, resp),
+		Location:   location,
+		StatusCode: resp.StatusCode,
+	}
+}
+
+func getWithHeaders(t *testing.T, client *http.Client, url string, headers map[string]string) response {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	assert.NoError(t, err)
 
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	resp, err := client.Do(req)
+	assert.NoError(t, err)
+
+	location, err := resp.Location()
+	if !errors.Is(http.ErrNoLocation, err) {
+		assert.NoError(t, err)
+	}
+
 	return response{
-		Body:       string(body),
+		Body:       body(t, resp),
 		Location:   location,
 		StatusCode: resp.StatusCode,
 	}
@@ -878,30 +938,42 @@ func post(t *testing.T, client *http.Client, url string) response {
 
 	resp, err := client.Do(req)
 	assert.NoError(t, err)
-	defer resp.Body.Close()
 
 	location, err := resp.Location()
 	if !errors.Is(http.ErrNoLocation, err) {
 		assert.NoError(t, err)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	assert.NoError(t, err)
-
 	return response{
-		Body:       string(body),
+		Body:       body(t, resp),
 		Location:   location,
 		StatusCode: resp.StatusCode,
 	}
 }
 
+func body(t *testing.T, resp *http.Response) string {
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+
+	return string(body)
+}
+
 type upstream struct {
 	Server          *httptest.Server
 	URL             *url.URL
+	idp             *mock.IdentityProvider
 	reverseProxyURL *url.URL
+	requestCallback func(r *http.Request)
 }
 
-func (u *upstream) SetReverseProxyUrl(raw string) {
+func (u *upstream) SetIdentityProvider(idp *mock.IdentityProvider) {
+	u.idp = idp
+	u.setReverseProxyUrl(idp.RelyingPartyServer.URL)
+}
+
+func (u *upstream) setReverseProxyUrl(raw string) {
 	parsed, err := url.Parse(raw)
 	if err != nil {
 		panic(err)
@@ -910,18 +982,41 @@ func (u *upstream) SetReverseProxyUrl(raw string) {
 	u.reverseProxyURL = parsed
 }
 
+func (u *upstream) hasValidToken(r *http.Request) bool {
+	authHeader := r.Header.Get("Authorization")
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if len(token) <= 0 {
+		return false
+	}
+
+	jwks, err := u.idp.ProviderHandler.Provider.GetPublicJwkSet(r.Context())
+	if err != nil {
+		panic(err)
+	}
+
+	opts := []jwt.ParseOption{
+		jwt.WithValidate(true),
+		jwt.WithKeySet(*jwks),
+		jwt.WithIssuer(u.idp.OpenIDConfig.Provider().Issuer()),
+		jwt.WithAudience(u.idp.OpenIDConfig.Client().ClientID()),
+	}
+
+	_, err = jwt.ParseString(token, opts...)
+	return err == nil
+}
+
 func newUpstream(t *testing.T) *upstream {
 	u := new(upstream)
+	u.requestCallback = func(r *http.Request) {}
 
 	upstreamHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		token := strings.TrimPrefix(authHeader, "Bearer ")
+		u.requestCallback(r)
 
 		// Host should match the original authority from the ingress used to reach Wonderwall
 		assert.Equal(t, u.reverseProxyURL.Host, r.Host)
 		assert.NotEqual(t, u.URL.Host, r.Host)
 
-		if len(token) > 0 {
+		if u.hasValidToken(r) {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte("ok"))
 		} else {
