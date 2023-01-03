@@ -6,3 +6,7 @@ test:
 
 alpine:
 	go build -a -installsuffix cgo -o bin/wonderwall cmd/wonderwall/main.go
+
+check:
+	go run honnef.co/go/tools/cmd/staticcheck ./...
+	go run golang.org/x/vuln/cmd/govulncheck -v ./...

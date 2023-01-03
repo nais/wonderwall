@@ -6,6 +6,7 @@ ENV GO111MODULE=on
 COPY . /src
 WORKDIR /src
 RUN make test
+RUN make check
 RUN make alpine
 
 FROM alpine:3
