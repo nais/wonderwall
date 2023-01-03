@@ -141,7 +141,7 @@ func Register(registry prometheus.Registerer) {
 func ObserveRedisLatency(operation string, fun func() error) error {
 	timer := time.Now()
 	err := fun()
-	used := time.Now().Sub(timer)
+	used := time.Since(timer)
 	RedisLatency.With(prometheus.Labels{
 		LabelOperation: operation,
 	}).Observe(used.Seconds())

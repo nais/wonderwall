@@ -85,10 +85,7 @@ func (c *Loginstatus) SetCookie(w http.ResponseWriter, token *TokenResponse, opt
 
 func (c *Loginstatus) HasCookie(r *http.Request) bool {
 	_, err := r.Cookie(c.config.CookieName)
-	if errors.Is(err, http.ErrNoCookie) {
-		return false
-	}
-	return true
+	return !errors.Is(err, http.ErrNoCookie)
 }
 
 func (c *Loginstatus) ClearCookie(w http.ResponseWriter, opts cookie.Options) {
