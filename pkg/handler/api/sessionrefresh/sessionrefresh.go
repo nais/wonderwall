@@ -23,7 +23,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := src.GetSessions().Get(r)
+	data, err := src.GetSessions().GetForKey(r, key)
 	if err != nil {
 		switch {
 		case errors.Is(err, session.ErrKeyNotFound), errors.Is(err, session.ErrSessionInactive):
