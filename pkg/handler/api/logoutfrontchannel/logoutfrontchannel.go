@@ -1,6 +1,7 @@
 package logoutfrontchannel
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/nais/wonderwall/pkg/cookie"
@@ -29,22 +30,23 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 		src.GetLoginstatus().ClearCookie(w, src.GetCookieOptions())
 	}
 
-	logoutFrontchannel := src.GetClient().LogoutFrontchannel(r)
-	if logoutFrontchannel.MissingSidParameter() {
-		logger.Debug("front-channel logout: sid parameter not set in request; ignoring")
+	sessions := src.GetSessions()
+	client := src.GetClient()
+	key, err := getSessionKey(r, sessions, client)
+	if err != nil {
+		logger.Debugf("front-channel logout: getting session key: %+v; ignoring", err)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
-	sid := logoutFrontchannel.Sid()
-	sessionData, err := src.GetSessions().GetForID(r, sid)
+	sessionData, err := sessions.GetForKey(r, key)
 	if err != nil {
 		logger.Debugf("front-channel logout: could not get session (user might already be logged out): %+v", err)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
-	err = src.GetSessions().DestroyForID(r, sid)
+	err = sessions.Destroy(r, key)
 	if err != nil {
 		logger.Warnf("front-channel logout: destroying session: %+v", err)
 		w.WriteHeader(http.StatusAccepted)
@@ -56,4 +58,19 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 	cookie.Clear(w, cookie.Retry, src.GetCookieOptsPathAware(r))
 	metrics.ObserveLogout(metrics.LogoutOperationFrontChannel)
 	w.WriteHeader(http.StatusOK)
+}
+
+func getSessionKey(r *http.Request, sessions *session.Handler, client *openidclient.Client) (string, error) {
+	logoutFrontchannel := client.LogoutFrontchannel(r)
+
+	if logoutFrontchannel.MissingSidParameter() {
+		key, err := sessions.GetKey(r)
+		if err != nil {
+			return key, nil
+		}
+		return "", fmt.Errorf("neither sid parameter nor session key found in request: %w", err)
+	}
+
+	sid := logoutFrontchannel.Sid()
+	return sessions.Key(sid), nil
 }

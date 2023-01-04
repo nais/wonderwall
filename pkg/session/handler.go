@@ -91,13 +91,8 @@ func (h *Handler) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime
 	return key, nil
 }
 
-// DestroyForID destroys a session for a given session ID. Note that a session ID is not equal to a session Key.
-func (h *Handler) DestroyForID(r *http.Request, id string) error {
-	key := h.Key(id)
-	return h.destroyForKey(r, key)
-}
-
-func (h *Handler) destroyForKey(r *http.Request, key string) error {
+// Destroy destroys a session for a given session Key.
+func (h *Handler) Destroy(r *http.Request, key string) error {
 	retryable := func(ctx context.Context) error {
 		err := h.store.Delete(r.Context(), key)
 		if err == nil {
@@ -148,12 +143,6 @@ func (h *Handler) GetAccessToken(r *http.Request) (string, error) {
 	}
 
 	return sessionData.AccessToken, nil
-}
-
-// GetForID returns the session data for a given session ID.
-func (h *Handler) GetForID(r *http.Request, id string) (*Data, error) {
-	key := h.Key(id)
-	return h.GetForKey(r, key)
 }
 
 // GetForKey returns the session data for a given session Key.

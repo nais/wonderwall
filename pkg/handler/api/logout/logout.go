@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/nais/wonderwall/pkg/cookie"
 	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
 	"github.com/nais/wonderwall/pkg/loginstatus"
@@ -37,23 +35,26 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request, opts Options) {
 		return
 	}
 
-	idToken := ""
+	var idToken string
 
-	sessionData, err := src.GetSessions().Get(r)
-	if err == nil && sessionData != nil {
-		idToken = sessionData.IDToken
+	sessions := src.GetSessions()
 
-		err = src.GetSessions().DestroyForID(r, sessionData.ExternalSessionID)
-		if err != nil && !errors.Is(err, session.ErrKeyNotFound) {
-			src.GetErrorHandler().InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
-			return
+	key, err := sessions.GetKey(r)
+	if err == nil {
+		sessionData, err := sessions.GetForKey(r, key)
+		if err == nil && sessionData != nil {
+			idToken = sessionData.IDToken
+
+			err = sessions.Destroy(r, key)
+			if err != nil && !errors.Is(err, session.ErrKeyNotFound) {
+				src.GetErrorHandler().InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
+				return
+			}
+
+			logger.WithField("jti", sessionData.IDTokenJwtID).
+				Info("logout: successful local logout")
+			metrics.ObserveLogout(metrics.LogoutOperationLocal)
 		}
-
-		fields := log.Fields{
-			"jti": sessionData.IDTokenJwtID,
-		}
-		logger.WithFields(fields).Info("logout: successful local logout")
-		metrics.ObserveLogout(metrics.LogoutOperationLocal)
 	}
 
 	cookie.Clear(w, cookie.Session, src.GetCookieOptsPathAware(r))
