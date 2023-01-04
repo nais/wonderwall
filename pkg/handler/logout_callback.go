@@ -1,4 +1,4 @@
-package logoutcallback
+package handler
 
 import (
 	"net/http"
@@ -8,12 +8,12 @@ import (
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 )
 
-type Source interface {
+type LogoutCallbackSource interface {
 	GetClient() *openidclient.Client
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 }
 
-func Handler(src Source, w http.ResponseWriter, r *http.Request) {
+func LogoutCallback(src LogoutCallbackSource, w http.ResponseWriter, r *http.Request) {
 	redirect := src.GetClient().LogoutCallback(r).PostLogoutRedirectURI()
 
 	cookie.Clear(w, cookie.Retry, src.GetCookieOptsPathAware(r))

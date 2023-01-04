@@ -1,4 +1,4 @@
-package login
+package handler
 
 import (
 	"encoding/json"
@@ -21,14 +21,14 @@ const (
 	CookieLifetime = 1 * time.Hour
 )
 
-type Source interface {
+type LoginSource interface {
 	GetClient() *openidclient.Client
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetErrorHandler() errorhandler.Handler
 }
 
-func Handler(src Source, w http.ResponseWriter, r *http.Request) {
+func Login(src LoginSource, w http.ResponseWriter, r *http.Request) {
 	login, err := src.GetClient().Login(r)
 	if err != nil {
 		if errors.Is(err, openidclient.ErrInvalidSecurityLevel) || errors.Is(err, openidclient.ErrInvalidLocale) {
@@ -53,7 +53,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, login.AuthCodeURL(), http.StatusTemporaryRedirect)
 }
 
-func setLoginCookies(src Source, w http.ResponseWriter, r *http.Request, loginCookie *openid.LoginCookie) error {
+func setLoginCookies(src LoginSource, w http.ResponseWriter, r *http.Request, loginCookie *openid.LoginCookie) error {
 	loginCookieJson, err := json.Marshal(loginCookie)
 	if err != nil {
 		return fmt.Errorf("marshalling login cookie: %w", err)

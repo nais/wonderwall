@@ -1,4 +1,4 @@
-package logout
+package handler
 
 import (
 	"errors"
@@ -14,7 +14,7 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-type Source interface {
+type LogoutSource interface {
 	GetClient() *openidclient.Client
 	GetCookieOptions() cookie.Options
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
@@ -23,11 +23,11 @@ type Source interface {
 	GetSessions() *session.Handler
 }
 
-type Options struct {
+type LogoutOptions struct {
 	GlobalLogout bool
 }
 
-func Handler(src Source, w http.ResponseWriter, r *http.Request, opts Options) {
+func Logout(src LogoutSource, w http.ResponseWriter, r *http.Request, opts LogoutOptions) {
 	logger := logentry.LogEntryFrom(r)
 	logout, err := src.GetClient().Logout(r)
 	if err != nil {

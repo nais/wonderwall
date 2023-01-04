@@ -6,23 +6,15 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
-	apilogin "github.com/nais/wonderwall/pkg/handler/api/login"
-	apilogincallback "github.com/nais/wonderwall/pkg/handler/api/logincallback"
-	apilogout "github.com/nais/wonderwall/pkg/handler/api/logout"
-	apilogoutcallback "github.com/nais/wonderwall/pkg/handler/api/logoutcallback"
-	apilogoutfrontchannel "github.com/nais/wonderwall/pkg/handler/api/logoutfrontchannel"
-	apisession "github.com/nais/wonderwall/pkg/handler/api/session"
-	apisessionrefresh "github.com/nais/wonderwall/pkg/handler/api/sessionrefresh"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
-	"github.com/nais/wonderwall/pkg/handler/reverseproxy"
 	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/middleware"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/router"
-	"github.com/nais/wonderwall/pkg/session"
+	sessionStore "github.com/nais/wonderwall/pkg/session"
 )
 
 var _ router.Source = &StandardHandler{}
@@ -36,8 +28,8 @@ type StandardHandler struct {
 	ingresses     *ingress.Ingresses
 	loginstatus   *loginstatus.Loginstatus
 	openidConfig  openidconfig.Config
-	sessions      *session.Handler
-	upstreamProxy *reverseproxy.ReverseProxy
+	sessions      *sessionStore.Handler
+	upstreamProxy *ReverseProxy
 }
 
 func (s *StandardHandler) GetAutoLogin() *autologin.AutoLogin {
@@ -94,7 +86,7 @@ func (s *StandardHandler) GetProviderName() string {
 	return s.openidConfig.Provider().Name()
 }
 
-func (s *StandardHandler) GetSessions() *session.Handler {
+func (s *StandardHandler) GetSessions() *sessionStore.Handler {
 	return s.sessions
 }
 
@@ -103,37 +95,37 @@ func (s *StandardHandler) GetSessionConfig() config.Session {
 }
 
 func (s *StandardHandler) Login(w http.ResponseWriter, r *http.Request) {
-	apilogin.Handler(s, w, r)
+	Login(s, w, r)
 }
 
 func (s *StandardHandler) LoginCallback(w http.ResponseWriter, r *http.Request) {
-	apilogincallback.Handler(s, w, r)
+	LoginCallback(s, w, r)
 }
 
 func (s *StandardHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	opts := apilogout.Options{
+	opts := LogoutOptions{
 		GlobalLogout: true,
 	}
-	apilogout.Handler(s, w, r, opts)
+	Logout(s, w, r, opts)
 }
 
 func (s *StandardHandler) LogoutLocal(w http.ResponseWriter, r *http.Request) {
-	opts := apilogout.Options{
+	opts := LogoutOptions{
 		GlobalLogout: false,
 	}
-	apilogout.Handler(s, w, r, opts)
+	Logout(s, w, r, opts)
 }
 
 func (s *StandardHandler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
-	apilogoutcallback.Handler(s, w, r)
+	LogoutCallback(s, w, r)
 }
 
 func (s *StandardHandler) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
-	apilogoutfrontchannel.Handler(s, w, r)
+	LogoutFrontChannel(s, w, r)
 }
 
 func (s *StandardHandler) Session(w http.ResponseWriter, r *http.Request) {
-	apisession.Handler(s, w, r)
+	Session(s, w, r)
 }
 
 func (s *StandardHandler) SessionRefresh(w http.ResponseWriter, r *http.Request) {
@@ -142,7 +134,7 @@ func (s *StandardHandler) SessionRefresh(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	apisessionrefresh.Handler(s, w, r)
+	SessionRefresh(s, w, r)
 }
 
 func (s *StandardHandler) ReverseProxy(w http.ResponseWriter, r *http.Request) {

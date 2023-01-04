@@ -1,4 +1,4 @@
-package logincallback
+package handler
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-type Source interface {
+type LoginCallbackSource interface {
 	GetClient() *openidclient.Client
 	GetCookieOptions() cookie.Options
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
@@ -33,7 +33,7 @@ type Source interface {
 	GetSessionConfig() config.Session
 }
 
-func Handler(src Source, w http.ResponseWriter, r *http.Request) {
+func LoginCallback(src LoginCallbackSource, w http.ResponseWriter, r *http.Request) {
 	// unconditionally clear login cookie
 	clearLoginCookies(src, w, r)
 
@@ -101,7 +101,7 @@ func Handler(src Source, w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, loginCookie.Referer, http.StatusTemporaryRedirect)
 }
 
-func clearLoginCookies(src Source, w http.ResponseWriter, r *http.Request) {
+func clearLoginCookies(src LogoutCallbackSource, w http.ResponseWriter, r *http.Request) {
 	opts := src.GetCookieOptsPathAware(r)
 	cookie.Clear(w, cookie.Login, opts.WithSameSite(http.SameSiteNoneMode))
 	cookie.Clear(w, cookie.LoginLegacy, opts.WithSameSite(http.SameSiteDefaultMode))
@@ -123,7 +123,7 @@ func redeemValidTokens(r *http.Request, loginCallback *openidclient.LoginCallbac
 	return tokens, nil
 }
 
-func getLoginstatusToken(src Source, r *http.Request, tokens *openid.Tokens) (*loginstatus.TokenResponse, error) {
+func getLoginstatusToken(src LoginCallbackSource, r *http.Request, tokens *openid.Tokens) (*loginstatus.TokenResponse, error) {
 	var tokenResponse *loginstatus.TokenResponse
 
 	retryable := func(ctx context.Context) error {

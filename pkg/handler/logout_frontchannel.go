@@ -1,4 +1,4 @@
-package logoutfrontchannel
+package handler
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-type Source interface {
+type LogoutFrontChannelSource interface {
 	GetClient() *openidclient.Client
 	GetCookieOptions() cookie.Options
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
@@ -20,7 +20,7 @@ type Source interface {
 	GetSessions() *session.Handler
 }
 
-func Handler(src Source, w http.ResponseWriter, r *http.Request) {
+func LogoutFrontChannel(src LogoutFrontChannelSource, w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r)
 
 	// Unconditionally destroy all local references to the session.

@@ -1,4 +1,4 @@
-package sessionrefresh
+package handler
 
 import (
 	"encoding/json"
@@ -9,11 +9,11 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-type Source interface {
+type SessionRefreshSource interface {
 	GetSessions() *session.Handler
 }
 
-func Handler(src Source, w http.ResponseWriter, r *http.Request) {
+func SessionRefresh(src SessionRefreshSource, w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r)
 
 	key, err := src.GetSessions().GetKey(r)

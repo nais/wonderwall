@@ -8,7 +8,6 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
-	"github.com/nais/wonderwall/pkg/handler/reverseproxy"
 	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid/client"
@@ -57,6 +56,6 @@ func NewHandler(
 		loginstatus:   loginstatusClient,
 		openidConfig:  openidConfig,
 		sessions:      sessionHandler,
-		upstreamProxy: reverseproxy.New(cfg.UpstreamHost),
+		upstreamProxy: NewReverseProxy(cfg.UpstreamHost),
 	}, nil
 }

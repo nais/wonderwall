@@ -1,4 +1,4 @@
-package reverseproxy
+package handler
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-type Source interface {
+type ReverseProxySource interface {
 	GetAutoLogin() *autologin.AutoLogin
 	GetLoginstatus() *loginstatus.Loginstatus
 	GetPath(r *http.Request) string
@@ -27,7 +27,7 @@ type ReverseProxy struct {
 	*httputil.ReverseProxy
 }
 
-func New(upstreamHost string) *ReverseProxy {
+func NewReverseProxy(upstreamHost string) *ReverseProxy {
 	rp := &httputil.ReverseProxy{
 		Director: func(r *http.Request) {
 			// Instruct http.ReverseProxy to not modify X-Forwarded-For header
@@ -56,7 +56,7 @@ func New(upstreamHost string) *ReverseProxy {
 	return &ReverseProxy{rp}
 }
 
-func (rp *ReverseProxy) Handler(src Source, w http.ResponseWriter, r *http.Request) {
+func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r)
 	isAuthenticated := false
 

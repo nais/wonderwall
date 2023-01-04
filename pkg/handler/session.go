@@ -1,4 +1,4 @@
-package session
+package handler
 
 import (
 	"encoding/json"
@@ -10,12 +10,12 @@ import (
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-type Source interface {
+type SessionSource interface {
 	GetSessions() *session.Handler
 	GetSessionConfig() config.Session
 }
 
-func Handler(src Source, w http.ResponseWriter, r *http.Request) {
+func Session(src SessionSource, w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r)
 
 	data, err := src.GetSessions().Get(r)
