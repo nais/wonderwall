@@ -55,7 +55,7 @@ func TestReverseProxy(t *testing.T) {
 
 		// redirect should point to local login endpoint
 		loginLocation := resp.Location
-		assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login?redirect-encoded="+urlpkg.RedirectEncoded("/"), loginLocation.String())
+		assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login?redirect=%2F", loginLocation.String())
 
 		// follow redirect to local login endpoint
 		resp = get(t, rpClient, loginLocation.String())

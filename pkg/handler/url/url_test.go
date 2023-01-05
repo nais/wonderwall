@@ -60,7 +60,7 @@ func TestCanonicalRedirect(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, defaultIngress+"/oauth2/login", nil)
 	r = mw.RequestWithPath(r, "/some-path")
 
-	// If either redirect or redirect-encoded parameter is set, use that
+	// If redirect parameter is set, use that
 	t.Run("redirect parameter is set", func(t *testing.T) {
 		for _, test := range []struct {
 			name     string
@@ -129,13 +129,6 @@ func TestCanonicalRedirect(t *testing.T) {
 				r.URL.RawQuery = v.Encode()
 				assert.Equal(t, test.expected, urlpkg.CanonicalRedirect(r))
 			})
-
-			t.Run(test.name+" encoded", func(t *testing.T) {
-				v := &url.Values{}
-				v.Set("redirect-encoded", urlpkg.RedirectEncoded(test.value))
-				r.URL.RawQuery = v.Encode()
-				assert.Equal(t, test.expected, urlpkg.CanonicalRedirect(r))
-			})
 		}
 	})
 }
@@ -151,25 +144,25 @@ func TestLoginURL(t *testing.T) {
 			name:           "no prefix",
 			prefix:         "",
 			redirectTarget: "https://test.example.com?some=param&other=param2",
-			want:           "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("https://test.example.com?some=param&other=param2"),
+			want:           "/oauth2/login?redirect=https%3A%2F%2Ftest.example.com%3Fsome%3Dparam%26other%3Dparam2",
 		},
 		{
 			name:           "with prefix",
 			prefix:         "/path",
 			redirectTarget: "https://test.example.com?some=param&other=param2",
-			want:           "/path/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("https://test.example.com?some=param&other=param2"),
+			want:           "/path/oauth2/login?redirect=https%3A%2F%2Ftest.example.com%3Fsome%3Dparam%26other%3Dparam2",
 		},
 		{
 			name:           "we need to go deeper",
 			prefix:         "/deeper/path",
 			redirectTarget: "https://test.example.com?some=param&other=param2",
-			want:           "/deeper/path/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("https://test.example.com?some=param&other=param2"),
+			want:           "/deeper/path/oauth2/login?redirect=https%3A%2F%2Ftest.example.com%3Fsome%3Dparam%26other%3Dparam2",
 		},
 		{
 			name:           "relative target",
 			prefix:         "",
 			redirectTarget: "/path?some=param&other=param2",
-			want:           "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/path?some=param&other=param2"),
+			want:           "/oauth2/login?redirect=%2Fpath%3Fsome%3Dparam%26other%3Dparam2",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {

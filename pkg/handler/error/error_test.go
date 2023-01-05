@@ -10,7 +10,6 @@ import (
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/ingress"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/mock"
@@ -92,12 +91,12 @@ func TestHandler_Retry(t *testing.T) {
 		{
 			name:    "login path",
 			request: get("/oauth2/login"),
-			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
+			want:    "/oauth2/login?redirect=%2F",
 		},
 		{
 			name:    "callback path",
 			request: get("/oauth2/callback"),
-			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
+			want:    "/oauth2/login?redirect=%2F",
 		},
 		{
 			name:    "logout path",
@@ -113,7 +112,7 @@ func TestHandler_Retry(t *testing.T) {
 			name:    "login with non-default ingress",
 			request: get("/domene/oauth2/login"),
 			ingress: "https://test.nav.no/domene",
-			want:    "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/domene"),
+			want:    "/domene/oauth2/login?redirect=%2Fdomene",
 		},
 		{
 			name:    "logout with non-default ingress",
@@ -125,64 +124,64 @@ func TestHandler_Retry(t *testing.T) {
 			name:        "login with cookie referer",
 			request:     get("/oauth2/login"),
 			loginCookie: &openid.LoginCookie{Referer: "/"},
-			want:        "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
+			want:        "/oauth2/login?redirect=%2F",
 		},
 		{
 			name:        "login with empty cookie referer",
 			request:     get("/oauth2/login"),
 			loginCookie: &openid.LoginCookie{Referer: ""},
-			want:        "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
+			want:        "/oauth2/login?redirect=%2F",
 		},
 		{
 			name:        "login with cookie referer on non-default ingress",
 			request:     get("/domene/oauth2/login"),
 			loginCookie: &openid.LoginCookie{Referer: "/domene/api/me"},
 			ingress:     "https://test.nav.no/domene",
-			want:        "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/domene/api/me"),
+			want:        "/domene/oauth2/login?redirect=%2Fdomene%2Fapi%2Fme",
 		},
 		{
 			name:    "login with redirect parameter set",
 			request: get("/oauth2/login?redirect=/api/me"),
-			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/api/me"),
+			want:    "/oauth2/login?redirect=%2Fapi%2Fme",
 		},
 		{
 			name:    "login with redirect parameter set and query parameters",
 			request: get("/oauth2/login?redirect=/api/me?a=b%26c=d"),
-			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/api/me?a=b&c=d"),
+			want:    "/oauth2/login?redirect=%2Fapi%2Fme%3Fa%3Db%26c%3Dd",
 		},
 		{
 			name:    "login with redirect parameter set on non-default ingress",
 			request: get("/domene/oauth2/login?redirect=/api/me"),
 			ingress: "https://test.nav.no/domene",
-			want:    "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/api/me"),
+			want:    "/domene/oauth2/login?redirect=%2Fapi%2Fme",
 		},
 		{
 			name:    "login with redirect parameter set to relative root on non-default ingress",
 			request: get("/domene/oauth2/login?redirect=/"),
 			ingress: "https://test.nav.no/domene",
-			want:    "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
+			want:    "/domene/oauth2/login?redirect=%2F",
 		},
 		{
 			name:    "login with redirect parameter set to absolute url",
 			request: get("/oauth2/login?redirect=http://localhost:8080"),
-			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
+			want:    "/oauth2/login?redirect=%2F",
 		},
 		{
 			name:    "login with redirect parameter set to absolute url with trailing slash",
 			request: get("/oauth2/login?redirect=http://localhost:8080/"),
-			want:    "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
+			want:    "/oauth2/login?redirect=%2F",
 		},
 		{
 			name:    "login with redirect parameter set to absolute url on non-default ingress",
 			request: get("/domene/oauth2/login?redirect=http://localhost:8080/"),
 			ingress: "https://test.nav.no/domene",
-			want:    "/domene/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/"),
+			want:    "/domene/oauth2/login?redirect=%2F",
 		},
 		{
 			name:        "login with cookie referer takes precedence over redirect parameter",
 			request:     get("/oauth2/login?redirect=/other"),
 			loginCookie: &openid.LoginCookie{Referer: "/domene/api/me"},
-			want:        "/oauth2/login?redirect-encoded=" + urlpkg.RedirectEncoded("/domene/api/me"),
+			want:        "/oauth2/login?redirect=%2Fdomene%2Fapi%2Fme",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
