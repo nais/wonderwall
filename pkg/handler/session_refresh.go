@@ -23,10 +23,10 @@ func SessionRefresh(src SessionRefreshSource, w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	data, err := src.GetSessions().GetForKey(r, key)
+	data, err := src.GetSessions().Get(r, key)
 	if err != nil {
 		switch {
-		case errors.Is(err, session.ErrKeyNotFound), errors.Is(err, session.ErrSessionInactive):
+		case errors.Is(err, session.ErrInvalidSession), errors.Is(err, session.ErrKeyNotFound):
 			logger.Infof("session/refresh: getting session: %+v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 		default:
@@ -38,7 +38,7 @@ func SessionRefresh(src SessionRefreshSource, w http.ResponseWriter, r *http.Req
 
 	data, err = src.GetSessions().Refresh(r, key, data)
 	if err != nil {
-		if errors.Is(err, session.ErrInvalidState) {
+		if errors.Is(err, session.ErrInvalidIdpState) || errors.Is(err, session.ErrInvalidSession) {
 			logger.Infof("session/refresh: refreshing: %+v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return

@@ -36,7 +36,7 @@ func (s *redisSessionStore) Read(ctx context.Context, key string) (*EncryptedDat
 		return nil, fmt.Errorf("%w: %s", ErrKeyNotFound, err.Error())
 	}
 
-	return nil, fmt.Errorf("%w: %s", ErrUnexpected, err.Error())
+	return nil, err
 }
 
 func (s *redisSessionStore) Write(ctx context.Context, key string, value *EncryptedData, expiration time.Duration) error {
@@ -44,7 +44,7 @@ func (s *redisSessionStore) Write(ctx context.Context, key string, value *Encryp
 		return s.client.Set(ctx, key, value, expiration).Err()
 	})
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrUnexpected, err.Error())
+		return err
 	}
 
 	return nil
@@ -62,7 +62,7 @@ func (s *redisSessionStore) Delete(ctx context.Context, keys ...string) error {
 		return fmt.Errorf("%w: %s", ErrKeyNotFound, err.Error())
 	}
 
-	return fmt.Errorf("%w: %s", ErrUnexpected, err.Error())
+	return err
 }
 
 func (s *redisSessionStore) Update(ctx context.Context, key string, value *EncryptedData) error {
@@ -75,7 +75,7 @@ func (s *redisSessionStore) Update(ctx context.Context, key string, value *Encry
 		return s.client.Set(ctx, key, value, redis.KeepTTL).Err()
 	})
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrUnexpected, err.Error())
+		return err
 	}
 
 	return nil

@@ -39,7 +39,7 @@ func LogoutFrontChannel(src LogoutFrontChannelSource, w http.ResponseWriter, r *
 		return
 	}
 
-	sessionData, err := sessions.GetForKey(r, key)
+	sessionData, err := sessions.Get(r, key)
 	if err != nil {
 		logger.Debugf("front-channel logout: could not get session (user might already be logged out): %+v", err)
 		w.WriteHeader(http.StatusAccepted)

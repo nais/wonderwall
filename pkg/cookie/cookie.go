@@ -2,6 +2,7 @@ package cookie
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -14,6 +15,10 @@ const (
 	Login       = "io.nais.wonderwall.callback"
 	LoginLegacy = "io.nais.wonderwall.callback.legacy"
 	Retry       = "io.nais.wonderwall.retry"
+)
+
+var (
+	ErrInvalidValue = errors.New("invalid value")
 )
 
 type Cookie struct {
@@ -35,7 +40,7 @@ func (in *Cookie) Encrypt(crypter crypto.Crypter) (*Cookie, error) {
 func (in *Cookie) Decrypt(crypter crypto.Crypter) (string, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(in.Value)
 	if err != nil {
-		return "", fmt.Errorf("value for cookie '%s' is not base64 encoded: %w", in.Name, err)
+		return "", fmt.Errorf("%w: named '%s': %+v", ErrInvalidValue, in.Name, err)
 	}
 
 	plaintext, err := crypter.Decrypt(ciphertext)

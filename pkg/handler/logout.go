@@ -41,7 +41,7 @@ func Logout(src LogoutSource, w http.ResponseWriter, r *http.Request, opts Logou
 
 	key, err := sessions.GetKey(r)
 	if err == nil {
-		sessionData, err := sessions.GetForKey(r, key)
+		sessionData, err := sessions.Get(r, key)
 		if err == nil && sessionData != nil {
 			idToken = sessionData.IDToken
 

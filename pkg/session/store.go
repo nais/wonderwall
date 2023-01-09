@@ -13,7 +13,6 @@ import (
 
 var (
 	ErrKeyNotFound = errors.New("key not found")
-	ErrUnexpected  = errors.New("unexpected error")
 )
 
 type Store interface {

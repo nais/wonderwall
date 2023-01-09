@@ -22,12 +22,9 @@ import (
 )
 
 var (
-	ErrCookieNotFound     = errors.New("cookie not found")
-	ErrExpiredAccessToken = errors.New("access token is expired")
-	ErrInvalidState       = errors.New("invalid state")
-	ErrNoSessionData      = errors.New("no session data")
-	ErrNoAccessToken      = errors.New("no access token in session data")
-	ErrSessionInactive    = errors.New("session is inactive")
+	ErrCookieNotFound  = errors.New("session cookie not found")
+	ErrInvalidSession  = errors.New("invalid session")
+	ErrInvalidIdpState = errors.New("invalid state at idp")
 )
 
 const (
@@ -113,16 +110,6 @@ func (h *Handler) Destroy(r *http.Request, key string) error {
 	return nil
 }
 
-// Get returns the session data for a given http.Request, matching by the session cookie.
-func (h *Handler) Get(r *http.Request) (*Data, error) {
-	key, err := h.GetKey(r)
-	if err != nil {
-		return nil, fmt.Errorf("no session cookie: %w", err)
-	}
-
-	return h.GetForKey(r, key)
-}
-
 // GetAccessToken returns an access token from the session. If the token is empty or expired, an error is returned.
 func (h *Handler) GetAccessToken(r *http.Request) (string, error) {
 	sessionData, err := h.GetOrRefresh(r)
@@ -131,22 +118,22 @@ func (h *Handler) GetAccessToken(r *http.Request) (string, error) {
 	}
 
 	if sessionData == nil {
-		return "", ErrNoSessionData
+		return "", fmt.Errorf("%w: no session data", ErrInvalidSession)
 	}
 
 	if !sessionData.HasAccessToken() {
-		return "", ErrNoAccessToken
+		return "", fmt.Errorf("%w: no access token in session data", ErrInvalidSession)
 	}
 
 	if sessionData.Metadata.IsExpired() {
-		return "", ErrExpiredAccessToken
+		return "", fmt.Errorf("%w: access token is expired", ErrInvalidSession)
 	}
 
 	return sessionData.AccessToken, nil
 }
 
-// GetForKey returns the session data for a given session Key.
-func (h *Handler) GetForKey(r *http.Request, key string) (*Data, error) {
+// Get returns the session data for a given session Key.
+func (h *Handler) Get(r *http.Request, key string) (*Data, error) {
 	var encryptedSessionData *EncryptedData
 	var err error
 
@@ -178,8 +165,14 @@ func (h *Handler) GetForKey(r *http.Request, key string) (*Data, error) {
 // GetKey extracts the session Key from the session cookie found in the request, if any.
 func (h *Handler) GetKey(r *http.Request) (string, error) {
 	key, err := cookie.GetDecrypted(r, cookie.Session, h.crypter)
+	if errors.Is(err, http.ErrNoCookie) {
+		return "", ErrCookieNotFound
+	}
+	if errors.Is(err, cookie.ErrInvalidValue) {
+		return "", err
+	}
 	if err != nil {
-		return "", fmt.Errorf("%w: %+v", ErrCookieNotFound, err)
+		return "", err
 	}
 
 	return key, nil
@@ -192,13 +185,13 @@ func (h *Handler) GetOrRefresh(r *http.Request) (*Data, error) {
 		return nil, err
 	}
 
-	sessionData, err := h.GetForKey(r, key)
+	sessionData, err := h.Get(r, key)
 	if err != nil {
 		return nil, err
 	}
 
 	if h.isTimedOut(sessionData) {
-		return nil, ErrSessionInactive
+		return nil, fmt.Errorf("%w: session is inactive", ErrInvalidSession)
 	}
 
 	if !h.shouldRefresh(sessionData) {
@@ -206,7 +199,7 @@ func (h *Handler) GetOrRefresh(r *http.Request) (*Data, error) {
 	}
 
 	refreshed, err := h.Refresh(r, key, sessionData)
-	if errors.Is(err, ErrInvalidState) || errors.Is(err, ErrSessionInactive) {
+	if errors.Is(err, ErrInvalidIdpState) || errors.Is(err, ErrInvalidSession) {
 		return nil, err
 	} else if err != nil {
 		mw.LogEntryFrom(r).Warnf("session: could not refresh tokens; falling back to existing token: %+v", err)
@@ -270,7 +263,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 				}
 
 				if !errors.Is(err, ErrAcquireLock) {
-					return fmt.Errorf("unexpected error: %+v", err)
+					return err
 				}
 			}
 		}
@@ -286,7 +279,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	}(lock, ctx)
 
 	// Get the latest session state again in case it was changed while acquiring the lock
-	data, err = h.GetForKey(r, key)
+	data, err = h.Get(r, key)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +290,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	}
 
 	if h.isTimedOut(data) {
-		return nil, ErrSessionInactive
+		return nil, fmt.Errorf("%w: session is inactive", ErrInvalidSession)
 	}
 
 	logger.Debug("session: performing refresh grant...")
@@ -312,7 +305,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	}
 	if err := retry.Do(ctx, retrypkg.DefaultBackoff, refresh); err != nil {
 		if errors.Is(err, openidclient.ErrOpenIDClient) {
-			return nil, fmt.Errorf("%w: authorization might be invalid: %+v", ErrInvalidState, err)
+			return nil, fmt.Errorf("%w: authorization might be invalid: %+v", ErrInvalidIdpState, err)
 		}
 		return nil, fmt.Errorf("performing refresh: %w", err)
 	}

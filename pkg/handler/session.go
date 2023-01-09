@@ -18,15 +18,20 @@ type SessionSource interface {
 func Session(src SessionSource, w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r)
 
-	data, err := src.GetSessions().Get(r)
+	key, err := src.GetSessions().GetKey(r)
+	if err != nil {
+		logger.Infof("session/refresh: getting key: %+v", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	data, err := src.GetSessions().Get(r, key)
 	if err != nil {
 		switch {
-		case errors.Is(err, session.ErrCookieNotFound), errors.Is(err, session.ErrKeyNotFound):
+		case errors.Is(err, session.ErrInvalidSession), errors.Is(err, session.ErrKeyNotFound):
 			logger.Infof("session/info: getting session: %+v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
-		case errors.Is(err, session.ErrSessionInactive):
-			// do nothing; we want to return metadata even if the session is inactive
 		default:
 			logger.Warnf("session/info: getting session: %+v", err)
 			w.WriteHeader(http.StatusInternalServerError)
