@@ -1,6 +1,8 @@
 package error
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -98,10 +100,9 @@ func (h Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode
 		return
 	}
 
-	switch level {
-	case log.WarnLevel:
+	if level == log.WarnLevel || errors.Is(cause, context.Canceled) {
 		logger.Warnf(msg, cause)
-	default:
+	} else {
 		logger.Errorf(msg, cause)
 	}
 
