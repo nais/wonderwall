@@ -36,7 +36,7 @@ func CanonicalRedirect(r *http.Request) string {
 		return ingressPath
 	}
 
-	parsed, err := url.Parse(redirect)
+	parsed, err := url.ParseRequestURI(redirect)
 	if err != nil {
 		// Silently fall back to ingress path
 		return ingressPath

@@ -119,7 +119,7 @@ func ParseIngress(ingress string) (*Ingress, error) {
 		return nil, fmt.Errorf("ingress cannot be empty")
 	}
 
-	u, err := url.Parse(ingress)
+	u, err := url.ParseRequestURI(ingress)
 	if err != nil {
 		return nil, err
 	}

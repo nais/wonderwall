@@ -137,7 +137,7 @@ func (h Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, st
 }
 
 func (h Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, statusCode int) error {
-	override, err := url.Parse(h.GetErrorPath())
+	override, err := url.ParseRequestURI(h.GetErrorPath())
 	if err != nil {
 		return err
 	}

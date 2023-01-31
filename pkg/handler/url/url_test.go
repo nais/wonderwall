@@ -103,6 +103,16 @@ func TestCanonicalRedirect(t *testing.T) {
 				expected: "/path?gnu=notunix",
 			},
 			{
+				name:     "relative path",
+				value:    "path",
+				expected: "/some-path", // should fall back to default path
+			},
+			{
+				name:     "relative path with query parameters",
+				value:    "path?gnu=notunix",
+				expected: "/some-path", // should fall back to default path
+			},
+			{
 				name:     "url encoded path",
 				value:    "%2Fpath",
 				expected: "/path",
