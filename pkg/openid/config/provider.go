@@ -21,7 +21,6 @@ type Provider interface {
 	ACRValuesSupported() Supported
 	UILocalesSupported() Supported
 
-	Name() string
 	SessionStateRequired() bool
 	SidClaimRequired() bool
 }
@@ -29,7 +28,6 @@ type Provider interface {
 type provider struct {
 	endSessionEndpointURL *url.URL
 	metadata              *ProviderMetadata
-	name                  string
 }
 
 func (p *provider) AuthorizationEndpoint() string {
@@ -58,10 +56,6 @@ func (p *provider) ACRValuesSupported() Supported {
 
 func (p *provider) UILocalesSupported() Supported {
 	return p.metadata.UILocalesSupported
-}
-
-func (p *provider) Name() string {
-	return p.name
 }
 
 func (p *provider) SessionStateRequired() bool {
@@ -104,7 +98,6 @@ func NewProviderConfig(cfg *wonderwallconfig.Config) (Provider, error) {
 	return &provider{
 		endSessionEndpointURL: endSessionEndpointURL,
 		metadata:              providerCfg,
-		name:                  string(cfg.OpenID.Provider),
 	}, nil
 }
 

@@ -54,7 +54,7 @@ func run() error {
 	r := router.New(h)
 
 	go func() {
-		err := metrics.Handle(cfg.MetricsBindAddress, openidConfig)
+		err := metrics.Handle(cfg.MetricsBindAddress, cfg.OpenID.Provider)
 		if err != nil {
 			log.Fatalf("fatal: metrics server error: %s", err)
 		}

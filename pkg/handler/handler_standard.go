@@ -83,7 +83,7 @@ func (s *StandardHandler) GetPath(r *http.Request) string {
 }
 
 func (s *StandardHandler) GetProviderName() string {
-	return s.openidConfig.Provider().Name()
+	return string(s.config.OpenID.Provider)
 }
 
 func (s *StandardHandler) GetSessions() *sessionStore.Handler {

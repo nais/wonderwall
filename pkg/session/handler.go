@@ -34,7 +34,7 @@ const (
 )
 
 type Handler struct {
-	cfg       config.Session
+	cfg       *config.Config
 	client    *openidclient.Client
 	crypter   crypto.Crypter
 	openidCfg openidconfig.Config
@@ -52,7 +52,7 @@ func NewHandler(cfg *config.Config, openidCfg openidconfig.Config, crypter crypt
 		client:    openidClient,
 		openidCfg: openidCfg,
 		store:     store,
-		cfg:       cfg.Session,
+		cfg:       cfg,
 	}, nil
 }
 
@@ -67,8 +67,8 @@ func (h *Handler) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime
 	tokenExpiresIn := time.Until(tokens.Expiry)
 	metadata := NewMetadata(tokenExpiresIn, sessionLifetime)
 
-	if h.cfg.Inactivity {
-		metadata.WithTimeout(h.cfg.InactivityTimeout)
+	if h.cfg.Session.Inactivity {
+		metadata.WithTimeout(h.cfg.Session.InactivityTimeout)
 	}
 
 	encrypted, err := NewData(externalSessionID, tokens, metadata).Encrypt(h.crypter)
@@ -224,10 +224,9 @@ func (h *Handler) IDOrGenerate(r *http.Request, tokens *openid.Tokens) (string, 
 // the value of `sid` or `session_state` to uniquely identify the pair of (user, application session) if using a shared
 // session store across multiple Relying Parties.
 func (h *Handler) Key(sessionID string) string {
-	provider := h.openidCfg.Provider()
 	client := h.openidCfg.Client()
 
-	return fmt.Sprintf("%s:%s:%s", provider.Name(), client.ClientID(), sessionID)
+	return fmt.Sprintf("%s:%s:%s", h.cfg.OpenID.Provider, client.ClientID(), sessionID)
 }
 
 // Refresh refreshes the user's session and returns the updated session data.
@@ -314,8 +313,8 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	data.RefreshToken = resp.RefreshToken
 	data.Metadata.Refresh(resp.ExpiresIn)
 
-	if h.cfg.Inactivity {
-		data.Metadata.ExtendTimeout(h.cfg.InactivityTimeout)
+	if h.cfg.Session.Inactivity {
+		data.Metadata.ExtendTimeout(h.cfg.Session.InactivityTimeout)
 	}
 
 	err = h.Update(ctx, key, data)
@@ -349,15 +348,15 @@ func (h *Handler) Update(ctx context.Context, key string, data *Data) error {
 }
 
 func (h *Handler) canRefresh(data *Data) bool {
-	return h.cfg.Refresh && data.HasRefreshToken() && !data.Metadata.IsRefreshOnCooldown()
+	return h.cfg.Session.Refresh && data.HasRefreshToken() && !data.Metadata.IsRefreshOnCooldown()
 }
 
 func (h *Handler) shouldRefresh(data *Data) bool {
-	return h.cfg.Refresh && data.HasRefreshToken() && data.Metadata.ShouldRefresh()
+	return h.cfg.Session.Refresh && data.HasRefreshToken() && data.Metadata.ShouldRefresh()
 }
 
 func (h *Handler) isTimedOut(data *Data) bool {
-	return h.cfg.Inactivity && data.Metadata.IsTimedOut()
+	return h.cfg.Session.Inactivity && data.Metadata.IsTimedOut()
 }
 
 func NewSessionID(cfg openidconfig.Provider, idToken *openid.IDToken, params url.Values) (string, error) {

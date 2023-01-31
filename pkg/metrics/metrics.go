@@ -7,7 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	"github.com/nais/wonderwall/pkg/config"
 )
 
 const (
@@ -121,8 +121,8 @@ func InitLabels() {
 	}
 }
 
-func Handle(address string, openidConfig openidconfig.Config) error {
-	WithProvider(openidConfig.Provider().Name())
+func Handle(address string, provider config.Provider) error {
+	WithProvider(string(provider))
 	Register(prometheus.DefaultRegisterer)
 	InitLabels()
 
