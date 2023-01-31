@@ -61,8 +61,3 @@ func (s *SSOProxyHandler) GetIngresses() *ingress.Ingresses {
 	//TODO implement me
 	panic("implement me")
 }
-
-func (s *SSOProxyHandler) GetProviderName() string {
-	//TODO implement me
-	panic("implement me")
-}

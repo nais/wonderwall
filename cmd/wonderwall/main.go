@@ -59,7 +59,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}
-	r := router.New(h)
+	r := router.New(h, cfg)
 
 	go func() {
 		err := metrics.Handle(cfg.MetricsBindAddress, cfg.OpenID.Provider)

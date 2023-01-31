@@ -61,8 +61,3 @@ func (s *SSOServerHandler) GetIngresses() *ingress.Ingresses {
 	//TODO implement me
 	panic("implement me")
 }
-
-func (s *SSOServerHandler) GetProviderName() string {
-	//TODO implement me
-	panic("implement me")
-}

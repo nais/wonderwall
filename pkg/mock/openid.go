@@ -20,31 +20,20 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	handlerpkg "github.com/nais/wonderwall/pkg/handler"
-	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
 	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	scopespkg "github.com/nais/wonderwall/pkg/openid/scopes"
 	"github.com/nais/wonderwall/pkg/router"
-	"github.com/nais/wonderwall/pkg/session"
 )
-
-type RelyingPartyHandler interface {
-	router.Source
-	GetClient() *openidclient.Client
-	GetCrypter() crypto.Crypter
-	GetErrorHandler() errorhandler.Handler
-	GetSessions() *session.Handler
-	SetIngresses(ingresses *ingress.Ingresses)
-}
 
 type IdentityProvider struct {
 	Cfg                 *config.Config
 	OpenIDConfig        *TestConfiguration
 	ProviderHandler     *IdentityProviderHandler
 	ProviderServer      *httptest.Server
-	RelyingPartyHandler RelyingPartyHandler
+	RelyingPartyHandler *handlerpkg.StandardHandler
 	RelyingPartyServer  *httptest.Server
 }
 
@@ -76,7 +65,7 @@ func (in *IdentityProvider) SetIngresses(ingresses ...string) {
 		panic(err)
 	}
 
-	in.RelyingPartyHandler.SetIngresses(parsed)
+	in.RelyingPartyHandler.Ingresses = parsed
 }
 
 func (in *IdentityProvider) GetRequest(target string) *http.Request {
@@ -99,12 +88,13 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
 
 	cookieOpts := cookie.DefaultOptions().WithSecure(false)
+
 	rpHandler, err := handlerpkg.NewHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypter)
 	if err != nil {
 		panic(err)
 	}
 
-	rpRouter := router.New(rpHandler)
+	rpRouter := router.New(rpHandler, cfg)
 	rpServer := httptest.NewServer(rpRouter)
 
 	ip := &IdentityProvider{

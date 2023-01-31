@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/router/paths"
@@ -39,13 +40,13 @@ type Handlers interface {
 
 type Config interface {
 	GetIngresses() *ingress.Ingresses
-	GetProviderName() string
 }
 
-func New(src Source) chi.Router {
+func New(src Source, cfg *config.Config) chi.Router {
+	providerName := string(cfg.OpenID.Provider)
 	ingressMw := middleware.Ingress(src)
-	prometheus := middleware.Prometheus(src.GetProviderName())
-	logentry := middleware.LogEntry(src.GetProviderName())
+	prometheus := middleware.Prometheus(providerName)
+	logentry := middleware.LogEntry(providerName)
 
 	r := chi.NewRouter()
 	r.Use(middleware.CorrelationIDHandler)

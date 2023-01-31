@@ -20,37 +20,37 @@ import (
 var _ router.Source = &StandardHandler{}
 
 type StandardHandler struct {
-	autoLogin     *autologin.AutoLogin
-	client        *openidclient.Client
-	config        *config.Config
-	cookieOptions cookie.Options
-	crypter       crypto.Crypter
-	ingresses     *ingress.Ingresses
-	loginstatus   *loginstatus.Loginstatus
-	openidConfig  openidconfig.Config
-	sessions      *sessionStore.Handler
-	upstreamProxy *ReverseProxy
+	AutoLogin     *autologin.AutoLogin
+	Client        *openidclient.Client
+	Config        *config.Config
+	CookieOptions cookie.Options
+	Crypter       crypto.Crypter
+	Ingresses     *ingress.Ingresses
+	Loginstatus   *loginstatus.Loginstatus
+	OpenidConfig  openidconfig.Config
+	Sessions      *sessionStore.Handler
+	UpstreamProxy *ReverseProxy
 }
 
 func (s *StandardHandler) GetAutoLogin() *autologin.AutoLogin {
-	return s.autoLogin
+	return s.AutoLogin
 }
 
 func (s *StandardHandler) GetClient() *openidclient.Client {
-	return s.client
+	return s.Client
 }
 
 func (s *StandardHandler) GetCookieOptions() cookie.Options {
-	return s.cookieOptions
+	return s.CookieOptions
 }
 
 func (s *StandardHandler) GetCookieOptsPathAware(r *http.Request) cookie.Options {
 	path := s.GetPath(r)
-	return s.cookieOptions.WithPath(path)
+	return s.CookieOptions.WithPath(path)
 }
 
 func (s *StandardHandler) GetCrypter() crypto.Crypter {
-	return s.crypter
+	return s.Crypter
 }
 
 func (s *StandardHandler) GetErrorHandler() errorhandler.Handler {
@@ -58,40 +58,32 @@ func (s *StandardHandler) GetErrorHandler() errorhandler.Handler {
 }
 
 func (s *StandardHandler) GetErrorPath() string {
-	return s.config.ErrorPath
+	return s.Config.ErrorPath
 }
 
 func (s *StandardHandler) GetIngresses() *ingress.Ingresses {
-	return s.ingresses
-}
-
-func (s *StandardHandler) SetIngresses(ingresses *ingress.Ingresses) {
-	s.ingresses = ingresses
+	return s.Ingresses
 }
 
 func (s *StandardHandler) GetLoginstatus() *loginstatus.Loginstatus {
-	return s.loginstatus
+	return s.Loginstatus
 }
 
 func (s *StandardHandler) GetPath(r *http.Request) string {
 	path, ok := middleware.PathFrom(r.Context())
 	if !ok {
-		path = s.GetIngresses().MatchingPath(r)
+		path = s.Ingresses.MatchingPath(r)
 	}
 
 	return path
 }
 
-func (s *StandardHandler) GetProviderName() string {
-	return string(s.config.OpenID.Provider)
-}
-
 func (s *StandardHandler) GetSessions() *sessionStore.Handler {
-	return s.sessions
+	return s.Sessions
 }
 
 func (s *StandardHandler) GetSessionConfig() config.Session {
-	return s.config.Session
+	return s.Config.Session
 }
 
 func (s *StandardHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -129,7 +121,7 @@ func (s *StandardHandler) Session(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *StandardHandler) SessionRefresh(w http.ResponseWriter, r *http.Request) {
-	if !s.config.Session.Refresh {
+	if !s.Config.Session.Refresh {
 		http.NotFound(w, r)
 		return
 	}
@@ -138,5 +130,5 @@ func (s *StandardHandler) SessionRefresh(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *StandardHandler) ReverseProxy(w http.ResponseWriter, r *http.Request) {
-	s.upstreamProxy.Handler(s, w, r)
+	s.UpstreamProxy.Handler(s, w, r)
 }

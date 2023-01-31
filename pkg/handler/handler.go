@@ -47,15 +47,15 @@ func NewHandler(
 	}
 
 	return &StandardHandler{
-		autoLogin:     autoLogin,
-		client:        openidClient,
-		config:        cfg,
-		cookieOptions: cookieOpts,
-		crypter:       crypter,
-		ingresses:     ingresses,
-		loginstatus:   loginstatusClient,
-		openidConfig:  openidConfig,
-		sessions:      sessionHandler,
-		upstreamProxy: NewReverseProxy(cfg.UpstreamHost),
+		AutoLogin:     autoLogin,
+		Client:        openidClient,
+		Config:        cfg,
+		CookieOptions: cookieOpts,
+		Crypter:       crypter,
+		Ingresses:     ingresses,
+		Loginstatus:   loginstatusClient,
+		OpenidConfig:  openidConfig,
+		Sessions:      sessionHandler,
+		UpstreamProxy: NewReverseProxy(cfg.UpstreamHost),
 	}, nil
 }
