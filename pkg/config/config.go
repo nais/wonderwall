@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/nais/liberator/pkg/conftools"
@@ -30,6 +31,7 @@ type Config struct {
 	Redis  Redis  `json:"redis"`
 
 	Loginstatus Loginstatus `json:"loginstatus"`
+	SSO         SSO         `json:"sso"`
 }
 
 type Loginstatus struct {
@@ -46,6 +48,20 @@ type Session struct {
 	MaxLifetime       time.Duration `json:"max-lifetime"`
 	Refresh           bool          `json:"refresh"`
 }
+
+type SSO struct {
+	Enabled   bool    `json:"enabled"`
+	Domain    string  `json:"domain"`
+	Mode      SSOMode `json:"mode"`
+	ServerURL string  `json:"server-url"`
+}
+
+type SSOMode string
+
+const (
+	SSOModeServer SSOMode = "server"
+	SSOModeProxy  SSOMode = "proxy"
+)
 
 const (
 	BindAddress        = "bind-address"
@@ -70,6 +86,11 @@ const (
 	LoginstatusCookieName        = "loginstatus.cookie-name"
 	LoginstatusResourceIndicator = "loginstatus.resource-indicator"
 	LoginstatusTokenURL          = "loginstatus.token-url"
+
+	SSOEnabled   = "sso.enabled"
+	SSODomain    = "sso.domain"
+	SSOModeFlag  = "sso.mode"
+	SSOServerURL = "sso.server-url"
 )
 
 func Initialize() (*Config, error) {
@@ -97,6 +118,11 @@ func Initialize() (*Config, error) {
 	flag.String(LoginstatusCookieName, "", "The name of the cookie.")
 	flag.String(LoginstatusResourceIndicator, "", "The resource indicator that should be included in the authorization request to get an audience-restricted token that Loginstatus accepts. Empty means no resource indicator.")
 	flag.String(LoginstatusTokenURL, "", "The URL to the Loginstatus service that returns an opaque token.")
+
+	flag.Bool(SSOEnabled, false, "Enable single sign-on mode; one server acting as the OIDC Relying Party, and N proxies. The proxies delegate most endpoint operations to the server, and only implements a reverse proxy that reads the user's session data from the shared store.")
+	flag.String(SSODomain, "", "The domain that the session cookies should be set for, usually the second-level domain name (e.g. example.com).")
+	flag.String(SSOModeFlag, string(SSOModeServer), "The SSO mode for this instance. Must be one of 'server' or 'proxy'.")
+	flag.String(SSOServerURL, "", "The URL that points to the SSO server instance.")
 
 	redisFlags()
 	openIDFlags()
@@ -155,6 +181,26 @@ func Initialize() (*Config, error) {
 func (c *Config) Validate() error {
 	if c.Session.Inactivity && !c.Session.Refresh {
 		return fmt.Errorf("%q cannot be enabled without %q", SessionInactivity, SessionRefresh)
+	}
+
+	if c.SSO.Enabled {
+		switch c.SSO.Mode {
+		case SSOModeProxy:
+			if len(c.SSO.ServerURL) == 0 {
+				return fmt.Errorf("%q cannot be empty", SSOServerURL)
+			}
+
+			_, err := url.ParseRequestURI(c.SSO.ServerURL)
+			if err != nil {
+				return fmt.Errorf("%q must be a valid url: %w", SSOServerURL, err)
+			}
+		case SSOModeServer:
+			if len(c.SSO.Domain) == 0 {
+				return fmt.Errorf("%q cannot be empty", SSODomain)
+			}
+		default:
+			return fmt.Errorf("%q must be one of [%q, %q]", SSOModeFlag, SSOModeServer, SSOModeProxy)
+		}
 	}
 
 	return nil

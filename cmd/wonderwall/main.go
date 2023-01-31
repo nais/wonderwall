@@ -18,6 +18,13 @@ import (
 	"github.com/nais/wonderwall/pkg/server"
 )
 
+func main() {
+	err := run()
+	if err != nil {
+		log.Fatalf("Fatal error: %s", err)
+	}
+}
+
 func run() error {
 	cfg, err := config.Initialize()
 	if err != nil {
@@ -29,28 +36,29 @@ func run() error {
 		return err
 	}
 
-	openidConfig, err := openidconfig.NewConfig(cfg)
-	if err != nil {
-		return err
-	}
+	crypt := crypto.NewCrypter(key)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	crypt := crypto.NewCrypter(key)
+	var h router.Source
 
-	cookieOpts := cookie.DefaultOptions()
-
-	jwksProvider, err := provider.NewJwksProvider(ctx, openidConfig)
-	if err != nil {
-		return err
+	if cfg.SSO.Enabled {
+		switch cfg.SSO.Mode {
+		case config.SSOModeServer:
+			h, err = ssoServerHandler()
+		case config.SSOModeProxy:
+			h, err = ssoProxyHandler()
+		default:
+			return fmt.Errorf("invalid SSO mode: %q", cfg.SSO.Mode)
+		}
+	} else {
+		h, err = standaloneHandler(ctx, cfg, crypt)
 	}
 
-	h, err := handler.NewHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypt)
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}
-
 	r := router.New(h)
 
 	go func() {
@@ -62,9 +70,28 @@ func run() error {
 	return server.Start(cfg, r)
 }
 
-func main() {
-	err := run()
+func standaloneHandler(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (router.Source, error) {
+	openidConfig, err := openidconfig.NewConfig(cfg)
 	if err != nil {
-		log.Fatalf("Fatal error: %s", err)
+		return nil, err
 	}
+
+	jwksProvider, err := provider.NewJwksProvider(ctx, openidConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	cookieOpts := cookie.DefaultOptions()
+
+	return handler.NewHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypt)
+}
+
+func ssoServerHandler() (router.Source, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func ssoProxyHandler() (router.Source, error) {
+	//TODO implement me
+	panic("implement me")
 }
