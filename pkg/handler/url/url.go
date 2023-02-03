@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"path"
 
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/router/paths"
@@ -61,15 +60,29 @@ func CanonicalRedirect(r *http.Request) string {
 	return redirect
 }
 
-func LoginURL(prefix, redirectTarget string) string {
-	u := new(url.URL)
-	u.Path = path.Join(prefix, paths.OAuth2, paths.Login)
+// Login constructs a URL string that points to the login path for the given target URL.
+// The given redirect string should point to the location to be redirected to after login.
+func Login(target *url.URL, redirect string) string {
+	u := target.JoinPath(paths.OAuth2, paths.Login)
 
-	v := url.Values{}
-	v.Set(RedirectURLParameter, redirectTarget)
+	v := u.Query()
+	v.Set(RedirectURLParameter, redirect)
 	u.RawQuery = v.Encode()
 
 	return u.String()
+}
+
+// LoginRelative constructs the relative URL with an absolute path that points to the application's login path, given an optional path prefix.
+// The given redirect string should point to the location to be redirected to after login.
+func LoginRelative(prefix, redirect string) string {
+	u := new(url.URL)
+	u.Path = prefix
+
+	if prefix == "" {
+		u.Path = "/"
+	}
+
+	return Login(u, redirect)
 }
 
 func LoginCallbackURL(r *http.Request) (string, error) {
@@ -81,18 +94,19 @@ func LogoutCallbackURL(r *http.Request) (string, error) {
 }
 
 func makeCallbackURL(r *http.Request, callbackPath string) (string, error) {
-	match, found := mw.IngressFrom(r.Context())
+	u, err := Ingress(r)
+	if err != nil {
+		return "", err
+	}
+
+	return u.JoinPath(paths.OAuth2, callbackPath).String(), nil
+}
+
+func Ingress(r *http.Request) (*url.URL, error) {
+	ing, found := mw.IngressFrom(r.Context())
 	if !found {
-		return "", fmt.Errorf("request host does not match any configured ingresses")
+		return nil, fmt.Errorf("request host does not match any configured ingresses")
 	}
 
-	targetPath := path.Join(match.Path(), paths.OAuth2, callbackPath)
-
-	targetUrl := url.URL{
-		Host:   match.Host(),
-		Path:   targetPath,
-		Scheme: match.Scheme,
-	}
-
-	return targetUrl.String(), nil
+	return ing.NewURL(), nil
 }

@@ -92,7 +92,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		redirectTarget := r.URL.String()
 		path := src.GetPath(r)
 
-		loginUrl := url.LoginURL(path, redirectTarget)
+		loginUrl := url.LoginRelative(path, redirectTarget)
 		fields := logrus.Fields{
 			"redirect_after_login": redirectTarget,
 			"redirect_to":          loginUrl,

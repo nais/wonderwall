@@ -75,7 +75,7 @@ func (h Handler) Retry(r *http.Request, loginCookie *openid.LoginCookie) string 
 		redirect = loginCookie.Referer
 	}
 
-	return urlpkg.LoginURL(ingressPath, redirect)
+	return urlpkg.LoginRelative(ingressPath, redirect)
 }
 
 func (h Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level log.Level) {

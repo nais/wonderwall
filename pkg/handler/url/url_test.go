@@ -143,7 +143,49 @@ func TestCanonicalRedirect(t *testing.T) {
 	})
 }
 
-func TestLoginURL(t *testing.T) {
+func TestLogin(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		targetURL      string
+		redirectTarget string
+		want           string
+	}{
+		{
+			name:           "root path",
+			targetURL:      "https://sso.wonderwall",
+			redirectTarget: "https://test.example.com?some=param&other=param2",
+			want:           "https://sso.wonderwall/oauth2/login?redirect=https%3A%2F%2Ftest.example.com%3Fsome%3Dparam%26other%3Dparam2",
+		},
+		{
+			name:           "with prefix",
+			targetURL:      "https://sso.wonderwall/path",
+			redirectTarget: "https://test.example.com?some=param&other=param2",
+			want:           "https://sso.wonderwall/path/oauth2/login?redirect=https%3A%2F%2Ftest.example.com%3Fsome%3Dparam%26other%3Dparam2",
+		},
+		{
+			name:           "we need to go deeper",
+			targetURL:      "https://sso.wonderwall/deeper/path",
+			redirectTarget: "https://test.example.com?some=param&other=param2",
+			want:           "https://sso.wonderwall/deeper/path/oauth2/login?redirect=https%3A%2F%2Ftest.example.com%3Fsome%3Dparam%26other%3Dparam2",
+		},
+		{
+			name:           "relative redirect target",
+			targetURL:      "https://sso.wonderwall",
+			redirectTarget: "/path?some=param&other=param2",
+			want:           "https://sso.wonderwall/oauth2/login?redirect=%2Fpath%3Fsome%3Dparam%26other%3Dparam2",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			targetURL, err := url.Parse(test.targetURL)
+			assert.NoError(t, err)
+
+			loginUrl := urlpkg.Login(targetURL, test.redirectTarget)
+			assert.Equal(t, test.want, loginUrl)
+		})
+	}
+}
+
+func TestLoginRelative(t *testing.T) {
 	for _, test := range []struct {
 		name           string
 		prefix         string
@@ -176,7 +218,7 @@ func TestLoginURL(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			loginUrl := urlpkg.LoginURL(test.prefix, test.redirectTarget)
+			loginUrl := urlpkg.LoginRelative(test.prefix, test.redirectTarget)
 			assert.Equal(t, test.want, loginUrl)
 		})
 	}

@@ -98,6 +98,17 @@ func (i *Ingresses) MatchingPath(r *http.Request) string {
 	return result
 }
 
+func (i *Ingresses) Single() Ingress {
+	var res Ingress
+
+	for _, v := range i.ingressMap {
+		res = v
+		break
+	}
+
+	return res
+}
+
 func mapIngresses(ingresses map[string]Ingress, fn func(i Ingress) string) []string {
 	seen := make(map[string]bool, 0)
 	result := make([]string, 0)
@@ -171,4 +182,9 @@ func (i Ingress) Host() string {
 
 func (i Ingress) String() string {
 	return i.URL.String()
+}
+
+func (i Ingress) NewURL() *url.URL {
+	u := *i.URL
+	return &u
 }
