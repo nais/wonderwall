@@ -33,7 +33,7 @@ type IdentityProvider struct {
 	OpenIDConfig        *TestConfiguration
 	ProviderHandler     *IdentityProviderHandler
 	ProviderServer      *httptest.Server
-	RelyingPartyHandler *handlerpkg.StandardHandler
+	RelyingPartyHandler *handlerpkg.DefaultHandler
 	RelyingPartyServer  *httptest.Server
 }
 
@@ -89,7 +89,7 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 
 	cookieOpts := cookie.DefaultOptions().WithSecure(false)
 
-	rpHandler, err := handlerpkg.NewHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypter)
+	rpHandler, err := handlerpkg.NewDefaultHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypter)
 	if err != nil {
 		panic(err)
 	}

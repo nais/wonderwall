@@ -46,19 +46,19 @@ func run() error {
 	if cfg.SSO.Enabled {
 		switch cfg.SSO.Mode {
 		case config.SSOModeServer:
-			h, err = ssoServerHandler()
+			h, err = ssoServerHandler(ctx, cfg, crypt)
 		case config.SSOModeProxy:
-			h, err = ssoProxyHandler()
+			h, err = ssoProxyHandler(cfg)
 		default:
 			return fmt.Errorf("invalid SSO mode: %q", cfg.SSO.Mode)
 		}
 	} else {
-		h, err = standaloneHandler(ctx, cfg, crypt)
+		h, err = defaultHandler(ctx, cfg, crypt)
 	}
-
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}
+
 	r := router.New(h, cfg)
 
 	go func() {
@@ -70,7 +70,7 @@ func run() error {
 	return server.Start(cfg, r)
 }
 
-func standaloneHandler(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (router.Source, error) {
+func defaultHandler(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*handler.DefaultHandler, error) {
 	openidConfig, err := openidconfig.NewConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -83,15 +83,22 @@ func standaloneHandler(ctx context.Context, cfg *config.Config, crypt crypto.Cry
 
 	cookieOpts := cookie.DefaultOptions()
 
-	return handler.NewHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypt)
+	return handler.NewDefaultHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypt)
 }
 
-func ssoServerHandler() (router.Source, error) {
-	//TODO implement me
-	panic("implement me")
+func ssoServerHandler(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*handler.SSOServerHandler, error) {
+	h, err := defaultHandler(ctx, cfg, crypt)
+	if err != nil {
+		return nil, err
+	}
+
+	h.CookieOptions = cookie.DefaultOptions().
+		WithPath("/").
+		WithDomain(cfg.SSO.Domain)
+
+	return handler.NewSSOServerHandler(h), nil
 }
 
-func ssoProxyHandler() (router.Source, error) {
-	//TODO implement me
-	panic("implement me")
+func ssoProxyHandler(cfg *config.Config) (*handler.SSOProxyHandler, error) {
+	return handler.NewSSOProxyHandler(cfg)
 }
