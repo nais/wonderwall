@@ -11,10 +11,10 @@ import (
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
-	"github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/session"
+	"github.com/nais/wonderwall/pkg/url"
 )
 
 type ReverseProxySource interface {

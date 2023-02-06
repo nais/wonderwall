@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/client"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 func TestLoginCallback_StateMismatchError(t *testing.T) {
@@ -114,7 +114,7 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, *client
 	idp := mock.NewIdentityProvider(mock.Config())
 	req := idp.GetRequest(url)
 
-	redirect, err := urlpkg.LoginCallbackURL(req)
+	redirect, err := urlpkg.LoginCallback(req)
 	assert.NoError(t, err)
 
 	idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{

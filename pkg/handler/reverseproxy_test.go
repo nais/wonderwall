@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/mock"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 func TestReverseProxy(t *testing.T) {
@@ -79,7 +79,7 @@ func TestReverseProxy(t *testing.T) {
 		callbackEndpoint.RawQuery = ""
 
 		req := idp.GetRequest(callbackLocation.String())
-		expectedCallbackURL, err := urlpkg.LoginCallbackURL(req)
+		expectedCallbackURL, err := urlpkg.LoginCallback(req)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedCallbackURL, callbackEndpoint.String())
 

@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/mock"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 func TestLogin(t *testing.T) {
@@ -24,7 +24,7 @@ func TestLogin(t *testing.T) {
 
 	req := idp.GetRequest(idp.RelyingPartyServer.URL + "/oauth2/login")
 
-	expectedCallbackURL, err := urlpkg.LoginCallbackURL(req)
+	expectedCallbackURL, err := urlpkg.LoginCallback(req)
 	assert.NoError(t, err)
 
 	assert.Equal(t, idp.ProviderServer.URL, fmt.Sprintf("%s://%s", loginURL.Scheme, loginURL.Host))

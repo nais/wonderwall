@@ -9,11 +9,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 func TestLogin_URL(t *testing.T) {
@@ -92,7 +92,7 @@ func TestLogin_URL(t *testing.T) {
 				assert.Contains(t, query, "code_challenge_method")
 				assert.NotContains(t, query, "resource")
 
-				callbackURL, err := urlpkg.LoginCallbackURL(req)
+				callbackURL, err := urlpkg.LoginCallback(req)
 				assert.NoError(t, err)
 
 				assert.ElementsMatch(t, query["response_type"], []string{"code"})

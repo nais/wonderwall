@@ -14,10 +14,10 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler/templates"
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/router/paths"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 const (

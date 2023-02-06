@@ -9,11 +9,11 @@ import (
 
 	"golang.org/x/oauth2"
 
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/strings"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 const (
@@ -43,7 +43,7 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 		return nil, fmt.Errorf("generating parameters: %w", err)
 	}
 
-	callbackURL, err := urlpkg.LoginCallbackURL(r)
+	callbackURL, err := urlpkg.LoginCallback(r)
 	if err != nil {
 		return nil, fmt.Errorf("generating callback url: %w", err)
 	}

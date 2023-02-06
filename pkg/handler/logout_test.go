@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/mock"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 func TestLogout(t *testing.T) {
@@ -27,7 +27,7 @@ func TestLogout(t *testing.T) {
 	assert.NoError(t, err)
 
 	req := idp.GetRequest(idp.RelyingPartyServer.URL + "/oauth2/logout/callback")
-	expectedLogoutCallbackURL, err := urlpkg.LogoutCallbackURL(req)
+	expectedLogoutCallbackURL, err := urlpkg.LogoutCallback(req)
 	assert.NoError(t, err)
 
 	endsessionParams := endsessionURL.Query()

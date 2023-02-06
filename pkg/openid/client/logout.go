@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/openid"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 type Logout struct {
@@ -15,7 +15,7 @@ type Logout struct {
 }
 
 func NewLogout(c *Client, r *http.Request) (*Logout, error) {
-	logoutCallbackURL, err := urlpkg.LogoutCallbackURL(r)
+	logoutCallbackURL, err := urlpkg.LogoutCallback(r)
 	if err != nil {
 		return nil, fmt.Errorf("generating logout callback url: %w", err)
 	}

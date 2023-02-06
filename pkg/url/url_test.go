@@ -1,147 +1,14 @@
 package url_test
 
 import (
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
-	"github.com/nais/wonderwall/pkg/ingress"
-	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/mock"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
-
-func TestCanonicalRedirect(t *testing.T) {
-	t.Run("default redirect", func(t *testing.T) {
-		for _, test := range []struct {
-			name     string
-			ingress  string
-			expected string
-		}{
-			{
-				name:     "root with trailing slash",
-				ingress:  "http://localhost:8080/",
-				expected: "/",
-			},
-			{
-				name:     "root without trailing slash",
-				ingress:  "http://localhost:8080",
-				expected: "/",
-			},
-			{
-				name:     "path with trailing slash",
-				ingress:  "http://localhost:8080/path/",
-				expected: "/path",
-			},
-			{
-				name:     "path without trailing slash",
-				ingress:  "http://localhost:8080/path",
-				expected: "/path",
-			},
-		} {
-			t.Run(test.name, func(t *testing.T) {
-				r := httptest.NewRequest(http.MethodGet, test.ingress+"/oauth2/login", nil)
-				parsed, err := ingress.ParseIngress(test.ingress)
-				assert.NoError(t, err)
-
-				r = mw.RequestWithPath(r, parsed.Path())
-
-				assert.Equal(t, test.expected, urlpkg.CanonicalRedirect(r))
-			})
-		}
-	})
-
-	// Default path is /some-path
-	defaultIngress := "http://localhost:8080/some-path"
-	r := httptest.NewRequest(http.MethodGet, defaultIngress+"/oauth2/login", nil)
-	r = mw.RequestWithPath(r, "/some-path")
-
-	// If redirect parameter is set, use that
-	t.Run("redirect parameter is set", func(t *testing.T) {
-		for _, test := range []struct {
-			name     string
-			value    string
-			expected string
-		}{
-			{
-				name:     "complete url with parameters",
-				value:    "http://localhost:8080/path/to/redirect?val1=foo&val2=bar",
-				expected: "/path/to/redirect?val1=foo&val2=bar",
-			},
-			{
-				name:     "root url with trailing slash",
-				value:    "http://localhost:8080/",
-				expected: "/",
-			},
-			{
-				name:     "root url without trailing slash",
-				value:    "http://localhost:8080",
-				expected: "/",
-			},
-			{
-				name:     "url path with trailing slash",
-				value:    "http://localhost:8080/path/",
-				expected: "/path/",
-			},
-			{
-				name:     "url path without trailing slash",
-				value:    "http://localhost:8080/path",
-				expected: "/path",
-			},
-			{
-				name:     "absolute path",
-				value:    "/path",
-				expected: "/path",
-			},
-			{
-				name:     "absolute path with query parameters",
-				value:    "/path?gnu=notunix",
-				expected: "/path?gnu=notunix",
-			},
-			{
-				name:     "relative path",
-				value:    "path",
-				expected: "/some-path", // should fall back to default path
-			},
-			{
-				name:     "relative path with query parameters",
-				value:    "path?gnu=notunix",
-				expected: "/some-path", // should fall back to default path
-			},
-			{
-				name:     "url encoded path",
-				value:    "%2Fpath",
-				expected: "/path",
-			},
-			{
-				name:     "url encoded path and query parameters",
-				value:    "%2Fpath%3Fgnu%3Dnotunix",
-				expected: "/path?gnu=notunix",
-			},
-			{
-				name:     "url encoded url",
-				value:    "http%3A%2F%2Flocalhost%3A8080%2Fpath",
-				expected: "/path",
-			},
-			{
-				name:     "url encoded url and multiple query parameters",
-				value:    "http%3A%2F%2Flocalhost%3A8080%2Fpath%3Fgnu%3Dnotunix%26foo%3Dbar",
-				expected: "/path?gnu=notunix&foo=bar",
-			},
-		} {
-			t.Run(test.name, func(t *testing.T) {
-				v := &url.Values{}
-				v.Set("redirect", test.value)
-				r.URL.RawQuery = v.Encode()
-				assert.Equal(t, test.expected, urlpkg.CanonicalRedirect(r))
-			})
-		}
-	})
-}
 
 func TestLogin(t *testing.T) {
 	for _, test := range []struct {
@@ -224,7 +91,7 @@ func TestLoginRelative(t *testing.T) {
 	}
 }
 
-func TestLoginCallbackURL(t *testing.T) {
+func TestLoginCallback(t *testing.T) {
 	cfg := mock.Config()
 	cfg.Ingresses = []string{
 		"https://nav.no",
@@ -235,9 +102,9 @@ func TestLoginCallbackURL(t *testing.T) {
 	ingresses := mock.Ingresses(cfg)
 
 	for _, test := range []struct {
-		input string
-		want  string
-		err   error
+		input   string
+		want    string
+		wantErr bool
 	}{
 		{
 			input: "https://nav.no/",
@@ -256,16 +123,16 @@ func TestLoginCallbackURL(t *testing.T) {
 			want:  "https://nav.no/dagpenger/soknad/oauth2/callback",
 		},
 		{
-			input: "https://not-nav.no/",
-			err:   fmt.Errorf("request host does not match any configured ingresses"),
+			input:   "https://not-nav.no/",
+			wantErr: true,
 		},
 	} {
 		t.Run(test.input, func(t *testing.T) {
 			req := mock.NewGetRequest(test.input, ingresses)
 
-			actual, err := urlpkg.LoginCallbackURL(req)
-			if test.err != nil {
-				assert.EqualError(t, err, test.err.Error())
+			actual, err := urlpkg.LoginCallback(req)
+			if test.wantErr {
+				assert.ErrorIs(t, err, urlpkg.ErrNoMatchingIngress)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, test.want, actual)
@@ -274,7 +141,7 @@ func TestLoginCallbackURL(t *testing.T) {
 	}
 }
 
-func TestLogoutCallbackURL(t *testing.T) {
+func TestLogoutCallback(t *testing.T) {
 	cfg := mock.Config()
 	cfg.Ingresses = []string{
 		"https://nav.no",
@@ -285,9 +152,9 @@ func TestLogoutCallbackURL(t *testing.T) {
 	ingresses := mock.Ingresses(cfg)
 
 	for _, test := range []struct {
-		input string
-		want  string
-		err   error
+		input   string
+		want    string
+		wantErr bool
 	}{
 		{
 			input: "https://nav.no/",
@@ -306,20 +173,143 @@ func TestLogoutCallbackURL(t *testing.T) {
 			want:  "https://nav.no/dagpenger/soknad/oauth2/logout/callback",
 		},
 		{
-			input: "https://not-nav.no/",
-			err:   fmt.Errorf("request host does not match any configured ingresses"),
+			input:   "https://not-nav.no/",
+			wantErr: true,
 		},
 	} {
 		t.Run(test.input, func(t *testing.T) {
 			req := mock.NewGetRequest(test.input, ingresses)
 
-			actual, err := urlpkg.LogoutCallbackURL(req)
-			if test.err != nil {
-				assert.EqualError(t, err, test.err.Error())
+			actual, err := urlpkg.LogoutCallback(req)
+			if test.wantErr {
+				assert.ErrorIs(t, err, urlpkg.ErrNoMatchingIngress)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, test.want, actual)
 			}
 		})
 	}
+}
+
+func TestMatchingPath(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Ingresses = []string{
+		"http://wonderwall",
+		"http://wonderwall/some-path",
+	}
+	ingresses := mock.Ingresses(cfg)
+
+	t.Run("matching ingress path", func(t *testing.T) {
+		for _, tt := range []struct {
+			target   string
+			expected string
+		}{
+			{
+				target:   "/",
+				expected: "/",
+			},
+			{
+				target:   "/some-path",
+				expected: "/some-path",
+			},
+			{
+				target:   "/some-path/some-subpath",
+				expected: "/some-path",
+			},
+			{
+				target:   "http://wonderwall",
+				expected: "/",
+			},
+			{
+				target:   "http://wonderwall/some-path",
+				expected: "/some-path",
+			},
+			{
+				target:   "http://wonderwall/some-path/some-subpath",
+				expected: "/some-path",
+			},
+		} {
+			t.Run(tt.target, func(t *testing.T) {
+				req := mock.NewGetRequest(tt.target, ingresses)
+				assert.Equal(t, tt.expected, urlpkg.MatchingPath(req).String())
+			})
+		}
+	})
+
+	t.Run("no matching path should fall back to root", func(t *testing.T) {
+		req := mock.NewGetRequest("http://wonderwall/no-match", ingresses)
+		assert.Equal(t, "/", urlpkg.MatchingPath(req).String())
+	})
+}
+
+func TestMatchingIngress(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Ingresses = []string{
+		"http://wonderwall",
+		"http://wonderwall/some-path",
+	}
+	ingresses := mock.Ingresses(cfg)
+
+	t.Run("matching ingress path", func(t *testing.T) {
+		for _, tt := range []struct {
+			target   string
+			expected string
+		}{
+			{
+				target:   "http://wonderwall",
+				expected: "http://wonderwall",
+			},
+			{
+				target:   "http://wonderwall/",
+				expected: "http://wonderwall",
+			},
+			{
+				target:   "http://wonderwall/?val1=foo&val2=bar",
+				expected: "http://wonderwall",
+			},
+			{
+				target:   "http://wonderwall/some-path",
+				expected: "http://wonderwall/some-path",
+			},
+			{
+				target:   "http://wonderwall/some-path/",
+				expected: "http://wonderwall/some-path",
+			},
+			{
+				target:   "http://wonderwall/some-path/some-subpath",
+				expected: "http://wonderwall/some-path",
+			},
+		} {
+			t.Run(tt.target, func(t *testing.T) {
+				req := mock.NewGetRequest(tt.target, ingresses)
+
+				actual, err := urlpkg.MatchingIngress(req)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, actual.String())
+			})
+		}
+	})
+
+	t.Run("relative URLs should return error", func(t *testing.T) {
+		for _, target := range []string{
+			"/",
+			"/some-path",
+			"/some-path/some-subpath",
+		} {
+			t.Run(target, func(t *testing.T) {
+				req := mock.NewGetRequest(target, ingresses)
+
+				_, err := urlpkg.MatchingIngress(req)
+				assert.ErrorIs(t, err, urlpkg.ErrNoMatchingIngress)
+			})
+
+		}
+	})
+
+	t.Run("no matching ingress should return error", func(t *testing.T) {
+		req := mock.NewGetRequest("http://not-wonderwall", ingresses)
+
+		_, err := urlpkg.MatchingIngress(req)
+		assert.ErrorIs(t, err, urlpkg.ErrNoMatchingIngress)
+	})
 }

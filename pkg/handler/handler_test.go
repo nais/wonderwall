@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/cookie"
-	urlpkg "github.com/nais/wonderwall/pkg/handler/url"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/session"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 func localLogin(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) response {
@@ -103,7 +103,7 @@ func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
 	logoutCallbackURI := resp.Location
 
 	req := idp.GetRequest(resp.Location.String())
-	expectedLogoutCallbackURL, err := urlpkg.LogoutCallbackURL(req)
+	expectedLogoutCallbackURL, err := urlpkg.LogoutCallback(req)
 	assert.NoError(t, err)
 
 	assert.Contains(t, logoutCallbackURI.String(), expectedLogoutCallbackURL)
