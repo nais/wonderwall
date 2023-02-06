@@ -10,10 +10,14 @@ import (
 
 func NewGetRequest(target string, ingresses *ingress.Ingresses) *http.Request {
 	req := httptest.NewRequest(http.MethodGet, target, nil)
-	match, ok := ingresses.MatchingIngress(req)
+
+	path := ingresses.MatchingPath(req)
+	req = mw.RequestWithPath(req, path)
+
+	ing, ok := ingresses.MatchingIngress(req)
 	if ok {
-		req = mw.RequestWithIngress(req, match)
-		req = mw.RequestWithPath(req, match.Path())
+		req = mw.RequestWithIngress(req, ing)
 	}
+
 	return req
 }
