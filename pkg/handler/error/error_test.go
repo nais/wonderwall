@@ -98,6 +98,11 @@ func TestHandler_Retry(t *testing.T) {
 			want:    "/oauth2/logout",
 		},
 		{
+			name:    "local logout path",
+			request: get("/oauth2/logout/local"),
+			want:    "/oauth2/logout/local",
+		},
+		{
 			name:    "front-channel logout path",
 			request: get("/oauth2/logout/frontchannel"),
 			want:    "/oauth2/logout/frontchannel",

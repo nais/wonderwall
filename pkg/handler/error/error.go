@@ -65,8 +65,10 @@ func (h Handler) Retry(r *http.Request, loginCookie *openid.LoginCookie) string 
 	requestPath := r.URL.Path
 	ingressPath := h.GetPath(r)
 
-	if strings.HasSuffix(requestPath, paths.OAuth2+paths.Logout) || strings.HasSuffix(requestPath, paths.OAuth2+paths.LogoutFrontChannel) {
-		return requestPath
+	for _, path := range []string{paths.Logout, paths.LogoutLocal, paths.LogoutFrontChannel} {
+		if strings.HasSuffix(requestPath, paths.OAuth2+path) {
+			return requestPath
+		}
 	}
 
 	redirect := urlpkg.CanonicalRedirect(r)
