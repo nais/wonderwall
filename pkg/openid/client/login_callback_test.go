@@ -112,7 +112,6 @@ func TestLoginCallback_RedeemTokens(t *testing.T) {
 
 func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, *client.LoginCallback) {
 	idp := mock.NewIdentityProvider(mock.Config())
-	idp.SetIngresses(mock.Ingress)
 	req := idp.GetRequest(url)
 
 	redirect, err := urlpkg.LoginCallbackURL(req)

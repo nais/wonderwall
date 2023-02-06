@@ -20,7 +20,6 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	handlerpkg "github.com/nais/wonderwall/pkg/handler"
-	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
@@ -57,22 +56,14 @@ func (in *IdentityProvider) RelyingPartyClient() *http.Client {
 	return client
 }
 
-func (in *IdentityProvider) SetIngresses(ingresses ...string) {
-	in.Cfg.Ingresses = ingresses
-
-	parsed, err := ingress.ParseIngresses(in.Cfg)
-	if err != nil {
-		panic(err)
-	}
-
-	in.RelyingPartyHandler.Ingresses = parsed
-}
-
 func (in *IdentityProvider) GetRequest(target string) *http.Request {
 	return NewGetRequest(target, in.RelyingPartyHandler.GetIngresses())
 }
 
 func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
+	rpServer := newRelyingPartyServer()
+	cfg.Ingresses = append(cfg.Ingresses, rpServer.GetURL())
+
 	openidConfig := NewTestConfiguration(cfg)
 	jwksProvider := NewTestJwksProvider()
 	handler := newIdentityProviderHandler(jwksProvider, openidConfig)
@@ -95,19 +86,18 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	}
 
 	rpRouter := router.New(rpHandler, cfg)
-	rpServer := httptest.NewServer(rpRouter)
+	rpServer.SetHandler(rpRouter)
+	rpServer.Start()
 
 	ip := &IdentityProvider{
 		Cfg:                 cfg,
 		RelyingPartyHandler: rpHandler,
-		RelyingPartyServer:  rpServer,
+		RelyingPartyServer:  rpServer.Server,
 		OpenIDConfig:        openidConfig,
 		ProviderHandler:     handler,
 		ProviderServer:      server,
 	}
 
-	// reconfigure ingresses after Relying Party server is started
-	ip.SetIngresses(rpServer.URL)
 	return ip
 }
 
@@ -571,4 +561,22 @@ func (ip *IdentityProviderHandler) EndSession(w http.ResponseWriter, r *http.Req
 	}
 
 	http.Redirect(w, r, u.String(), http.StatusTemporaryRedirect)
+}
+
+type relyingPartyServer struct {
+	*httptest.Server
+}
+
+func newRelyingPartyServer() *relyingPartyServer {
+	return &relyingPartyServer{httptest.NewUnstartedServer(nil)}
+}
+
+func (in *relyingPartyServer) GetURL() string {
+	return "http://" + in.Listener.Addr().String()
+}
+
+func (in *relyingPartyServer) SetHandler(handler http.Handler) {
+	in.Config = &http.Server{
+		Handler: handler,
+	}
 }

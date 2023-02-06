@@ -71,12 +71,6 @@ func TestHandler_Error(t *testing.T) {
 }
 
 func TestHandler_Retry(t *testing.T) {
-	cfg := mock.Config()
-	idp := mock.NewIdentityProvider(cfg)
-	defer idp.Close()
-
-	handler := idp.RelyingPartyHandler.GetErrorHandler()
-
 	get := func(url string) *http.Request {
 		return httptest.NewRequest(http.MethodGet, url, nil)
 	}
@@ -189,7 +183,12 @@ func TestHandler_Retry(t *testing.T) {
 				test.ingress = mock.Ingress
 			}
 
-			idp.SetIngresses(test.ingress)
+			cfg := mock.Config()
+			cfg.Ingresses = []string{test.ingress}
+			idp := mock.NewIdentityProvider(cfg)
+			defer idp.Close()
+
+			handler := idp.RelyingPartyHandler.GetErrorHandler()
 
 			ing, err := ingress.ParseIngress(test.ingress)
 			assert.NoError(t, err)
