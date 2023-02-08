@@ -19,5 +19,7 @@ func NewGetRequest(target string, ingresses *ingress.Ingresses) *http.Request {
 		req = mw.RequestWithIngress(req, ing)
 	}
 
+	mw.LogEntry("test")
+
 	return req
 }
