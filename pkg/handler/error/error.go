@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -29,7 +28,6 @@ const (
 type Source interface {
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
-	GetErrorPath() string
 	GetPath(r *http.Request) string
 	GetRedirectHandler() redirect.Handler
 }
@@ -112,14 +110,6 @@ func (h Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode
 	}
 
 	logger.Info("errorhandler: maximum retry attempts exceeded; executing error template...")
-
-	if len(h.GetErrorPath()) > 0 {
-		err := h.customErrorRedirect(w, r, statusCode)
-		if err == nil {
-			return
-		}
-	}
-
 	h.defaultErrorResponse(w, r, statusCode)
 }
 
@@ -139,27 +129,6 @@ func (h Handler) defaultErrorResponse(w http.ResponseWriter, r *http.Request, st
 	if err != nil {
 		mw.LogEntryFrom(r).Errorf("errorhandler: executing error template: %+v", err)
 	}
-}
-
-func (h Handler) customErrorRedirect(w http.ResponseWriter, r *http.Request, statusCode int) error {
-	override, err := url.ParseRequestURI(h.GetErrorPath())
-	if err != nil {
-		return err
-	}
-
-	// strip scheme and host to avoid cross-domain redirects
-	override.Scheme = ""
-	override.Host = ""
-
-	query := override.Query()
-	query.Add("correlation_id", middleware.GetReqID(r.Context()))
-	query.Add("status_code", strconv.Itoa(statusCode))
-
-	override.RawQuery = query.Encode()
-
-	errorRedirectURI := override.String()
-	http.Redirect(w, r, errorRedirectURI, http.StatusFound)
-	return nil
 }
 
 func getRetryAttempts(r *http.Request) (int, bool) {

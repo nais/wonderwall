@@ -112,10 +112,6 @@ func (d *DefaultHandler) GetErrorHandler() errorhandler.Handler {
 	return errorhandler.New(d)
 }
 
-func (d *DefaultHandler) GetErrorPath() string {
-	return d.Config.ErrorPath
-}
-
 func (d *DefaultHandler) GetIngresses() *ingress.Ingresses {
 	return d.Ingresses
 }

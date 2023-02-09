@@ -133,7 +133,6 @@ The following flags are available:
 --auto-login-ignore-paths strings          Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style asterisks. Invalid patterns are ignored.
 --bind-address string                      Listen address for public connections. (default "127.0.0.1:3000")
 --encryption-key string                    Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
---error-path string                        Absolute path to redirect user to on errors for custom error handling.
 --ingress strings                          Comma separated list of ingresses used to access the main application.
 --log-format string                        Log format, either 'json' or 'text'. (default "json")
 --log-level string                         Logging verbosity level. (default "info")
