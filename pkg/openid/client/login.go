@@ -53,30 +53,23 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 		return nil, fmt.Errorf("generating auth code url: %w", err)
 	}
 
-	referer := urlpkg.CanonicalRedirect(r)
-	cookie := params.cookie(referer, callbackURL)
+	cookie := params.cookie(callbackURL)
 
 	return &Login{
-		authCodeURL:       url,
-		canonicalRedirect: referer,
-		cookie:            cookie,
-		params:            params,
+		authCodeURL: url,
+		cookie:      cookie,
+		params:      params,
 	}, nil
 }
 
 type Login struct {
-	authCodeURL       string
-	canonicalRedirect string
-	cookie            *openid.LoginCookie
-	params            *loginParameters
+	authCodeURL string
+	cookie      *openid.LoginCookie
+	params      *loginParameters
 }
 
 func (l *Login) AuthCodeURL() string {
 	return l.authCodeURL
-}
-
-func (l *Login) CanonicalRedirect() string {
-	return l.canonicalRedirect
 }
 
 func (l *Login) CodeChallenge() string {
@@ -87,7 +80,8 @@ func (l *Login) CodeVerifier() string {
 	return l.params.CodeVerifier
 }
 
-func (l *Login) Cookie() *openid.LoginCookie {
+func (l *Login) Cookie(canonicalRedirect string) *openid.LoginCookie {
+	l.cookie.Referer = canonicalRedirect
 	return l.cookie
 }
 
@@ -159,12 +153,11 @@ func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, logi
 	return authCodeUrl, nil
 }
 
-func (in *loginParameters) cookie(referer, redirectURI string) *openid.LoginCookie {
+func (in *loginParameters) cookie(redirectURI string) *openid.LoginCookie {
 	return &openid.LoginCookie{
 		State:        in.State,
 		Nonce:        in.Nonce,
 		CodeVerifier: in.CodeVerifier,
-		Referer:      referer,
 		RedirectURI:  redirectURI,
 	}
 }

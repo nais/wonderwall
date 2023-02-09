@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -15,6 +16,8 @@ import (
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
+	"github.com/nais/wonderwall/pkg/redirect"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 const (
@@ -26,9 +29,11 @@ type LoginSource interface {
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetErrorHandler() errorhandler.Handler
+	GetRedirectHandler() redirect.Handler
 }
 
 func Login(src LoginSource, w http.ResponseWriter, r *http.Request) {
+	canonicalRedirect := src.GetRedirectHandler().Canonical(r)
 	login, err := src.GetClient().Login(r)
 	if err != nil {
 		if errors.Is(err, openidclient.ErrInvalidSecurityLevel) || errors.Is(err, openidclient.ErrInvalidLocale) {
@@ -40,17 +45,50 @@ func Login(src LoginSource, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = setLoginCookies(src, w, r, login.Cookie())
+	err = setLoginCookies(src, w, r, login.Cookie(canonicalRedirect))
 	if err != nil {
 		src.GetErrorHandler().InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
 		return
 	}
 
 	fields := log.Fields{
-		"redirect_after_login": login.CanonicalRedirect(),
+		"redirect_after_login": canonicalRedirect,
 	}
-	logentry.LogEntryFrom(r).WithFields(fields).Debug("login: redirecting to identity provider")
+	logentry.LogEntryFrom(r).WithFields(fields).Info("login: redirecting to identity provider")
 	http.Redirect(w, r, login.AuthCodeURL(), http.StatusTemporaryRedirect)
+}
+
+type LoginSSOProxySource interface {
+	GetSSOServerURL() *url.URL
+	GetRedirectHandler() redirect.Handler
+}
+
+func LoginSSOProxy(src LoginSSOProxySource, w http.ResponseWriter, r *http.Request) {
+	logger := logentry.LogEntryFrom(r)
+
+	target := src.GetSSOServerURL()
+	targetQuery := target.Query()
+
+	// override default query parameters
+	reqQuery := r.URL.Query()
+	if reqQuery.Has(openidclient.SecurityLevelURLParameter) {
+		targetQuery.Set(openidclient.SecurityLevelURLParameter, reqQuery.Get(openidclient.SecurityLevelURLParameter))
+	}
+	if reqQuery.Has(openidclient.LocaleURLParameter) {
+		targetQuery.Set(openidclient.LocaleURLParameter, reqQuery.Get(openidclient.LocaleURLParameter))
+	}
+
+	target.RawQuery = reqQuery.Encode()
+
+	canonicalRedirect := src.GetRedirectHandler().Canonical(r)
+	ssoServerLoginURL := urlpkg.Login(target, canonicalRedirect)
+
+	logger.WithFields(log.Fields{
+		"redirect_to":          ssoServerLoginURL,
+		"redirect_after_login": canonicalRedirect,
+	}).Info("login: redirecting to sso server")
+
+	http.Redirect(w, r, ssoServerLoginURL, http.StatusTemporaryRedirect)
 }
 
 func setLoginCookies(src LoginSource, w http.ResponseWriter, r *http.Request, loginCookie *openid.LoginCookie) error {

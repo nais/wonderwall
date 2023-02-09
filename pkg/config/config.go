@@ -50,10 +50,11 @@ type Session struct {
 }
 
 type SSO struct {
-	Enabled   bool    `json:"enabled"`
-	Domain    string  `json:"domain"`
-	Mode      SSOMode `json:"mode"`
-	ServerURL string  `json:"server-url"`
+	Enabled                  bool    `json:"enabled"`
+	Domain                   string  `json:"domain"`
+	Mode                     SSOMode `json:"mode"`
+	ServerURL                string  `json:"server-url"`
+	ServerDefaultRedirectURL string  `json:"server-default-redirect-url"`
 }
 
 type SSOMode string
@@ -87,10 +88,11 @@ const (
 	LoginstatusResourceIndicator = "loginstatus.resource-indicator"
 	LoginstatusTokenURL          = "loginstatus.token-url"
 
-	SSOEnabled   = "sso.enabled"
-	SSODomain    = "sso.domain"
-	SSOModeFlag  = "sso.mode"
-	SSOServerURL = "sso.server-url"
+	SSOEnabled                  = "sso.enabled"
+	SSODomain                   = "sso.domain"
+	SSOServerDefaultRedirectURL = "sso.server-default-redirect-url"
+	SSOModeFlag                 = "sso.mode"
+	SSOServerURL                = "sso.server-url"
 )
 
 func Initialize() (*Config, error) {
@@ -122,7 +124,8 @@ func Initialize() (*Config, error) {
 	flag.Bool(SSOEnabled, false, "Enable single sign-on mode; one server acting as the OIDC Relying Party, and N proxies. The proxies delegate most endpoint operations to the server, and only implements a reverse proxy that reads the user's session data from the shared store.")
 	flag.String(SSODomain, "", "The domain that the session cookies should be set for, usually the second-level domain name (e.g. example.com).")
 	flag.String(SSOModeFlag, string(SSOModeServer), "The SSO mode for this instance. Must be one of 'server' or 'proxy'.")
-	flag.String(SSOServerURL, "", "The URL that points to the SSO server instance.")
+	flag.String(SSOServerDefaultRedirectURL, "", "The URL that the SSO server should redirect to by default if the a given redirect query parameter is invalid.")
+	flag.String(SSOServerURL, "", "The URL used by the proxy to point to the SSO server instance.")
 
 	redisFlags()
 	openIDFlags()
@@ -186,10 +189,6 @@ func (c *Config) Validate() error {
 	if c.SSO.Enabled {
 		switch c.SSO.Mode {
 		case SSOModeProxy:
-			if len(c.SSO.ServerURL) == 0 {
-				return fmt.Errorf("%q cannot be empty", SSOServerURL)
-			}
-
 			_, err := url.ParseRequestURI(c.SSO.ServerURL)
 			if err != nil {
 				return fmt.Errorf("%q must be a valid url: %w", SSOServerURL, err)
@@ -197,6 +196,11 @@ func (c *Config) Validate() error {
 		case SSOModeServer:
 			if len(c.SSO.Domain) == 0 {
 				return fmt.Errorf("%q cannot be empty", SSODomain)
+			}
+
+			_, err := url.ParseRequestURI(c.SSO.ServerDefaultRedirectURL)
+			if err != nil {
+				return fmt.Errorf("%q must be a valid url: %w", SSOServerDefaultRedirectURL, err)
 			}
 		default:
 			return fmt.Errorf("%q must be one of [%q, %q]", SSOModeFlag, SSOModeServer, SSOModeProxy)

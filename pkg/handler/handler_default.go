@@ -14,6 +14,7 @@ import (
 	"github.com/nais/wonderwall/pkg/middleware"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	"github.com/nais/wonderwall/pkg/redirect"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 )
@@ -21,16 +22,17 @@ import (
 var _ router.Source = &DefaultHandler{}
 
 type DefaultHandler struct {
-	AutoLogin     *autologin.AutoLogin
-	Client        *openidclient.Client
-	Config        *config.Config
-	CookieOptions cookie.Options
-	Crypter       crypto.Crypter
-	Ingresses     *ingress.Ingresses
-	Loginstatus   *loginstatus.Loginstatus
-	OpenidConfig  openidconfig.Config
-	Sessions      *session.Handler
-	UpstreamProxy *ReverseProxy
+	AutoLogin       *autologin.AutoLogin
+	Client          *openidclient.Client
+	Config          *config.Config
+	CookieOptions   cookie.Options
+	Crypter         crypto.Crypter
+	Ingresses       *ingress.Ingresses
+	Loginstatus     *loginstatus.Loginstatus
+	OpenidConfig    openidconfig.Config
+	RedirectHandler redirect.Handler
+	Sessions        *session.Handler
+	UpstreamProxy   *ReverseProxy
 }
 
 func NewDefaultHandler(
@@ -64,17 +66,20 @@ func NewDefaultHandler(
 		return nil, err
 	}
 
+	redirectHandler := redirect.NewDefaultHandler(ingresses)
+
 	return &DefaultHandler{
-		AutoLogin:     autoLogin,
-		Client:        openidClient,
-		Config:        cfg,
-		CookieOptions: cookieOpts,
-		Crypter:       crypter,
-		Ingresses:     ingresses,
-		Loginstatus:   loginstatusClient,
-		OpenidConfig:  openidConfig,
-		Sessions:      sessionHandler,
-		UpstreamProxy: NewReverseProxy(cfg.UpstreamHost),
+		AutoLogin:       autoLogin,
+		Client:          openidClient,
+		Config:          cfg,
+		CookieOptions:   cookieOpts,
+		Crypter:         crypter,
+		Ingresses:       ingresses,
+		Loginstatus:     loginstatusClient,
+		OpenidConfig:    openidConfig,
+		Sessions:        sessionHandler,
+		UpstreamProxy:   NewReverseProxy(cfg.UpstreamHost),
+		RedirectHandler: redirectHandler,
 	}, nil
 }
 
@@ -126,6 +131,10 @@ func (d *DefaultHandler) GetPath(r *http.Request) string {
 	}
 
 	return path
+}
+
+func (d *DefaultHandler) GetRedirectHandler() redirect.Handler {
+	return d.RedirectHandler
 }
 
 func (d *DefaultHandler) GetSessions() *session.Handler {

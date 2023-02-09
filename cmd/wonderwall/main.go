@@ -96,7 +96,7 @@ func ssoServerHandler(ctx context.Context, cfg *config.Config, crypt crypto.Cryp
 		WithPath("/").
 		WithDomain(cfg.SSO.Domain)
 
-	return handler.NewSSOServerHandler(h), nil
+	return handler.NewSSOServerHandler(h)
 }
 
 func ssoProxyHandler(cfg *config.Config) (*handler.SSOProxyHandler, error) {
