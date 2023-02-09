@@ -20,6 +20,66 @@ Wonderwall functions as an optionally intercepting reverse proxy that proxies re
 
 By default, it does not actually modify any proxied request if the user agent does not have a valid session with Wonderwall.
 
+## Development
+
+### Requirements
+
+- Go 1.20
+
+### Binary
+
+`make wonderwall` and `./bin/wonderwall`
+
+See [configuration](#configuration).
+
+### Docker Compose
+
+See the [docker-compose file](docker-compose.yml) for an example setup:
+
+- Requires an environment variable `WONDERWALL_OPENID_CLIENT_JWK` with a private JWK.
+    - This can be acquired from <https://mkjwk.org>.
+    - Set the environment variable in an `.env` file that Docker Compose automatically detects and uses
+    - Environment variables can be finicky with escaping, so try to wrap the value with single quotation marks.
+        - E.g. `WONDERWALL_OPENID_CLIENT_JWK='{ "p": "_xCP...", ... }'`.
+- You need to be able to reach `host.docker.internal` to reach the identity provider mock, so make sure you
+  have `127.0.0.1 host.docker.internal` in your `/etc/hosts` file.
+- By default, the setup will use the latest available pre-built image.
+    - If you want to will build a fresh binary from the cloned source, replace the following
+
+```yaml
+services:
+  ...
+  wonderwall:
+    image: ghcr.io/nais/wonderwall:latest
+ ```
+
+with
+
+```yaml
+services:
+  ...
+  wonderwall:
+    build: .
+```
+
+Run `docker-compose up`. This starts:
+
+- Wonderwall
+- Redis as the session storage
+- [mock-oauth2-server](https://github.com/navikt/mock-oauth2-server) as an identity provider
+- [http-https-echo](https://hub.docker.com/r/mendhak/http-https-echo) as a dummy upstream server
+
+Try it out:
+
+1. Visit <http://localhost:3000>
+    1. The response should be returned as-is from the upstream.
+    2. The `authorization` header should not be set.
+2. Visit <http://localhost:3000/oauth2/login>
+    1. The `authorization` header should now be set in the upstream response.
+    2. The response should also include the decoded JWT from said header.
+3. Visit <http://localhost:3000/oauth2/logout>
+    1. The `authorization` header should no longer be set in the upstream response.
+
 ## Overview
 
 The image below shows the overall architecture of an application when using Wonderwall as a sidecar:
@@ -337,63 +397,3 @@ indicates the state of the session and when it times out.
 
 The timeout is configured with `session.inactivity-timeout`. If this timeout is shorter than the token lifetime, you 
 should implement mechanisms to trigger refreshes before the timeout is reached.
-
-## Development
-
-### Requirements
-
-- Go 1.19
-
-### Binary
-
-`make wonderwall` and `./bin/wonderwall`
-
-See [configuration](#configuration).
-
-### Docker Compose
-
-See the [docker-compose file](docker-compose.yml) for an example setup:
-
-- Requires an environment variable `WONDERWALL_OPENID_CLIENT_JWK` with a private JWK. 
-  - This can be acquired from <https://mkjwk.org>.
-  - Set the environment variable in an `.env` file that Docker Compose automatically detects and uses
-  - Environment variables can be finicky with escaping, so try to wrap the value with single quotation marks.
-    - E.g. `WONDERWALL_OPENID_CLIENT_JWK='{ "p": "_xCP...", ... }'`.
-- You need to be able to reach `host.docker.internal` to reach the identity provider mock, so make sure you 
-have `127.0.0.1 host.docker.internal` in your `/etc/hosts` file.
-- By default, the setup will use the latest available pre-built image.
-  - If you want to will build a fresh binary from the cloned source, replace the following
-
-```yaml
-services:
-  ...
-  wonderwall:
-    image: ghcr.io/nais/wonderwall:latest
- ```
-
-with 
-
-```yaml
-services:
-  ...
-  wonderwall:
-    build: .
-```
-
-Run `docker-compose up`. This starts:
-
-- Wonderwall
-- Redis as the session storage
-- [mock-oauth2-server](https://github.com/navikt/mock-oauth2-server) as an identity provider
-- [http-https-echo](https://hub.docker.com/r/mendhak/http-https-echo) as a dummy upstream server
-
-Try it out:
-
-1. Visit <http://localhost:3000>
-   1. The response should be returned as-is from the upstream.
-   2. The `authorization` header should not be set.
-2. Visit <http://localhost:3000/oauth2/login>
-   1. The `authorization` header should now be set in the upstream response.
-   2. The response should also include the decoded JWT from said header.
-3. Visit <http://localhost:3000/oauth2/logout>
-   1. The `authorization` header should no longer be set in the upstream response.
