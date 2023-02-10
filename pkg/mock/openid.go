@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -34,11 +35,13 @@ type IdentityProvider struct {
 	ProviderServer      *httptest.Server
 	RelyingPartyHandler *handlerpkg.DefaultHandler
 	RelyingPartyServer  *httptest.Server
+	redisServer         *miniredis.Miniredis
 }
 
 func (in *IdentityProvider) Close() {
 	in.ProviderServer.Close()
 	in.RelyingPartyServer.Close()
+	in.redisServer.Close()
 }
 
 func (in *IdentityProvider) RelyingPartyClient() *http.Client {
@@ -80,6 +83,14 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 
 	cookieOpts := cookie.DefaultOptions().WithSecure(false)
 
+	rds, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+
+	cfg.Redis.TLS = false
+	cfg.Redis.Address = rds.Addr()
+
 	rpHandler, err := handlerpkg.NewDefaultHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypter)
 	if err != nil {
 		panic(err)
@@ -96,6 +107,7 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 		OpenIDConfig:        openidConfig,
 		ProviderHandler:     handler,
 		ProviderServer:      server,
+		redisServer:         rds,
 	}
 
 	return ip
