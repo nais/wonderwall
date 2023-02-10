@@ -16,10 +16,11 @@ import (
 var _ router.Source = &SSOProxyHandler{}
 
 type SSOProxyHandler struct {
-	Config          *config.Config
-	Ingresses       *ingress.Ingresses
-	RedirectHandler redirect.Handler
-	SSOServerURL    *urllib.URL
+	Config                *config.Config
+	Ingresses             *ingress.Ingresses
+	RedirectHandler       redirect.Handler
+	SSOServerURL          *urllib.URL
+	SSOServerReverseProxy *ReverseProxy
 }
 
 func NewSSOProxyHandler(cfg *config.Config) (*SSOProxyHandler, error) {
@@ -48,10 +49,11 @@ func NewSSOProxyHandler(cfg *config.Config) (*SSOProxyHandler, error) {
 	u.RawQuery = query.Encode()
 
 	return &SSOProxyHandler{
-		Config:          cfg,
-		Ingresses:       ingresses,
-		SSOServerURL:    u,
-		RedirectHandler: redirectHandler,
+		Config:                cfg,
+		Ingresses:             ingresses,
+		RedirectHandler:       redirectHandler,
+		SSOServerURL:          u,
+		SSOServerReverseProxy: NewReverseProxy(u, false),
 	}, nil
 }
 
@@ -82,13 +84,11 @@ func (s *SSOProxyHandler) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOProxyHandler) Session(w http.ResponseWriter, r *http.Request) {
-	// TODO proxy to sso-server or use session handler that fetches directly from session store)
-	panic("implement me")
+	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
 func (s *SSOProxyHandler) SessionRefresh(w http.ResponseWriter, r *http.Request) {
-	// TODO proxy to sso-server
-	panic("implement me")
+	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
 func (s *SSOProxyHandler) ReverseProxy(w http.ResponseWriter, r *http.Request) {
