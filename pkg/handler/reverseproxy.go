@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	urllib "net/url"
 
 	"github.com/sirupsen/logrus"
 
@@ -26,18 +27,22 @@ type ReverseProxy struct {
 	*httputil.ReverseProxy
 }
 
-func NewReverseProxy(upstreamHost string) *ReverseProxy {
+func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *ReverseProxy {
 	rp := &httputil.ReverseProxy{
-		Director: func(r *http.Request) {
-			// Instruct http.ReverseProxy to not modify X-Forwarded-For header
-			r.Header["X-Forwarded-For"] = nil
-			// Request should go to correct host
-			r.URL.Host = upstreamHost
-			r.URL.Scheme = "http"
+		Rewrite: func(r *httputil.ProxyRequest) {
+			// preserve and append to existing X-Forwarded-For header
+			r.Out.Header["X-Forwarded-For"] = r.In.Header["X-Forwarded-For"]
+			r.SetXForwarded()
+			r.SetURL(upstream)
 
-			accessToken, ok := mw.AccessTokenFrom(r.Context())
+			if preserveInboundHostHeader {
+				// preserve the inbound request's Host header
+				r.Out.Host = r.In.Host
+			}
+
+			accessToken, ok := mw.AccessTokenFrom(r.In.Context())
 			if ok {
-				r.Header.Set("authorization", "Bearer "+accessToken)
+				r.Out.Header.Set("authorization", "Bearer "+accessToken)
 			}
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	urllib "net/url"
 	"time"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -64,6 +65,11 @@ func NewDefaultHandler(
 
 	redirectHandler := redirect.NewDefaultHandler(ingresses)
 
+	upstream := &urllib.URL{
+		Host:   cfg.UpstreamHost,
+		Scheme: "http",
+	}
+
 	return &DefaultHandler{
 		AutoLogin:       autoLogin,
 		Client:          openidClient,
@@ -73,7 +79,7 @@ func NewDefaultHandler(
 		Ingresses:       ingresses,
 		OpenidConfig:    openidConfig,
 		Sessions:        sessionHandler,
-		UpstreamProxy:   NewReverseProxy(cfg.UpstreamHost),
+		UpstreamProxy:   NewReverseProxy(upstream, true),
 		RedirectHandler: redirectHandler,
 	}, nil
 }
