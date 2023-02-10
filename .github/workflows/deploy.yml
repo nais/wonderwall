@@ -38,6 +38,8 @@ jobs:
           workload_identity_provider: ${{ secrets.NAIS_IO_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: "gh-wonderwall@nais-io.iam.gserviceaccount.com"
           token_format: "access_token"
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v2
@@ -72,10 +74,12 @@ jobs:
             type=semver,pattern=v{{major}}
             type=sha,prefix={{date 'YYYY-MM-DD'}}-
       - name: Build and push
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          pull: true
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
