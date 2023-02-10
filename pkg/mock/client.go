@@ -33,6 +33,10 @@ func (c *TestClientConfiguration) PostLogoutRedirectURI() string {
 	return c.Config.OpenID.PostLogoutRedirectURI
 }
 
+func (c *TestClientConfiguration) ResourceIndicator() string {
+	return c.Config.OpenID.ResourceIndicator
+}
+
 func (c *TestClientConfiguration) Scopes() scopes.Scopes {
 	return scopes.DefaultScopes().WithAdditional(c.Config.OpenID.Scopes...)
 }

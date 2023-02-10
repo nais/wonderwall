@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
@@ -66,8 +65,7 @@ func TestLogin_URL(t *testing.T) {
 			openidConfig := mock.NewTestConfiguration(cfg)
 			ingresses := mock.Ingresses(cfg)
 
-			lsc := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
-			c := client.NewClient(openidConfig, lsc, nil)
+			c := client.NewClient(openidConfig, nil)
 
 			req := mock.NewGetRequest(test.url, ingresses)
 			result, err := c.Login(req)
@@ -118,15 +116,12 @@ func TestLogin_URL(t *testing.T) {
 
 func TestLoginURL_WithResourceIndicator(t *testing.T) {
 	cfg := mock.Config()
-	cfg.Loginstatus.Enabled = true
-	cfg.Loginstatus.ResourceIndicator = "https://some-resource"
-
-	lsc := loginstatus.NewClient(cfg.Loginstatus, http.DefaultClient)
+	cfg.OpenID.ResourceIndicator = "https://some-resource"
 
 	openidConfig := mock.NewTestConfiguration(cfg)
 	openidConfig.TestProvider.SetAuthorizationEndpoint("https://provider/authorize")
 
-	c := client.NewClient(openidConfig, lsc, nil)
+	c := client.NewClient(openidConfig, nil)
 	ingresses := mock.Ingresses(cfg)
 
 	req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", ingresses)

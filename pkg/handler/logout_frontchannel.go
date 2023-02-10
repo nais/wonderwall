@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/metrics"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
@@ -16,7 +15,6 @@ type LogoutFrontChannelSource interface {
 	GetClient() *openidclient.Client
 	GetCookieOptions() cookie.Options
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
-	GetLoginstatus() *loginstatus.Loginstatus
 	GetSessions() *session.Handler
 }
 
@@ -25,10 +23,6 @@ func LogoutFrontChannel(src LogoutFrontChannelSource, w http.ResponseWriter, r *
 
 	// Unconditionally destroy all local references to the session.
 	cookie.Clear(w, cookie.Session, src.GetCookieOptsPathAware(r))
-
-	if src.GetLoginstatus().Enabled() {
-		src.GetLoginstatus().ClearCookie(w, src.GetCookieOptions())
-	}
 
 	sessions := src.GetSessions()
 	client := src.GetClient()

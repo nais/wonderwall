@@ -16,7 +16,6 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"golang.org/x/oauth2"
 
-	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 )
@@ -39,11 +38,10 @@ type Client struct {
 	cfg          openidconfig.Config
 	httpClient   *http.Client
 	jwksProvider JwksProvider
-	loginstatus  *loginstatus.Loginstatus
 	oauth2Config *oauth2.Config
 }
 
-func NewClient(cfg openidconfig.Config, loginstatus *loginstatus.Loginstatus, jwksProvider JwksProvider) *Client {
+func NewClient(cfg openidconfig.Config, jwksProvider JwksProvider) *Client {
 	oauth2Config := &oauth2.Config{
 		ClientID: cfg.Client().ClientID(),
 		Endpoint: oauth2.Endpoint{
@@ -58,7 +56,6 @@ func NewClient(cfg openidconfig.Config, loginstatus *loginstatus.Loginstatus, jw
 		cfg:          cfg,
 		httpClient:   http.DefaultClient,
 		jwksProvider: jwksProvider,
-		loginstatus:  loginstatus,
 		oauth2Config: oauth2Config,
 	}
 }

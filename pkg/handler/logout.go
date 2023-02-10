@@ -7,7 +7,6 @@ import (
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
-	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/metrics"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
@@ -19,7 +18,6 @@ type LogoutSource interface {
 	GetCookieOptions() cookie.Options
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetErrorHandler() errorhandler.Handler
-	GetLoginstatus() *loginstatus.Loginstatus
 	GetSessions() *session.Handler
 }
 
@@ -58,10 +56,6 @@ func Logout(src LogoutSource, w http.ResponseWriter, r *http.Request, opts Logou
 	}
 
 	cookie.Clear(w, cookie.Session, src.GetCookieOptsPathAware(r))
-
-	if src.GetLoginstatus().Enabled() {
-		src.GetLoginstatus().ClearCookie(w, src.GetCookieOptions())
-	}
 
 	if opts.GlobalLogout {
 		logger.Debug("logout: redirecting to identity provider for global/single-logout")

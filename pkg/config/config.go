@@ -29,16 +29,7 @@ type Config struct {
 	OpenID OpenID `json:"openid"`
 	Redis  Redis  `json:"redis"`
 
-	Loginstatus Loginstatus `json:"loginstatus"`
-	SSO         SSO         `json:"sso"`
-}
-
-type Loginstatus struct {
-	Enabled           bool   `json:"enabled"`
-	CookieDomain      string `json:"cookie-domain"`
-	CookieName        string `json:"cookie-name"`
-	ResourceIndicator string `json:"resource-indicator"`
-	TokenURL          string `json:"token-url"`
+	SSO SSO `json:"sso"`
 }
 
 type Session struct {
@@ -75,17 +66,10 @@ const (
 	Ingress              = "ingress"
 	UpstreamHost         = "upstream-host"
 
-	SessionInactivity        = "session.inactivity"
-	SessionInactivityTimeout = "session.inactivity-timeout"
-	SessionMaxLifetime       = "session.max-lifetime"
-	SessionRefresh           = "session.refresh"
-
-	LoginstatusEnabled           = "loginstatus.enabled"
-	LoginstatusCookieDomain      = "loginstatus.cookie-domain"
-	LoginstatusCookieName        = "loginstatus.cookie-name"
-	LoginstatusResourceIndicator = "loginstatus.resource-indicator"
-	LoginstatusTokenURL          = "loginstatus.token-url"
-
+	SessionInactivity           = "session.inactivity"
+	SessionInactivityTimeout    = "session.inactivity-timeout"
+	SessionMaxLifetime          = "session.max-lifetime"
+	SessionRefresh              = "session.refresh"
 	SSOEnabled                  = "sso.enabled"
 	SSODomain                   = "sso.domain"
 	SSOServerDefaultRedirectURL = "sso.server-default-redirect-url"
@@ -111,12 +95,6 @@ func Initialize() (*Config, error) {
 	flag.Duration(SessionInactivityTimeout, 30*time.Minute, "Inactivity timeout for user sessions.")
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
 	flag.Bool(SessionRefresh, false, "Automatically refresh the tokens for user sessions if they are expired, as long as the session exists (indicated by the session max lifetime).")
-
-	flag.Bool(LoginstatusEnabled, false, "Feature toggle for Loginstatus, a separate service that should provide an opaque token to indicate that a user has been authenticated previously, e.g. by another application in another subdomain.")
-	flag.String(LoginstatusCookieDomain, "", "The domain that the cookie should be set for.")
-	flag.String(LoginstatusCookieName, "", "The name of the cookie.")
-	flag.String(LoginstatusResourceIndicator, "", "The resource indicator that should be included in the authorization request to get an audience-restricted token that Loginstatus accepts. Empty means no resource indicator.")
-	flag.String(LoginstatusTokenURL, "", "The URL to the Loginstatus service that returns an opaque token.")
 
 	flag.Bool(SSOEnabled, false, "Enable single sign-on mode; one server acting as the OIDC Relying Party, and N proxies. The proxies delegate most endpoint operations to the server, and only implements a reverse proxy that reads the user's session data from the shared store.")
 	flag.String(SSODomain, "", "The domain that the session cookies should be set for, usually the second-level domain name (e.g. example.com).")

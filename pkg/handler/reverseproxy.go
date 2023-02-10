@@ -11,7 +11,6 @@ import (
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
-	"github.com/nais/wonderwall/pkg/loginstatus"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/url"
@@ -19,7 +18,6 @@ import (
 
 type ReverseProxySource interface {
 	GetAutoLogin() *autologin.AutoLogin
-	GetLoginstatus() *loginstatus.Loginstatus
 	GetPath(r *http.Request) string
 	GetSessions() *session.Handler
 }
@@ -66,12 +64,6 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	case err == nil:
 		// add authentication if session cookie and token checks out
 		isAuthenticated = true
-
-		// force new authentication if loginstatus is enabled and cookie isn't set
-		if src.GetLoginstatus().NeedsLogin(r) {
-			isAuthenticated = false
-			logger.Info("default: loginstatus was enabled, but no matching cookie was found; state is now unauthenticated")
-		}
 	case errors.Is(err, context.Canceled):
 		logger.Debugf("default: unauthenticated: %+v (client disconnected before we could respond)", err)
 	case errors.Is(err, session.ErrInvalidIdpState):

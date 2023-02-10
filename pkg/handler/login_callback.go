@@ -13,7 +13,6 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
-	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/metrics"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
@@ -29,7 +28,6 @@ type LoginCallbackSource interface {
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetErrorHandler() errorhandler.Handler
-	GetLoginstatus() *loginstatus.Loginstatus
 	GetRedirectHandler() redirect.Handler
 	GetSessions() *session.Handler
 	GetSessionConfig() config.Session
@@ -87,17 +85,6 @@ func LoginCallback(src LoginCallbackSource, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if src.GetLoginstatus().Enabled() {
-		tokenResponse, err := getLoginstatusToken(src, r, tokens)
-		if err != nil {
-			src.GetErrorHandler().InternalError(w, r, fmt.Errorf("callback: exchanging loginstatus token: %w", err))
-			return
-		}
-
-		src.GetLoginstatus().SetCookie(w, tokenResponse, src.GetCookieOptions())
-		logentry.LogEntryFrom(r).Debug("callback: successfully fetched loginstatus token")
-	}
-
 	rd := src.GetRedirectHandler().Clean(r, loginCookie.Referer)
 
 	logSuccessfulLogin(r, tokens, rd)
@@ -125,22 +112,6 @@ func redeemValidTokens(r *http.Request, loginCallback *openidclient.LoginCallbac
 	}
 
 	return tokens, nil
-}
-
-func getLoginstatusToken(src LoginCallbackSource, r *http.Request, tokens *openid.Tokens) (*loginstatus.TokenResponse, error) {
-	var tokenResponse *loginstatus.TokenResponse
-
-	retryable := func(ctx context.Context) error {
-		var err error
-
-		tokenResponse, err = src.GetLoginstatus().ExchangeToken(ctx, tokens.AccessToken)
-		return retry.RetryableError(err)
-	}
-	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
-		return nil, err
-	}
-
-	return tokenResponse, nil
 }
 
 func logSuccessfulLogin(r *http.Request, tokens *openid.Tokens, referer string) {

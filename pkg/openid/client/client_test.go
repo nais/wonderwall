@@ -47,7 +47,7 @@ func TestMakeAssertion(t *testing.T) {
 
 func newTestClientWithConfig(config *mock.TestConfiguration) *client.Client {
 	jwksProvider := mock.NewTestJwksProvider()
-	return client.NewClient(config, nil, jwksProvider)
+	return client.NewClient(config, jwksProvider)
 }
 
 func newTestClient() *client.Client {

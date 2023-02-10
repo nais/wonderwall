@@ -15,6 +15,9 @@ const (
 	Login       = "io.nais.wonderwall.callback"
 	LoginLegacy = "io.nais.wonderwall.callback.legacy"
 	Retry       = "io.nais.wonderwall.retry"
+
+	loginservice = "selvbetjening-idtoken"
+	loginstatus  = "innloggingsstatus-token"
 )
 
 var (
@@ -141,4 +144,14 @@ func EncryptAndSet(w http.ResponseWriter, key, value string, opts Options, crypt
 
 	Set(w, encryptedCookie)
 	return nil
+}
+
+func ClearLegacyCookies(w http.ResponseWriter, opts Options) {
+	// TODO - remove when legacy services are sunset and shut down
+	Clear(w, loginservice, opts.
+		WithSameSite(http.SameSiteNoneMode).
+		WithPath("/"))
+	Clear(w, loginstatus, opts.
+		WithSameSite(http.SameSiteDefaultMode).
+		WithPath("/"))
 }

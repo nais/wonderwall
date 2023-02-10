@@ -9,7 +9,6 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/strings"
@@ -48,7 +47,7 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 		return nil, fmt.Errorf("generating callback url: %w", err)
 	}
 
-	url, err := params.authCodeURL(r, callbackURL, c.loginstatus)
+	url, err := params.authCodeURL(r, callbackURL, c.cfg.Client())
 	if err != nil {
 		return nil, fmt.Errorf("generating auth code url: %w", err)
 	}
@@ -126,7 +125,7 @@ func newLoginParameters(c *Client) (*loginParameters, error) {
 	}, nil
 }
 
-func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, loginstatus *loginstatus.Loginstatus) (string, error) {
+func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, cfg config.Client) (string, error) {
 	opts := []oauth2.AuthCodeOption{
 		oauth2.SetAuthURLParam(openid.Nonce, in.Nonce),
 		oauth2.SetAuthURLParam(openid.ResponseMode, ResponseModeQuery),
@@ -135,8 +134,8 @@ func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, logi
 		oauth2.SetAuthURLParam(openid.RedirectURI, callbackURL),
 	}
 
-	if loginstatus.NeedsResourceIndicator() {
-		opts = append(opts, oauth2.SetAuthURLParam(openid.Resource, loginstatus.ResourceIndicator()))
+	if cfg.ResourceIndicator() != "" {
+		opts = append(opts, oauth2.SetAuthURLParam(openid.Resource, cfg.ResourceIndicator()))
 	}
 
 	opts, err := in.withSecurityLevel(r, opts)

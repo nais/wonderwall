@@ -15,6 +15,7 @@ type Client interface {
 	ClientID() string
 	ClientJWK() jwk.Key
 	PostLogoutRedirectURI() string
+	ResourceIndicator() string
 	Scopes() scopes.Scopes
 	UILocales() string
 	WellKnownURL() string
@@ -41,6 +42,10 @@ func (in *client) ClientJWK() jwk.Key {
 
 func (in *client) PostLogoutRedirectURI() string {
 	return in.OpenID.PostLogoutRedirectURI
+}
+
+func (in *client) ResourceIndicator() string {
+	return in.OpenID.ResourceIndicator
 }
 
 func (in *client) Scopes() scopes.Scopes {

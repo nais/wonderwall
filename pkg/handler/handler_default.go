@@ -10,7 +10,6 @@ import (
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
 	"github.com/nais/wonderwall/pkg/ingress"
-	"github.com/nais/wonderwall/pkg/loginstatus"
 	"github.com/nais/wonderwall/pkg/middleware"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
@@ -28,7 +27,6 @@ type DefaultHandler struct {
 	CookieOptions   cookie.Options
 	Crypter         crypto.Crypter
 	Ingresses       *ingress.Ingresses
-	Loginstatus     *loginstatus.Loginstatus
 	OpenidConfig    openidconfig.Config
 	RedirectHandler redirect.Handler
 	Sessions        *session.Handler
@@ -51,9 +49,7 @@ func NewDefaultHandler(
 		Timeout: time.Second * 10,
 	}
 
-	loginstatusClient := loginstatus.NewClient(cfg.Loginstatus, httpClient)
-
-	openidClient := openidclient.NewClient(openidConfig, loginstatusClient, jwksProvider)
+	openidClient := openidclient.NewClient(openidConfig, jwksProvider)
 	openidClient.SetHttpClient(httpClient)
 
 	sessionHandler, err := session.NewHandler(cfg, openidConfig, crypter, openidClient)
@@ -75,7 +71,6 @@ func NewDefaultHandler(
 		CookieOptions:   cookieOpts,
 		Crypter:         crypter,
 		Ingresses:       ingresses,
-		Loginstatus:     loginstatusClient,
 		OpenidConfig:    openidConfig,
 		Sessions:        sessionHandler,
 		UpstreamProxy:   NewReverseProxy(cfg.UpstreamHost),
@@ -114,10 +109,6 @@ func (d *DefaultHandler) GetErrorHandler() errorhandler.Handler {
 
 func (d *DefaultHandler) GetIngresses() *ingress.Ingresses {
 	return d.Ingresses
-}
-
-func (d *DefaultHandler) GetLoginstatus() *loginstatus.Loginstatus {
-	return d.Loginstatus
 }
 
 func (d *DefaultHandler) GetPath(r *http.Request) string {
