@@ -2,7 +2,6 @@ package session
 
 import (
 	"encoding"
-	"encoding/base64"
 	"encoding/json"
 	"time"
 
@@ -16,27 +15,23 @@ const (
 )
 
 type EncryptedData struct {
-	Data string `json:"data"`
+	Ciphertext []byte
 }
 
 var _ encoding.BinaryMarshaler = &EncryptedData{}
 var _ encoding.BinaryUnmarshaler = &EncryptedData{}
 
 func (in *EncryptedData) MarshalBinary() ([]byte, error) {
-	return json.Marshal(in)
+	return in.Ciphertext, nil
 }
 
 func (in *EncryptedData) UnmarshalBinary(bytes []byte) error {
-	return json.Unmarshal(bytes, in)
+	in.Ciphertext = bytes
+	return nil
 }
 
 func (in *EncryptedData) Decrypt(crypter crypto.Crypter) (*Data, error) {
-	ciphertext, err := base64.StdEncoding.DecodeString(in.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	rawData, err := crypter.Decrypt(ciphertext)
+	rawData, err := crypter.Decrypt(in.Ciphertext)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +82,7 @@ func (in *Data) Encrypt(crypter crypto.Crypter) (*EncryptedData, error) {
 	}
 
 	return &EncryptedData{
-		Data: base64.StdEncoding.EncodeToString(ciphertext),
+		Ciphertext: ciphertext,
 	}, nil
 }
 
