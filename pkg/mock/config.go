@@ -14,7 +14,7 @@ const (
 
 func Config() *config.Config {
 	return &config.Config{
-		EncryptionKey: `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq`, // 256 bits AES
+		EncryptionKey: `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq`, // 256 bits key
 		Ingresses:     []string{Ingress},
 		OpenID: config.OpenID{
 			ACRValues:             "Level4",

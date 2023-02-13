@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	encryptionKey = `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq` // 256 bits AES
+	encryptionKey = `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq` // 256 bits key
 )
 
 func TestMake(t *testing.T) {

@@ -1,15 +1,12 @@
 package crypto
 
 import (
-	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
+	cryptorand "crypto/rand"
 	"encoding/base64"
-	"encoding/binary"
 	"fmt"
-	"time"
 
 	"github.com/nais/liberator/pkg/keygen"
+	"golang.org/x/crypto/chacha20poly1305"
 
 	"github.com/nais/wonderwall/pkg/config"
 )
@@ -44,68 +41,42 @@ func EncryptionKeyOrGenerate(cfg *config.Config) ([]byte, error) {
 		}
 	}
 
+	if len(key) != chacha20poly1305.KeySize {
+		return nil, fmt.Errorf("bad key length (expected %d, got %d)", chacha20poly1305.KeySize, len(key))
+	}
+
 	return key, nil
 }
 
-// Generate an initialization vector for encryption.
-// It consists of the current UNIX timestamp with nanoseconds, and four bytes of randomness.
-func IV() ([]byte, error) {
-	stor := make([]byte, 0)
-	buf := bytes.NewBuffer(stor)
-
-	err := binary.Write(buf, binary.BigEndian, time.Now().UnixNano())
-	if err != nil {
-		return nil, err
-	}
-
-	// Pad nonce with 4 bytes
-	random, err := keygen.Keygen(4)
-	if err != nil {
-		return nil, err
-	}
-	err = binary.Write(buf, binary.BigEndian, random)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
-// Encrypts a plaintext with AES-256-GCM.
-// Returns 12 bytes of IV, and then N bytes of ciphertext.
+// Encrypt encrypts a plaintext with XChaCha20-Poly1305.
 func (c *crypter) Encrypt(plaintext []byte) ([]byte, error) {
-	block, err := aes.NewCipher(c.key)
-	if err != nil {
-		return nil, err
-	}
-	aesgcm, err := cipher.NewGCM(block)
+	aead, err := chacha20poly1305.NewX(c.key)
 	if err != nil {
 		return nil, err
 	}
 
-	nonce, err := IV()
+	// Select a random nonce, and leave capacity for the ciphertext.
+	nonce := make([]byte, aead.NonceSize(), aead.NonceSize()+len(plaintext)+aead.Overhead())
+	_, err = cryptorand.Read(nonce)
 	if err != nil {
 		return nil, err
 	}
-	ciphertext := aesgcm.Seal(nil, nonce, plaintext, nil)
 
-	return append(nonce, ciphertext...), nil
+	return aead.Seal(nonce, nonce, plaintext, nil), nil
 }
 
-// Decrypts a ciphertext encrypted with AES-256-GCM.
-// The first 12 bytes of the ciphertext is assumed to be the IV.
+// Decrypt decrypts a ciphertext encrypted with XChaCha20-Poly1305.
 func (c *crypter) Decrypt(ciphertext []byte) ([]byte, error) {
-	if len(ciphertext) <= 12 {
-		return nil, fmt.Errorf("string is too short")
-	}
-	block, err := aes.NewCipher(c.key)
-	if err != nil {
-		return nil, err
-	}
-	aesgcm, err := cipher.NewGCM(block)
+	aead, err := chacha20poly1305.NewX(c.key)
 	if err != nil {
 		return nil, err
 	}
 
-	return aesgcm.Open(nil, ciphertext[:12], ciphertext[12:], nil)
+	if len(ciphertext) < aead.NonceSize() {
+		return nil, fmt.Errorf("ciphertext is too short")
+	}
+
+	// Split nonce and ciphertext.
+	nonce, encrypted := ciphertext[:aead.NonceSize()], ciphertext[aead.NonceSize():]
+	return aead.Open(nil, nonce, encrypted, nil)
 }
