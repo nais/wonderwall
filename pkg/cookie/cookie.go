@@ -35,13 +35,13 @@ func (in *Cookie) Encrypt(crypter crypto.Crypter) (*Cookie, error) {
 		return nil, fmt.Errorf("unable to encrypt cookie '%s': %w", in.Cookie.Name, err)
 	}
 
-	value := base64.StdEncoding.EncodeToString(ciphertext)
+	value := base64.RawURLEncoding.EncodeToString(ciphertext)
 	in.Cookie.Value = value
 	return in, nil
 }
 
 func (in *Cookie) Decrypt(crypter crypto.Crypter) (string, error) {
-	ciphertext, err := base64.StdEncoding.DecodeString(in.Value)
+	ciphertext, err := base64.RawURLEncoding.DecodeString(in.Value)
 	if err != nil {
 		return "", fmt.Errorf("%w: named '%s': %+v", ErrInvalidValue, in.Name, err)
 	}

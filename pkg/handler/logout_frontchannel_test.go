@@ -22,7 +22,7 @@ func TestFrontChannelLogout(t *testing.T) {
 
 	// Trigger front-channel logout
 	sid := func(r *http.Request) string {
-		ciphertext, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
+		ciphertext, err := base64.RawURLEncoding.DecodeString(sessionCookie.Value)
 		assert.NoError(t, err)
 
 		sessionKey, err := idp.RelyingPartyHandler.GetCrypter().Decrypt(ciphertext)
