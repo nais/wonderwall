@@ -33,20 +33,11 @@ func LogoutFrontChannel(src LogoutFrontChannelSource, w http.ResponseWriter, r *
 		return
 	}
 
-	sessionData, err := sessions.Get(r, key)
-	if err != nil {
-		logger.Debugf("front-channel logout: could not get session (user might already be logged out): %+v", err)
-		w.WriteHeader(http.StatusAccepted)
-		return
-	}
-
 	err = sessions.Destroy(r, key)
 	if err != nil {
 		logger.Warnf("front-channel logout: destroying session: %+v", err)
 		w.WriteHeader(http.StatusAccepted)
 		return
-	} else if sessionData != nil {
-		logger.WithField("jti", sessionData.IDTokenJwtID).Info("front-channel logout: successful logout")
 	}
 
 	cookie.Clear(w, cookie.Retry, src.GetCookieOptsPathAware(r))
@@ -58,11 +49,11 @@ func getSessionKey(r *http.Request, sessions *session.Handler, client *openidcli
 	logoutFrontchannel := client.LogoutFrontchannel(r)
 
 	if logoutFrontchannel.MissingSidParameter() {
-		key, err := sessions.GetKey(r)
+		ticket, err := sessions.GetTicket(r)
 		if err != nil {
-			return key, nil
+			return ticket.Key(), nil
 		}
-		return "", fmt.Errorf("neither sid parameter nor session key found in request: %w", err)
+		return "", fmt.Errorf("neither sid parameter nor session ticket found in request: %w", err)
 	}
 
 	sid := logoutFrontchannel.Sid()

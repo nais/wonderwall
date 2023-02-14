@@ -11,7 +11,6 @@ import (
 	"github.com/sethvargo/go-retry"
 
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
@@ -56,11 +55,11 @@ func NewHandler(cfg *config.Config, openidCfg openidconfig.Config, crypter crypt
 	}, nil
 }
 
-// Create creates and stores a session in the Store, and returns the session's key.
-func (h *Handler) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime time.Duration) (string, error) {
+// Create creates and stores a session in the Store, and returns the session Ticket.
+func (h *Handler) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime time.Duration) (*Ticket, error) {
 	externalSessionID, err := h.IDOrGenerate(r, tokens)
 	if err != nil {
-		return "", fmt.Errorf("generating session ID: %w", err)
+		return nil, fmt.Errorf("generating session ID: %w", err)
 	}
 
 	key := h.Key(externalSessionID)
@@ -71,9 +70,14 @@ func (h *Handler) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime
 		metadata.WithTimeout(h.cfg.Session.InactivityTimeout)
 	}
 
-	encrypted, err := NewData(externalSessionID, tokens, metadata).Encrypt(h.crypter)
+	ticket, err := NewTicket(key)
 	if err != nil {
-		return "", fmt.Errorf("encrypting session data: %w", err)
+		return nil, fmt.Errorf("making ticket: %w", err)
+	}
+
+	encrypted, err := NewData(externalSessionID, tokens, metadata).Encrypt(ticket.Crypter())
+	if err != nil {
+		return nil, fmt.Errorf("encrypting session data: %w", err)
 	}
 
 	retryable := func(ctx context.Context) error {
@@ -82,10 +86,10 @@ func (h *Handler) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime
 	}
 
 	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
-		return "", fmt.Errorf("writing to store: %w", err)
+		return nil, fmt.Errorf("writing to store: %w", err)
 	}
 
-	return key, nil
+	return ticket, nil
 }
 
 // Destroy destroys a session for a given session Key.
@@ -132,13 +136,13 @@ func (h *Handler) GetAccessToken(r *http.Request) (string, error) {
 	return sessionData.AccessToken, nil
 }
 
-// Get returns the session data for a given session Key.
-func (h *Handler) Get(r *http.Request, key string) (*Data, error) {
+// Get returns the session data for a given session Ticket.
+func (h *Handler) Get(r *http.Request, ticket *Ticket) (*Data, error) {
 	var encryptedSessionData *EncryptedData
 	var err error
 
 	retryable := func(ctx context.Context) error {
-		encryptedSessionData, err = h.store.Read(ctx, key)
+		encryptedSessionData, err = h.store.Read(ctx, ticket.Key())
 		if err == nil {
 			return nil
 		}
@@ -154,7 +158,7 @@ func (h *Handler) Get(r *http.Request, key string) (*Data, error) {
 		return nil, fmt.Errorf("reading from store: %w", err)
 	}
 
-	sessionData, err := encryptedSessionData.Decrypt(h.crypter)
+	sessionData, err := encryptedSessionData.Decrypt(ticket.Crypter())
 	if err != nil {
 		return nil, fmt.Errorf("decrypting session data: %w", err)
 	}
@@ -162,30 +166,19 @@ func (h *Handler) Get(r *http.Request, key string) (*Data, error) {
 	return sessionData, nil
 }
 
-// GetKey extracts the session Key from the session cookie found in the request, if any.
-func (h *Handler) GetKey(r *http.Request) (string, error) {
-	key, err := cookie.GetDecrypted(r, cookie.Session, h.crypter)
-	if errors.Is(err, http.ErrNoCookie) {
-		return "", ErrCookieNotFound
-	}
-	if errors.Is(err, cookie.ErrInvalidValue) {
-		return "", err
-	}
-	if err != nil {
-		return "", err
-	}
-
-	return key, nil
+// GetTicket extracts the session Ticket from the session cookie found in the request, if any.
+func (h *Handler) GetTicket(r *http.Request) (*Ticket, error) {
+	return GetTicket(r, h.crypter)
 }
 
 // GetOrRefresh returns the session data, performing refreshes if enabled and necessary.
 func (h *Handler) GetOrRefresh(r *http.Request) (*Data, error) {
-	key, err := h.GetKey(r)
+	ticket, err := h.GetTicket(r)
 	if err != nil {
 		return nil, err
 	}
 
-	sessionData, err := h.Get(r, key)
+	sessionData, err := h.Get(r, ticket)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +191,7 @@ func (h *Handler) GetOrRefresh(r *http.Request) (*Data, error) {
 		return sessionData, nil
 	}
 
-	refreshed, err := h.Refresh(r, key, sessionData)
+	refreshed, err := h.Refresh(r, ticket, sessionData)
 	if errors.Is(err, ErrInvalidIdpState) || errors.Is(err, ErrInvalidSession) {
 		return nil, err
 	} else if err != nil {
@@ -230,7 +223,7 @@ func (h *Handler) Key(sessionID string) string {
 }
 
 // Refresh refreshes the user's session and returns the updated session data.
-func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error) {
+func (h *Handler) Refresh(r *http.Request, ticket *Ticket, data *Data) (*Data, error) {
 	if !h.canRefresh(data) {
 		return data, nil
 	}
@@ -239,7 +232,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	logger.Debug("session: initiating refresh attempt...")
 
 	ctx := r.Context()
-	lock := h.store.MakeLock(key)
+	lock := h.store.MakeLock(ticket.Key())
 
 	logger.Debug("session: acquiring lock...")
 	err := func() error {
@@ -278,7 +271,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	}(lock, ctx)
 
 	// Get the latest session state again in case it was changed while acquiring the lock
-	data, err = h.Get(r, key)
+	data, err = h.Get(r, ticket)
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +310,7 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 		data.Metadata.ExtendTimeout(h.cfg.Session.InactivityTimeout)
 	}
 
-	err = h.Update(ctx, key, data)
+	err = h.Update(ctx, ticket, data)
 	if err != nil {
 		return nil, err
 	}
@@ -326,14 +319,14 @@ func (h *Handler) Refresh(r *http.Request, key string, data *Data) (*Data, error
 	return data, nil
 }
 
-func (h *Handler) Update(ctx context.Context, key string, data *Data) error {
-	encrypted, err := data.Encrypt(h.crypter)
+func (h *Handler) Update(ctx context.Context, ticket *Ticket, data *Data) error {
+	encrypted, err := data.Encrypt(ticket.Crypter())
 	if err != nil {
 		return fmt.Errorf("encrypting session data: %w", err)
 	}
 
 	update := func(ctx context.Context) error {
-		err = h.store.Update(ctx, key, encrypted)
+		err = h.store.Update(ctx, ticket.Key(), encrypted)
 		if errors.Is(err, ErrKeyNotFound) {
 			return err
 		}

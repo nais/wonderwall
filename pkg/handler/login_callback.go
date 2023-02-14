@@ -71,7 +71,7 @@ func LoginCallback(src LoginCallbackSource, w http.ResponseWriter, r *http.Reque
 
 	sessionLifetime := src.GetSessionConfig().MaxLifetime
 
-	key, err := src.GetSessions().Create(r, tokens, sessionLifetime)
+	ticket, err := src.GetSessions().Create(r, tokens, sessionLifetime)
 	if err != nil {
 		src.GetErrorHandler().InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return
@@ -79,7 +79,7 @@ func LoginCallback(src LoginCallbackSource, w http.ResponseWriter, r *http.Reque
 
 	opts := src.GetCookieOptsPathAware(r).
 		WithExpiresIn(sessionLifetime)
-	err = cookie.EncryptAndSet(w, cookie.Session, key, opts, src.GetCrypter())
+	err = ticket.Set(w, opts, src.GetCrypter())
 	if err != nil {
 		src.GetErrorHandler().InternalError(w, r, fmt.Errorf("callback: setting session cookie: %w", err))
 		return

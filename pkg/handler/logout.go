@@ -37,13 +37,13 @@ func Logout(src LogoutSource, w http.ResponseWriter, r *http.Request, opts Logou
 
 	sessions := src.GetSessions()
 
-	key, err := sessions.GetKey(r)
+	ticket, err := sessions.GetTicket(r)
 	if err == nil {
-		sessionData, err := sessions.Get(r, key)
+		sessionData, err := sessions.Get(r, ticket)
 		if err == nil && sessionData != nil {
 			idToken = sessionData.IDToken
 
-			err = sessions.Destroy(r, key)
+			err = sessions.Destroy(r, ticket.Key())
 			if err != nil && !errors.Is(err, session.ErrKeyNotFound) {
 				src.GetErrorHandler().InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
 				return

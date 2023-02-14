@@ -11,6 +11,10 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 )
 
+const (
+	KeySize = chacha20poly1305.KeySize
+)
+
 type crypter struct {
 	key []byte
 }
@@ -35,7 +39,7 @@ func EncryptionKeyOrGenerate(cfg *config.Config) ([]byte, error) {
 	}
 
 	if len(key) == 0 {
-		key, err = keygen.Keygen(32)
+		key, err = keygen.Keygen(KeySize)
 		if err != nil {
 			return nil, fmt.Errorf("generate random encryption key: %w", err)
 		}

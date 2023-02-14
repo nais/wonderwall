@@ -1,7 +1,6 @@
 package handler_test
 
 import (
-	"encoding/base64"
 	"net/http"
 	"net/url"
 	"testing"
@@ -9,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/mock"
+	"github.com/nais/wonderwall/pkg/session"
 )
 
 func TestFrontChannelLogout(t *testing.T) {
@@ -22,13 +22,12 @@ func TestFrontChannelLogout(t *testing.T) {
 
 	// Trigger front-channel logout
 	sid := func(r *http.Request) string {
-		ciphertext, err := base64.RawURLEncoding.DecodeString(sessionCookie.Value)
+		r.AddCookie(sessionCookie)
+
+		ticket, err := session.GetTicket(r, idp.RelyingPartyHandler.GetCrypter())
 		assert.NoError(t, err)
 
-		sessionKey, err := idp.RelyingPartyHandler.GetCrypter().Decrypt(ciphertext)
-		assert.NoError(t, err)
-
-		data, err := idp.RelyingPartyHandler.GetSessions().Get(r, string(sessionKey))
+		data, err := idp.RelyingPartyHandler.GetSessions().Get(r, ticket)
 		assert.NoError(t, err)
 
 		return data.ExternalSessionID

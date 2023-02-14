@@ -18,14 +18,14 @@ type SessionSource interface {
 func Session(src SessionSource, w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r)
 
-	key, err := src.GetSessions().GetKey(r)
+	ticket, err := src.GetSessions().GetTicket(r)
 	if err != nil {
-		logger.Infof("session/refresh: getting key: %+v", err)
+		logger.Infof("session/refresh: getting ticket: %+v", err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	data, err := src.GetSessions().Get(r, key)
+	data, err := src.GetSessions().Get(r, ticket)
 	if err != nil {
 		switch {
 		case errors.Is(err, session.ErrInvalidSession), errors.Is(err, session.ErrKeyNotFound):
