@@ -18,17 +18,13 @@ var DefaultIgnorePatterns = []string{
 type AutoLogin struct {
 	Enabled        bool
 	IgnorePatterns []string
-	cache          map[string]bool
-	lock           sync.Mutex
+	cache          sync.Map
 }
 
 func (a *AutoLogin) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 	if isAuthenticated || !a.Enabled || r.Method != http.MethodGet {
 		return false
 	}
-
-	a.lock.Lock()
-	defer a.lock.Unlock()
 
 	path := r.URL.Path
 	if !strings.HasPrefix(path, "/") {
@@ -39,19 +35,19 @@ func (a *AutoLogin) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
 		path = strings.TrimSuffix(path, "/")
 	}
 
-	if result, found := a.cache[path]; found {
-		return result
+	if result, found := a.cache.Load(path); found {
+		return result.(bool)
 	}
 
 	for _, pattern := range a.IgnorePatterns {
 		match, _ := doublestar.Match(pattern, path)
 		if match {
-			a.cache[path] = false
+			a.cache.Store(path, false)
 			return false
 		}
 	}
 
-	a.cache[path] = true
+	a.cache.Store(path, true)
 	return true
 }
 
@@ -77,6 +73,6 @@ func New(cfg *config.Config) (*AutoLogin, error) {
 	return &AutoLogin{
 		Enabled:        cfg.AutoLogin,
 		IgnorePatterns: patterns,
-		cache:          make(map[string]bool),
+		cache:          sync.Map{},
 	}, nil
 }
