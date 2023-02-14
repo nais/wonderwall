@@ -154,5 +154,9 @@ func fallback(r *http.Request, target string, fallback *url.URL) *url.URL {
 }
 
 func logInvalidRedirect(r *http.Request, target, fallback string) {
-	mw.LogEntryFrom(r).Warnf("redirect: rejecting invalid target %q; falling back to %q", target, fallback)
+	if target == "" {
+		mw.LogEntryFrom(r).Infof("redirect: empty target; falling back to %q", fallback)
+	} else {
+		mw.LogEntryFrom(r).Infof("redirect: rejecting invalid target %q; falling back to %q", target, fallback)
+	}
 }
