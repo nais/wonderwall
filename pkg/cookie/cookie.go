@@ -22,6 +22,7 @@ const (
 
 var (
 	ErrInvalidValue = errors.New("invalid value")
+	ErrDecrypt      = errors.New("unable to decrypt, key or scheme mismatch")
 )
 
 type Cookie struct {
@@ -43,12 +44,12 @@ func (in *Cookie) Encrypt(crypter crypto.Crypter) (*Cookie, error) {
 func (in *Cookie) Decrypt(crypter crypto.Crypter) (string, error) {
 	ciphertext, err := base64.RawURLEncoding.DecodeString(in.Value)
 	if err != nil {
-		return "", fmt.Errorf("%w: named '%s': %+v", ErrInvalidValue, in.Name, err)
+		return "", fmt.Errorf("%w: named '%s': %w", ErrInvalidValue, in.Name, err)
 	}
 
 	plaintext, err := crypter.Decrypt(ciphertext)
 	if err != nil {
-		return "", fmt.Errorf("unable to decrypt cookie '%s': %w", in.Name, err)
+		return "", fmt.Errorf("%w: named '%s': %w", ErrDecrypt, in.Name, err)
 	}
 
 	return string(plaintext), err

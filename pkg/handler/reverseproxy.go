@@ -77,7 +77,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		logger.Debug("default: unauthenticated: session not found in store")
 	case errors.Is(err, session.ErrCookieNotFound):
 		logger.Debug("default: unauthenticated: session cookie not found in request")
-	case errors.Is(err, session.ErrInvalidSession):
+	case errors.Is(err, session.ErrInvalidSession), errors.Is(err, cookie.ErrDecrypt):
 		logger.Infof("default: unauthenticated: %+v", err)
 	case errors.Is(err, cookie.ErrInvalidValue):
 		logger.Debugf("default: unauthenticated: %+v", err)
