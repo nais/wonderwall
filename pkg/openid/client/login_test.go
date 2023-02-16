@@ -103,6 +103,8 @@ func TestLogin_URL(t *testing.T) {
 				assert.ElementsMatch(t, query["code_challenge"], []string{result.CodeChallenge()})
 				assert.ElementsMatch(t, query["code_challenge_method"], []string{"S256"})
 
+				assert.Equal(t, client.CodeChallenge(result.CodeVerifier()), result.CodeChallenge())
+
 				if test.extraParams != nil {
 					for key, value := range test.extraParams {
 						assert.Contains(t, query, key)

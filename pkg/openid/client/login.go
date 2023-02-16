@@ -3,12 +3,15 @@ package client
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 
 	"golang.org/x/oauth2"
 
+	"github.com/nais/wonderwall/pkg/cookie"
+	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/strings"
@@ -52,11 +55,11 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 		return nil, fmt.Errorf("generating auth code url: %w", err)
 	}
 
-	cookie := params.cookie(callbackURL)
+	loginCookie := params.cookie(callbackURL)
 
 	return &Login{
 		authCodeURL: url,
-		cookie:      cookie,
+		cookie:      loginCookie,
 		params:      params,
 	}, nil
 }
@@ -79,17 +82,36 @@ func (l *Login) CodeVerifier() string {
 	return l.params.CodeVerifier
 }
 
-func (l *Login) Cookie(canonicalRedirect string) *openid.LoginCookie {
-	l.cookie.Referer = canonicalRedirect
-	return l.cookie
-}
-
 func (l *Login) Nonce() string {
 	return l.params.Nonce
 }
 
 func (l *Login) State() string {
 	return l.params.State
+}
+
+func (l *Login) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter, canonicalRedirect string) error {
+	l.cookie.Referer = canonicalRedirect
+
+	loginCookieJson, err := json.Marshal(l.cookie)
+	if err != nil {
+		return fmt.Errorf("marshalling login cookie: %w", err)
+	}
+
+	value := string(loginCookieJson)
+
+	err = cookie.EncryptAndSet(w, cookie.Login, value, opts, crypter)
+	if err != nil {
+		return err
+	}
+
+	// set a duplicate cookie without the SameSite value set for user agents that do not properly handle SameSite
+	err = cookie.EncryptAndSet(w, cookie.LoginLegacy, value, opts.WithSameSite(http.SameSiteDefaultMode), crypter)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type loginParameters struct {

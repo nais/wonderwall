@@ -5,8 +5,11 @@ import (
 	"net/http"
 	urllib "net/url"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/ingress"
+	logentry "github.com/nais/wonderwall/pkg/middleware"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/router/paths"
@@ -56,7 +59,31 @@ func NewSSOProxy(cfg *config.Config) (*SSOProxy, error) {
 }
 
 func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
-	LoginSSOProxy(s, w, r)
+	logger := logentry.LogEntryFrom(r)
+
+	target := s.GetSSOServerURL()
+	targetQuery := target.Query()
+
+	// override default query parameters
+	reqQuery := r.URL.Query()
+	if reqQuery.Has(openidclient.SecurityLevelURLParameter) {
+		targetQuery.Set(openidclient.SecurityLevelURLParameter, reqQuery.Get(openidclient.SecurityLevelURLParameter))
+	}
+	if reqQuery.Has(openidclient.LocaleURLParameter) {
+		targetQuery.Set(openidclient.LocaleURLParameter, reqQuery.Get(openidclient.LocaleURLParameter))
+	}
+
+	target.RawQuery = reqQuery.Encode()
+
+	canonicalRedirect := s.GetRedirect().Canonical(r)
+	ssoServerLoginURL := url.Login(target, canonicalRedirect)
+
+	logger.WithFields(log.Fields{
+		"redirect_to":          ssoServerLoginURL,
+		"redirect_after_login": canonicalRedirect,
+	}).Info("login: redirecting to sso server")
+
+	http.Redirect(w, r, ssoServerLoginURL, http.StatusTemporaryRedirect)
 }
 
 func (s *SSOProxy) LoginCallback(w http.ResponseWriter, r *http.Request) {
