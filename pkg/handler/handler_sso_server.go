@@ -4,40 +4,41 @@ import (
 	"net/http"
 
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/redirect"
 	"github.com/nais/wonderwall/pkg/router"
+	"github.com/nais/wonderwall/pkg/url"
 )
 
-var _ router.Source = &SSOServerHandler{}
+var _ router.Source = &SSOServer{}
 
-type SSOServerHandler struct {
-	DefaultHandler
+type SSOServer struct {
+	*Standalone
 }
 
-func NewSSOServerHandler(handler *DefaultHandler) (*SSOServerHandler, error) {
-	rdHandler, err := redirect.NewSSOServerHandler(handler.Config)
+func NewSSOServer(handler *Standalone) (*SSOServer, error) {
+	redirect, err := url.NewSSOServerRedirect(handler.Config)
 	if err != nil {
 		return nil, err
 	}
-	handler.RedirectHandler = rdHandler
-	return &SSOServerHandler{DefaultHandler: *handler}, nil
+
+	handler.Redirect = redirect
+	return &SSOServer{Standalone: handler}, nil
 }
 
-func (s *SSOServerHandler) Logout(w http.ResponseWriter, r *http.Request) {
+func (s *SSOServer) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie.ClearLegacyCookies(w, s.GetCookieOptions())
-	s.DefaultHandler.Logout(w, r)
+	s.Standalone.Logout(w, r)
 }
 
-func (s *SSOServerHandler) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
+func (s *SSOServer) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
 	cookie.ClearLegacyCookies(w, s.GetCookieOptions())
-	s.DefaultHandler.LogoutFrontChannel(w, r)
+	s.Standalone.LogoutFrontChannel(w, r)
 }
 
-func (s *SSOServerHandler) LogoutLocal(w http.ResponseWriter, r *http.Request) {
+func (s *SSOServer) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 	cookie.ClearLegacyCookies(w, s.GetCookieOptions())
-	s.DefaultHandler.LogoutLocal(w, r)
+	s.Standalone.LogoutLocal(w, r)
 }
 
-func (s *SSOServerHandler) ReverseProxy(w http.ResponseWriter, r *http.Request) {
+func (s *SSOServer) ReverseProxy(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }

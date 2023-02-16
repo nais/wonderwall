@@ -1,4 +1,4 @@
-package redirect_test
+package url_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/nais/wonderwall/pkg/mock"
-	"github.com/nais/wonderwall/pkg/redirect"
+	"github.com/nais/wonderwall/pkg/url"
 )
 
 type expected struct {
@@ -15,7 +15,7 @@ type expected struct {
 	clean     string
 }
 
-func TestDefaultHandler(t *testing.T) {
+func TestDefault(t *testing.T) {
 	cfg := mock.Config()
 	cfg.Ingresses = []string{
 		"http://wonderwall",
@@ -23,7 +23,7 @@ func TestDefaultHandler(t *testing.T) {
 	}
 	ingresses := mock.Ingresses(cfg)
 
-	h := redirect.NewDefaultHandler(ingresses)
+	h := url.NewStandaloneRedirect(ingresses)
 
 	for _, tt := range []struct {
 		name     string
@@ -151,7 +151,7 @@ func TestDefaultHandler(t *testing.T) {
 	}
 }
 
-func TestSSOServerHandler(t *testing.T) {
+func TestSSOServer(t *testing.T) {
 	cfg := mock.Config()
 	cfg.Ingresses = []string{
 		"http://wonderwall",
@@ -162,7 +162,7 @@ func TestSSOServerHandler(t *testing.T) {
 	cfg.SSO.ServerDefaultRedirectURL = "http://fallback.wonderwall"
 	ingresses := mock.Ingresses(cfg)
 
-	h, err := redirect.NewSSOServerHandler(cfg)
+	h, err := url.NewSSOServerRedirect(cfg)
 	require.NoError(t, err)
 
 	for _, tt := range []struct {
@@ -315,7 +315,7 @@ func TestSSOServerHandler(t *testing.T) {
 	}
 }
 
-func TestSSOProxyHandler(t *testing.T) {
+func TestSSOProxy(t *testing.T) {
 	cfg := mock.Config()
 	cfg.Ingresses = []string{
 		"http://app.wonderwall",
@@ -324,7 +324,7 @@ func TestSSOProxyHandler(t *testing.T) {
 	cfg.SSO.ServerURL = "http://sso.wonderwall"
 	ingresses := mock.Ingresses(cfg)
 
-	h := redirect.NewSSOProxyHandler(ingresses)
+	h := url.NewSSOProxyRedirect(ingresses)
 
 	for _, tt := range []struct {
 		name     string

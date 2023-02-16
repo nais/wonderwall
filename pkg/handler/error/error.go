@@ -15,7 +15,6 @@ import (
 	"github.com/nais/wonderwall/pkg/handler/templates"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/redirect"
 	"github.com/nais/wonderwall/pkg/router/paths"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
@@ -29,7 +28,7 @@ type Source interface {
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetPath(r *http.Request) string
-	GetRedirectHandler() redirect.Handler
+	GetRedirect() urlpkg.Redirect
 }
 
 type Page struct {
@@ -71,14 +70,12 @@ func (h Handler) Retry(r *http.Request, loginCookie *openid.LoginCookie) string 
 		}
 	}
 
-	redirectHandler := h.GetRedirectHandler()
-	rd := redirectHandler.Canonical(r)
-
+	redirect := h.GetRedirect().Canonical(r)
 	if loginCookie != nil && len(loginCookie.Referer) > 0 {
-		rd = redirectHandler.Clean(r, loginCookie.Referer)
+		redirect = h.GetRedirect().Clean(r, loginCookie.Referer)
 	}
 
-	return urlpkg.LoginRelative(ingressPath, rd)
+	return urlpkg.LoginRelative(ingressPath, redirect)
 }
 
 func (h Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level log.Level) {

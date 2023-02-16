@@ -8,28 +8,26 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/ingress"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
-	"github.com/nais/wonderwall/pkg/redirect"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/router/paths"
+	"github.com/nais/wonderwall/pkg/url"
 )
 
-var _ router.Source = &SSOProxyHandler{}
+var _ router.Source = &SSOProxy{}
 
-type SSOProxyHandler struct {
+type SSOProxy struct {
 	Config                *config.Config
 	Ingresses             *ingress.Ingresses
-	RedirectHandler       redirect.Handler
+	Redirect              url.Redirect
 	SSOServerURL          *urllib.URL
 	SSOServerReverseProxy *ReverseProxy
 }
 
-func NewSSOProxyHandler(cfg *config.Config) (*SSOProxyHandler, error) {
+func NewSSOProxy(cfg *config.Config) (*SSOProxy, error) {
 	ingresses, err := ingress.ParseIngresses(cfg)
 	if err != nil {
 		return nil, err
 	}
-
-	redirectHandler := redirect.NewSSOProxyHandler(ingresses)
 
 	u, err := urllib.ParseRequestURI(cfg.SSO.ServerURL)
 	if err != nil {
@@ -48,63 +46,63 @@ func NewSSOProxyHandler(cfg *config.Config) (*SSOProxyHandler, error) {
 
 	u.RawQuery = query.Encode()
 
-	return &SSOProxyHandler{
+	return &SSOProxy{
 		Config:                cfg,
 		Ingresses:             ingresses,
-		RedirectHandler:       redirectHandler,
+		Redirect:              url.NewSSOProxyRedirect(ingresses),
 		SSOServerURL:          u,
 		SSOServerReverseProxy: NewReverseProxy(u, false),
 	}, nil
 }
 
-func (s *SSOProxyHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 	LoginSSOProxy(s, w, r)
 }
 
-func (s *SSOProxyHandler) LoginCallback(w http.ResponseWriter, r *http.Request) {
+func (s *SSOProxy) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-func (s *SSOProxyHandler) Logout(w http.ResponseWriter, r *http.Request) {
+func (s *SSOProxy) Logout(w http.ResponseWriter, r *http.Request) {
 	target := s.SSOServerURL.JoinPath(paths.OAuth2, paths.Logout)
 	http.Redirect(w, r, target.String(), http.StatusTemporaryRedirect)
 }
 
-func (s *SSOProxyHandler) LogoutCallback(w http.ResponseWriter, r *http.Request) {
+func (s *SSOProxy) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-func (s *SSOProxyHandler) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
+func (s *SSOProxy) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-func (s *SSOProxyHandler) LogoutLocal(w http.ResponseWriter, r *http.Request) {
+func (s *SSOProxy) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 	target := s.SSOServerURL.JoinPath(paths.OAuth2, paths.LogoutLocal)
 	http.Redirect(w, r, target.String(), http.StatusTemporaryRedirect)
 }
 
-func (s *SSOProxyHandler) Session(w http.ResponseWriter, r *http.Request) {
+func (s *SSOProxy) Session(w http.ResponseWriter, r *http.Request) {
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
-func (s *SSOProxyHandler) SessionRefresh(w http.ResponseWriter, r *http.Request) {
+func (s *SSOProxy) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
-func (s *SSOProxyHandler) ReverseProxy(w http.ResponseWriter, r *http.Request) {
+func (s *SSOProxy) ReverseProxy(w http.ResponseWriter, r *http.Request) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *SSOProxyHandler) GetIngresses() *ingress.Ingresses {
+func (s *SSOProxy) GetIngresses() *ingress.Ingresses {
 	return s.Ingresses
 }
 
-func (s *SSOProxyHandler) GetRedirectHandler() redirect.Handler {
-	return s.RedirectHandler
+func (s *SSOProxy) GetRedirect() url.Redirect {
+	return s.Redirect
 }
 
-func (s *SSOProxyHandler) GetSSOServerURL() *urllib.URL {
+func (s *SSOProxy) GetSSOServerURL() *urllib.URL {
 	u := *s.SSOServerURL
 	return &u
 }

@@ -1,4 +1,4 @@
-package redirect
+package url
 
 import (
 	"net/http"
@@ -17,17 +17,17 @@ var (
 
 type Validator struct {
 	allowedDomains []string
-	urlType        URLType
+	urlType        Type
 }
 
-type URLType int
+type Type int
 
 const (
-	Relative URLType = iota
+	Relative Type = iota
 	Absolute
 )
 
-func NewValidator(urlType URLType, allowedDomains []string) *Validator {
+func NewValidator(urlType Type, allowedDomains []string) *Validator {
 	return &Validator{urlType: urlType, allowedDomains: allowedDomains}
 }
 

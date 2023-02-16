@@ -33,7 +33,7 @@ type IdentityProvider struct {
 	OpenIDConfig        *TestConfiguration
 	ProviderHandler     *IdentityProviderHandler
 	ProviderServer      *httptest.Server
-	RelyingPartyHandler *handlerpkg.DefaultHandler
+	RelyingPartyHandler *handlerpkg.Standalone
 	RelyingPartyServer  *httptest.Server
 	redisServer         *miniredis.Miniredis
 }
@@ -91,7 +91,7 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	cfg.Redis.TLS = false
 	cfg.Redis.Address = rds.Addr()
 
-	rpHandler, err := handlerpkg.NewDefaultHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypter)
+	rpHandler, err := handlerpkg.NewStandalone(cfg, cookieOpts, jwksProvider, openidConfig, crypter)
 	if err != nil {
 		panic(err)
 	}

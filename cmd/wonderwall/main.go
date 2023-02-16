@@ -41,25 +41,25 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var h router.Source
+	var src router.Source
 
 	if cfg.SSO.Enabled {
 		switch cfg.SSO.Mode {
 		case config.SSOModeServer:
-			h, err = ssoServerHandler(ctx, cfg, crypt)
+			src, err = ssoServer(ctx, cfg, crypt)
 		case config.SSOModeProxy:
-			h, err = ssoProxyHandler(cfg)
+			src, err = ssoProxy(cfg)
 		default:
 			return fmt.Errorf("invalid SSO mode: %q", cfg.SSO.Mode)
 		}
 	} else {
-		h, err = defaultHandler(ctx, cfg, crypt)
+		src, err = standalone(ctx, cfg, crypt)
 	}
 	if err != nil {
 		return fmt.Errorf("initializing routing handler: %w", err)
 	}
 
-	r := router.New(h, cfg)
+	r := router.New(src, cfg)
 
 	go func() {
 		err := metrics.Handle(cfg.MetricsBindAddress, cfg.OpenID.Provider)
@@ -70,7 +70,7 @@ func run() error {
 	return server.Start(cfg, r)
 }
 
-func defaultHandler(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*handler.DefaultHandler, error) {
+func standalone(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*handler.Standalone, error) {
 	openidConfig, err := openidconfig.NewConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -83,11 +83,11 @@ func defaultHandler(ctx context.Context, cfg *config.Config, crypt crypto.Crypte
 
 	cookieOpts := cookie.DefaultOptions()
 
-	return handler.NewDefaultHandler(cfg, cookieOpts, jwksProvider, openidConfig, crypt)
+	return handler.NewStandalone(cfg, cookieOpts, jwksProvider, openidConfig, crypt)
 }
 
-func ssoServerHandler(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*handler.SSOServerHandler, error) {
-	h, err := defaultHandler(ctx, cfg, crypt)
+func ssoServer(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*handler.SSOServer, error) {
+	h, err := standalone(ctx, cfg, crypt)
 	if err != nil {
 		return nil, err
 	}
@@ -96,9 +96,9 @@ func ssoServerHandler(ctx context.Context, cfg *config.Config, crypt crypto.Cryp
 		WithPath("/").
 		WithDomain(cfg.SSO.Domain)
 
-	return handler.NewSSOServerHandler(h)
+	return handler.NewSSOServer(h)
 }
 
-func ssoProxyHandler(cfg *config.Config) (*handler.SSOProxyHandler, error) {
-	return handler.NewSSOProxyHandler(cfg)
+func ssoProxy(cfg *config.Config) (*handler.SSOProxy, error) {
+	return handler.NewSSOProxy(cfg)
 }

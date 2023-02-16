@@ -1,4 +1,4 @@
-package redirect
+package url
 
 import (
 	"fmt"
@@ -8,31 +8,30 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/ingress"
 	mw "github.com/nais/wonderwall/pkg/middleware"
-	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
-type Handler interface {
+type Redirect interface {
 	// Canonical constructs a redirect URL that points back to the application.
 	Canonical(r *http.Request) string
 	// Clean parses and cleans a target URL according to implementation-specific validations. It should always return a fallback URL string, regardless of validation errors.
 	Clean(r *http.Request, target string) string
 }
 
-var _ Handler = &DefaultHandler{}
+var _ Redirect = &StandaloneRedirect{}
 
-type DefaultHandler struct {
+type StandaloneRedirect struct {
 	ingresses *ingress.Ingresses
 	validator *Validator
 }
 
-func NewDefaultHandler(ingresses *ingress.Ingresses) *DefaultHandler {
-	return &DefaultHandler{
+func NewStandaloneRedirect(ingresses *ingress.Ingresses) *StandaloneRedirect {
+	return &StandaloneRedirect{
 		ingresses: ingresses,
 		validator: NewValidator(Relative, ingresses.Hosts()),
 	}
 }
 
-func (h *DefaultHandler) Canonical(r *http.Request) string {
+func (h *StandaloneRedirect) Canonical(r *http.Request) string {
 	target := redirectQueryParam(r)
 	redirect, err := url.ParseRequestURI(target)
 	if err != nil {
@@ -46,7 +45,7 @@ func (h *DefaultHandler) Canonical(r *http.Request) string {
 	return h.Clean(r, redirect.String())
 }
 
-func (h *DefaultHandler) Clean(r *http.Request, target string) string {
+func (h *StandaloneRedirect) Clean(r *http.Request, target string) string {
 	if h.validator.IsValidRedirect(r, target) {
 		return target
 	}
@@ -54,30 +53,30 @@ func (h *DefaultHandler) Clean(r *http.Request, target string) string {
 	return fallback(r, target, h.FallbackRedirect(r)).String()
 }
 
-func (h *DefaultHandler) FallbackRedirect(r *http.Request) *url.URL {
-	return urlpkg.MatchingPath(r)
+func (h *StandaloneRedirect) FallbackRedirect(r *http.Request) *url.URL {
+	return MatchingPath(r)
 }
 
-var _ Handler = &SSOServerHandler{}
+var _ Redirect = &SSOServerRedirect{}
 
-type SSOServerHandler struct {
+type SSOServerRedirect struct {
 	fallbackRedirect *url.URL
 	validator        *Validator
 }
 
-func NewSSOServerHandler(config *config.Config) (*SSOServerHandler, error) {
+func NewSSOServerRedirect(config *config.Config) (*SSOServerRedirect, error) {
 	u, err := url.ParseRequestURI(config.SSO.ServerDefaultRedirectURL)
 	if err != nil {
 		return nil, fmt.Errorf("parsing fallback redirect URL: %w", err)
 	}
 
-	return &SSOServerHandler{
+	return &SSOServerRedirect{
 		fallbackRedirect: u,
 		validator:        NewValidator(Absolute, []string{config.SSO.Domain}),
 	}, nil
 }
 
-func (h *SSOServerHandler) Canonical(r *http.Request) string {
+func (h *SSOServerRedirect) Canonical(r *http.Request) string {
 	target := redirectQueryParam(r)
 	redirect, err := url.ParseRequestURI(target)
 	if err != nil {
@@ -87,7 +86,7 @@ func (h *SSOServerHandler) Canonical(r *http.Request) string {
 	return h.Clean(r, redirect.String())
 }
 
-func (h *SSOServerHandler) Clean(r *http.Request, target string) string {
+func (h *SSOServerRedirect) Clean(r *http.Request, target string) string {
 	if h.validator.IsValidRedirect(r, target) {
 		return target
 	}
@@ -95,23 +94,23 @@ func (h *SSOServerHandler) Clean(r *http.Request, target string) string {
 	return fallback(r, target, h.fallbackRedirect).String()
 }
 
-var _ Handler = &SSOProxyHandler{}
+var _ Redirect = &SSOProxyRedirect{}
 
-type SSOProxyHandler struct {
+type SSOProxyRedirect struct {
 	fallbackRedirect *url.URL
 	validator        *Validator
 }
 
-func NewSSOProxyHandler(ingresses *ingress.Ingresses) *SSOProxyHandler {
-	return &SSOProxyHandler{
+func NewSSOProxyRedirect(ingresses *ingress.Ingresses) *SSOProxyRedirect {
+	return &SSOProxyRedirect{
 		fallbackRedirect: ingresses.Single().NewURL(),
 		validator:        NewValidator(Absolute, ingresses.Hosts()),
 	}
 }
 
-func (h *SSOProxyHandler) Canonical(r *http.Request) string {
+func (h *SSOProxyRedirect) Canonical(r *http.Request) string {
 	// find matching request ingress, use as base redirect
-	redirect, err := urlpkg.MatchingIngress(r)
+	redirect, err := MatchingIngress(r)
 	if err != nil {
 		redirect = h.getFallbackRedirect()
 	}
@@ -130,7 +129,7 @@ func (h *SSOProxyHandler) Canonical(r *http.Request) string {
 	return h.Clean(r, redirect.String())
 }
 
-func (h *SSOProxyHandler) Clean(r *http.Request, target string) string {
+func (h *SSOProxyRedirect) Clean(r *http.Request, target string) string {
 	if h.validator.IsValidRedirect(r, target) {
 		return target
 	}
@@ -139,13 +138,13 @@ func (h *SSOProxyHandler) Clean(r *http.Request, target string) string {
 }
 
 // getFallbackRedirect returns a copy of the configured fallbackRedirect
-func (h *SSOProxyHandler) getFallbackRedirect() *url.URL {
+func (h *SSOProxyRedirect) getFallbackRedirect() *url.URL {
 	u := *h.fallbackRedirect
 	return &u
 }
 
 func redirectQueryParam(r *http.Request) string {
-	return r.URL.Query().Get(urlpkg.RedirectQueryParameter)
+	return r.URL.Query().Get(RedirectQueryParameter)
 }
 
 func fallback(r *http.Request, target string, fallback *url.URL) *url.URL {

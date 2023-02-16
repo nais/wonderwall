@@ -16,7 +16,6 @@ import (
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
-	"github.com/nais/wonderwall/pkg/redirect"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
@@ -29,11 +28,11 @@ type LoginSource interface {
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetErrorHandler() errorhandler.Handler
-	GetRedirectHandler() redirect.Handler
+	GetRedirect() urlpkg.Redirect
 }
 
 func Login(src LoginSource, w http.ResponseWriter, r *http.Request) {
-	canonicalRedirect := src.GetRedirectHandler().Canonical(r)
+	canonicalRedirect := src.GetRedirect().Canonical(r)
 	login, err := src.GetClient().Login(r)
 	if err != nil {
 		if errors.Is(err, openidclient.ErrInvalidSecurityLevel) || errors.Is(err, openidclient.ErrInvalidLocale) {
@@ -60,7 +59,7 @@ func Login(src LoginSource, w http.ResponseWriter, r *http.Request) {
 
 type LoginSSOProxySource interface {
 	GetSSOServerURL() *url.URL
-	GetRedirectHandler() redirect.Handler
+	GetRedirect() urlpkg.Redirect
 }
 
 func LoginSSOProxy(src LoginSSOProxySource, w http.ResponseWriter, r *http.Request) {
@@ -80,7 +79,7 @@ func LoginSSOProxy(src LoginSSOProxySource, w http.ResponseWriter, r *http.Reque
 
 	target.RawQuery = reqQuery.Encode()
 
-	canonicalRedirect := src.GetRedirectHandler().Canonical(r)
+	canonicalRedirect := src.GetRedirect().Canonical(r)
 	ssoServerLoginURL := urlpkg.Login(target, canonicalRedirect)
 
 	logger.WithFields(log.Fields{

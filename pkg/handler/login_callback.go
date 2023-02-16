@@ -17,9 +17,9 @@ import (
 	logentry "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
-	"github.com/nais/wonderwall/pkg/redirect"
 	retrypkg "github.com/nais/wonderwall/pkg/retry"
 	"github.com/nais/wonderwall/pkg/session"
+	"github.com/nais/wonderwall/pkg/url"
 )
 
 type LoginCallbackSource interface {
@@ -28,7 +28,7 @@ type LoginCallbackSource interface {
 	GetCookieOptsPathAware(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetErrorHandler() errorhandler.Handler
-	GetRedirectHandler() redirect.Handler
+	GetRedirect() url.Redirect
 	GetSessions() *session.Handler
 	GetSessionConfig() config.Session
 }
@@ -85,11 +85,11 @@ func LoginCallback(src LoginCallbackSource, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	rd := src.GetRedirectHandler().Clean(r, loginCookie.Referer)
+	redirect := src.GetRedirect().Clean(r, loginCookie.Referer)
 
-	logSuccessfulLogin(r, tokens, rd)
+	logSuccessfulLogin(r, tokens, redirect)
 	cookie.Clear(w, cookie.Retry, src.GetCookieOptsPathAware(r))
-	http.Redirect(w, r, rd, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
 }
 
 func clearLoginCookies(src LogoutCallbackSource, w http.ResponseWriter, r *http.Request) {
