@@ -1,6 +1,8 @@
 package session_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
@@ -10,14 +12,14 @@ import (
 
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/openid/config"
+	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/session"
 )
 
-func TestNewSessionID(t *testing.T) {
+func TestExternalID(t *testing.T) {
 	for _, test := range []struct {
 		name       string
-		config     config.Provider
+		config     openidconfig.Provider
 		idToken    *openid.IDToken
 		params     url.Values
 		want       string
@@ -99,7 +101,13 @@ func TestNewSessionID(t *testing.T) {
 			exactMatch: true,
 		},
 	} {
-		actual, err := session.NewSessionID(test.config, test.idToken, test.params)
+		req := httptest.NewRequest(http.MethodGet, "https://wonderwall/callback", nil)
+
+		if test.params != nil {
+			req.URL.RawQuery = test.params.Encode()
+		}
+
+		actual, err := session.ExternalID(req, test.config, test.idToken)
 
 		t.Run(test.name, func(t *testing.T) {
 			if test.expectErr {
@@ -123,18 +131,18 @@ func testConfiguration() *mock.TestConfiguration {
 	return idp.OpenIDConfig
 }
 
-func standardConfig() config.Provider {
+func standardConfig() openidconfig.Provider {
 	return testConfiguration().Provider()
 }
 
-func sidRequired() config.Provider {
+func sidRequired() openidconfig.Provider {
 	cfg := testConfiguration()
 	cfg.TestProvider.WithFrontChannelLogoutSupport()
 
 	return cfg.Provider()
 }
 
-func sessionStateRequired() config.Provider {
+func sessionStateRequired() openidconfig.Provider {
 	endpoint := "https://some-provider/some-endpoint"
 
 	cfg := testConfiguration()
