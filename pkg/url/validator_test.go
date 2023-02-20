@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/nais/wonderwall/pkg/mock"
-	url2 "github.com/nais/wonderwall/pkg/url"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 func TestValidator_IsValidRedirect(t *testing.T) {
@@ -24,8 +24,8 @@ func TestValidator_IsValidRedirect(t *testing.T) {
 		cfg.SSO.Domain,
 		"www.whitelisteddomain.tld",
 	}
-	absoluteValidator := url2.NewValidator(url2.Absolute, allowedDomains)
-	relativeValidator := url2.NewValidator(url2.Relative, allowedDomains)
+	absoluteValidator := urlpkg.NewValidator(urlpkg.Absolute, allowedDomains)
+	relativeValidator := urlpkg.NewValidator(urlpkg.Relative, allowedDomains)
 
 	t.Run("open redirects list", func(t *testing.T) {
 		file, err := os.Open("testdata/open-redirects.txt")
@@ -46,108 +46,108 @@ func TestValidator_IsValidRedirect(t *testing.T) {
 	for _, tt := range []struct {
 		name          string
 		redirectParam string
-		urlType       url2.Type
+		urlType       urlpkg.Type
 		wantErr       bool // expect error regardless of validator type
 	}{
 		{
 			name:          "absolute url with parameters",
 			redirectParam: "https://wonderwall/path/to/redirect?val1=foo&val2=bar",
-			urlType:       url2.Absolute,
+			urlType:       urlpkg.Absolute,
 		},
 		{
 			name:          "absolute url with http scheme",
 			redirectParam: "https://wonderwall/path/to/redirect?val1=foo&val2=bar",
-			urlType:       url2.Absolute,
+			urlType:       urlpkg.Absolute,
 		},
 		{
 			name:          "absolute url with non-http scheme",
 			redirectParam: "ftp://wonderwall/path/to/redirect?val1=foo&val2=bar",
-			urlType:       url2.Absolute,
+			urlType:       urlpkg.Absolute,
 			wantErr:       true,
 		},
 		{
 			name:          "root url with trailing slash",
 			redirectParam: "https://wonderwall/",
-			urlType:       url2.Absolute,
+			urlType:       urlpkg.Absolute,
 		},
 		{
 			name:          "root url without trailing slash",
 			redirectParam: "https://wonderwall",
-			urlType:       url2.Absolute,
+			urlType:       urlpkg.Absolute,
 		},
 		{
 			name:          "url path with trailing slash",
 			redirectParam: "https://wonderwall/path/",
-			urlType:       url2.Absolute,
+			urlType:       urlpkg.Absolute,
 		},
 		{
 			name:          "url path without trailing slash",
 			redirectParam: "https://wonderwall/path",
-			urlType:       url2.Absolute,
+			urlType:       urlpkg.Absolute,
 		},
 		{
 			name:          "different domain",
 			redirectParam: "https://not-wonderwall/path/to/redirect?val1=foo&val2=bar",
-			urlType:       url2.Absolute,
+			urlType:       urlpkg.Absolute,
 			wantErr:       true,
 		},
 		{
 			name:          "absolute path",
 			redirectParam: "/path",
-			urlType:       url2.Relative,
+			urlType:       urlpkg.Relative,
 		},
 		{
 			name:          "absolute path with query parameters",
 			redirectParam: "/path?gnu=notunix",
-			urlType:       url2.Relative,
+			urlType:       urlpkg.Relative,
 		},
 		{
 			name:          "relative path",
 			redirectParam: "path",
-			urlType:       url2.Relative,
+			urlType:       urlpkg.Relative,
 			wantErr:       true,
 		},
 		{
 			name:          "relative path with query parameters",
 			redirectParam: "path?gnu=notunix",
-			urlType:       url2.Relative,
+			urlType:       urlpkg.Relative,
 			wantErr:       true,
 		},
 		{
 			name:          "double-url encoded path",
 			redirectParam: "%2Fpath",
-			urlType:       url2.Relative,
+			urlType:       urlpkg.Relative,
 			wantErr:       true,
 		},
 		{
 			name:          "double-url encoded path and query parameters",
 			redirectParam: "%2Fpath%3Fgnu%3Dnotunix",
-			urlType:       url2.Relative,
+			urlType:       urlpkg.Relative,
 			wantErr:       true,
 		},
 		{
 			name:          "double-url encoded url",
 			redirectParam: "http%3A%2F%2Flocalhost%3A8080%2Fpath",
-			urlType:       url2.Relative,
+			urlType:       urlpkg.Relative,
 			wantErr:       true,
 		},
 		{
 			name:          "double-url encoded url and multiple query parameters",
 			redirectParam: "http%3A%2F%2Flocalhost%3A8080%2Fpath%3Fgnu%3Dnotunix%26foo%3Dbar",
-			urlType:       url2.Relative,
+			urlType:       urlpkg.Relative,
 			wantErr:       true,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.urlType {
-			case url2.Relative:
+			case urlpkg.Relative:
 				actual := relativeValidator.IsValidRedirect(r, tt.redirectParam)
 				if tt.wantErr {
 					assert.False(t, actual)
 				} else {
 					assert.True(t, actual)
 				}
-			case url2.Absolute:
+			case urlpkg.Absolute:
 				actual := absoluteValidator.IsValidRedirect(r, tt.redirectParam)
 				if tt.wantErr {
 					assert.False(t, actual)
