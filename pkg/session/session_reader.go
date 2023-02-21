@@ -37,7 +37,7 @@ func NewReader(cfg *config.Config, cookieCrypter crypto.Crypter) (Reader, error)
 func (in *reader) Get(r *http.Request) (*Session, error) {
 	ticket, err := getTicket(r, in.cookieCrypter)
 	if err != nil {
-		return nil, fmt.Errorf("get: %w", err)
+		return nil, err
 	}
 
 	return in.GetForTicket(r.Context(), ticket)

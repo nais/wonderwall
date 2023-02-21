@@ -60,10 +60,10 @@ func (c *Ticket) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter c
 func getTicket(r *http.Request, crypter crypto.Crypter) (*Ticket, error) {
 	ticketJson, err := cookie.GetDecrypted(r, cookie.Session, crypter)
 	if errors.Is(err, http.ErrNoCookie) {
-		return nil, fmt.Errorf("ticket: session cookie: %w", ErrNotFound)
+		return nil, fmt.Errorf("ticket: cookie %w", ErrNotFound)
 	}
 	if errors.Is(err, cookie.ErrInvalidValue) || errors.Is(err, cookie.ErrDecrypt) {
-		return nil, fmt.Errorf("ticket: session cookie: %w: %w", ErrInvalid, err)
+		return nil, fmt.Errorf("ticket: cookie: %w: %w", ErrInvalid, err)
 	}
 	if err != nil {
 		return nil, err

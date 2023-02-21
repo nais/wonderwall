@@ -42,6 +42,10 @@ type Writer interface {
 type Manager interface {
 	Reader
 	Writer
+
+	// GetOrRefresh returns the session for a given http.Request. If the tokens within the session are expired and the
+	// session is still valid, it will automatically attempt to refresh and update the session.
+	GetOrRefresh(r *http.Request) (*Session, error)
 }
 
 type Session struct {

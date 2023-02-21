@@ -102,6 +102,28 @@ func (in *manager) DeleteForExternalID(ctx context.Context, id string) error {
 	return in.deleteForKey(ctx, key)
 }
 
+func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
+	sess, err := in.Get(r)
+	if err != nil {
+		return nil, fmt.Errorf("getting session: %w", err)
+	}
+
+	if !sess.ShouldRefresh() {
+		return sess, nil
+	}
+
+	refreshed, err := in.Refresh(r, sess)
+	if errors.Is(err, ErrInvalidExternal) || errors.Is(err, ErrInvalid) {
+		return nil, err
+	} else if err != nil {
+		mw.LogEntryFrom(r).Warnf("session: could not refresh tokens; falling back to existing tokens: %+v", err)
+	} else {
+		sess = refreshed
+	}
+
+	return sess, nil
+}
+
 func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 	if !in.cfg.Session.Refresh || !sess.CanRefresh() {
 		return sess, nil
