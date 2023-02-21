@@ -10,7 +10,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/session"
@@ -71,16 +70,12 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		isAuthenticated = true
 	case errors.Is(err, context.Canceled):
 		logger.Debugf("default: unauthenticated: %+v (client disconnected before we could respond)", err)
-	case errors.Is(err, session.ErrInvalidIdpState):
+	case errors.Is(err, session.ErrInvalidExternal):
 		logger.Warnf("default: unauthenticated: %+v", err)
-	case errors.Is(err, session.ErrKeyNotFound):
-		logger.Debug("default: unauthenticated: session not found in store")
-	case errors.Is(err, session.ErrCookieNotFound):
-		logger.Debug("default: unauthenticated: session cookie not found in request")
-	case errors.Is(err, session.ErrInvalidSession), errors.Is(err, cookie.ErrDecrypt):
-		logger.Infof("default: unauthenticated: %+v", err)
-	case errors.Is(err, cookie.ErrInvalidValue):
+	case errors.Is(err, session.ErrNotFound):
 		logger.Debugf("default: unauthenticated: %+v", err)
+	case errors.Is(err, session.ErrInvalid):
+		logger.Infof("default: unauthenticated: %+v", err)
 	default:
 		logger.Errorf("default: unauthenticated: unexpected error: %+v", err)
 	}
