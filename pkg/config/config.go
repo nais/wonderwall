@@ -162,6 +162,10 @@ func (c *Config) Validate() error {
 	}
 
 	if c.SSO.Enabled {
+		if len(c.Redis.Address) == 0 {
+			return fmt.Errorf("%q must not be empty when %s is set", RedisAddress, SSOEnabled)
+		}
+
 		switch c.SSO.Mode {
 		case SSOModeProxy:
 			_, err := url.ParseRequestURI(c.SSO.ServerURL)
