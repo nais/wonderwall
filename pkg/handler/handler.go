@@ -32,20 +32,17 @@ import (
 var _ router.Source = &Standalone{}
 
 type Standalone struct {
-	AutoLogin     *autologin.AutoLogin
-	Client        *openidclient.Client
-	Config        *config.Config
-	CookieOptions cookie.Options
-	Crypter       crypto.Crypter
-	Ingresses     *ingress.Ingresses
-	OpenidConfig  openidconfig.Config
-	Redirect      url.Redirect
-	Sessions      *session.Handler
-	UpstreamProxy *ReverseProxy
-}
-
-type LogoutOptions struct {
-	GlobalLogout bool
+	AutoLogin      *autologin.AutoLogin
+	Client         *openidclient.Client
+	Config         *config.Config
+	CookieOptions  cookie.Options
+	Crypter        crypto.Crypter
+	ErrorHandler   errorhandler.Handler
+	Ingresses      *ingress.Ingresses
+	OpenidConfig   openidconfig.Config
+	Redirect       url.Redirect
+	SessionManager session.Manager
+	UpstreamProxy  *ReverseProxy
 }
 
 func NewStandalone(
@@ -65,7 +62,7 @@ func NewStandalone(
 		Timeout: time.Second * 10,
 	})
 
-	sessionHandler, err := session.NewHandler(cfg, openidConfig, crypter, openidClient)
+	sessionManager, err := session.NewManager(cfg, openidConfig, crypter, openidClient)
 	if err != nil {
 		return nil, err
 	}
@@ -81,34 +78,39 @@ func NewStandalone(
 	}
 
 	return &Standalone{
-		AutoLogin:     autoLogin,
-		Client:        openidClient,
-		Config:        cfg,
-		CookieOptions: cookieOpts,
-		Crypter:       crypter,
-		Ingresses:     ingresses,
-		OpenidConfig:  openidConfig,
-		Redirect:      url.NewStandaloneRedirect(ingresses),
-		Sessions:      sessionHandler,
-		UpstreamProxy: NewReverseProxy(upstream, true),
+		AutoLogin:      autoLogin,
+		Client:         openidClient,
+		Config:         cfg,
+		CookieOptions:  cookieOpts,
+		Crypter:        crypter,
+		Ingresses:      ingresses,
+		OpenidConfig:   openidConfig,
+		Redirect:       url.NewStandaloneRedirect(ingresses),
+		SessionManager: sessionManager,
+		UpstreamProxy:  NewReverseProxy(upstream, true),
 	}, nil
+}
+
+func (s *Standalone) GetAccessToken(r *http.Request) (string, error) {
+	sess, err := s.SessionManager.GetOrRefresh(r)
+	if err != nil {
+		return "", err
+	}
+
+	if !sess.HasActiveAccessToken() {
+		return "", fmt.Errorf("%w: access token is expired", session.ErrInvalid)
+	}
+
+	return sess.AccessToken(), nil
 }
 
 func (s *Standalone) GetAutoLogin() *autologin.AutoLogin {
 	return s.AutoLogin
 }
 
-func (s *Standalone) GetClient() *openidclient.Client {
-	return s.Client
-}
-
-func (s *Standalone) GetCookieOptions() cookie.Options {
-	return s.CookieOptions
-}
-
-func (s *Standalone) GetCookieOptsPathAware(r *http.Request) cookie.Options {
+func (s *Standalone) GetCookieOptions(r *http.Request) cookie.Options {
 	if s.Config.SSO.Enabled {
-		return s.GetCookieOptions()
+		return s.CookieOptions
 	}
 
 	path := s.GetPath(r)
@@ -140,17 +142,9 @@ func (s *Standalone) GetRedirect() url.Redirect {
 	return s.Redirect
 }
 
-func (s *Standalone) GetSessions() *session.Handler {
-	return s.Sessions
-}
-
-func (s *Standalone) GetSessionConfig() config.Session {
-	return s.Config.Session
-}
-
 func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 	canonicalRedirect := s.GetRedirect().Canonical(r)
-	login, err := s.GetClient().Login(r)
+	login, err := s.Client.Login(r)
 	if err != nil {
 		if errors.Is(err, openidclient.ErrInvalidSecurityLevel) || errors.Is(err, openidclient.ErrInvalidLocale) {
 			s.GetErrorHandler().BadRequest(w, r, err)
@@ -161,7 +155,7 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	opts := s.GetCookieOptsPathAware(r).
+	opts := s.GetCookieOptions(r).
 		WithExpiresIn(1 * time.Hour).
 		WithSameSite(http.SameSiteNoneMode)
 	err = login.SetCookie(w, opts, s.GetCrypter(), canonicalRedirect)
@@ -178,7 +172,7 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
-	opts := s.GetCookieOptsPathAware(r)
+	opts := s.GetCookieOptions(r)
 
 	// unconditionally clear login cookies
 	cookie.Clear(w, cookie.Login, opts.WithSameSite(http.SameSiteNoneMode))
@@ -194,7 +188,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loginCallback, err := s.GetClient().LoginCallback(r, loginCookie)
+	loginCallback, err := s.Client.LoginCallback(r, loginCookie)
 	if err != nil {
 		s.GetErrorHandler().InternalError(w, r, err)
 		return
@@ -220,15 +214,15 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionLifetime := s.GetSessionConfig().MaxLifetime
+	sessionLifetime := s.Config.Session.MaxLifetime
 
-	ticket, err := s.GetSessions().Create(r, tokens, sessionLifetime)
+	sess, err := s.SessionManager.Create(r, tokens, sessionLifetime)
 	if err != nil {
 		s.GetErrorHandler().InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return
 	}
 
-	err = ticket.Set(w, opts.WithExpiresIn(sessionLifetime), s.GetCrypter())
+	err = sess.SetCookie(w, opts.WithExpiresIn(sessionLifetime), s.GetCrypter())
 	if err != nil {
 		s.GetErrorHandler().InternalError(w, r, fmt.Errorf("callback: setting session cookie: %w", err))
 		return
@@ -243,27 +237,31 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 
 	mw.LogEntryFrom(r).WithFields(fields).Info("callback: successful login")
 	metrics.ObserveLogin()
-	cookie.Clear(w, cookie.Retry, s.GetCookieOptsPathAware(r))
+	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
 }
 
 func (s *Standalone) Logout(w http.ResponseWriter, r *http.Request) {
-	opts := LogoutOptions{
+	opts := logoutOptions{
 		GlobalLogout: true,
 	}
 	s.logout(w, r, opts)
 }
 
 func (s *Standalone) LogoutLocal(w http.ResponseWriter, r *http.Request) {
-	opts := LogoutOptions{
+	opts := logoutOptions{
 		GlobalLogout: false,
 	}
 	s.logout(w, r, opts)
 }
 
-func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, opts LogoutOptions) {
+type logoutOptions struct {
+	GlobalLogout bool
+}
+
+func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, opts logoutOptions) {
 	logger := mw.LogEntryFrom(r)
-	logout, err := s.GetClient().Logout(r)
+	logout, err := s.Client.Logout(r)
 	if err != nil {
 		s.GetErrorHandler().InternalError(w, r, err)
 		return
@@ -271,27 +269,21 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, opts LogoutO
 
 	var idToken string
 
-	sessions := s.GetSessions()
+	sess, err := s.SessionManager.Get(r)
+	if err == nil && sess != nil {
+		idToken = sess.IDToken()
 
-	ticket, err := sessions.GetTicket(r)
-	if err == nil {
-		sessionData, err := sessions.Get(r, ticket)
-		if err == nil && sessionData != nil {
-			idToken = sessionData.IDToken
-
-			err = sessions.Destroy(r, ticket.Key())
-			if err != nil && !errors.Is(err, session.ErrKeyNotFound) {
-				s.GetErrorHandler().InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
-				return
-			}
-
-			logger.WithField("jti", sessionData.IDTokenJwtID).
-				Info("logout: successful local logout")
-			metrics.ObserveLogout(metrics.LogoutOperationLocal)
+		err = s.SessionManager.Delete(r.Context(), sess)
+		if err != nil && !errors.Is(err, session.ErrNotFound) {
+			s.GetErrorHandler().InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
+			return
 		}
+
+		logger.Info("logout: successful local logout")
+		metrics.ObserveLogout(metrics.LogoutOperationLocal)
 	}
 
-	cookie.Clear(w, cookie.Session, s.GetCookieOptsPathAware(r))
+	cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
 
 	if opts.GlobalLogout {
 		logger.Debug("logout: redirecting to identity provider for global/single-logout")
@@ -301,9 +293,9 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, opts LogoutO
 }
 
 func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
-	redirect := s.GetClient().LogoutCallback(r).PostLogoutRedirectURI()
+	redirect := s.Client.LogoutCallback(r).PostLogoutRedirectURI()
 
-	cookie.Clear(w, cookie.Retry, s.GetCookieOptsPathAware(r))
+	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	mw.LogEntryFrom(r).Debugf("logout/callback: redirecting to %s", redirect)
 	http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
 }
@@ -312,41 +304,24 @@ func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) 
 	logger := mw.LogEntryFrom(r)
 
 	// Unconditionally destroy all local references to the session.
-	cookie.Clear(w, cookie.Session, s.GetCookieOptsPathAware(r))
+	cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
 
-	sessions := s.GetSessions()
-	client := s.GetClient()
-
-	getSessionKey := func(r *http.Request) (string, error) {
-		lfc := client.LogoutFrontchannel(r)
-
-		if lfc.MissingSidParameter() {
-			ticket, err := sessions.GetTicket(r)
-			if err != nil {
-				return ticket.Key(), nil
-			}
-			return "", fmt.Errorf("neither sid parameter nor session ticket found in request: %w", err)
-		}
-
-		sid := lfc.Sid()
-		return sessions.Key(sid), nil
-	}
-
-	key, err := getSessionKey(r)
-	if err != nil {
-		logger.Debugf("front-channel logout: getting session key: %+v; ignoring", err)
+	lfc := s.Client.LogoutFrontchannel(r)
+	if lfc.MissingSidParameter() {
+		logger.Debugf("front-channel logout: sid parameter not found in request; ignoring")
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
-	err = sessions.Destroy(r, key)
+	id := lfc.Sid()
+	err := s.SessionManager.DeleteForExternalID(r.Context(), id)
 	if err != nil {
-		logger.Warnf("front-channel logout: destroying session: %+v", err)
+		logger.Warnf("front-channel logout: destroying session with id %q: %+v", id, err)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
-	cookie.Clear(w, cookie.Retry, s.GetCookieOptsPathAware(r))
+	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	metrics.ObserveLogout(metrics.LogoutOperationFrontChannel)
 	w.WriteHeader(http.StatusOK)
 }
@@ -354,33 +329,18 @@ func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) 
 func (s *Standalone) Session(w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r)
 
-	ticket, err := s.GetSessions().GetTicket(r)
+	sess, err := s.SessionManager.Get(r)
 	if err != nil {
-		logger.Infof("session/refresh: getting ticket: %+v", err)
-		w.WriteHeader(http.StatusUnauthorized)
+		handleGetSessionError("session/info", w, r, err)
 		return
-	}
-
-	data, err := s.GetSessions().Get(r, ticket)
-	if err != nil {
-		switch {
-		case errors.Is(err, session.ErrInvalidSession), errors.Is(err, session.ErrKeyNotFound):
-			logger.Infof("session/info: getting session: %+v", err)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		default:
-			logger.Warnf("session/info: getting session: %+v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if s.GetSessionConfig().Refresh {
-		err = json.NewEncoder(w).Encode(data.Metadata.VerboseWithRefresh())
+	if s.Config.Session.Refresh {
+		err = json.NewEncoder(w).Encode(sess.MetadataVerboseRefresh())
 	} else {
-		err = json.NewEncoder(w).Encode(data.Metadata.Verbose())
+		err = json.NewEncoder(w).Encode(sess.MetadataVerbose())
 	}
 
 	if err != nil {
@@ -398,29 +358,15 @@ func (s *Standalone) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 
 	logger := mw.LogEntryFrom(r)
 
-	ticket, err := s.GetSessions().GetTicket(r)
+	sess, err := s.SessionManager.Get(r)
 	if err != nil {
-		logger.Infof("session/refresh: getting ticket: %+v", err)
-		w.WriteHeader(http.StatusUnauthorized)
+		handleGetSessionError("session/refresh", w, r, err)
 		return
 	}
 
-	data, err := s.GetSessions().Get(r, ticket)
+	sess, err = s.SessionManager.Refresh(r, sess)
 	if err != nil {
-		switch {
-		case errors.Is(err, session.ErrInvalidSession), errors.Is(err, session.ErrKeyNotFound):
-			logger.Infof("session/refresh: getting session: %+v", err)
-			w.WriteHeader(http.StatusUnauthorized)
-		default:
-			logger.Warnf("session/refresh: getting session: %+v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		return
-	}
-
-	data, err = s.GetSessions().Refresh(r, ticket, data)
-	if err != nil {
-		if errors.Is(err, session.ErrInvalidIdpState) || errors.Is(err, session.ErrInvalidSession) {
+		if errors.Is(err, session.ErrInvalidExternal) || errors.Is(err, session.ErrInvalid) {
 			logger.Infof("session/refresh: refreshing: %+v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -432,7 +378,7 @@ func (s *Standalone) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(data.Metadata.VerboseWithRefresh())
+	err = json.NewEncoder(w).Encode(sess.MetadataVerboseRefresh())
 	if err != nil {
 		logger.Warnf("session/refresh: marshalling metadata: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -442,4 +388,17 @@ func (s *Standalone) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 
 func (s *Standalone) ReverseProxy(w http.ResponseWriter, r *http.Request) {
 	s.UpstreamProxy.Handler(s, w, r)
+}
+
+func handleGetSessionError(route string, w http.ResponseWriter, r *http.Request, err error) {
+	logger := mw.LogEntryFrom(r)
+
+	if errors.Is(err, session.ErrInvalid) || errors.Is(err, session.ErrNotFound) {
+		logger.Infof("%s: getting session: %+v", route, err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	logger.Warnf("%s: getting session: %+v", route, err)
+	w.WriteHeader(http.StatusInternalServerError)
 }

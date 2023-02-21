@@ -144,13 +144,10 @@ func TestFrontChannelLogout(t *testing.T) {
 	sid := func(r *http.Request) string {
 		r.AddCookie(sessionCookie)
 
-		ticket, err := session.GetTicket(r, idp.RelyingPartyHandler.GetCrypter())
+		data, err := idp.RelyingPartyHandler.SessionManager.Get(r)
 		assert.NoError(t, err)
 
-		data, err := idp.RelyingPartyHandler.GetSessions().Get(r, ticket)
-		assert.NoError(t, err)
-
-		return data.ExternalSessionID
+		return data.ExternalSessionID()
 	}
 
 	frontchannelLogoutURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/logout/frontchannel")

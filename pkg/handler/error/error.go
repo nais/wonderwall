@@ -25,7 +25,7 @@ const (
 )
 
 type Source interface {
-	GetCookieOptsPathAware(r *http.Request) cookie.Options
+	GetCookieOptions(r *http.Request) cookie.Options
 	GetCrypter() crypto.Crypter
 	GetPath(r *http.Request) string
 	GetRedirect() urlpkg.Redirect
@@ -82,7 +82,7 @@ func (h Handler) respondError(w http.ResponseWriter, r *http.Request, statusCode
 	logger := mw.LogEntryFrom(r)
 	msg := "error in route: %+v"
 
-	incrementRetryAttempt(w, r, h.GetCookieOptsPathAware(r))
+	incrementRetryAttempt(w, r, h.GetCookieOptions(r))
 
 	attempts, ok := getRetryAttempts(r)
 	if !ok || ok && attempts < MaxAutoRetryAttempts {

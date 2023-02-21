@@ -133,7 +133,7 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, *client
 		RedirectURI:  redirect,
 	}
 
-	loginCallback, err := idp.RelyingPartyHandler.GetClient().LoginCallback(req, cookie)
+	loginCallback, err := idp.RelyingPartyHandler.Client.LoginCallback(req, cookie)
 	assert.NoError(t, err)
 
 	return idp, loginCallback
