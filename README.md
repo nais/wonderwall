@@ -213,7 +213,7 @@ The following flags are available:
 --session.inactivity                       Automatically expire user sessions if they have not refreshed their tokens within a given duration.
 --session.inactivity-timeout duration      Inactivity timeout for user sessions. (default 30m0s)
 --session.max-lifetime duration            Max lifetime for user sessions. (default 1h0m0s)
---session.refresh                          Automatically refresh the tokens for user sessions if they are expired, as long as the session exists (indicated by the session max lifetime).
+--session.refresh                          Enable refresh tokens. In standalone mode, will automatically refresh tokens if they are expired as long as the session is valid (i.e. not exceeding 'session.max-lifetime' or 'session.inactivity-timeout').
 --upstream-host string                     Address of upstream host. (default "127.0.0.1:8080")
 ```
 
@@ -326,8 +326,9 @@ Tokens within the session will usually expire before the session itself. If you'
 you'll probably want to use refresh tokens to avoid redirecting end-users to the `/oauth2/login` endpoint whenever the
 access tokens have expired. This can be enabled by using the `session.refresh` flag.
 
-If session refresh is enabled, tokens will at the earliest be automatically renewed 5 minutes before they expire. This
-happens whenever the end-user visits any path that is proxied to the upstream application.
+If enabled, tokens will be automatically renewed 5 minutes (at the earliest) before they expire. They will also be
+renewed _after_ expiry, as long as the session itself has not ended or been marked as inactive. Refreshing happens
+whenever the end-user visits any path that is proxied to the upstream application.
 
 The `session.refresh` flag also enables a new endpoint:
 
@@ -370,11 +371,11 @@ Content-Type: application/json
 Additionally, the metadata object returned by both the `/oauth2/session` and `/oauth2/session/refresh` endpoints now 
 contain some new fields in addition to the previous fields:
 
-| Field                                 | Description                                                                                     |
-|---------------------------------------|-------------------------------------------------------------------------------------------------|
-| `tokens.next_auto_refresh_in_seconds` | The number of seconds until the earliest time where the tokens will automatically be refreshed. |
-| `tokens.refresh_cooldown`             | A boolean indicating whether or not the refresh operation is on cooldown or not.                |
-| `tokens.refresh_cooldown_seconds`     | The number of seconds until the refresh operation is no longer on cooldown.                     |
+| Field                                 | Description                                                                                                                                                   |
+|---------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `tokens.next_auto_refresh_in_seconds` | The number of seconds until the earliest time where the tokens will automatically be refreshed. A value of -1 means that automatic refreshing is not enabled. |
+| `tokens.refresh_cooldown`             | A boolean indicating whether or not the refresh operation is on cooldown or not.                                                                              |
+| `tokens.refresh_cooldown_seconds`     | The number of seconds until the refresh operation is no longer on cooldown.                                                                                   |
 
 Note that the refresh operation has a default cooldown period of 1 minute, which may be shorter depending on the token lifetime
 of the tokens returned by the identity provider. In other words, a request to the `/oauth2/session/refresh` endpoint will 
@@ -391,5 +392,6 @@ This is enabled with the `session.inactivity` option, which also requires `sessi
 The `/oauth2/session` endpoint returns `session.active`, `session.timeout_at` and `session.timeout_in_seconds` that
 indicates the state of the session and when it times out.
 
-The timeout is configured with `session.inactivity-timeout`. If this timeout is shorter than the token lifetime, you 
-should implement mechanisms to trigger refreshes before the timeout is reached.
+The timeout is configured with `session.inactivity-timeout`.
+If this timeout is shorter than the token expiry, the `tokens.expire_at` and `tokens.expire_in_seconds` fields will
+be reduced accordingly to reflect the inactivity timeout.
