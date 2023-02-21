@@ -48,7 +48,7 @@ func run() error {
 		case config.SSOModeServer:
 			src, err = ssoServer(ctx, cfg, crypt)
 		case config.SSOModeProxy:
-			src, err = ssoProxy(cfg)
+			src, err = ssoProxy(cfg, crypt)
 		default:
 			return fmt.Errorf("invalid SSO mode: %q", cfg.SSO.Mode)
 		}
@@ -99,6 +99,6 @@ func ssoServer(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*
 	return handler.NewSSOServer(h)
 }
 
-func ssoProxy(cfg *config.Config) (*handler.SSOProxy, error) {
-	return handler.NewSSOProxy(cfg)
+func ssoProxy(cfg *config.Config, crypt crypto.Crypter) (*handler.SSOProxy, error) {
+	return handler.NewSSOProxy(cfg, crypt)
 }
