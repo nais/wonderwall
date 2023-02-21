@@ -22,6 +22,7 @@ require (
 	golang.org/x/oauth2 v0.5.0
 	golang.org/x/vuln v0.0.0-20230207141452-6b5ae5be2408
 	honnef.co/go/tools v0.4.0
+	mvdan.cc/gofumpt v0.4.0
 )
 
 require (
@@ -35,6 +36,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/goccy/go-json v0.10.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.1 // indirect
@@ -61,9 +63,10 @@ require (
 	golang.org/x/exp/typeparams v0.0.0-20230206171751-46f607a40771 // indirect
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
-	golang.org/x/tools v0.5.1-0.20230117180257-8aba49bb5ea2 // indirect
+	golang.org/x/tools v0.6.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
