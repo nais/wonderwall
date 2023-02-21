@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -53,16 +54,12 @@ type Session struct {
 	ticket *Ticket
 }
 
-func (in *Session) AccessToken() string {
-	return in.data.AccessToken
-}
+func (in *Session) AccessToken() (string, error) {
+	if in.data != nil && in.data.HasActiveAccessToken() {
+		return in.data.AccessToken, nil
+	}
 
-func (in *Session) CanRefresh() bool {
-	return in.data != nil && in.data.HasRefreshToken() && !in.data.Metadata.IsRefreshOnCooldown()
-}
-
-func (in *Session) Encrypt() (*EncryptedData, error) {
-	return in.data.Encrypt(in.ticket.Crypter())
+	return "", fmt.Errorf("%w: access token is expired", ErrInvalid)
 }
 
 func (in *Session) ExternalSessionID() string {
@@ -73,14 +70,6 @@ func (in *Session) IDToken() string {
 	return in.data.IDToken
 }
 
-func (in *Session) HasActiveAccessToken() bool {
-	return in.data != nil && in.data.HasActiveAccessToken()
-}
-
-func (in *Session) Key() string {
-	return in.ticket.Key()
-}
-
 func (in *Session) MetadataVerbose() MetadataVerbose {
 	return in.data.Metadata.Verbose()
 }
@@ -89,12 +78,24 @@ func (in *Session) MetadataVerboseRefresh() MetadataVerboseWithRefresh {
 	return in.data.Metadata.VerboseWithRefresh()
 }
 
-func (in *Session) ShouldRefresh() bool {
-	return in.data != nil && in.data.Metadata.ShouldRefresh()
-}
-
 func (in *Session) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter) error {
 	return in.ticket.SetCookie(w, opts, crypter)
+}
+
+func (in *Session) canRefresh() bool {
+	return in.data != nil && in.data.HasRefreshToken() && !in.data.Metadata.IsRefreshOnCooldown()
+}
+
+func (in *Session) encrypt() (*EncryptedData, error) {
+	return in.data.Encrypt(in.ticket.Crypter())
+}
+
+func (in *Session) key() string {
+	return in.ticket.Key()
+}
+
+func (in *Session) shouldRefresh() bool {
+	return in.data != nil && in.data.Metadata.ShouldRefresh()
 }
 
 func NewSession(data *Data, ticket *Ticket) *Session {

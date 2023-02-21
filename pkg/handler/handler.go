@@ -97,11 +97,7 @@ func (s *Standalone) GetAccessToken(r *http.Request) (string, error) {
 		return "", err
 	}
 
-	if !sess.HasActiveAccessToken() {
-		return "", fmt.Errorf("%w: access token is expired", session.ErrInvalid)
-	}
-
-	return sess.AccessToken(), nil
+	return sess.AccessToken()
 }
 
 func (s *Standalone) GetAutoLogin() *autologin.AutoLogin {

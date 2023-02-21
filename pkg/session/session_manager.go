@@ -94,7 +94,7 @@ func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetim
 }
 
 func (in *manager) Delete(ctx context.Context, session *Session) error {
-	return in.deleteForKey(ctx, session.Key())
+	return in.deleteForKey(ctx, session.key())
 }
 
 func (in *manager) DeleteForExternalID(ctx context.Context, id string) error {
@@ -108,7 +108,7 @@ func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
 		return nil, fmt.Errorf("getting session: %w", err)
 	}
 
-	if !sess.ShouldRefresh() {
+	if !sess.shouldRefresh() {
 		return sess, nil
 	}
 
@@ -125,7 +125,7 @@ func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
 }
 
 func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
-	if !in.cfg.Session.Refresh || !sess.CanRefresh() {
+	if !in.cfg.Session.Refresh || !sess.canRefresh() {
 		return sess, nil
 	}
 
@@ -177,7 +177,7 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 		return nil, err
 	}
 
-	if !sess.CanRefresh() {
+	if !sess.canRefresh() {
 		logger.Debug("session: already refreshed, aborting refresh attempt.")
 		return sess, nil
 	}
@@ -245,7 +245,7 @@ func (in *manager) key(externalSessionID string) string {
 }
 
 func (in *manager) update(ctx context.Context, sess *Session) error {
-	encrypted, err := sess.Encrypt()
+	encrypted, err := sess.encrypt()
 	if err != nil {
 		return fmt.Errorf("encrypting session data: %w", err)
 	}
