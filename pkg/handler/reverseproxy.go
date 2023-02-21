@@ -17,9 +17,9 @@ import (
 )
 
 type ReverseProxySource interface {
+	GetAccessToken(r *http.Request) (string, error)
 	GetAutoLogin() *autologin.AutoLogin
 	GetPath(r *http.Request) string
-	GetSessions() *session.Handler
 }
 
 type ReverseProxy struct {
@@ -63,7 +63,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	logger := mw.LogEntryFrom(r)
 	isAuthenticated := false
 
-	accessToken, err := src.GetSessions().GetAccessToken(r)
+	accessToken, err := src.GetAccessToken(r)
 	switch {
 	case err == nil:
 		// add authentication if session cookie and token checks out
