@@ -2,17 +2,12 @@ package session
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
-)
-
-var (
-	ErrKeyNotFound = errors.New("key not found")
 )
 
 type Store interface {

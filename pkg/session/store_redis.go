@@ -33,7 +33,7 @@ func (s *redisSessionStore) Read(ctx context.Context, key string) (*EncryptedDat
 	}
 
 	if errors.Is(err, redis.Nil) {
-		return nil, fmt.Errorf("%w: %s", ErrKeyNotFound, err.Error())
+		return nil, fmt.Errorf("%w: %w", ErrNotFound, err)
 	}
 
 	return nil, err
@@ -59,7 +59,7 @@ func (s *redisSessionStore) Delete(ctx context.Context, keys ...string) error {
 	}
 
 	if errors.Is(err, redis.Nil) {
-		return fmt.Errorf("%w: %s", ErrKeyNotFound, err.Error())
+		return fmt.Errorf("%w: %w", ErrNotFound, err)
 	}
 
 	return err
