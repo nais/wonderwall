@@ -40,10 +40,10 @@ func (in *reader) Get(r *http.Request) (*Session, error) {
 		return nil, err
 	}
 
-	return in.GetForTicket(r.Context(), ticket)
+	return in.getForTicket(r.Context(), ticket)
 }
 
-func (in *reader) GetForTicket(ctx context.Context, ticket *Ticket) (*Session, error) {
+func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, error) {
 	var encrypted *EncryptedData
 	var err error
 

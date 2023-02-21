@@ -172,7 +172,7 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 	}(lock, ctx)
 
 	// Get the latest session state again in case it was changed while acquiring the lock
-	sess, err = in.GetForTicket(ctx, sess.ticket)
+	sess, err = in.getForTicket(ctx, sess.ticket)
 	if err != nil {
 		return nil, err
 	}

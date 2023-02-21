@@ -22,8 +22,6 @@ var (
 type Reader interface {
 	// Get returns the session for a given http.Request, or an error if the session is invalid or not found.
 	Get(r *http.Request) (*Session, error)
-	// GetForTicket returns the session for a given Ticket, or an error if the session is invalid or not found.
-	GetForTicket(ctx context.Context, ticket *Ticket) (*Session, error)
 }
 
 // Writer knows how to create, update and delete a session.
