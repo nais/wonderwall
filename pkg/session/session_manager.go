@@ -204,7 +204,7 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 	sess.data.Metadata.Refresh(resp.ExpiresIn)
 
 	if in.cfg.Session.Inactivity {
-		sess.data.Metadata.ExtendTimeout(in.cfg.Session.InactivityTimeout)
+		sess.data.Metadata.WithTimeout(in.cfg.Session.InactivityTimeout)
 	}
 
 	err = in.update(ctx, sess)

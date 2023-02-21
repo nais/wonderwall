@@ -208,10 +208,6 @@ func (in *Metadata) TokenLifetime() time.Duration {
 	return in.Tokens.ExpireAt.Sub(in.Tokens.RefreshedAt)
 }
 
-func (in *Metadata) ExtendTimeout(duration time.Duration) {
-	in.Session.TimeoutAt = time.Now().Add(duration)
-}
-
 func (in *Metadata) IsTimedOut() bool {
 	if in.Session.TimeoutAt.IsZero() {
 		return false
@@ -221,7 +217,12 @@ func (in *Metadata) IsTimedOut() bool {
 }
 
 func (in *Metadata) WithTimeout(timeoutIn time.Duration) {
-	in.Session.TimeoutAt = time.Now().Add(timeoutIn)
+	timeoutAt := time.Now().Add(timeoutIn)
+	in.Session.TimeoutAt = timeoutAt
+
+	if timeoutAt.Before(in.Tokens.ExpireAt) {
+		in.Tokens.ExpireAt = timeoutAt
+	}
 }
 
 func (in *Metadata) Verbose() MetadataVerbose {
