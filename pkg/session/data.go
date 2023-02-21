@@ -19,8 +19,10 @@ type EncryptedData struct {
 	Ciphertext []byte
 }
 
-var _ encoding.BinaryMarshaler = &EncryptedData{}
-var _ encoding.BinaryUnmarshaler = &EncryptedData{}
+var (
+	_ encoding.BinaryMarshaler   = &EncryptedData{}
+	_ encoding.BinaryUnmarshaler = &EncryptedData{}
+)
 
 func (in *EncryptedData) MarshalBinary() ([]byte, error) {
 	return in.Ciphertext, nil

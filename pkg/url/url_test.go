@@ -302,7 +302,6 @@ func TestMatchingIngress(t *testing.T) {
 				_, err := urlpkg.MatchingIngress(req)
 				assert.ErrorIs(t, err, urlpkg.ErrNoMatchingIngress)
 			})
-
 		}
 	})
 

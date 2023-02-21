@@ -12,9 +12,7 @@ import (
 	"github.com/nais/wonderwall/pkg/crypto"
 )
 
-var (
-	encryptionKey = `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq` // 256 bits key
-)
+var encryptionKey = `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq` // 256 bits key
 
 func TestMake(t *testing.T) {
 	expiresIn := 5 * time.Minute

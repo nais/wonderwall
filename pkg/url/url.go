@@ -13,9 +13,7 @@ const (
 	RedirectQueryParameter = "redirect"
 )
 
-var (
-	ErrNoMatchingIngress = errors.New("request host does not match any configured ingresses")
-)
+var ErrNoMatchingIngress = errors.New("request host does not match any configured ingresses")
 
 // Login constructs a URL string that points to the login path for the given target URL.
 // The given redirect string should point to the location to be redirected to after login.

@@ -14,9 +14,7 @@ const (
 	KeyTemplate = "%s.lock"
 )
 
-var (
-	ErrAcquireLock = errors.New("could not acquire lock")
-)
+var ErrAcquireLock = errors.New("could not acquire lock")
 
 type Lock interface {
 	Acquire(ctx context.Context, duration time.Duration) error

@@ -9,11 +9,9 @@ import (
 	mw "github.com/nais/wonderwall/pkg/middleware"
 )
 
-var (
-	// Used to check final redirects are not susceptible to open redirects.
-	// Matches //, /\ and both of these with whitespace in between (eg / / or / \).
-	invalidRedirectRegex = regexp.MustCompile(`[/\\](?:[\s\v]*|\.{1,2})[/\\]`)
-)
+// Used to check final redirects are not susceptible to open redirects.
+// Matches //, /\ and both of these with whitespace in between (eg / / or / \).
+var invalidRedirectRegex = regexp.MustCompile(`[/\\](?:[\s\v]*|\.{1,2})[/\\]`)
 
 type Validator struct {
 	allowedDomains []string
