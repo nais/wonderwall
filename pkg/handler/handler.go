@@ -126,12 +126,7 @@ func (s *Standalone) GetIngresses() *ingress.Ingresses {
 }
 
 func (s *Standalone) GetPath(r *http.Request) string {
-	path, ok := mw.PathFrom(r.Context())
-	if !ok {
-		path = s.Ingresses.MatchingPath(r)
-	}
-
-	return path
+	return GetPath(r, s)
 }
 
 func (s *Standalone) GetRedirect() url.Redirect {
