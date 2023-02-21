@@ -31,6 +31,7 @@ func NewTicket(sessionKey string) (*Ticket, error) {
 	return &Ticket{SessionKey: sessionKey, EncryptionKey: encKey}, nil
 }
 
+// Crypter returns a crypto.Crypter initialized with the session's data encryption key.
 func (c *Ticket) Crypter() crypto.Crypter {
 	if c.crypter == nil {
 		c.crypter = crypto.NewCrypter(c.EncryptionKey)
@@ -38,11 +39,14 @@ func (c *Ticket) Crypter() crypto.Crypter {
 	return c.crypter
 }
 
+// Key returns the key that identifies the session.
 func (c *Ticket) Key() string {
 	return c.SessionKey
 }
 
-func (c *Ticket) Set(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter) error {
+// SetCookie marshals the Ticket, encrypts the value with the given crypto.Crypter, and writes the resulting cookie to the
+// given http.ResponseWriter, applying any cookie.Options to the cookie itself.
+func (c *Ticket) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter) error {
 	b, err := json.Marshal(c)
 	if err != nil {
 		return fmt.Errorf("marshalling ticket: %w", err)
@@ -51,13 +55,15 @@ func (c *Ticket) Set(w http.ResponseWriter, opts cookie.Options, crypter crypto.
 	return cookie.EncryptAndSet(w, cookie.Session, string(b), opts, crypter)
 }
 
-func GetTicket(r *http.Request, crypter crypto.Crypter) (*Ticket, error) {
+// getTicket returns a Ticket from the session cookie found in the http.Request, given a crypto.Crypter that
+// can decrypt the cookie is provided.
+func getTicket(r *http.Request, crypter crypto.Crypter) (*Ticket, error) {
 	ticketJson, err := cookie.GetDecrypted(r, cookie.Session, crypter)
 	if errors.Is(err, http.ErrNoCookie) {
-		return nil, ErrCookieNotFound
+		return nil, fmt.Errorf("ticket: session cookie: %w", ErrNotFound)
 	}
-	if errors.Is(err, cookie.ErrInvalidValue) {
-		return nil, err
+	if errors.Is(err, cookie.ErrInvalidValue) || errors.Is(err, cookie.ErrDecrypt) {
+		return nil, fmt.Errorf("ticket: session cookie: %w: %w", ErrInvalid, err)
 	}
 	if err != nil {
 		return nil, err
@@ -66,7 +72,7 @@ func GetTicket(r *http.Request, crypter crypto.Crypter) (*Ticket, error) {
 	var ticket Ticket
 	err = json.Unmarshal([]byte(ticketJson), &ticket)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshalling ticket: %w", err)
+		return nil, fmt.Errorf("ticket: unmarshalling: %w", err)
 	}
 
 	return &ticket, nil
