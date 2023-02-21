@@ -229,6 +229,17 @@ func TestMetadata_ShouldRefresh(t *testing.T) {
 
 		assert.True(t, metadata.ShouldRefresh())
 	})
+
+	t.Run("refresh is on cooldown and token has expired", func(t *testing.T) {
+		metadata := session.Metadata{
+			Tokens: session.MetadataTokens{
+				RefreshedAt: time.Now(),
+				ExpireAt:    time.Now().Add(-5 * time.Minute),
+			},
+		}
+
+		assert.True(t, metadata.ShouldRefresh())
+	})
 }
 
 func TestMetadata_TokenLifetime(t *testing.T) {

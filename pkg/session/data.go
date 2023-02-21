@@ -3,6 +3,7 @@ package session
 import (
 	"encoding"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/nais/wonderwall/pkg/crypto"
@@ -90,8 +91,28 @@ func (in *Data) HasAccessToken() bool {
 	return len(in.AccessToken) > 0
 }
 
+func (in *Data) HasActiveAccessToken() bool {
+	return in.HasAccessToken() && !in.Metadata.IsExpired()
+}
+
 func (in *Data) HasRefreshToken() bool {
 	return len(in.RefreshToken) > 0
+}
+
+func (in *Data) Validate() error {
+	if !in.HasAccessToken() {
+		return fmt.Errorf("%w: no access token in data", ErrInvalid)
+	}
+
+	if in.Metadata.IsEnded() {
+		return fmt.Errorf("%w: has ended", ErrInvalid)
+	}
+
+	if in.Metadata.IsTimedOut() {
+		return fmt.Errorf("%w: is inactive", ErrInvalid)
+	}
+
+	return nil
 }
 
 type Metadata struct {
@@ -127,6 +148,10 @@ func NewMetadata(expiresIn, endsIn time.Duration) *Metadata {
 			RefreshedAt: now,
 		},
 	}
+}
+
+func (in *Metadata) IsEnded() bool {
+	return time.Now().After(in.Session.EndsAt)
 }
 
 func (in *Metadata) IsExpired() bool {
@@ -168,6 +193,10 @@ func (in *Metadata) RefreshCooldown() time.Time {
 }
 
 func (in *Metadata) ShouldRefresh() bool {
+	if in.IsExpired() {
+		return true
+	}
+
 	if in.IsRefreshOnCooldown() {
 		return false
 	}
