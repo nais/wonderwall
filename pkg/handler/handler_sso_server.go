@@ -40,5 +40,5 @@ func (s *SSOServer) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOServer) ReverseProxy(w http.ResponseWriter, r *http.Request) {
-	http.NotFound(w, r)
+	http.Redirect(w, r, s.Config.SSO.ServerDefaultRedirectURL, http.StatusTemporaryRedirect)
 }

@@ -99,7 +99,7 @@ func Initialize() (*Config, error) {
 	flag.Bool(SSOEnabled, false, "Enable single sign-on mode; one server acting as the OIDC Relying Party, and N proxies. The proxies delegate most endpoint operations to the server, and only implements a reverse proxy that reads the user's session data from the shared store.")
 	flag.String(SSODomain, "", "The domain that the session cookies should be set for, usually the second-level domain name (e.g. example.com).")
 	flag.String(SSOModeFlag, string(SSOModeServer), "The SSO mode for this instance. Must be one of 'server' or 'proxy'.")
-	flag.String(SSOServerDefaultRedirectURL, "", "The URL that the SSO server should redirect to by default if the a given redirect query parameter is invalid.")
+	flag.String(SSOServerDefaultRedirectURL, "", "The URL that the SSO server should redirect to by default if a given redirect query parameter is invalid.")
 	flag.String(SSOServerURL, "", "The URL used by the proxy to point to the SSO server instance.")
 
 	redisFlags()
