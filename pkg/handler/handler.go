@@ -46,11 +46,11 @@ type Standalone struct {
 }
 
 func NewStandalone(
-	cfg *config.Config,
-	cookieOpts cookie.Options,
-	jwksProvider openidclient.JwksProvider,
-	openidConfig openidconfig.Config,
-	crypter crypto.Crypter,
+		cfg *config.Config,
+		cookieOpts cookie.Options,
+		jwksProvider openidclient.JwksProvider,
+		openidConfig openidconfig.Config,
+		crypter crypto.Crypter,
 ) (*Standalone, error) {
 	autoLogin, err := autologin.New(cfg)
 	if err != nil {
@@ -326,14 +326,7 @@ func (s *Standalone) Session(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	if s.Config.Session.Refresh {
-		err = json.NewEncoder(w).Encode(sess.MetadataVerboseRefresh())
-	} else {
-		err = json.NewEncoder(w).Encode(sess.MetadataVerbose())
-	}
-
+	err = s.sessionWriteMetadataResponse(w, r, sess)
 	if err != nil {
 		logger.Warnf("session/info: marshalling metadata: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -368,13 +361,27 @@ func (s *Standalone) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(sess.MetadataVerboseRefresh())
+	err = s.sessionWriteMetadataResponse(w, r, sess)
 	if err != nil {
 		logger.Warnf("session/refresh: marshalling metadata: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *Standalone) sessionWriteMetadataResponse(w http.ResponseWriter, r *http.Request, sess *session.Session) error {
+	w.Header().Set("Content-Type", "application/json")
+
+	if !s.Config.Session.Refresh {
+		return json.NewEncoder(w).Encode(sess.MetadataVerbose())
+	}
+
+	metadata := sess.MetadataVerboseRefresh()
+	if s.Config.SSO.Enabled {
+		metadata.Tokens.NextAutoRefreshInSeconds = int64(-1)
+	}
+
+	return json.NewEncoder(w).Encode(metadata)
 }
 
 func (s *Standalone) ReverseProxy(w http.ResponseWriter, r *http.Request) {
