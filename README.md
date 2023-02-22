@@ -214,6 +214,11 @@ The following flags are available:
 --session.inactivity-timeout duration      Inactivity timeout for user sessions. (default 30m0s)
 --session.max-lifetime duration            Max lifetime for user sessions. (default 1h0m0s)
 --session.refresh                          Enable refresh tokens. In standalone mode, will automatically refresh tokens if they are expired as long as the session is valid (i.e. not exceeding 'session.max-lifetime' or 'session.inactivity-timeout').
+--sso.domain string                        The domain that the session cookies should be set for, usually the second-level domain name (e.g. example.com).
+--sso.enabled                              Enable single sign-on mode; one server acting as the OIDC Relying Party, and N proxies. The proxies delegate most endpoint operations to the server, and only implements a reverse proxy that reads the user's session data from the shared store.
+--sso.mode string                          The SSO mode for this instance. Must be one of 'server' or 'proxy'. (default "server")
+--sso.server-default-redirect-url string   The URL that the SSO server should redirect to by default if a given redirect query parameter is invalid.
+--sso.server-url string                    The URL used by the proxy to point to the SSO server instance.
 --upstream-host string                     Address of upstream host. (default "127.0.0.1:8080")
 ```
 
