@@ -9,5 +9,4 @@ const (
 	LogoutFrontChannel = "/logout/frontchannel"
 	LogoutLocal        = "/logout/local"
 	Session            = "/session"
-	SessionRefresh     = "/session/refresh"
 )

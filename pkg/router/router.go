@@ -68,9 +68,15 @@ func New(src Source, cfg *config.Config) chi.Router {
 				r.Get(paths.LogoutCallback, src.LogoutCallback)
 				r.Get(paths.LogoutFrontChannel, src.LogoutFrontChannel)
 				r.Get(paths.LogoutLocal, src.LogoutLocal)
-				r.Get(paths.Session, src.Session)
-				r.Get(paths.SessionRefresh, src.SessionRefresh) // TODO: for legacy purposes, remove after grace period
-				r.Post(paths.SessionRefresh, src.SessionRefresh)
+
+				r.Route(paths.Session, func(r chi.Router) {
+					if cfg.SSO.Enabled && cfg.SSO.Mode == config.SSOModeServer {
+						r.Use(middleware.Cors(cfg).Handler)
+					}
+					r.Get("/", src.Session)
+					r.Get("/refresh", src.SessionRefresh)
+					r.Post("/refresh", src.SessionRefresh)
+				})
 			})
 		}
 	})
