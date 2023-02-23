@@ -66,7 +66,7 @@ func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, e
 
 	data, err := encrypted.Decrypt(ticket.Crypter())
 	if err != nil {
-		return nil, fmt.Errorf("decrypting session data: %w", err)
+		return nil, fmt.Errorf("%w: decrypting session data: %w", ErrInvalid, err)
 	}
 
 	err = data.Validate()
