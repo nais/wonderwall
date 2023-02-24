@@ -43,6 +43,7 @@ func (s *SSOServer) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 	s.Standalone.LogoutLocal(w, r)
 }
 
-func (s *SSOServer) ReverseProxy(w http.ResponseWriter, r *http.Request) {
+// Wildcard redirects all requests to the default redirect URL.
+func (s *SSOServer) Wildcard(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, s.Config.SSO.ServerDefaultRedirectURL, http.StatusTemporaryRedirect)
 }

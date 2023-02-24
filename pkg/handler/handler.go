@@ -385,7 +385,8 @@ func (s *Standalone) sessionWriteMetadataResponse(w http.ResponseWriter, r *http
 	return json.NewEncoder(w).Encode(metadata)
 }
 
-func (s *Standalone) ReverseProxy(w http.ResponseWriter, r *http.Request) {
+// Wildcard proxies all requests to an upstream server.
+func (s *Standalone) Wildcard(w http.ResponseWriter, r *http.Request) {
 	s.UpstreamProxy.Handler(s, w, r)
 }
 

@@ -140,7 +140,8 @@ func (s *SSOProxy) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
-func (s *SSOProxy) ReverseProxy(w http.ResponseWriter, r *http.Request) {
+// Wildcard proxies all requests to an upstream server.
+func (s *SSOProxy) Wildcard(w http.ResponseWriter, r *http.Request) {
 	s.UpstreamProxy.Handler(s, w, r)
 }
 

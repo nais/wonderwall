@@ -34,8 +34,8 @@ type Handlers interface {
 	Session(http.ResponseWriter, *http.Request)
 	// SessionRefresh refreshes current user's session and returns the associated updated metadata.
 	SessionRefresh(http.ResponseWriter, *http.Request)
-	// ReverseProxy proxies all requests upstream.
-	ReverseProxy(http.ResponseWriter, *http.Request)
+	// Wildcard handles all requests not matching the other handlers.
+	Wildcard(http.ResponseWriter, *http.Request)
 }
 
 type Config interface {
@@ -81,6 +81,6 @@ func New(src Source, cfg *config.Config) chi.Router {
 		}
 	})
 
-	r.HandleFunc("/*", src.ReverseProxy)
+	r.HandleFunc("/*", src.Wildcard)
 	return r
 }
