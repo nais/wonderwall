@@ -1,4 +1,4 @@
-package error_test
+package handler_test
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/cookie"
-	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
+	errorhandler "github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/ingress"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/mock"
@@ -21,7 +21,7 @@ func TestHandler_Error(t *testing.T) {
 	idp := mock.NewIdentityProvider(cfg)
 	defer idp.Close()
 
-	rpHandler := idp.RelyingPartyHandler.GetErrorHandler()
+	rpHandler := idp.RelyingPartyHandler
 
 	for _, test := range []struct {
 		name               string
@@ -193,14 +193,12 @@ func TestHandler_Retry(t *testing.T) {
 			idp := mock.NewIdentityProvider(cfg)
 			defer idp.Close()
 
-			handler := idp.RelyingPartyHandler.GetErrorHandler()
-
 			ing, err := ingress.ParseIngress(test.ingress)
 			assert.NoError(t, err)
 
 			test.request = mw.RequestWithPath(test.request, ing.Path())
 
-			retryURI := handler.Retry(test.request, test.loginCookie)
+			retryURI := idp.RelyingPartyHandler.Retry(test.request, test.loginCookie)
 			assert.Equal(t, test.want, retryURI)
 		})
 	}

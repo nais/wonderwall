@@ -82,6 +82,32 @@ func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) 
 	}, nil
 }
 
+func (s *SSOProxy) GetAccessToken(r *http.Request) (string, error) {
+	sess, err := s.SessionReader.Get(r)
+	if err != nil {
+		return "", err
+	}
+
+	return sess.AccessToken()
+}
+
+func (s *SSOProxy) GetAutoLogin() *autologin.AutoLogin {
+	return s.AutoLogin
+}
+
+func (s *SSOProxy) GetIngresses() *ingress.Ingresses {
+	return s.Ingresses
+}
+
+func (s *SSOProxy) GetPath(r *http.Request) string {
+	return GetPath(r, s.GetIngresses())
+}
+
+func (s *SSOProxy) GetSSOServerURL() *urllib.URL {
+	u := *s.SSOServerURL
+	return &u
+}
+
 func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 	logger := logentry.LogEntryFrom(r)
 
@@ -99,7 +125,7 @@ func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 
 	target.RawQuery = reqQuery.Encode()
 
-	canonicalRedirect := s.GetRedirect().Canonical(r)
+	canonicalRedirect := s.Redirect.Canonical(r)
 	ssoServerLoginURL := url.Login(target, canonicalRedirect)
 
 	logger.WithFields(log.Fields{
@@ -143,34 +169,4 @@ func (s *SSOProxy) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 // Wildcard proxies all requests to an upstream server.
 func (s *SSOProxy) Wildcard(w http.ResponseWriter, r *http.Request) {
 	s.UpstreamProxy.Handler(s, w, r)
-}
-
-func (s *SSOProxy) GetAccessToken(r *http.Request) (string, error) {
-	sess, err := s.SessionReader.Get(r)
-	if err != nil {
-		return "", err
-	}
-
-	return sess.AccessToken()
-}
-
-func (s *SSOProxy) GetAutoLogin() *autologin.AutoLogin {
-	return s.AutoLogin
-}
-
-func (s *SSOProxy) GetIngresses() *ingress.Ingresses {
-	return s.Ingresses
-}
-
-func (s *SSOProxy) GetPath(r *http.Request) string {
-	return GetPath(r, s)
-}
-
-func (s *SSOProxy) GetRedirect() url.Redirect {
-	return s.Redirect
-}
-
-func (s *SSOProxy) GetSSOServerURL() *urllib.URL {
-	u := *s.SSOServerURL
-	return &u
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
-	errorhandler "github.com/nais/wonderwall/pkg/handler/error"
 	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/metrics"
 	mw "github.com/nais/wonderwall/pkg/middleware"
@@ -37,7 +36,6 @@ type Standalone struct {
 	Config         *config.Config
 	CookieOptions  cookie.Options
 	Crypter        crypto.Crypter
-	ErrorHandler   errorhandler.Handler
 	Ingresses      *ingress.Ingresses
 	OpenidConfig   openidconfig.Config
 	Redirect       url.Redirect
@@ -114,34 +112,22 @@ func (s *Standalone) GetCookieOptions(r *http.Request) cookie.Options {
 	return s.CookieOptions.WithPath(path)
 }
 
-func (s *Standalone) GetCrypter() crypto.Crypter {
-	return s.Crypter
-}
-
-func (s *Standalone) GetErrorHandler() errorhandler.Handler {
-	return errorhandler.New(s)
-}
-
 func (s *Standalone) GetIngresses() *ingress.Ingresses {
 	return s.Ingresses
 }
 
 func (s *Standalone) GetPath(r *http.Request) string {
-	return GetPath(r, s)
-}
-
-func (s *Standalone) GetRedirect() url.Redirect {
-	return s.Redirect
+	return GetPath(r, s.GetIngresses())
 }
 
 func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
-	canonicalRedirect := s.GetRedirect().Canonical(r)
+	canonicalRedirect := s.Redirect.Canonical(r)
 	login, err := s.Client.Login(r)
 	if err != nil {
 		if errors.Is(err, openidclient.ErrInvalidSecurityLevel) || errors.Is(err, openidclient.ErrInvalidLocale) {
-			s.GetErrorHandler().BadRequest(w, r, err)
+			s.BadRequest(w, r, err)
 		} else {
-			s.GetErrorHandler().InternalError(w, r, err)
+			s.InternalError(w, r, err)
 		}
 
 		return
@@ -150,9 +136,9 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 	opts := s.GetCookieOptions(r).
 		WithExpiresIn(1 * time.Hour).
 		WithSameSite(http.SameSiteNoneMode)
-	err = login.SetCookie(w, opts, s.GetCrypter(), canonicalRedirect)
+	err = login.SetCookie(w, opts, s.Crypter, canonicalRedirect)
 	if err != nil {
-		s.GetErrorHandler().InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
+		s.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
 		return
 	}
 
@@ -170,29 +156,29 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	cookie.Clear(w, cookie.Login, opts.WithSameSite(http.SameSiteNoneMode))
 	cookie.Clear(w, cookie.LoginLegacy, opts.WithSameSite(http.SameSiteDefaultMode))
 
-	loginCookie, err := openid.GetLoginCookie(r, s.GetCrypter())
+	loginCookie, err := openid.GetLoginCookie(r, s.Crypter)
 	if err != nil {
 		msg := "callback: fetching login cookie"
 		if errors.Is(err, http.ErrNoCookie) {
 			msg += ": fallback cookie not found (user might have blocked all cookies, or the callback route was accessed before the login route)"
 		}
-		s.GetErrorHandler().Unauthorized(w, r, fmt.Errorf("%s: %w", msg, err))
+		s.Unauthorized(w, r, fmt.Errorf("%s: %w", msg, err))
 		return
 	}
 
 	loginCallback, err := s.Client.LoginCallback(r, loginCookie)
 	if err != nil {
-		s.GetErrorHandler().InternalError(w, r, err)
+		s.InternalError(w, r, err)
 		return
 	}
 
 	if err := loginCallback.IdentityProviderError(); err != nil {
-		s.GetErrorHandler().InternalError(w, r, fmt.Errorf("callback: %w", err))
+		s.InternalError(w, r, fmt.Errorf("callback: %w", err))
 		return
 	}
 
 	if err := loginCallback.StateMismatchError(); err != nil {
-		s.GetErrorHandler().Unauthorized(w, r, fmt.Errorf("callback: %w", err))
+		s.Unauthorized(w, r, fmt.Errorf("callback: %w", err))
 		return
 	}
 
@@ -202,7 +188,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		return retry.RetryableError(err)
 	})
 	if err != nil {
-		s.GetErrorHandler().InternalError(w, r, fmt.Errorf("callback: redeeming tokens: %w", err))
+		s.InternalError(w, r, fmt.Errorf("callback: redeeming tokens: %w", err))
 		return
 	}
 
@@ -210,17 +196,17 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 
 	sess, err := s.SessionManager.Create(r, tokens, sessionLifetime)
 	if err != nil {
-		s.GetErrorHandler().InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
+		s.InternalError(w, r, fmt.Errorf("callback: creating session: %w", err))
 		return
 	}
 
-	err = sess.SetCookie(w, opts.WithExpiresIn(sessionLifetime), s.GetCrypter())
+	err = sess.SetCookie(w, opts.WithExpiresIn(sessionLifetime), s.Crypter)
 	if err != nil {
-		s.GetErrorHandler().InternalError(w, r, fmt.Errorf("callback: setting session cookie: %w", err))
+		s.InternalError(w, r, fmt.Errorf("callback: setting session cookie: %w", err))
 		return
 	}
 
-	redirect := s.GetRedirect().Clean(r, loginCookie.Referer)
+	redirect := s.Redirect.Clean(r, loginCookie.Referer)
 
 	fields := log.Fields{
 		"redirect_to": redirect,
@@ -234,28 +220,18 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) Logout(w http.ResponseWriter, r *http.Request) {
-	opts := logoutOptions{
-		GlobalLogout: true,
-	}
-	s.logout(w, r, opts)
+	s.logout(w, r, true)
 }
 
 func (s *Standalone) LogoutLocal(w http.ResponseWriter, r *http.Request) {
-	opts := logoutOptions{
-		GlobalLogout: false,
-	}
-	s.logout(w, r, opts)
+	s.logout(w, r, false)
 }
 
-type logoutOptions struct {
-	GlobalLogout bool
-}
-
-func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, opts logoutOptions) {
+func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, globalLogout bool) {
 	logger := mw.LogEntryFrom(r)
 	logout, err := s.Client.Logout(r)
 	if err != nil {
-		s.GetErrorHandler().InternalError(w, r, err)
+		s.InternalError(w, r, err)
 		return
 	}
 
@@ -267,7 +243,7 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, opts logoutO
 
 		err = s.SessionManager.Delete(r.Context(), sess)
 		if err != nil && !errors.Is(err, session.ErrNotFound) {
-			s.GetErrorHandler().InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
+			s.InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
 			return
 		}
 
@@ -277,7 +253,7 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, opts logoutO
 
 	cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
 
-	if opts.GlobalLogout {
+	if globalLogout {
 		logger.Debug("logout: redirecting to identity provider for global/single-logout")
 		metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
 		http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
