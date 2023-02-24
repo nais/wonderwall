@@ -8,7 +8,6 @@ import (
 	_ "go.uber.org/automaxprocs"
 
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/metrics"
@@ -81,9 +80,7 @@ func standalone(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (
 		return nil, err
 	}
 
-	cookieOpts := cookie.DefaultOptions()
-
-	return handler.NewStandalone(cfg, cookieOpts, jwksProvider, openidConfig, crypt)
+	return handler.NewStandalone(cfg, jwksProvider, openidConfig, crypt)
 }
 
 func ssoServer(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*handler.SSOServer, error) {
@@ -92,11 +89,7 @@ func ssoServer(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*
 		return nil, err
 	}
 
-	h.CookieOptions = cookie.DefaultOptions().
-		WithPath("/").
-		WithDomain(cfg.SSO.Domain)
-
-	return handler.NewSSOServer(h)
+	return handler.NewSSOServer(cfg, h)
 }
 
 func ssoProxy(cfg *config.Config, crypt crypto.Crypter) (*handler.SSOProxy, error) {

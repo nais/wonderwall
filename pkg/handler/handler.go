@@ -47,7 +47,6 @@ type Standalone struct {
 
 func NewStandalone(
 	cfg *config.Config,
-	cookieOpts cookie.Options,
 	jwksProvider openidclient.JwksProvider,
 	openidConfig openidconfig.Config,
 	crypter crypto.Crypter,
@@ -56,6 +55,8 @@ func NewStandalone(
 	if err != nil {
 		return nil, err
 	}
+
+	cookieOpts := cookie.DefaultOptions()
 
 	openidClient := openidclient.NewClient(openidConfig, jwksProvider)
 	openidClient.SetHttpClient(&http.Client{

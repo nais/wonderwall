@@ -81,8 +81,6 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 
 	crypter := crypto.NewCrypter([]byte(cfg.EncryptionKey))
 
-	cookieOpts := cookie.DefaultOptions().WithSecure(false)
-
 	rds, err := miniredis.Run()
 	if err != nil {
 		panic(err)
@@ -91,10 +89,12 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	cfg.Redis.TLS = false
 	cfg.Redis.Address = rds.Addr()
 
-	rpHandler, err := handlerpkg.NewStandalone(cfg, cookieOpts, jwksProvider, openidConfig, crypter)
+	rpHandler, err := handlerpkg.NewStandalone(cfg, jwksProvider, openidConfig, crypter)
 	if err != nil {
 		panic(err)
 	}
+
+	rpHandler.CookieOptions = cookie.DefaultOptions().WithSecure(false)
 
 	rpRouter := router.New(rpHandler, cfg)
 	rpServer.SetHandler(rpRouter)
