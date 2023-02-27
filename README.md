@@ -36,11 +36,6 @@ See [configuration](#configuration).
 
 See the [docker-compose file](docker-compose.yml) for an example setup:
 
-- Requires an environment variable `WONDERWALL_OPENID_CLIENT_JWK` with a private JWK.
-    - This can be acquired from <https://mkjwk.org>.
-    - Set the environment variable in an `.env` file that Docker Compose automatically detects and uses
-    - Environment variables can be finicky with escaping, so try to wrap the value with single quotation marks.
-        - E.g. `WONDERWALL_OPENID_CLIENT_JWK='{ "p": "_xCP...", ... }'`.
 - You need to be able to reach `host.docker.internal` to reach the identity provider mock, so make sure you
   have `127.0.0.1 host.docker.internal` in your `/etc/hosts` file.
 - By default, the setup will use the latest available pre-built image.
@@ -64,10 +59,9 @@ services:
 
 Run `docker-compose up`. This starts:
 
-- Wonderwall
-- Redis as the session storage
-- [mock-oauth2-server](https://github.com/navikt/mock-oauth2-server) as an identity provider
-- [http-https-echo](https://hub.docker.com/r/mendhak/http-https-echo) as a dummy upstream server
+- Wonderwall (port 3000) with Redis as the session storage
+- [http-https-echo](https://hub.docker.com/r/mendhak/http-https-echo) (port 4000) as the upstream server
+- [mock-oauth2-server](https://github.com/navikt/mock-oauth2-server) as the identity provider
 
 Try it out:
 
