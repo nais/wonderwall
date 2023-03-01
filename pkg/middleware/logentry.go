@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/cookie"
+	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 var logger *requestLogger
@@ -26,13 +27,15 @@ func LogEntry(provider string) LogEntryMiddleware {
 func (l *LogEntryMiddleware) Handler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		entry := logger.NewLogEntry(r)
-		entry.WithRequestLogFields(r).Infof("%s - %s", r.Method, r.URL.Path)
-
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-		t1 := time.Now()
-		defer func() {
-			entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(t1), nil)
-		}()
+
+		if !strings.HasSuffix(r.URL.Path, paths.Ping) {
+			entry.WithRequestLogFields(r).Infof("%s - %s", r.Method, r.URL.Path)
+			t1 := time.Now()
+			defer func() {
+				entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(t1), nil)
+			}()
+		}
 
 		next.ServeHTTP(ww, middleware.WithLogEntry(r, entry))
 	}
