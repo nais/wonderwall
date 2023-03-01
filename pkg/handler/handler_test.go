@@ -419,6 +419,17 @@ func TestSession_WithRefresh(t *testing.T) {
 	assert.Equal(t, int64(-1), data.Session.TimeoutInSeconds)
 }
 
+func TestPing(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	resp := get(t, rpClient, idp.RelyingPartyServer.URL+"/oauth2/ping")
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "pong", resp.Body)
+}
+
 func localLogin(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) response {
 	// First, run /oauth2/login to set cookies
 	loginURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/login")
