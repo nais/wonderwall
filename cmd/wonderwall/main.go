@@ -8,6 +8,7 @@ import (
 	_ "go.uber.org/automaxprocs"
 
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/metrics"
@@ -39,6 +40,10 @@ func run() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	if cfg.Session.CookieName != cookie.Session {
+		cookie.Session = cfg.Session.CookieName
+	}
 
 	var src router.Source
 

@@ -204,6 +204,7 @@ The following flags are available:
 --redis.password string                    Password for Redis.
 --redis.tls                                Whether or not to use TLS for connecting to Redis. (default true)
 --redis.username string                    Username for Redis.
+--session.cookie-name string               Session cookie name. (default "io.nais.wonderwall.session")
 --session.inactivity                       Automatically expire user sessions if they have not refreshed their tokens within a given duration.
 --session.inactivity-timeout duration      Inactivity timeout for user sessions. (default 30m0s)
 --session.max-lifetime duration            Max lifetime for user sessions. (default 1h0m0s)

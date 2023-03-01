@@ -11,7 +11,6 @@ import (
 )
 
 const (
-	Session     = "io.nais.wonderwall.session"
 	Login       = "io.nais.wonderwall.callback"
 	LoginLegacy = "io.nais.wonderwall.callback.legacy"
 	Retry       = "io.nais.wonderwall.retry"
@@ -21,6 +20,7 @@ const (
 )
 
 var (
+	Session         = "io.nais.wonderwall.session"
 	ErrInvalidValue = errors.New("invalid value")
 	ErrDecrypt      = errors.New("unable to decrypt, key or scheme mismatch")
 )

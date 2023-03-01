@@ -33,6 +33,7 @@ type Config struct {
 }
 
 type Session struct {
+	CookieName        string        `json:"cookie-name"`
 	Inactivity        bool          `json:"inactivity"`
 	InactivityTimeout time.Duration `json:"inactivity-timeout"`
 	MaxLifetime       time.Duration `json:"max-lifetime"`
@@ -66,6 +67,7 @@ const (
 	Ingress              = "ingress"
 	UpstreamHost         = "upstream-host"
 
+	SessionCookieName           = "session.cookie-name"
 	SessionInactivity           = "session.inactivity"
 	SessionInactivityTimeout    = "session.inactivity-timeout"
 	SessionMaxLifetime          = "session.max-lifetime"
@@ -91,6 +93,7 @@ func Initialize() (*Config, error) {
 	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 
+	flag.String(SessionCookieName, "io.nais.wonderwall.session", "Session cookie name.")
 	flag.Bool(SessionInactivity, false, "Automatically expire user sessions if they have not refreshed their tokens within a given duration.")
 	flag.Duration(SessionInactivityTimeout, 30*time.Minute, "Inactivity timeout for user sessions.")
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
