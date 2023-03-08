@@ -20,6 +20,7 @@ func NewSSOServer(cfg *config.Config, handler *Standalone) (*SSOServer, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	handler.Redirect = redirect
 	handler.CookieOptions = cookie.DefaultOptions().
 		WithPath("/").
@@ -43,7 +44,7 @@ func (s *SSOServer) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 	s.Standalone.LogoutLocal(w, r)
 }
 
-// Wildcard redirects all requests to the default redirect URL.
+// Wildcard returns HTTP 404 Not Found.
 func (s *SSOServer) Wildcard(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, s.Config.SSO.ServerDefaultRedirectURL, http.StatusTemporaryRedirect)
+	http.NotFound(w, r)
 }
