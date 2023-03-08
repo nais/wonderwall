@@ -1,5 +1,5 @@
 wonderwall:
-	go build -a -o bin/wonderwall cmd/wonderwall/main.go
+	go build -trimpath -ldflags "-s -w" -a -o bin/wonderwall cmd/wonderwall/main.go
 
 test:
 	go test -count=1 ./... -coverprofile cover.out
