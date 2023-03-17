@@ -395,3 +395,22 @@ indicates the state of the session and when it times out.
 The timeout is configured with `session.inactivity-timeout`.
 If this timeout is shorter than the token expiry, the `tokens.expire_at` and `tokens.expire_in_seconds` fields will
 be reduced accordingly to reflect the inactivity timeout.
+
+## Verifying the Wonderwall image and its contents
+
+The image is signed "keylessly" using [Sigstore cosign](https://github.com/sigstore/cosign).
+To verify its authenticity run
+```
+cosign verify europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall@sha25:<shasum> \
+--certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+--certificate-identity "https://github.com/nais/wonderwall/.github/workflows/deploy.yml@refs/heads/master"
+```
+
+The images are also attested with SBOMs in the [CycloneDX](https://cyclonedx.org/) format.
+You can verify these by running
+```
+cosign verify-attestation --type cyclonedx \
+--certificate-identity "https://github.com/nais/wonderwall/.github/workflows/deploy.yml@refs/heads/master" \
+--certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall@sha25:<shasum>
+```
