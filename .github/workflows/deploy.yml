@@ -97,4 +97,4 @@ jobs:
           output: 'cyclone.sbom.json'
           image-ref: ${{ env.GOOGLE_REGISTRY }}/wonderwall@${{ steps.build-push.outputs.digest }}
       - name: Attest
-        run: cosign attest --yes --predicate cyclone.sbom.json --type cyclonedx cosign sign --yes ${{ env.GOOGLE_REGISTRY }}/wonderwall@${{ steps.build-push.outputs.digest }}
+        run: cosign attest --yes --predicate cyclone.sbom.json --type cyclonedx ${{ env.GOOGLE_REGISTRY }}/wonderwall@${{ steps.build-push.outputs.digest }}
