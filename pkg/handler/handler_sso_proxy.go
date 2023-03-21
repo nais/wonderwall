@@ -123,7 +123,7 @@ func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 		targetQuery.Set(openidclient.LocaleURLParameter, reqQuery.Get(openidclient.LocaleURLParameter))
 	}
 
-	target.RawQuery = reqQuery.Encode()
+	target.RawQuery = targetQuery.Encode()
 
 	canonicalRedirect := s.Redirect.Canonical(r)
 	ssoServerLoginURL := url.Login(target, canonicalRedirect)
