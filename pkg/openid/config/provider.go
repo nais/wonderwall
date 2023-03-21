@@ -80,12 +80,12 @@ func NewProviderConfig(cfg *wonderwallconfig.Config) (Provider, error) {
 
 	acrValues := cfg.OpenID.ACRValues
 	if len(acrValues) > 0 && !providerCfg.ACRValuesSupported.Contains(acrValues) {
-		return nil, fmt.Errorf("identity provider does not support '%s=%s'", wonderwallconfig.OpenIDACRValues, acrValues)
+		return nil, fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", wonderwallconfig.OpenIDACRValues, acrValues, providerCfg.ACRValuesSupported)
 	}
 
 	uiLocales := cfg.OpenID.UILocales
 	if len(uiLocales) > 0 && !providerCfg.UILocalesSupported.Contains(uiLocales) {
-		return nil, fmt.Errorf("identity provider does not support '%s=%s'", wonderwallconfig.OpenIDUILocales, acrValues)
+		return nil, fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", wonderwallconfig.OpenIDUILocales, acrValues, providerCfg.UILocalesSupported)
 	}
 
 	endSessionEndpointURL, err := url.Parse(providerCfg.EndSessionEndpoint)
