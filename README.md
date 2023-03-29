@@ -201,6 +201,7 @@ The following flags are available:
 --openid.ui-locales string                 Space-separated string that configures the default UI locale (ui_locales) parameter for OAuth2 consent screen.
 --openid.well-known-url string             URI to the well-known OpenID Configuration metadata document.
 --redis.address string                     Address of Redis. An empty value will use in-memory session storage.
+--redis.connection-idle-timeout            Idle timeout for Redis connections, in seconds. If non-zero, the value should be less than the client timeout configured at the Redis server. A value of -1 disables timeout. Default is 30 minutes.
 --redis.password string                    Password for Redis.
 --redis.tls                                Whether or not to use TLS for connecting to Redis. (default true)
 --redis.username string                    Username for Redis.
