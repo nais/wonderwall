@@ -39,7 +39,7 @@ func (r *Redis) Client() (*redis.Client, error) {
 	}
 
 	if r.ConnectionIdleTimeout > 0 {
-		opts.ConnMaxLifetime = time.Duration(r.ConnectionIdleTimeout) * time.Second
+		opts.ConnMaxIdleTime = time.Duration(r.ConnectionIdleTimeout) * time.Second
 	} else if r.ConnectionIdleTimeout == -1 {
 		opts.ConnMaxIdleTime = -1
 	}
