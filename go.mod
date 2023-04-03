@@ -11,7 +11,7 @@ require (
 	github.com/lestrrat-go/jwx/v2 v2.0.9
 	github.com/nais/liberator v0.0.0-20230317101224-eeab0b0b56e1
 	github.com/prometheus/client_golang v1.14.0
-	github.com/redis/go-redis/v9 v9.0.2
+	github.com/redis/go-redis/v9 v9.0.3
 	github.com/rs/cors v1.8.3
 	github.com/sethvargo/go-retry v0.2.4
 	github.com/sirupsen/logrus v1.9.0
