@@ -13,53 +13,24 @@ import (
 // Matches //, /\ and both of these with whitespace in between (eg / / or / \).
 var invalidRedirectRegex = regexp.MustCompile(`[/\\](?:[\s\v]*|\.{1,2})[/\\]`)
 
-type Validator struct {
+var _ Validator = &AbsoluteValidator{}
+
+type Validator interface {
+	IsValidRedirect(r *http.Request, redirect string) bool
+}
+
+type AbsoluteValidator struct {
 	allowedDomains []string
-	urlType        Type
 }
 
-type Type int
-
-const (
-	Relative Type = iota
-	Absolute
-)
-
-func NewValidator(urlType Type, allowedDomains []string) *Validator {
-	return &Validator{urlType: urlType, allowedDomains: allowedDomains}
+func NewAbsoluteValidator(allowedDomains []string) *AbsoluteValidator {
+	return &AbsoluteValidator{allowedDomains: allowedDomains}
 }
 
-func (v *Validator) IsValidRedirect(r *http.Request, redirect string) bool {
-	switch v.urlType {
-	case Absolute:
-		return v.isValidAbsoluteRedirect(r, redirect)
-	case Relative:
-		return v.isValidRelativeRedirect(r, redirect)
-	default:
-		return v.isValidAbsoluteRedirect(r, redirect)
-	}
-}
-
-// isValidRelativeRedirect validates that the given redirect string is a valid relative URL.
-// It must be an absolute path (i.e. has a leading '/').
-func (v *Validator) isValidRelativeRedirect(r *http.Request, redirect string) bool {
-	u, ok := parsableRequestURI(r, redirect)
-	if !ok {
-		return false
-	}
-
-	if isRelativeURL(u) && isValidAbsolutePath(u.String()) {
-		return true
-	}
-
-	mw.LogEntryFrom(r).Infof("validator: not a valid relative URL")
-	return false
-}
-
-// isValidAbsoluteRedirect validates that the given redirect string is a valid absolute URL.
+// IsValidRedirect validates that the given redirect string is a valid absolute URL.
 // It must use the 'http' or 'https' scheme.
 // It must point to a host that matches the configured list of allowed domains.
-func (v *Validator) isValidAbsoluteRedirect(r *http.Request, redirect string) bool {
+func (v *AbsoluteValidator) IsValidRedirect(r *http.Request, redirect string) bool {
 	u, ok := parsableRequestURI(r, redirect)
 	if !ok {
 		return false
@@ -84,6 +55,32 @@ func (v *Validator) isValidAbsoluteRedirect(r *http.Request, redirect string) bo
 		return false
 	}
 
+	return false
+}
+
+var _ Validator = &RelativeValidator{}
+
+type RelativeValidator struct {
+	allowedDomains []string
+}
+
+func NewRelativeValidator(allowedDomains []string) *RelativeValidator {
+	return &RelativeValidator{allowedDomains: allowedDomains}
+}
+
+// IsValidRedirect validates that the given redirect string is a valid relative URL.
+// It must be an absolute path (i.e. has a leading '/').
+func (v *RelativeValidator) IsValidRedirect(r *http.Request, redirect string) bool {
+	u, ok := parsableRequestURI(r, redirect)
+	if !ok {
+		return false
+	}
+
+	if isRelativeURL(u) && isValidAbsolutePath(u.String()) {
+		return true
+	}
+
+	mw.LogEntryFrom(r).Infof("validator: not a valid relative URL")
 	return false
 }
 

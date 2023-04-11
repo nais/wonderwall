@@ -21,13 +21,13 @@ var _ Redirect = &StandaloneRedirect{}
 
 type StandaloneRedirect struct {
 	ingresses *ingress.Ingresses
-	validator *Validator
+	*cleaner
 }
 
 func NewStandaloneRedirect(ingresses *ingress.Ingresses) *StandaloneRedirect {
 	return &StandaloneRedirect{
 		ingresses: ingresses,
-		validator: NewValidator(Relative, ingresses.Hosts()),
+		cleaner:   newRelativeCleaner(ingresses.Hosts()),
 	}
 }
 
@@ -46,11 +46,7 @@ func (h *StandaloneRedirect) Canonical(r *http.Request) string {
 }
 
 func (h *StandaloneRedirect) Clean(r *http.Request, target string) string {
-	if h.validator.IsValidRedirect(r, target) {
-		return target
-	}
-
-	return fallback(r, target, h.FallbackRedirect(r)).String()
+	return h.clean(r, target, h.FallbackRedirect(r))
 }
 
 func (h *StandaloneRedirect) FallbackRedirect(r *http.Request) *url.URL {
@@ -61,7 +57,7 @@ var _ Redirect = &SSOServerRedirect{}
 
 type SSOServerRedirect struct {
 	fallbackRedirect *url.URL
-	validator        *Validator
+	*cleaner
 }
 
 func NewSSOServerRedirect(config *config.Config) (*SSOServerRedirect, error) {
@@ -72,7 +68,7 @@ func NewSSOServerRedirect(config *config.Config) (*SSOServerRedirect, error) {
 
 	return &SSOServerRedirect{
 		fallbackRedirect: u,
-		validator:        NewValidator(Absolute, []string{config.SSO.Domain}),
+		cleaner:          newAbsoluteCleaner([]string{config.SSO.Domain}),
 	}, nil
 }
 
@@ -87,24 +83,20 @@ func (h *SSOServerRedirect) Canonical(r *http.Request) string {
 }
 
 func (h *SSOServerRedirect) Clean(r *http.Request, target string) string {
-	if h.validator.IsValidRedirect(r, target) {
-		return target
-	}
-
-	return fallback(r, target, h.fallbackRedirect).String()
+	return h.clean(r, target, h.fallbackRedirect)
 }
 
 var _ Redirect = &SSOProxyRedirect{}
 
 type SSOProxyRedirect struct {
 	fallbackRedirect *url.URL
-	validator        *Validator
+	*cleaner
 }
 
 func NewSSOProxyRedirect(ingresses *ingress.Ingresses) *SSOProxyRedirect {
 	return &SSOProxyRedirect{
 		fallbackRedirect: ingresses.Single().NewURL(),
-		validator:        NewValidator(Absolute, ingresses.Hosts()),
+		cleaner:          newAbsoluteCleaner(ingresses.Hosts()),
 	}
 }
 
@@ -130,17 +122,37 @@ func (h *SSOProxyRedirect) Canonical(r *http.Request) string {
 }
 
 func (h *SSOProxyRedirect) Clean(r *http.Request, target string) string {
-	if h.validator.IsValidRedirect(r, target) {
-		return target
-	}
-
-	return fallback(r, target, h.getFallbackRedirect()).String()
+	return h.clean(r, target, h.getFallbackRedirect())
 }
 
 // getFallbackRedirect returns a copy of the configured fallbackRedirect
 func (h *SSOProxyRedirect) getFallbackRedirect() *url.URL {
 	u := *h.fallbackRedirect
 	return &u
+}
+
+type cleaner struct {
+	Validator
+}
+
+func newAbsoluteCleaner(allowedHosts []string) *cleaner {
+	return &cleaner{
+		Validator: NewAbsoluteValidator(allowedHosts),
+	}
+}
+
+func newRelativeCleaner(allowedHosts []string) *cleaner {
+	return &cleaner{
+		Validator: NewRelativeValidator(allowedHosts),
+	}
+}
+
+func (c *cleaner) clean(r *http.Request, target string, fallbackTarget *url.URL) string {
+	if c.IsValidRedirect(r, target) {
+		return target
+	}
+
+	return fallback(r, target, fallbackTarget).String()
 }
 
 func redirectQueryParam(r *http.Request) string {
