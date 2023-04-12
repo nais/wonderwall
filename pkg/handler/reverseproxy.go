@@ -29,9 +29,11 @@ type ReverseProxy struct {
 func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *ReverseProxy {
 	rp := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
-			// preserve and append to existing X-Forwarded-For header
+			// preserve inbound Forwarded and X-Forwarded-* headers that is stripped when using Rewrite
+			r.Out.Header["Forwarded"] = r.In.Header["Forwarded"]
 			r.Out.Header["X-Forwarded-For"] = r.In.Header["X-Forwarded-For"]
-			r.SetXForwarded()
+			r.Out.Header["X-Forwarded-Host"] = r.In.Header["X-Forwarded-Host"]
+			r.Out.Header["X-Forwarded-Proto"] = r.In.Header["X-Forwarded-Proto"]
 			r.SetURL(upstream)
 
 			if preserveInboundHostHeader {

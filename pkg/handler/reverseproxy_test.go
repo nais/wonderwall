@@ -320,4 +320,34 @@ func TestReverseProxy(t *testing.T) {
 			assert.Equal(t, "ok", resp.Body)
 		})
 	})
+
+	t.Run("request with forwarded and x-forwarded-* headers set should be preserved", func(t *testing.T) {
+		cfg := mock.Config()
+		cfg.UpstreamHost = up.URL.Host
+		idp := mock.NewIdentityProvider(cfg)
+		defer idp.Close()
+
+		up.SetIdentityProvider(idp)
+		rpClient := idp.RelyingPartyClient()
+
+		// acquire session
+		login(t, rpClient, idp)
+
+		up.requestCallback = func(r *http.Request) {
+			assert.NotEmpty(t, r.Header.Get("Authorization"))
+			assert.Equal(t, "for=192.168.0.99;proto=http;by=203.0.113.43", r.Header.Get("Forwarded"))
+			assert.Equal(t, "192.168.0.99", r.Header.Get("X-Forwarded-For"))
+			assert.Equal(t, "wonderwall.example", r.Header.Get("X-Forwarded-Host"))
+			assert.Equal(t, "https", r.Header.Get("X-Forwarded-Proto"))
+		}
+
+		resp := getWithHeaders(t, rpClient, idp.RelyingPartyServer.URL, map[string]string{
+			"Forwarded":         "for=192.168.0.99;proto=http;by=203.0.113.43",
+			"X-Forwarded-For":   "192.168.0.99",
+			"X-Forwarded-Host":  "wonderwall.example",
+			"X-Forwarded-Proto": "https",
+		})
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, "ok", resp.Body)
+	})
 }
