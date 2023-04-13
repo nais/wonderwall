@@ -53,18 +53,6 @@ func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) 
 		return nil, fmt.Errorf("parsing sso server url: %w", err)
 	}
 
-	query := serverURL.Query()
-
-	if len(cfg.OpenID.ACRValues) > 0 {
-		query.Set(openidclient.SecurityLevelURLParameter, cfg.OpenID.ACRValues)
-	}
-
-	if len(cfg.OpenID.UILocales) > 0 {
-		query.Set(openidclient.LocaleURLParameter, cfg.OpenID.UILocales)
-	}
-
-	serverURL.RawQuery = query.Encode()
-
 	upstream := &urllib.URL{
 		Host:   cfg.UpstreamHost,
 		Scheme: "http",
@@ -114,7 +102,15 @@ func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 	target := s.GetSSOServerURL()
 	targetQuery := target.Query()
 
-	// override default query parameters
+	// set default query parameters
+	if len(s.Config.OpenID.ACRValues) > 0 {
+		targetQuery.Set(openidclient.SecurityLevelURLParameter, s.Config.OpenID.ACRValues)
+	}
+	if len(s.Config.OpenID.UILocales) > 0 {
+		targetQuery.Set(openidclient.LocaleURLParameter, s.Config.OpenID.UILocales)
+	}
+
+	// override default query parameters, if provided in request
 	reqQuery := r.URL.Query()
 	if reqQuery.Has(openidclient.SecurityLevelURLParameter) {
 		targetQuery.Set(openidclient.SecurityLevelURLParameter, reqQuery.Get(openidclient.SecurityLevelURLParameter))
@@ -141,7 +137,7 @@ func (s *SSOProxy) LoginCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOProxy) Logout(w http.ResponseWriter, r *http.Request) {
-	target := s.SSOServerURL.JoinPath(paths.OAuth2, paths.Logout)
+	target := s.GetSSOServerURL().JoinPath(paths.OAuth2, paths.Logout)
 	http.Redirect(w, r, target.String(), http.StatusTemporaryRedirect)
 }
 
@@ -154,7 +150,7 @@ func (s *SSOProxy) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOProxy) LogoutLocal(w http.ResponseWriter, r *http.Request) {
-	target := s.SSOServerURL.JoinPath(paths.OAuth2, paths.LogoutLocal)
+	target := s.GetSSOServerURL().JoinPath(paths.OAuth2, paths.LogoutLocal)
 	http.Redirect(w, r, target.String(), http.StatusTemporaryRedirect)
 }
 
