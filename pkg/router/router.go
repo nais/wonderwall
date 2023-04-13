@@ -74,7 +74,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 				})
 
 				r.Route(paths.Session, func(r chi.Router) {
-					if cfg.SSO.Enabled && cfg.SSO.Mode == config.SSOModeServer {
+					if cfg.SSO.IsServer() {
 						noop := func(w http.ResponseWriter, r *http.Request) {}
 
 						r.Use(middleware.Cors(cfg).Handler)
@@ -85,6 +85,12 @@ func New(src Source, cfg *config.Config) chi.Router {
 					r.Get(paths.Refresh, src.SessionRefresh)
 					r.Post(paths.Refresh, src.SessionRefresh)
 				})
+			})
+		}
+
+		if cfg.SSO.IsServer() {
+			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, paths.OAuth2+paths.Login, http.StatusTemporaryRedirect)
 			})
 		}
 	})

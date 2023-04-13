@@ -48,6 +48,10 @@ type SSO struct {
 	ServerDefaultRedirectURL string  `json:"server-default-redirect-url"`
 }
 
+func (in SSO) IsServer() bool {
+	return in.Enabled && in.Mode == SSOModeServer
+}
+
 type SSOMode string
 
 const (
