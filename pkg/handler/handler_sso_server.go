@@ -6,7 +6,6 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/router"
-	"github.com/nais/wonderwall/pkg/router/paths"
 	"github.com/nais/wonderwall/pkg/url"
 )
 
@@ -45,7 +44,7 @@ func (s *SSOServer) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 	s.Standalone.LogoutLocal(w, r)
 }
 
-// Wildcard redirects all requests to the login endpoint.
+// Wildcard returns HTTP 404 Not Found.
 func (s *SSOServer) Wildcard(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, paths.OAuth2+paths.Login, http.StatusTemporaryRedirect)
+	http.NotFound(w, r)
 }
