@@ -75,7 +75,11 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 				r.Route(paths.Session, func(r chi.Router) {
 					if cfg.SSO.Enabled && cfg.SSO.Mode == config.SSOModeServer {
+						noop := func(w http.ResponseWriter, r *http.Request) {}
+
 						r.Use(middleware.Cors(cfg).Handler)
+						r.Options("/", noop)
+						r.Options("/refresh", noop)
 					}
 					r.Get("/", src.Session)
 					r.Get("/refresh", src.SessionRefresh)
