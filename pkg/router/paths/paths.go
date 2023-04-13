@@ -9,5 +9,6 @@ const (
 	LogoutFrontChannel = "/logout/frontchannel"
 	LogoutLocal        = "/logout/local"
 	Ping               = "/ping"
+	Refresh            = "/refresh"
 	Session            = "/session"
 )

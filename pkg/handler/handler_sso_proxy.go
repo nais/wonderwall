@@ -155,10 +155,12 @@ func (s *SSOProxy) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOProxy) Session(w http.ResponseWriter, r *http.Request) {
+	r.URL.Path = paths.OAuth2 + paths.Session
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
 func (s *SSOProxy) SessionRefresh(w http.ResponseWriter, r *http.Request) {
+	r.URL.Path = paths.OAuth2 + paths.Session + paths.Refresh
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 

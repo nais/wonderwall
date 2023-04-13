@@ -79,11 +79,11 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 						r.Use(middleware.Cors(cfg).Handler)
 						r.Options("/", noop)
-						r.Options("/refresh", noop)
+						r.Options(paths.Refresh, noop)
 					}
 					r.Get("/", src.Session)
-					r.Get("/refresh", src.SessionRefresh)
-					r.Post("/refresh", src.SessionRefresh)
+					r.Get(paths.Refresh, src.SessionRefresh)
+					r.Post(paths.Refresh, src.SessionRefresh)
 				})
 			})
 		}
