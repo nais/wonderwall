@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/lestrrat-go/jwx/v2 v2.0.9
 	github.com/nais/liberator v0.0.0-20230331130952-da33a75022d5
-	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/client_golang v1.15.0
 	github.com/redis/go-redis/v9 v9.0.3
 	github.com/rs/cors v1.9.0
 	github.com/sethvargo/go-retry v0.2.4
