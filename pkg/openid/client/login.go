@@ -40,7 +40,7 @@ var (
 )
 
 func NewLogin(c *Client, r *http.Request) (*Login, error) {
-	params, err := newLoginParameters(c)
+	params, err := newLoginParameters()
 	if err != nil {
 		return nil, fmt.Errorf("generating parameters: %w", err)
 	}
@@ -50,16 +50,40 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 		return nil, fmt.Errorf("generating callback url: %w", err)
 	}
 
-	url, err := params.authCodeURL(r, callbackURL, c.cfg.Client())
-	if err != nil {
-		return nil, fmt.Errorf("generating auth code url: %w", err)
+	opts := []oauth2.AuthCodeOption{
+		oauth2.SetAuthURLParam(openid.Nonce, params.Nonce),
+		oauth2.SetAuthURLParam(openid.ResponseMode, ResponseModeQuery),
+		oauth2.SetAuthURLParam(openid.CodeChallenge, params.CodeChallenge),
+		oauth2.SetAuthURLParam(openid.CodeChallengeMethod, CodeChallengeMethodS256),
+		oauth2.SetAuthURLParam(openid.RedirectURI, callbackURL),
 	}
 
-	loginCookie := params.cookie(callbackURL)
+	resourceIndicator := c.cfg.Client().ResourceIndicator()
+	if resourceIndicator != "" {
+		opts = append(opts, oauth2.SetAuthURLParam(openid.Resource, resourceIndicator))
+	}
+
+	acr, err := getParameterOrDefault(r, SecurityLevelURLParameter, c.cfg.Client().ACRValues(), c.cfg.Provider().ACRValuesSupported())
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidSecurityLevel, err)
+	}
+
+	locale, err := getParameterOrDefault(r, LocaleURLParameter, c.cfg.Client().UILocales(), c.cfg.Provider().UILocalesSupported())
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidLocale, err)
+	}
+
+	if len(acr) > 0 {
+		opts = append(opts, oauth2.SetAuthURLParam(LoginParameterMapping[SecurityLevelURLParameter], acr))
+	}
+
+	if len(locale) > 0 {
+		opts = append(opts, oauth2.SetAuthURLParam(LoginParameterMapping[LocaleURLParameter], locale))
+	}
 
 	return &Login{
-		authCodeURL: url,
-		cookie:      loginCookie,
+		authCodeURL: c.oauth2Config.AuthCodeURL(params.State, opts...),
+		cookie:      params.cookie(callbackURL),
 		params:      params,
 	}, nil
 }
@@ -115,14 +139,13 @@ func (l *Login) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter cr
 }
 
 type loginParameters struct {
-	*Client
 	CodeVerifier  string
 	CodeChallenge string
 	Nonce         string
 	State         string
 }
 
-func newLoginParameters(c *Client) (*loginParameters, error) {
+func newLoginParameters() (*loginParameters, error) {
 	codeVerifier, err := strings.GenerateBase64(64)
 	if err != nil {
 		return nil, fmt.Errorf("creating code verifier: %w", err)
@@ -139,39 +162,11 @@ func newLoginParameters(c *Client) (*loginParameters, error) {
 	}
 
 	return &loginParameters{
-		Client:        c,
 		CodeVerifier:  codeVerifier,
 		CodeChallenge: CodeChallenge(codeVerifier),
 		Nonce:         nonce,
 		State:         state,
 	}, nil
-}
-
-func (in *loginParameters) authCodeURL(r *http.Request, callbackURL string, cfg config.Client) (string, error) {
-	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam(openid.Nonce, in.Nonce),
-		oauth2.SetAuthURLParam(openid.ResponseMode, ResponseModeQuery),
-		oauth2.SetAuthURLParam(openid.CodeChallenge, in.CodeChallenge),
-		oauth2.SetAuthURLParam(openid.CodeChallengeMethod, CodeChallengeMethodS256),
-		oauth2.SetAuthURLParam(openid.RedirectURI, callbackURL),
-	}
-
-	if cfg.ResourceIndicator() != "" {
-		opts = append(opts, oauth2.SetAuthURLParam(openid.Resource, cfg.ResourceIndicator()))
-	}
-
-	opts, err := in.withSecurityLevel(r, opts)
-	if err != nil {
-		return "", fmt.Errorf("%w: %+v", ErrInvalidSecurityLevel, err)
-	}
-
-	opts, err = in.withLocale(r, opts)
-	if err != nil {
-		return "", fmt.Errorf("%w: %+v", ErrInvalidLocale, err)
-	}
-
-	authCodeUrl := in.oauth2Config.AuthCodeURL(in.State, opts...)
-	return authCodeUrl, nil
 }
 
 func (in *loginParameters) cookie(redirectURI string) *openid.LoginCookie {
@@ -183,36 +178,17 @@ func (in *loginParameters) cookie(redirectURI string) *openid.LoginCookie {
 	}
 }
 
-func (in *loginParameters) withLocale(r *http.Request, opts []oauth2.AuthCodeOption) ([]oauth2.AuthCodeOption, error) {
-	return withParamMapping(r,
-		opts,
-		LocaleURLParameter,
-		in.cfg.Client().UILocales(),
-		in.cfg.Provider().UILocalesSupported(),
-	)
-}
-
-func (in *loginParameters) withSecurityLevel(r *http.Request, opts []oauth2.AuthCodeOption) ([]oauth2.AuthCodeOption, error) {
-	return withParamMapping(r,
-		opts,
-		SecurityLevelURLParameter,
-		in.cfg.Client().ACRValues(),
-		in.cfg.Provider().ACRValuesSupported(),
-	)
-}
-
-func withParamMapping(r *http.Request, opts []oauth2.AuthCodeOption, param, fallback string, supported config.Supported) ([]oauth2.AuthCodeOption, error) {
-	if len(fallback) == 0 {
-		return opts, nil
+func getParameterOrDefault(r *http.Request, parameter, defaultValue string, supportedValues config.Supported) (string, error) {
+	if len(defaultValue) == 0 {
+		return "", nil
 	}
 
-	value, err := LoginURLParameter(r, param, fallback, supported)
+	value, err := LoginURLParameter(r, parameter, defaultValue, supportedValues)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	opts = append(opts, oauth2.SetAuthURLParam(LoginParameterMapping[param], value))
-	return opts, nil
+	return value, nil
 }
 
 // LoginURLParameter attempts to get a given parameter from the given HTTP request, falling back if none found.
@@ -228,7 +204,7 @@ func LoginURLParameter(r *http.Request, parameter, fallback string, supported co
 		return value, nil
 	}
 
-	return value, fmt.Errorf("%w: invalid value for %s=%s", ErrInvalidLoginParameter, parameter, value)
+	return value, fmt.Errorf("%w: invalid value for %s=%s (must be one of '%s')", ErrInvalidLoginParameter, parameter, value, supported)
 }
 
 func CodeChallenge(codeVerifier string) string {

@@ -11,11 +11,11 @@ import (
 )
 
 type LoginCookie struct {
-	State        string `json:"state"`
-	Nonce        string `json:"nonce"`
 	CodeVerifier string `json:"code_verifier"`
-	Referer      string `json:"referer"`
+	Nonce        string `json:"nonce"`
 	RedirectURI  string `json:"redirect_uri"`
+	Referer      string `json:"referer"`
+	State        string `json:"state"`
 }
 
 func GetLoginCookie(r *http.Request, crypter crypto.Crypter) (*LoginCookie, error) {
