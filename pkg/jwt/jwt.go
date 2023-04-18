@@ -12,6 +12,7 @@ import (
 const (
 	AcceptableClockSkew = 5 * time.Second
 
+	AmrClaim = "amr"
 	JtiClaim = "jti"
 	SidClaim = "sid"
 	UtiClaim = "uti"
@@ -20,6 +21,19 @@ const (
 type Token struct {
 	serialized string
 	token      jwt.Token
+}
+
+func (in *Token) GetClaim(claim string) (any, error) {
+	if in.token == nil {
+		return nil, fmt.Errorf("token is nil")
+	}
+
+	gotClaim, ok := in.token.Get(claim)
+	if !ok {
+		return nil, fmt.Errorf("missing required '%s' claim in id_token", claim)
+	}
+
+	return gotClaim, nil
 }
 
 func (in *Token) GetExpiration() time.Time {
@@ -44,13 +58,9 @@ func (in *Token) GetSerialized() string {
 }
 
 func (in *Token) GetStringClaim(claim string) (string, error) {
-	if in.token == nil {
-		return "", fmt.Errorf("token is nil")
-	}
-
-	gotClaim, ok := in.token.Get(claim)
-	if !ok {
-		return "", fmt.Errorf("missing required '%s' claim in id_token", claim)
+	gotClaim, err := in.GetClaim(claim)
+	if err != nil {
+		return "", err
 	}
 
 	claimString, ok := gotClaim.(string)
@@ -61,6 +71,30 @@ func (in *Token) GetStringClaim(claim string) (string, error) {
 	return claimString, nil
 }
 
+func (in *Token) GetStringSliceClaim(claim string) ([]string, error) {
+	gotClaim, err := in.GetClaim(claim)
+	if err != nil {
+		return nil, err
+	}
+
+	// the claim is a slice of interfaces...
+	claimValues, ok := gotClaim.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("'%s' claim is not a slice", claim)
+	}
+
+	// ...so we need to assert the actual type for each interface
+	strings := make([]string, 0)
+
+	for _, v := range claimValues {
+		if str, ok := v.(string); ok {
+			strings = append(strings, str)
+		}
+	}
+
+	return strings, nil
+}
+
 func (in *Token) GetStringClaimOrEmpty(claim string) string {
 	str, err := in.GetStringClaim(claim)
 	if err != nil {
@@ -68,6 +102,15 @@ func (in *Token) GetStringClaimOrEmpty(claim string) string {
 	}
 
 	return str
+}
+
+func (in *Token) GetStringSliceClaimOrEmpty(claim string) []string {
+	s, err := in.GetStringSliceClaim(claim)
+	if err != nil {
+		return make([]string, 0)
+	}
+
+	return s
 }
 
 func (in *Token) GetToken() jwt.Token {

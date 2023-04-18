@@ -214,7 +214,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mw.LogEntryFrom(r).WithFields(fields).Info("callback: successful login")
-	metrics.ObserveLogin()
+	metrics.ObserveLogin(tokens.IDToken.GetAmrClaim())
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
 }

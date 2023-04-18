@@ -13,6 +13,7 @@ import (
 const (
 	Namespace = "wonderwall"
 
+	LabelAmr       = "amr"
 	LabelHpa       = "hpa"
 	LabelOperation = "operation"
 	LabelProvider  = "provider"
@@ -62,7 +63,7 @@ func redisLatency(constLabels ...prometheus.Labels) *prometheus.HistogramVec {
 	return prometheus.NewHistogramVec(opts, []string{LabelOperation})
 }
 
-func logins(constLabels ...prometheus.Labels) prometheus.Counter {
+func logins(constLabels ...prometheus.Labels) *prometheus.CounterVec {
 	opts := prometheus.CounterOpts{
 		Name:      "logins",
 		Namespace: Namespace,
@@ -76,7 +77,7 @@ func logins(constLabels ...prometheus.Labels) prometheus.Counter {
 		opts.ConstLabels = constLabels[0]
 	}
 
-	return prometheus.NewCounter(opts)
+	return prometheus.NewCounterVec(opts, []string{LabelAmr})
 }
 
 func logouts(constLabels ...prometheus.Labels) *prometheus.CounterVec {
@@ -114,11 +115,13 @@ func WithProvider(provider string) {
 
 // InitLabels zeroes out all possible label combinations
 func InitLabels() {
-	logoutOperations := []LogoutOperation{LogoutOperationSelfInitiated, LogoutOperationFrontChannel}
+	logoutOperations := []LogoutOperation{LogoutOperationSelfInitiated, LogoutOperationFrontChannel, LogoutOperationLocal}
 
 	for _, operation := range logoutOperations {
 		Logouts.With(prometheus.Labels{LabelOperation: operation})
 	}
+
+	Logins.With(prometheus.Labels{LabelAmr: ""})
 }
 
 func Handle(address string, provider config.Provider) error {
@@ -148,8 +151,10 @@ func ObserveRedisLatency(operation string, fun func() error) error {
 	return err
 }
 
-func ObserveLogin() {
-	Logins.Inc()
+func ObserveLogin(amrValue string) {
+	Logins.With(prometheus.Labels{
+		LabelAmr: amrValue,
+	}).Inc()
 }
 
 func ObserveLogout(operation LogoutOperation) {

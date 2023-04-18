@@ -2,6 +2,7 @@ package openid
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -37,6 +38,15 @@ func NewTokens(src *oauth2.Token, jwks jwk.Set) (*Tokens, error) {
 
 type IDToken struct {
 	jwt.Token
+}
+
+func (in *IDToken) GetAmrClaim() string {
+	s := in.GetStringClaimOrEmpty(jwt.AmrClaim)
+	if len(s) == 0 {
+		s = strings.Join(in.GetStringSliceClaimOrEmpty(jwt.AmrClaim), ",")
+	}
+
+	return s
 }
 
 func (in *IDToken) GetSidClaim() (string, error) {
