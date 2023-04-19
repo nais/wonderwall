@@ -328,8 +328,10 @@ you'll probably want to use refresh tokens to avoid redirecting end-users to the
 access tokens have expired. This can be enabled by using the `session.refresh` flag.
 
 If enabled, tokens will be automatically renewed 5 minutes (at the earliest) before they expire. They will also be
-renewed _after_ expiry, as long as the session itself has not ended or been marked as inactive. Refreshing happens
-whenever the end-user visits any path that is proxied to the upstream application.
+renewed _after_ expiry, unless the session itself has ended or is marked as not active.
+
+Refreshing happens whenever the end-user visits any path that is proxied to the upstream application,
+unless the `sso.enabled` flag is enabled.
 
 The `session.refresh` flag also enables a new endpoint:
 
@@ -356,7 +358,10 @@ Content-Type: application/json
   "session": {
     "created_at": "2022-08-31T06:58:38.724717899Z", 
     "ends_at": "2022-08-31T16:58:38.724717899Z",
-    "ends_in_seconds": 14658
+    "timeout_at": "0001-01-01T00:00:00Z",
+    "ends_in_seconds": 14658,
+    "active": true,
+    "timeout_in_seconds": -1
   },
   "tokens": {
     "expire_at": "2022-08-31T14:03:47.318251953Z",
@@ -384,7 +389,8 @@ only trigger a refresh if `tokens.refresh_cooldown` is `false`.
 
 ### Inactivity
 
-A session can be marked as inactive if the time since last refresh exceeds a given timeout. This is useful if you want
+A session can be marked as inactive if the time since last refresh exceeds a given timeout. An inactive session cannot
+have its tokens refreshed, and a new login is required. This is useful if you want
 to ensure that an end-user can re-authenticate with the identity provider if they've been gone from an authenticated
 session for some time. 
 
