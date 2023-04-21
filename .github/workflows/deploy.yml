@@ -16,6 +16,7 @@ jobs:
       - name: Test Go
         run: |
           make test
+          make check
   publish-images:
     needs: test
     name: Publish to Google and GitHub registries

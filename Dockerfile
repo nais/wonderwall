@@ -3,8 +3,6 @@ ENV GOOS=linux
 ENV CGO_ENABLED=0
 COPY . /src
 WORKDIR /src
-RUN make test
-RUN make check
 RUN make wonderwall
 
 FROM gcr.io/distroless/static-debian11:nonroot
