@@ -67,7 +67,11 @@ func New(src Source, cfg *config.Config) chi.Router {
 				r.Get(paths.Logout, src.Logout)
 				r.Get(paths.LogoutCallback, src.LogoutCallback)
 				r.Get(paths.LogoutFrontChannel, src.LogoutFrontChannel)
-				r.Get(paths.LogoutLocal, src.LogoutLocal)
+
+				if cfg.OpenID.Provider != config.ProviderIDPorten {
+					r.Get(paths.LogoutLocal, src.LogoutLocal)
+				}
+
 				r.Get(paths.Ping, func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusOK)
 					w.Write([]byte("pong"))
