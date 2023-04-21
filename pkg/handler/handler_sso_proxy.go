@@ -150,8 +150,8 @@ func (s *SSOProxy) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOProxy) LogoutLocal(w http.ResponseWriter, r *http.Request) {
-	target := s.GetSSOServerURL().JoinPath(paths.OAuth2, paths.LogoutLocal)
-	http.Redirect(w, r, target.String(), http.StatusTemporaryRedirect)
+	r.URL.Path = paths.OAuth2 + paths.LogoutLocal
+	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
 func (s *SSOProxy) Session(w http.ResponseWriter, r *http.Request) {
