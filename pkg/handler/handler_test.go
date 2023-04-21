@@ -537,8 +537,7 @@ func localLogout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider
 	assert.NoError(t, err)
 
 	resp := get(t, rpClient, logoutURL.String())
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
-	assert.Equal(t, idp.Cfg.OpenID.PostLogoutRedirectURI, resp.Location.String())
+	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
 
 	cookies := rpClient.Jar.Cookies(logoutURL)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)

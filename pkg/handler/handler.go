@@ -247,7 +247,7 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, globalLogout
 			return
 		}
 
-		logger.Info("logout: successful local logout")
+		logger.Debug("logout: session deleted")
 	}
 
 	cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
@@ -257,11 +257,9 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, globalLogout
 		metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
 		http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
 	} else {
-		redirect := s.Client.LogoutCallback(r).PostLogoutRedirectURI()
-
-		logger.Debugf("logout: redirecting to %s", redirect)
+		logger.Info("logout: successful local logout")
 		metrics.ObserveLogout(metrics.LogoutOperationLocal)
-		http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
