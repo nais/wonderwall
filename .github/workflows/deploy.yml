@@ -95,7 +95,7 @@ jobs:
       - name: Sign the container image for GAR
         run: cosign sign --yes ${{ env.GOOGLE_REGISTRY }}/wonderwall@${{ steps.build-push.outputs.digest }}
       - name: Create SBOM
-        uses: aquasecurity/trivy-action@1f0aa582c8c8f5f7639610d6d38baddfea4fdcee # ratchet:aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@e5f43133f6e8736992c9f3c1b3296e24b37e17f2 # ratchet:aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
           format: 'cyclonedx'
