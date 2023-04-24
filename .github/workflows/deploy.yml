@@ -39,7 +39,7 @@ jobs:
         run: cosign verify --certificate-oidc-issuer https://accounts.google.com  --certificate-identity keyless@distroless.iam.gserviceaccount.com gcr.io/distroless/static-debian11:nonroot
       - id: "auth"
         name: "Authenticate to Google Cloud"
-        uses: "google-github-actions/auth@ef5d53e30bbcd8d0836f4288f5e50ff3e086997d" # ratchet:google-github-actions/auth@v1
+        uses: "google-github-actions/auth@e8df18b60c5dd38ba618c121b779307266153fbf" # ratchet:google-github-actions/auth@v1
         with:
           workload_identity_provider: ${{ secrets.NAIS_IO_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: "gh-wonderwall@nais-io.iam.gserviceaccount.com"
