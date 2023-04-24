@@ -63,7 +63,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Docker meta
         id: metadata
-        uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # ratchet:docker/metadata-action@v4
+        uses: docker/metadata-action@c4ee3adeed93b1fa6a762f209fb01608c1a22f1e # ratchet:docker/metadata-action@v4
         with:
           images: |
             ${{ env.GOOGLE_REGISTRY }}/wonderwall
