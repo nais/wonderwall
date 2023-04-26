@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -153,6 +155,14 @@ func ObserveRedisLatency(operation string, fun func() error) error {
 }
 
 func ObserveLogin(amrValue, redirect string) {
+	u, err := url.Parse(redirect)
+	if err == nil {
+		u.Path = strings.TrimSuffix(u.Path, "/")
+		u.RawQuery = ""
+		u.RawFragment = ""
+		redirect = u.String()
+	}
+
 	Logins.With(prometheus.Labels{
 		LabelAmr:      amrValue,
 		LabelRedirect: redirect,
