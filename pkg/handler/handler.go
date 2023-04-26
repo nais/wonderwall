@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	urllib "net/url"
+	"strings"
 	"time"
 
 	"github.com/sethvargo/go-retry"
@@ -214,7 +215,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mw.LogEntryFrom(r).WithFields(fields).Info("callback: successful login")
-	metrics.ObserveLogin(tokens.IDToken.GetAmrClaim())
+	metrics.ObserveLogin(tokens.IDToken.GetAmrClaim(), strings.TrimSuffix(redirect, "/"))
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
 }

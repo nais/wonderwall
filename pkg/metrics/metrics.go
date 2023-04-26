@@ -17,6 +17,7 @@ const (
 	LabelHpa       = "hpa"
 	LabelOperation = "operation"
 	LabelProvider  = "provider"
+	LabelRedirect  = "redirect"
 )
 
 type Hpa = string
@@ -77,7 +78,7 @@ func logins(constLabels ...prometheus.Labels) *prometheus.CounterVec {
 		opts.ConstLabels = constLabels[0]
 	}
 
-	return prometheus.NewCounterVec(opts, []string{LabelAmr})
+	return prometheus.NewCounterVec(opts, []string{LabelAmr, LabelRedirect})
 }
 
 func logouts(constLabels ...prometheus.Labels) *prometheus.CounterVec {
@@ -121,7 +122,7 @@ func InitLabels() {
 		Logouts.With(prometheus.Labels{LabelOperation: operation})
 	}
 
-	Logins.With(prometheus.Labels{LabelAmr: ""})
+	Logins.With(prometheus.Labels{LabelAmr: "", LabelRedirect: ""})
 }
 
 func Handle(address string, provider config.Provider) error {
@@ -151,9 +152,10 @@ func ObserveRedisLatency(operation string, fun func() error) error {
 	return err
 }
 
-func ObserveLogin(amrValue string) {
+func ObserveLogin(amrValue, redirect string) {
 	Logins.With(prometheus.Labels{
-		LabelAmr: amrValue,
+		LabelAmr:      amrValue,
+		LabelRedirect: redirect,
 	}).Inc()
 }
 
