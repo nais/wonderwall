@@ -129,7 +129,7 @@ func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 		"redirect_after_login": canonicalRedirect,
 	}).Info("login: redirecting to sso server")
 
-	http.Redirect(w, r, ssoServerLoginURL, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, ssoServerLoginURL, http.StatusSeeOther)
 }
 
 func (s *SSOProxy) LoginCallback(w http.ResponseWriter, r *http.Request) {
@@ -138,7 +138,7 @@ func (s *SSOProxy) LoginCallback(w http.ResponseWriter, r *http.Request) {
 
 func (s *SSOProxy) Logout(w http.ResponseWriter, r *http.Request) {
 	target := s.GetSSOServerURL().JoinPath(paths.OAuth2, paths.Logout)
-	http.Redirect(w, r, target.String(), http.StatusTemporaryRedirect)
+	http.Redirect(w, r, target.String(), http.StatusSeeOther)
 }
 
 func (s *SSOProxy) LogoutCallback(w http.ResponseWriter, r *http.Request) {

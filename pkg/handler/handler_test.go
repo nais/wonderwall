@@ -49,7 +49,7 @@ func TestLogin(t *testing.T) {
 	assert.NotEmpty(t, loginURL.Query().Get("code_challenge"))
 
 	resp = get(t, rpClient, loginURL.String())
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 
 	callbackURL := resp.Location
 	assert.Equal(t, loginURL.Query().Get("state"), callbackURL.Query().Get("state"))
@@ -436,7 +436,7 @@ func localLogin(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider)
 	assert.NoError(t, err)
 
 	resp := get(t, rpClient, loginURL.String())
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 
 	cookies := rpClient.Jar.Cookies(loginURL)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)
@@ -455,7 +455,7 @@ func authorize(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) 
 
 	// Follow redirect to authorize with identity provider
 	resp = get(t, rpClient, resp.Location.String())
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 
 	return resp
 }
@@ -466,7 +466,7 @@ func callback(t *testing.T, rpClient *http.Client, authorizeResponse response) *
 
 	// Follow redirect to callback
 	resp := get(t, rpClient, callbackURL.String())
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 
 	cookies := rpClient.Jar.Cookies(callbackURL)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)
@@ -491,7 +491,7 @@ func selfInitiatedLogout(t *testing.T, rpClient *http.Client, idp *mock.Identity
 	assert.NoError(t, err)
 
 	resp := get(t, rpClient, logoutURL.String())
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 
 	cookies := rpClient.Jar.Cookies(logoutURL)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)
@@ -507,7 +507,7 @@ func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
 
 	// Follow redirect to endsession endpoint at identity provider
 	resp = get(t, rpClient, resp.Location.String())
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 
 	// Get post-logout redirect URI after successful logout at identity provider
 	logoutCallbackURI := resp.Location
@@ -521,7 +521,7 @@ func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
 
 	// Follow redirect back to logout callback
 	resp = get(t, rpClient, logoutCallbackURI.String())
-	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+	assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 
 	// Get post-logout redirect URI after redirect back to logout callback
 	assert.Equal(t, "https://google.com", resp.Location.String())

@@ -146,7 +146,7 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 		"redirect_after_login": canonicalRedirect,
 	}
 	mw.LogEntryFrom(r).WithFields(fields).Info("login: redirecting to identity provider")
-	http.Redirect(w, r, login.AuthCodeURL(), http.StatusTemporaryRedirect)
+	http.Redirect(w, r, login.AuthCodeURL(), http.StatusSeeOther)
 }
 
 func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +216,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	mw.LogEntryFrom(r).WithFields(fields).Info("callback: successful login")
 	metrics.ObserveLogin(tokens.IDToken.GetAmrClaim(), redirect)
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
-	http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, redirect, http.StatusSeeOther)
 }
 
 func (s *Standalone) Logout(w http.ResponseWriter, r *http.Request) {
@@ -255,7 +255,7 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, globalLogout
 	if globalLogout {
 		logger.Debug("logout: redirecting to identity provider for global/single-logout")
 		metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
-		http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusTemporaryRedirect)
+		http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusSeeOther)
 	} else {
 		logger.Info("logout: successful local logout")
 		metrics.ObserveLogout(metrics.LogoutOperationLocal)
@@ -268,7 +268,7 @@ func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	mw.LogEntryFrom(r).Debugf("logout/callback: redirecting to %s", redirect)
-	http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, redirect, http.StatusSeeOther)
 }
 
 func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
