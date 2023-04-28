@@ -161,6 +161,10 @@ func ObserveLogin(amrValue, redirect string) {
 		u.RawQuery = ""
 		u.RawFragment = ""
 		redirect = u.String()
+
+		if u.Host == "" {
+			redirect = ""
+		}
 	}
 
 	Logins.With(prometheus.Labels{
