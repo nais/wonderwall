@@ -12,6 +12,8 @@ import (
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
+var noopHandler = func(w http.ResponseWriter, r *http.Request) {}
+
 type Source interface {
 	Handlers
 	Config
@@ -55,6 +57,10 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 	prefixes := src.GetIngresses().Paths()
 
+	cors := func(allowedMethods ...string) func(http.Handler) http.Handler {
+		return middleware.Cors(cfg, allowedMethods)
+	}
+
 	r.Group(func(r chi.Router) {
 		r.Use(logentry.Handler)
 		r.Use(prometheus.Handler)
@@ -62,6 +68,12 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 		for _, prefix := range prefixes {
 			r.Route(prefix+paths.OAuth2, func(r chi.Router) {
+				if cfg.SSO.IsServer() {
+					r.With(cors(http.MethodGet)).
+						Options(paths.Login, noopHandler)
+					r.With(cors(http.MethodGet)).
+						Options(paths.Logout, noopHandler)
+				}
 				r.Get(paths.Login, src.Login)
 				r.Get(paths.LoginCallback, src.LoginCallback)
 				r.Get(paths.Logout, src.Logout)
@@ -79,11 +91,10 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 				r.Route(paths.Session, func(r chi.Router) {
 					if cfg.SSO.IsServer() {
-						noop := func(w http.ResponseWriter, r *http.Request) {}
-
-						r.Use(middleware.Cors(cfg).Handler)
-						r.Options("/", noop)
-						r.Options(paths.Refresh, noop)
+						r.With(cors(http.MethodGet)).
+							Options("/", noopHandler)
+						r.With(cors(http.MethodGet, http.MethodPost)).
+							Options(paths.Refresh, noopHandler)
 					}
 					r.Get("/", src.Session)
 					r.Get(paths.Refresh, src.SessionRefresh)

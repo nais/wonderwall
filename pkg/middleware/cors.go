@@ -10,7 +10,7 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 )
 
-func Cors(cfg *config.Config) *cors.Cors {
+func Cors(cfg *config.Config, methods []string) func(http.Handler) http.Handler {
 	ssoDomain := strings.TrimPrefix(cfg.SSO.Domain, ".")
 
 	allowedOrigins := []string{
@@ -20,7 +20,7 @@ func Cors(cfg *config.Config) *cors.Cors {
 
 	return cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodOptions},
+		AllowedMethods:   methods,
 		AllowCredentials: true,
-	})
+	}).Handler
 }
