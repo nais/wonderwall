@@ -75,13 +75,18 @@ func New(src Source, cfg *config.Config) chi.Router {
 						Options(paths.Logout, noopHandler)
 				}
 				r.Get(paths.Login, src.Login)
-				r.Get(paths.LoginCallback, src.LoginCallback)
+				r.Head(paths.Login, src.Login)
+
 				r.Get(paths.Logout, src.Logout)
+				r.Head(paths.Logout, src.Logout)
+
+				r.Get(paths.LoginCallback, src.LoginCallback)
 				r.Get(paths.LogoutCallback, src.LogoutCallback)
 				r.Get(paths.LogoutFrontChannel, src.LogoutFrontChannel)
 
 				if cfg.OpenID.Provider != config.ProviderIDPorten {
 					r.Get(paths.LogoutLocal, src.LogoutLocal)
+					r.Head(paths.LogoutLocal, src.LogoutLocal)
 				}
 
 				r.Get(paths.Ping, func(w http.ResponseWriter, r *http.Request) {
