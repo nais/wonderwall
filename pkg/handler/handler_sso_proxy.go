@@ -148,7 +148,8 @@ func (s *SSOProxy) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOProxy) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
-	http.NotFound(w, r)
+	r.URL.Path = paths.OAuth2 + paths.LogoutFrontChannel
+	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
 func (s *SSOProxy) LogoutLocal(w http.ResponseWriter, r *http.Request) {
