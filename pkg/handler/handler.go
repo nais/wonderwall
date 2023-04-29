@@ -15,6 +15,7 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/pkg/handler/acr"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	"github.com/nais/wonderwall/pkg/ingress"
 	"github.com/nais/wonderwall/pkg/metrics"
@@ -31,6 +32,7 @@ import (
 var _ router.Source = &Standalone{}
 
 type Standalone struct {
+	AcrHandler     *acr.Handler
 	AutoLogin      *autologin.AutoLogin
 	Client         *openidclient.Client
 	Config         *config.Config
@@ -77,6 +79,7 @@ func NewStandalone(
 	}
 
 	return &Standalone{
+		AcrHandler:     acr.NewHandler(cfg),
 		AutoLogin:      autoLogin,
 		Client:         openidClient,
 		Config:         cfg,
@@ -90,8 +93,8 @@ func NewStandalone(
 	}, nil
 }
 
-func (s *Standalone) GetSession(r *http.Request) (*session.Session, error) {
-	return s.SessionManager.GetOrRefresh(r)
+func (s *Standalone) GetAcrHandler() *acr.Handler {
+	return s.AcrHandler
 }
 
 func (s *Standalone) GetAutoLogin() *autologin.AutoLogin {
@@ -113,6 +116,10 @@ func (s *Standalone) GetIngresses() *ingress.Ingresses {
 
 func (s *Standalone) GetPath(r *http.Request) string {
 	return GetPath(r, s.GetIngresses())
+}
+
+func (s *Standalone) GetSession(r *http.Request) (*session.Session, error) {
+	return s.SessionManager.GetOrRefresh(r)
 }
 
 func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/pkg/handler/acr"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	"github.com/nais/wonderwall/pkg/ingress"
 	logentry "github.com/nais/wonderwall/pkg/middleware"
@@ -22,6 +23,7 @@ import (
 var _ router.Source = &SSOProxy{}
 
 type SSOProxy struct {
+	AcrHandler            *acr.Handler
 	AutoLogin             *autologin.AutoLogin
 	Config                *config.Config
 	Ingresses             *ingress.Ingresses
@@ -59,6 +61,7 @@ func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) 
 	}
 
 	return &SSOProxy{
+		AcrHandler:            acr.NewHandler(cfg),
 		AutoLogin:             autoLogin,
 		Config:                cfg,
 		Ingresses:             ingresses,
@@ -70,8 +73,8 @@ func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) 
 	}, nil
 }
 
-func (s *SSOProxy) GetSession(r *http.Request) (*session.Session, error) {
-	return s.SessionReader.Get(r)
+func (s *SSOProxy) GetAcrHandler() *acr.Handler {
+	return s.AcrHandler
 }
 
 func (s *SSOProxy) GetAutoLogin() *autologin.AutoLogin {
@@ -84,6 +87,10 @@ func (s *SSOProxy) GetIngresses() *ingress.Ingresses {
 
 func (s *SSOProxy) GetPath(r *http.Request) string {
 	return GetPath(r, s.GetIngresses())
+}
+
+func (s *SSOProxy) GetSession(r *http.Request) (*session.Session, error) {
+	return s.SessionReader.Get(r)
 }
 
 func (s *SSOProxy) GetSSOServerURL() *urllib.URL {

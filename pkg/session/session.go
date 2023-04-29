@@ -60,6 +60,10 @@ func (in *Session) AccessToken() (string, error) {
 	return "", fmt.Errorf("%w: access token is expired", ErrInvalid)
 }
 
+func (in *Session) Acr() string {
+	return in.data.Acr
+}
+
 func (in *Session) ExternalSessionID() string {
 	return in.data.ExternalSessionID
 }

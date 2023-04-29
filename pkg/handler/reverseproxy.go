@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/nais/wonderwall/pkg/handler/acr"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/session"
@@ -17,6 +18,7 @@ import (
 )
 
 type ReverseProxySource interface {
+	GetAcrHandler() *acr.Handler
 	GetAutoLogin() *autologin.AutoLogin
 	GetPath(r *http.Request) string
 	GetSession(r *http.Request) (*session.Session, error)
@@ -65,7 +67,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	logger := mw.LogEntryFrom(r)
 	isAuthenticated := false
 
-	_, accessToken, err := getSessionWithValidToken(src, r)
+	sess, accessToken, err := getSessionWithValidToken(src, r)
 	switch {
 	case err == nil:
 		// add authentication if session checks out
@@ -82,18 +84,14 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		logger.Errorf("default: unauthenticated: unexpected error: %+v", err)
 	}
 
+	err = src.GetAcrHandler().Validate(sess)
+	if err != nil {
+		loginRedirect(src, w, r, err.Error())
+		return
+	}
+
 	if src.GetAutoLogin().NeedsLogin(r, isAuthenticated) {
-		redirectTarget := r.URL.String()
-		path := src.GetPath(r)
-
-		loginUrl := url.LoginRelative(path, redirectTarget)
-		fields := logrus.Fields{
-			"redirect_after_login": redirectTarget,
-			"redirect_to":          loginUrl,
-		}
-
-		logger.WithFields(fields).Info("default: unauthenticated: request matches auto-login; redirecting to login...")
-		http.Redirect(w, r, loginUrl, http.StatusFound)
+		loginRedirect(src, w, r, "request matches autologin")
 		return
 	}
 
@@ -118,6 +116,20 @@ func getSessionWithValidToken(src ReverseProxySource, r *http.Request) (*session
 	}
 
 	return sess, accessToken, nil
+}
+
+func loginRedirect(src ReverseProxySource, w http.ResponseWriter, r *http.Request, message string) {
+	redirectTarget := r.URL.String()
+	path := src.GetPath(r)
+
+	loginUrl := url.LoginRelative(path, redirectTarget)
+	fields := logrus.Fields{
+		"redirect_after_login": redirectTarget,
+		"redirect_to":          loginUrl,
+	}
+
+	mw.LogEntryFrom(r).WithFields(fields).Infof("default: unauthenticated: %s; redirecting to login...", message)
+	http.Redirect(w, r, loginUrl, http.StatusFound)
 }
 
 type logrusErrorWriter struct{}
