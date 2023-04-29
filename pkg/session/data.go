@@ -54,6 +54,7 @@ type Data struct {
 	IDToken           string   `json:"id_token"`
 	RefreshToken      string   `json:"refresh_token"`
 	IDTokenJwtID      string   `json:"id_token_jwt_id"`
+	Acr               string   `json:"acr"`
 	Metadata          Metadata `json:"metadata"`
 }
 
@@ -64,6 +65,7 @@ func NewData(externalSessionID string, tokens *openid.Tokens, metadata *Metadata
 		IDToken:           tokens.IDToken.GetSerialized(),
 		IDTokenJwtID:      tokens.IDToken.GetJwtID(),
 		RefreshToken:      tokens.RefreshToken,
+		Acr:               tokens.IDToken.GetAcrClaim(),
 	}
 
 	if metadata != nil {
