@@ -11,6 +11,7 @@ import (
 )
 
 type LoginCookie struct {
+	Acr          string `json:"acr"`
 	CodeVerifier string `json:"code_verifier"`
 	Nonce        string `json:"nonce"`
 	RedirectURI  string `json:"redirect_uri"`

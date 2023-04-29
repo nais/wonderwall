@@ -40,14 +40,24 @@ var (
 )
 
 func NewLogin(c *Client, r *http.Request) (*Login, error) {
-	params, err := newLoginParameters()
-	if err != nil {
-		return nil, fmt.Errorf("generating parameters: %w", err)
-	}
-
 	callbackURL, err := urlpkg.LoginCallback(r)
 	if err != nil {
 		return nil, fmt.Errorf("generating callback url: %w", err)
+	}
+
+	acr, err := getParameterOrDefault(r, SecurityLevelURLParameter, c.cfg.Client().ACRValues(), c.cfg.Provider().ACRValuesSupported())
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidSecurityLevel, err)
+	}
+
+	locale, err := getParameterOrDefault(r, LocaleURLParameter, c.cfg.Client().UILocales(), c.cfg.Provider().UILocalesSupported())
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidLocale, err)
+	}
+
+	params, err := newLoginParameters(acr, callbackURL)
+	if err != nil {
+		return nil, fmt.Errorf("generating parameters: %w", err)
 	}
 
 	opts := []oauth2.AuthCodeOption{
@@ -63,16 +73,6 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 		opts = append(opts, oauth2.SetAuthURLParam(openid.Resource, resourceIndicator))
 	}
 
-	acr, err := getParameterOrDefault(r, SecurityLevelURLParameter, c.cfg.Client().ACRValues(), c.cfg.Provider().ACRValuesSupported())
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalidSecurityLevel, err)
-	}
-
-	locale, err := getParameterOrDefault(r, LocaleURLParameter, c.cfg.Client().UILocales(), c.cfg.Provider().UILocalesSupported())
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalidLocale, err)
-	}
-
 	if len(acr) > 0 {
 		opts = append(opts, oauth2.SetAuthURLParam(LoginParameterMapping[SecurityLevelURLParameter], acr))
 	}
@@ -83,7 +83,7 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 
 	return &Login{
 		authCodeURL: c.oauth2Config.AuthCodeURL(params.State, opts...),
-		cookie:      params.cookie(callbackURL),
+		cookie:      params.cookie(),
 		params:      params,
 	}, nil
 }
@@ -139,13 +139,15 @@ func (l *Login) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter cr
 }
 
 type loginParameters struct {
+	Acr           string
 	CodeVerifier  string
 	CodeChallenge string
 	Nonce         string
+	RedirectURI   string
 	State         string
 }
 
-func newLoginParameters() (*loginParameters, error) {
+func newLoginParameters(acr, redirectUri string) (*loginParameters, error) {
 	codeVerifier, err := strings.GenerateBase64(64)
 	if err != nil {
 		return nil, fmt.Errorf("creating code verifier: %w", err)
@@ -162,19 +164,22 @@ func newLoginParameters() (*loginParameters, error) {
 	}
 
 	return &loginParameters{
+		Acr:           acr,
 		CodeVerifier:  codeVerifier,
 		CodeChallenge: CodeChallenge(codeVerifier),
 		Nonce:         nonce,
+		RedirectURI:   redirectUri,
 		State:         state,
 	}, nil
 }
 
-func (in *loginParameters) cookie(redirectURI string) *openid.LoginCookie {
+func (in *loginParameters) cookie() *openid.LoginCookie {
 	return &openid.LoginCookie{
+		Acr:          in.Acr,
 		State:        in.State,
 		Nonce:        in.Nonce,
 		CodeVerifier: in.CodeVerifier,
-		RedirectURI:  redirectURI,
+		RedirectURI:  in.RedirectURI,
 	}
 }
 
