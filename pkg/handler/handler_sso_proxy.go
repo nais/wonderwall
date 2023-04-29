@@ -144,7 +144,8 @@ func (s *SSOProxy) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOProxy) LogoutCallback(w http.ResponseWriter, r *http.Request) {
-	http.NotFound(w, r)
+	target := s.GetSSOServerURL().JoinPath(paths.OAuth2, paths.Logout)
+	http.Redirect(w, r, target.String(), http.StatusFound)
 }
 
 func (s *SSOProxy) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
