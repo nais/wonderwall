@@ -157,27 +157,28 @@ func ObserveRedisLatency(operation string, fun func() error) error {
 func ObserveLogin(amrValue, redirect string) {
 	u, err := url.Parse(redirect)
 	if err == nil {
-		p := u.Path
-		p = strings.TrimSuffix(p, "/")
-		if !strings.HasPrefix(p, "/") {
-			p = "/" + p
-		}
-
-		paths := strings.SplitN(p, "/", 4)
-		if len(paths) >= 3 {
-			u.Path = paths[1] + "/" + paths[2]
-		} else if len(paths) == 2 {
-			u.Path = paths[1]
-		} else {
-			u.Path = ""
-		}
-
-		u.RawQuery = ""
-		u.RawFragment = ""
-		redirect = u.String()
-
 		if u.Host == "" {
 			redirect = ""
+		} else {
+			p := u.Path
+			p = strings.TrimSuffix(p, "/")
+			if !strings.HasPrefix(p, "/") {
+				p = "/" + p
+			}
+
+			paths := strings.SplitN(p, "/", 4)
+			if len(paths) >= 3 {
+				p = paths[1] + "/" + paths[2]
+			} else if len(paths) == 2 {
+				p = paths[1]
+			} else {
+				p = ""
+			}
+
+			u.Path = p
+			u.RawQuery = ""
+			u.RawFragment = ""
+			redirect = u.String()
 		}
 	}
 
