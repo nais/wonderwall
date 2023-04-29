@@ -68,12 +68,6 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 		for _, prefix := range prefixes {
 			r.Route(prefix+paths.OAuth2, func(r chi.Router) {
-				if cfg.SSO.IsServer() {
-					r.With(cors(http.MethodGet)).
-						Options(paths.Login, noopHandler)
-					r.With(cors(http.MethodGet)).
-						Options(paths.Logout, noopHandler)
-				}
 				r.Get(paths.Login, src.Login)
 				r.Head(paths.Login, src.Login)
 
