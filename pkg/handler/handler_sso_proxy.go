@@ -70,13 +70,8 @@ func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) 
 	}, nil
 }
 
-func (s *SSOProxy) GetAccessToken(r *http.Request) (string, error) {
-	sess, err := s.SessionReader.Get(r)
-	if err != nil {
-		return "", err
-	}
-
-	return sess.AccessToken()
+func (s *SSOProxy) GetSession(r *http.Request) (*session.Session, error) {
+	return s.SessionReader.Get(r)
 }
 
 func (s *SSOProxy) GetAutoLogin() *autologin.AutoLogin {

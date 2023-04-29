@@ -90,13 +90,8 @@ func NewStandalone(
 	}, nil
 }
 
-func (s *Standalone) GetAccessToken(r *http.Request) (string, error) {
-	sess, err := s.SessionManager.GetOrRefresh(r)
-	if err != nil {
-		return "", err
-	}
-
-	return sess.AccessToken()
+func (s *Standalone) GetSession(r *http.Request) (*session.Session, error) {
+	return s.SessionManager.GetOrRefresh(r)
 }
 
 func (s *Standalone) GetAutoLogin() *autologin.AutoLogin {

@@ -17,9 +17,9 @@ import (
 )
 
 type ReverseProxySource interface {
-	GetAccessToken(r *http.Request) (string, error)
 	GetAutoLogin() *autologin.AutoLogin
 	GetPath(r *http.Request) string
+	GetSession(r *http.Request) (*session.Session, error)
 }
 
 type ReverseProxy struct {
@@ -65,10 +65,10 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	logger := mw.LogEntryFrom(r)
 	isAuthenticated := false
 
-	accessToken, err := src.GetAccessToken(r)
+	_, accessToken, err := getSessionWithValidToken(src, r)
 	switch {
 	case err == nil:
-		// add authentication if session cookie and token checks out
+		// add authentication if session checks out
 		isAuthenticated = true
 	case errors.Is(err, context.Canceled):
 		logger.Debugf("default: unauthenticated: %+v (client disconnected before we could respond)", err)
@@ -104,6 +104,20 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	}
 
 	rp.ServeHTTP(w, r.WithContext(ctx))
+}
+
+func getSessionWithValidToken(src ReverseProxySource, r *http.Request) (*session.Session, string, error) {
+	sess, err := src.GetSession(r)
+	if err != nil {
+		return nil, "", err
+	}
+
+	accessToken, err := sess.AccessToken()
+	if err != nil {
+		return nil, "", err
+	}
+
+	return sess, accessToken, nil
 }
 
 type logrusErrorWriter struct{}
