@@ -295,7 +295,7 @@ func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 
 	u.RawQuery = v.Encode()
 
-	http.Redirect(w, r, u.String(), http.StatusSeeOther)
+	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
 func (ip *IdentityProviderHandler) Jwks(w http.ResponseWriter, r *http.Request) {
@@ -572,7 +572,7 @@ func (ip *IdentityProviderHandler) EndSession(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	http.Redirect(w, r, u.String(), http.StatusSeeOther)
+	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
 type relyingPartyServer struct {

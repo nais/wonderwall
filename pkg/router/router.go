@@ -104,7 +104,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 		if cfg.SSO.IsServer() {
 			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, paths.OAuth2+paths.Login, http.StatusSeeOther)
+				http.Redirect(w, r, paths.OAuth2+paths.Login, http.StatusFound)
 			})
 		}
 	})

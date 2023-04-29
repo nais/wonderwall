@@ -93,7 +93,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		}
 
 		logger.WithFields(fields).Info("default: unauthenticated: request matches auto-login; redirecting to login...")
-		http.Redirect(w, r, loginUrl, http.StatusSeeOther)
+		http.Redirect(w, r, loginUrl, http.StatusFound)
 		return
 	}
 

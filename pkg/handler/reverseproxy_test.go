@@ -51,7 +51,7 @@ func TestReverseProxy(t *testing.T) {
 		target := idp.RelyingPartyServer.URL + "/"
 
 		resp := get(t, rpClient, target)
-		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
+		assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 		// redirect should point to local login endpoint
 		loginLocation := resp.Location
@@ -59,7 +59,7 @@ func TestReverseProxy(t *testing.T) {
 
 		// follow redirect to local login endpoint
 		resp = get(t, rpClient, loginLocation.String())
-		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
+		assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 		// redirect should point to identity provider
 		authorizeLocation := resp.Location
@@ -70,7 +70,7 @@ func TestReverseProxy(t *testing.T) {
 
 		// follow redirect to identity provider for login
 		resp = get(t, rpClient, authorizeLocation.String())
-		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
+		assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 		// redirect should point back to relying party
 		callbackLocation := resp.Location
@@ -85,7 +85,7 @@ func TestReverseProxy(t *testing.T) {
 
 		// follow redirect back to relying party
 		resp = get(t, rpClient, callbackLocation.String())
-		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
+		assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 		// finally, follow redirect back to original target, now with a session
 		targetLocation := resp.Location
@@ -274,7 +274,7 @@ func TestReverseProxy(t *testing.T) {
 							target := idp.RelyingPartyServer.URL + path
 							resp := get(t, rpClient, target)
 
-							assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
+							assert.Equal(t, http.StatusFound, resp.StatusCode)
 						})
 					}
 				})
