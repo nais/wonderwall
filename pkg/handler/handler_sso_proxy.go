@@ -133,7 +133,9 @@ func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOProxy) LoginCallback(w http.ResponseWriter, r *http.Request) {
-	http.NotFound(w, r)
+	ingressPath := s.GetPath(r)
+	login := url.LoginRelative(ingressPath, ingressPath)
+	http.Redirect(w, r, login, http.StatusFound)
 }
 
 func (s *SSOProxy) Logout(w http.ResponseWriter, r *http.Request) {
