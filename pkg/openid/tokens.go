@@ -40,6 +40,10 @@ type IDToken struct {
 	jwt.Token
 }
 
+func (in *IDToken) GetAcrClaim() string {
+	return in.GetStringClaimOrEmpty(jwt.AcrClaim)
+}
+
 func (in *IDToken) GetAmrClaim() string {
 	s := in.GetStringClaimOrEmpty(jwt.AmrClaim)
 	if len(s) == 0 {
@@ -53,23 +57,33 @@ func (in *IDToken) GetSidClaim() (string, error) {
 	return in.GetStringClaim(jwt.SidClaim)
 }
 
-func (in *IDToken) Validate(cfg openidconfig.Config, nonce string) error {
+func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie) error {
 	openIDconfig := cfg.Provider()
 	clientConfig := cfg.Client()
 
 	opts := []jwtlib.ValidateOption{
 		jwtlib.WithAudience(clientConfig.ClientID()),
-		jwtlib.WithClaimValue("nonce", nonce),
+		jwtlib.WithClaimValue("nonce", cookie.Nonce),
 		jwtlib.WithIssuer(openIDconfig.Issuer()),
 		jwtlib.WithAcceptableSkew(jwt.AcceptableClockSkew),
 	}
 
 	if openIDconfig.SidClaimRequired() {
-		opts = append(opts, jwtlib.WithRequiredClaim("sid"))
+		opts = append(opts, jwtlib.WithRequiredClaim(jwt.SidClaim))
 	}
 
 	if len(clientConfig.ACRValues()) > 0 {
-		opts = append(opts, jwtlib.WithRequiredClaim("acr"))
+		opts = append(opts, jwtlib.WithRequiredClaim(jwt.AcrClaim))
+
+		if len(cookie.Acr) > 0 {
+			actual := in.GetAcrClaim()
+			expected := cookie.Acr
+
+			err := ValidateAcr(expected, actual)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return jwtlib.Validate(in.GetToken(), opts...)

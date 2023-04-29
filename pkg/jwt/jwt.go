@@ -12,6 +12,7 @@ import (
 const (
 	AcceptableClockSkew = 5 * time.Second
 
+	AcrClaim = "acr"
 	AmrClaim = "amr"
 	JtiClaim = "jti"
 	SidClaim = "sid"

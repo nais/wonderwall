@@ -108,6 +108,17 @@ func TestLoginCallback_RedeemTokens(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, tokens)
 	})
+
+	t.Run("invalid acr", func(t *testing.T) {
+		idp, lc := newLoginCallback(t, url)
+		defer idp.Close()
+		idp.ProviderHandler.Codes["some-code"].AcrLevel = "some-invalid-acr"
+
+		tokens, err := lc.RedeemTokens(context.Background())
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "invalid acr: got \"some-invalid-acr\", expected \"some-acr\"")
+		assert.Nil(t, tokens)
+	})
 }
 
 func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, *client.LoginCallback) {
@@ -119,6 +130,7 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, *client
 
 	idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
 		"some-code": {
+			AcrLevel:      "some-acr",
 			ClientID:      idp.OpenIDConfig.Client().ClientID(),
 			CodeChallenge: client.CodeChallenge("some-verifier"),
 			Nonce:         "some-nonce",
@@ -127,6 +139,7 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, *client
 	}
 
 	cookie := &openid.LoginCookie{
+		Acr:          "some-acr",
 		State:        "some-state",
 		Nonce:        "some-nonce",
 		CodeVerifier: "some-verifier",

@@ -98,7 +98,7 @@ func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, erro
 		return nil, fmt.Errorf("parsing tokens: %w", err)
 	}
 
-	err = tokens.IDToken.Validate(in.cfg, in.cookie.Nonce)
+	err = tokens.IDToken.Validate(in.cfg, in.cookie)
 	if err != nil {
 		return nil, fmt.Errorf("validating id_token: %w", err)
 	}
