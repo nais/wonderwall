@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/alicebob/miniredis/v2 v2.30.2
 	github.com/bmatcuk/doublestar/v4 v4.6.0
-	github.com/bsm/redislock v0.9.2
+	github.com/bsm/redislock v0.9.3
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/google/uuid v1.3.0
 	github.com/lestrrat-go/jwx/v2 v2.0.9
