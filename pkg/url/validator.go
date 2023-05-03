@@ -129,6 +129,10 @@ func isValidAbsolutePath(redirect string) bool {
 }
 
 func isAllowedDomain(u *url.URL, allowed string) bool {
+	if len(allowed) == 0 {
+		return false
+	}
+
 	host := u.Host
 	hostname := u.Hostname()
 
