@@ -20,14 +20,12 @@ type Redirect interface {
 var _ Redirect = &StandaloneRedirect{}
 
 type StandaloneRedirect struct {
-	ingresses *ingress.Ingresses
 	*cleaner
 }
 
 func NewStandaloneRedirect(ingresses *ingress.Ingresses) *StandaloneRedirect {
 	return &StandaloneRedirect{
-		ingresses: ingresses,
-		cleaner:   newRelativeCleaner(ingresses.Hosts()),
+		cleaner: newRelativeCleaner(ingresses.Hosts()),
 	}
 }
 
