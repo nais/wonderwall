@@ -13,6 +13,7 @@ import (
 const (
 	Login       = "io.nais.wonderwall.callback"
 	LoginLegacy = "io.nais.wonderwall.callback.legacy"
+	Logout      = "io.nais.wonderwall.logout"
 	Retry       = "io.nais.wonderwall.retry"
 
 	loginservice = "selvbetjening-idtoken"

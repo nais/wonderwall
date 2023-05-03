@@ -19,6 +19,11 @@ type LoginCookie struct {
 	State        string `json:"state"`
 }
 
+type LogoutCookie struct {
+	State      string `json:"state"`
+	RedirectTo string `json:"redirect_to"`
+}
+
 func GetLoginCookie(r *http.Request, crypter crypto.Crypter) (*LoginCookie, error) {
 	loginCookieJson, err := cookie.GetDecrypted(r, cookie.Login, crypter)
 	if err != nil {
@@ -37,4 +42,19 @@ func GetLoginCookie(r *http.Request, crypter crypto.Crypter) (*LoginCookie, erro
 	}
 
 	return &loginCookie, nil
+}
+
+func GetLogoutCookie(r *http.Request, crypter crypto.Crypter) (*LogoutCookie, error) {
+	logoutCookieJson, err := cookie.GetDecrypted(r, cookie.Logout, crypter)
+	if err != nil {
+		return nil, err
+	}
+
+	var logoutCookie LogoutCookie
+	err = json.Unmarshal([]byte(logoutCookieJson), &logoutCookie)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshalling: %w", err)
+	}
+
+	return &logoutCookie, nil
 }
