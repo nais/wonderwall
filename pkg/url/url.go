@@ -40,6 +40,18 @@ func LoginRelative(prefix, redirect string) string {
 	return Login(u, redirect)
 }
 
+// Logout constructs a URL string that points to the logout path for the given target URL.
+// The given redirect string should point to the location to be redirected to after logout.
+func Logout(target *url.URL, redirect string) string {
+	u := target.JoinPath(paths.OAuth2, paths.Logout)
+
+	v := u.Query()
+	v.Set(RedirectQueryParameter, redirect)
+	u.RawQuery = v.Encode()
+
+	return u.String()
+}
+
 func LoginCallback(r *http.Request) (string, error) {
 	return makeCallbackURL(r, paths.LoginCallback)
 }

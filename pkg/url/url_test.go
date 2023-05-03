@@ -91,6 +91,48 @@ func TestLoginRelative(t *testing.T) {
 	}
 }
 
+func TestLogout(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		targetURL      string
+		redirectTarget string
+		want           string
+	}{
+		{
+			name:           "root path",
+			targetURL:      "https://sso.wonderwall",
+			redirectTarget: "https://test.example.com?some=param&other=param2",
+			want:           "https://sso.wonderwall/oauth2/logout?redirect=https%3A%2F%2Ftest.example.com%3Fsome%3Dparam%26other%3Dparam2",
+		},
+		{
+			name:           "with prefix",
+			targetURL:      "https://sso.wonderwall/path",
+			redirectTarget: "https://test.example.com?some=param&other=param2",
+			want:           "https://sso.wonderwall/path/oauth2/logout?redirect=https%3A%2F%2Ftest.example.com%3Fsome%3Dparam%26other%3Dparam2",
+		},
+		{
+			name:           "we need to go deeper",
+			targetURL:      "https://sso.wonderwall/deeper/path",
+			redirectTarget: "https://test.example.com?some=param&other=param2",
+			want:           "https://sso.wonderwall/deeper/path/oauth2/logout?redirect=https%3A%2F%2Ftest.example.com%3Fsome%3Dparam%26other%3Dparam2",
+		},
+		{
+			name:           "relative redirect target",
+			targetURL:      "https://sso.wonderwall",
+			redirectTarget: "/path?some=param&other=param2",
+			want:           "https://sso.wonderwall/oauth2/logout?redirect=%2Fpath%3Fsome%3Dparam%26other%3Dparam2",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			targetURL, err := url.Parse(test.targetURL)
+			assert.NoError(t, err)
+
+			logoutUrl := urlpkg.Logout(targetURL, test.redirectTarget)
+			assert.Equal(t, test.want, logoutUrl)
+		})
+	}
+}
+
 func TestLoginCallback(t *testing.T) {
 	cfg := mock.Config()
 	cfg.Ingresses = []string{
