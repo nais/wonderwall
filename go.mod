@@ -9,9 +9,9 @@ require (
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/google/uuid v1.3.0
 	github.com/lestrrat-go/jwx/v2 v2.0.9
-	github.com/nais/liberator v0.0.0-20230331130952-da33a75022d5
-	github.com/prometheus/client_golang v1.15.0
-	github.com/redis/go-redis/v9 v9.0.3
+	github.com/nais/liberator v0.0.0-20230502174148-dde82d2019da
+	github.com/prometheus/client_golang v1.15.1
+	github.com/redis/go-redis/v9 v9.0.4
 	github.com/rs/cors v1.9.0
 	github.com/sethvargo/go-retry v0.2.4
 	github.com/sirupsen/logrus v1.9.0
@@ -32,7 +32,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
@@ -49,7 +49,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.7 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_model v0.3.0 // indirect
+	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
