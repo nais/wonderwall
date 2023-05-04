@@ -53,16 +53,21 @@ func NewClient(cfg openidconfig.Config, jwksProvider JwksProvider) *Client {
 		Scopes: cfg.Client().Scopes(),
 	}
 
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.MaxIdleConns = 200
+	t.MaxIdleConnsPerHost = 100
+
+	httpClient := &http.Client{
+		Timeout:   time.Second * 10,
+		Transport: t,
+	}
+
 	return &Client{
 		cfg:          cfg,
-		httpClient:   http.DefaultClient,
+		httpClient:   httpClient,
 		jwksProvider: jwksProvider,
 		oauth2Config: oauth2Config,
 	}
-}
-
-func (c *Client) SetHttpClient(httpClient *http.Client) {
-	c.httpClient = httpClient
 }
 
 func (c *Client) Login(r *http.Request) (*Login, error) {
@@ -101,6 +106,7 @@ func (c *Client) LogoutFrontchannel(r *http.Request) *LogoutFrontchannel {
 }
 
 func (c *Client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error) {
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, c.httpClient)
 	return c.oauth2Config.Exchange(ctx, code, opts...)
 }
 

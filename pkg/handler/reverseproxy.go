@@ -29,7 +29,22 @@ type ReverseProxy struct {
 }
 
 func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *ReverseProxy {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.MaxIdleConns = 200
+	t.MaxIdleConnsPerHost = 100
+
 	rp := &httputil.ReverseProxy{
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			logger := mw.LogEntryFrom(r)
+
+			if errors.Is(err, context.Canceled) {
+				w.WriteHeader(499)
+			} else {
+				logger.Warnf("reverseproxy: proxy error: %+v", err)
+				w.WriteHeader(http.StatusBadGateway)
+			}
+		},
+		ErrorLog: log.New(logrusErrorWriter{}, "reverseproxy: ", 0),
 		Rewrite: func(r *httputil.ProxyRequest) {
 			// preserve inbound Forwarded and X-Forwarded-* headers that is stripped when using Rewrite
 			r.Out.Header["Forwarded"] = r.In.Header["Forwarded"]
@@ -48,17 +63,7 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 				r.Out.Header.Set("authorization", "Bearer "+accessToken)
 			}
 		},
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			logger := mw.LogEntryFrom(r)
-
-			if errors.Is(err, context.Canceled) {
-				w.WriteHeader(499)
-			} else {
-				logger.Warnf("reverseproxy: proxy error: %+v", err)
-				w.WriteHeader(http.StatusBadGateway)
-			}
-		},
-		ErrorLog: log.New(logrusErrorWriter{}, "reverseproxy: ", 0),
+		Transport: t,
 	}
 	return &ReverseProxy{rp}
 }

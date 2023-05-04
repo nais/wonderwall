@@ -58,9 +58,6 @@ func NewStandalone(
 	cookieOpts := cookie.DefaultOptions()
 
 	openidClient := openidclient.NewClient(openidConfig, jwksProvider)
-	openidClient.SetHttpClient(&http.Client{
-		Timeout: time.Second * 10,
-	})
 
 	sessionManager, err := session.NewManager(cfg, openidConfig, crypter, openidClient)
 	if err != nil {
