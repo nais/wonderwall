@@ -558,10 +558,17 @@ func (ip *IdentityProviderHandler) validateClientAuthentication(w http.ResponseW
 func (ip *IdentityProviderHandler) EndSession(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	postLogoutRedirectURI := query.Get("post_logout_redirect_uri")
+	state := query.Get("state")
 
 	if postLogoutRedirectURI == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("missing required parameters"))
+		w.Write([]byte("missing required 'post_logout_redirect_uri' parameter"))
+		return
+	}
+
+	if state == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing required 'state' parameter"))
 		return
 	}
 
@@ -571,6 +578,10 @@ func (ip *IdentityProviderHandler) EndSession(w http.ResponseWriter, r *http.Req
 		w.Write([]byte("couldn't parse post_logout_redirect_uri"))
 		return
 	}
+
+	v := url.Values{}
+	v.Set("state", state)
+	u.RawQuery = v.Encode()
 
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }

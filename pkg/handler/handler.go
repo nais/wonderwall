@@ -39,7 +39,6 @@ type Standalone struct {
 	CookieOptions  cookie.Options
 	Crypter        crypto.Crypter
 	Ingresses      *ingress.Ingresses
-	OpenidConfig   openidconfig.Config
 	Redirect       url.Redirect
 	SessionManager session.Manager
 	UpstreamProxy  *ReverseProxy
@@ -86,7 +85,6 @@ func NewStandalone(
 		CookieOptions:  cookieOpts,
 		Crypter:        crypter,
 		Ingresses:      ingresses,
-		OpenidConfig:   openidConfig,
 		Redirect:       url.NewStandaloneRedirect(ingresses),
 		SessionManager: sessionManager,
 		UpstreamProxy:  NewReverseProxy(upstream, true),
@@ -255,7 +253,21 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, globalLogout
 	cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
 
 	if globalLogout {
-		logger.Debug("logout: redirecting to identity provider for global/single-logout")
+		// only set a canonical redirect if it was provided in the request as a query parameter
+		canonicalRedirect := r.URL.Query().Get(url.RedirectQueryParameter)
+		if canonicalRedirect != "" {
+			canonicalRedirect = s.Redirect.Canonical(r)
+		}
+
+		opts := s.CookieOptions.WithExpiresIn(5 * time.Minute)
+		err = logout.SetCookie(w, opts, s.Crypter, canonicalRedirect)
+		if err != nil {
+			s.InternalError(w, r, fmt.Errorf("logout: setting logout cookie: %w", err))
+			return
+		}
+
+		logger.WithField("redirect_after_logout", canonicalRedirect).
+			Info("logout: redirecting to identity provider for global/single-logout")
 		metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
 		http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusFound)
 	} else {
@@ -266,10 +278,19 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, globalLogout
 }
 
 func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
-	redirect := s.Client.LogoutCallback(r).PostLogoutRedirectURI()
+	logger := mw.LogEntryFrom(r)
+	cookie.Clear(w, cookie.Logout, s.CookieOptions)
+
+	logoutCookie, err := openid.GetLogoutCookie(r, s.Crypter)
+	if err != nil {
+		logger.Debugf("logout/callback: getting cookie: %+v; ignoring...", err)
+	}
+
+	logoutCallback := s.Client.LogoutCallback(r, logoutCookie, s.Redirect.GetValidator())
+	redirect := logoutCallback.PostLogoutRedirectURI()
 
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
-	mw.LogEntryFrom(r).Debugf("logout/callback: redirecting to %s", redirect)
+	logger.Infof("logout/callback: redirecting to %q", redirect)
 	http.Redirect(w, r, redirect, http.StatusFound)
 }
 

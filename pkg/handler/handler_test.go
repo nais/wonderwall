@@ -90,24 +90,7 @@ func TestLogout(t *testing.T) {
 
 	rpClient := idp.RelyingPartyClient()
 	login(t, rpClient, idp)
-
-	resp := selfInitiatedLogout(t, rpClient, idp)
-
-	// Get endsession endpoint after local logout
-	endsessionURL := resp.Location
-
-	idpserverURL, err := url.Parse(idp.ProviderServer.URL)
-	assert.NoError(t, err)
-
-	req := idp.GetRequest(idp.RelyingPartyServer.URL + "/oauth2/logout/callback")
-	expectedLogoutCallbackURL, err := urlpkg.LogoutCallback(req)
-	assert.NoError(t, err)
-
-	endsessionParams := endsessionURL.Query()
-	assert.Equal(t, idpserverURL.Host, endsessionURL.Host)
-	assert.Equal(t, "/endsession", endsessionURL.Path)
-	assert.Equal(t, []string{expectedLogoutCallbackURL}, endsessionParams["post_logout_redirect_uri"])
-	assert.NotEmpty(t, endsessionParams["id_token_hint"])
+	selfInitiatedLogout(t, rpClient, idp)
 }
 
 func TestLogoutLocal(t *testing.T) {
@@ -129,6 +112,18 @@ func TestLogoutCallback(t *testing.T) {
 	rpClient := idp.RelyingPartyClient()
 	login(t, rpClient, idp)
 	logout(t, rpClient, idp)
+}
+
+func TestLogoutCallback_WithRedirect(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	redirect := idp.RelyingPartyServer.URL + "/api/me"
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+	logout(t, rpClient, idp, redirect)
 }
 
 func TestFrontChannelLogout(t *testing.T) {
@@ -485,10 +480,16 @@ func login(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) *htt
 	return callback(t, rpClient, resp)
 }
 
-func selfInitiatedLogout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) response {
+func selfInitiatedLogout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider, redirectAfterLogout ...string) response {
 	// Request self-initiated logout
 	logoutURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/logout")
 	assert.NoError(t, err)
+
+	if len(redirectAfterLogout) > 0 {
+		v := url.Values{}
+		v.Set(urlpkg.RedirectQueryParameter, redirectAfterLogout[0])
+		logoutURL.RawQuery = v.Encode()
+	}
 
 	resp := get(t, rpClient, logoutURL.String())
 	assert.Equal(t, http.StatusFound, resp.StatusCode)
@@ -498,21 +499,44 @@ func selfInitiatedLogout(t *testing.T, rpClient *http.Client, idp *mock.Identity
 
 	assert.Nil(t, sessionCookie)
 
+	// Get endsession endpoint after local logout
+	endsessionURL := resp.Location
+
+	idpserverURL, err := url.Parse(idp.ProviderServer.URL)
+	assert.NoError(t, err)
+
+	req := idp.GetRequest(idp.RelyingPartyServer.URL + "/oauth2/logout")
+	expectedLogoutCallbackURL, err := urlpkg.LogoutCallback(req)
+	assert.NoError(t, err)
+
+	endsessionParams := endsessionURL.Query()
+	assert.Equal(t, idpserverURL.Host, endsessionURL.Host)
+	assert.Equal(t, "/endsession", endsessionURL.Path)
+	assert.Equal(t, expectedLogoutCallbackURL, endsessionParams.Get("post_logout_redirect_uri"))
+	assert.NotEmpty(t, endsessionParams.Get("id_token_hint"))
+	assert.NotEmpty(t, endsessionParams.Get("state"))
+
 	return resp
 }
 
-func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
+func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider, redirectAfterLogout ...string) {
 	// Get endsession endpoint after local logout
-	resp := selfInitiatedLogout(t, rpClient, idp)
+	resp := selfInitiatedLogout(t, rpClient, idp, redirectAfterLogout...)
+	expectedState := resp.Location.Query().Get("state")
 
 	// Follow redirect to endsession endpoint at identity provider
 	resp = get(t, rpClient, resp.Location.String())
 	assert.Equal(t, http.StatusFound, resp.StatusCode)
 
-	// Get post-logout redirect URI after successful logout at identity provider
 	logoutCallbackURI := resp.Location
 
-	req := idp.GetRequest(resp.Location.String())
+	// Assert state for callback equals state sent in initial logout request
+	actualState := logoutCallbackURI.Query().Get("state")
+	assert.NotEmpty(t, actualState)
+	assert.Equal(t, expectedState, actualState)
+
+	// Assert post-logout redirect URI after successful logout at identity provider
+	req := idp.GetRequest(idp.RelyingPartyServer.URL + "/oauth2/logout")
 	expectedLogoutCallbackURL, err := urlpkg.LogoutCallback(req)
 	assert.NoError(t, err)
 
@@ -521,10 +545,15 @@ func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) {
 
 	// Follow redirect back to logout callback
 	resp = get(t, rpClient, logoutCallbackURI.String())
-	assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 	// Get post-logout redirect URI after redirect back to logout callback
-	assert.Equal(t, "https://google.com", resp.Location.String())
+	assert.Equal(t, http.StatusFound, resp.StatusCode)
+
+	expectedRedirect := "https://google.com"
+	if len(redirectAfterLogout) > 0 {
+		expectedRedirect = redirectAfterLogout[0]
+	}
+	assert.Equal(t, expectedRedirect, resp.Location.String())
 
 	cookies := rpClient.Jar.Cookies(logoutCallbackURI)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)

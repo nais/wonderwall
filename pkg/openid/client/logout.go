@@ -1,16 +1,20 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
+	"github.com/nais/wonderwall/pkg/cookie"
+	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/strings"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 type Logout struct {
 	*Client
-	request           *http.Request
+	Cookie            *openid.LogoutCookie
 	logoutCallbackURL string
 }
 
@@ -20,10 +24,19 @@ func NewLogout(c *Client, r *http.Request) (*Logout, error) {
 		return nil, fmt.Errorf("generating logout callback url: %w", err)
 	}
 
+	state, err := strings.GenerateBase64(32)
+	if err != nil {
+		return nil, fmt.Errorf("generating state: %w", err)
+	}
+
+	logoutCookie := &openid.LogoutCookie{
+		State: state,
+	}
+
 	return &Logout{
 		Client:            c,
+		Cookie:            logoutCookie,
 		logoutCallbackURL: logoutCallbackURL,
-		request:           r,
 	}, nil
 }
 
@@ -31,6 +44,7 @@ func (in *Logout) SingleLogoutURL(idToken string) string {
 	endSessionEndpoint := in.cfg.Provider().EndSessionEndpointURL()
 	v := endSessionEndpoint.Query()
 	v.Add(openid.PostLogoutRedirectURI, in.logoutCallbackURL)
+	v.Add(openid.State, in.Cookie.State)
 
 	if len(idToken) > 0 {
 		v.Add(openid.IDTokenHint, idToken)
@@ -38,4 +52,16 @@ func (in *Logout) SingleLogoutURL(idToken string) string {
 
 	endSessionEndpoint.RawQuery = v.Encode()
 	return endSessionEndpoint.String()
+}
+
+func (in *Logout) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter, canonicalRedirect string) error {
+	in.Cookie.RedirectTo = canonicalRedirect
+
+	logoutCookieJson, err := json.Marshal(in.Cookie)
+	if err != nil {
+		return fmt.Errorf("marshalling logout cookie: %w", err)
+	}
+
+	value := string(logoutCookieJson)
+	return cookie.EncryptAndSet(w, cookie.Logout, value, opts, crypter)
 }

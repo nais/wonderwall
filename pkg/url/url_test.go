@@ -122,6 +122,12 @@ func TestLogout(t *testing.T) {
 			redirectTarget: "/path?some=param&other=param2",
 			want:           "https://sso.wonderwall/oauth2/logout?redirect=%2Fpath%3Fsome%3Dparam%26other%3Dparam2",
 		},
+		{
+			name:           "empty redirect target",
+			targetURL:      "https://sso.wonderwall",
+			redirectTarget: "",
+			want:           "https://sso.wonderwall/oauth2/logout",
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			targetURL, err := url.Parse(test.targetURL)

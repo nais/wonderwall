@@ -15,7 +15,6 @@ import (
 type LoginCallback struct {
 	*Client
 	cookie        *openid.LoginCookie
-	request       *http.Request
 	requestParams url.Values
 }
 
@@ -37,7 +36,6 @@ func NewLoginCallback(c *Client, r *http.Request, cookie *openid.LoginCookie) (*
 	return &LoginCallback{
 		Client:        c,
 		cookie:        cookie,
-		request:       r,
 		requestParams: r.URL.Query(),
 	}, nil
 }
@@ -56,15 +54,7 @@ func (in *LoginCallback) StateMismatchError() error {
 	expectedState := in.cookie.State
 	actualState := in.requestParams.Get(openid.State)
 
-	if len(actualState) <= 0 {
-		return fmt.Errorf("missing state parameter in request (possible csrf)")
-	}
-
-	if expectedState != actualState {
-		return fmt.Errorf("state parameter mismatch (possible csrf): expected %s, got %s", expectedState, actualState)
-	}
-
-	return nil
+	return StateMismatchError(expectedState, actualState)
 }
 
 func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {

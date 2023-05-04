@@ -45,9 +45,11 @@ func LoginRelative(prefix, redirect string) string {
 func Logout(target *url.URL, redirect string) string {
 	u := target.JoinPath(paths.OAuth2, paths.Logout)
 
-	v := u.Query()
-	v.Set(RedirectQueryParameter, redirect)
-	u.RawQuery = v.Encode()
+	if len(redirect) > 0 {
+		v := u.Query()
+		v.Set(RedirectQueryParameter, redirect)
+		u.RawQuery = v.Encode()
+	}
 
 	return u.String()
 }

@@ -45,6 +45,22 @@ func TestMakeAssertion(t *testing.T) {
 	assert.True(t, assertion.Expiration().Before(time.Now().Add(expiry)))
 }
 
+func TestStateMismatchError(t *testing.T) {
+	for _, tt := range []struct {
+		name, expected, actual string
+		assertion              assert.ErrorAssertionFunc
+	}{
+		{"missing actual state", "expected", "", assert.Error},
+		{"state mismatch", "match", "not-match", assert.Error},
+		{"state match", "match", "match", assert.NoError},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := client.StateMismatchError(tt.expected, tt.actual)
+			tt.assertion(t, err)
+		})
+	}
+}
+
 func newTestClientWithConfig(config *mock.TestConfiguration) *client.Client {
 	jwksProvider := mock.NewTestJwksProvider()
 	return client.NewClient(config, jwksProvider)

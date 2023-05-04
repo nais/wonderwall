@@ -7,36 +7,91 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/mock"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/client"
+	"github.com/nais/wonderwall/pkg/url"
 )
 
 func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
-	t.Run("happy path", func(t *testing.T) {
-		cfg := mock.Config()
-		cfg.OpenID.PostLogoutRedirectURI = "http://some-fancy-logout-page"
+	const defaultState = "some-state"
+	const defaultRedirectURI = "http://some-fancy-logout-page"
 
-		lc := newLogoutCallback(cfg)
+	for _, tt := range []struct {
+		name            string
+		emptyDefaultURI bool
+		cookie          *openid.LogoutCookie
+		expected        string
+	}{
+		{
+			name:     "happy path",
+			expected: defaultRedirectURI,
+		},
+		{
+			name:            "empty default uri",
+			emptyDefaultURI: true,
+			expected:        mock.Ingress,
+		},
+		{
+			name: "state mismatch",
+			cookie: &openid.LogoutCookie{
+				State: "some-other-state",
+			},
+			expected: defaultRedirectURI,
+		},
+		{
+			name: "happy path, redirect in cookie",
+			cookie: &openid.LogoutCookie{
+				State:      defaultState,
+				RedirectTo: "http://wonderwall/some/path",
+			},
+			expected: "http://wonderwall/some/path",
+		},
+		{
+			name: "empty redirect in cookie",
+			cookie: &openid.LogoutCookie{
+				State:      defaultState,
+				RedirectTo: "",
+			},
+			expected: defaultRedirectURI,
+		},
+		{
+			name: "state mismatch, with redirect in cookie",
+			cookie: &openid.LogoutCookie{
+				State:      "some-other-state",
+				RedirectTo: "http://wonderwall/some/path",
+			},
+			expected: defaultRedirectURI,
+		},
+		{
+			name: "invalid redirect in cookie",
+			cookie: &openid.LogoutCookie{
+				State:      defaultState,
+				RedirectTo: "http://not-wonderwall/some/path",
+			},
+			expected: defaultRedirectURI,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := mock.Config()
+			cfg.OpenID.PostLogoutRedirectURI = defaultRedirectURI
 
-		uri := lc.PostLogoutRedirectURI()
-		assert.NotEmpty(t, uri)
-		assert.Equal(t, "http://some-fancy-logout-page", uri)
-	})
+			if tt.emptyDefaultURI {
+				cfg.OpenID.PostLogoutRedirectURI = ""
+			}
 
-	t.Run("empty preconfigured post-logout redirect uri", func(t *testing.T) {
-		cfg := mock.Config()
-		cfg.OpenID.PostLogoutRedirectURI = ""
+			lc := newLogoutCallback(cfg, defaultState, tt.cookie)
 
-		lc := newLogoutCallback(cfg)
-
-		uri := lc.PostLogoutRedirectURI()
-		assert.NotEmpty(t, uri)
-		assert.Equal(t, mock.Ingress, uri)
-	})
+			uri := lc.PostLogoutRedirectURI()
+			assert.NotEmpty(t, uri)
+			assert.Equal(t, tt.expected, uri)
+		})
+	}
 }
 
-func newLogoutCallback(cfg *config.Config) *client.LogoutCallback {
+func newLogoutCallback(cfg *config.Config, state string, cookie *openid.LogoutCookie) *client.LogoutCallback {
 	openidCfg := mock.NewTestConfiguration(cfg)
 	ingresses := mock.Ingresses(cfg)
-	req := mock.NewGetRequest(mock.Ingress+"/oauth2/logout/callback", ingresses)
-	return newTestClientWithConfig(openidCfg).LogoutCallback(req)
+	validator := url.NewAbsoluteValidator(ingresses.Hosts())
+	req := mock.NewGetRequest(mock.Ingress+"/oauth2/logout/callback?state="+state, ingresses)
+	return newTestClientWithConfig(openidCfg).LogoutCallback(req, cookie, validator)
 }

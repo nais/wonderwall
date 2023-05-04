@@ -141,8 +141,21 @@ func (s *SSOProxy) LoginCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOProxy) Logout(w http.ResponseWriter, r *http.Request) {
-	target := s.GetSSOServerURL().JoinPath(paths.OAuth2, paths.Logout)
-	http.Redirect(w, r, target.String(), http.StatusFound)
+	target := s.GetSSOServerURL()
+
+	// only set a canonical redirect if it was provided in the request as a query parameter
+	canonicalRedirect := r.URL.Query().Get(url.RedirectQueryParameter)
+	if canonicalRedirect != "" {
+		canonicalRedirect = s.Redirect.Canonical(r)
+	}
+	ssoServerLogoutURL := url.Logout(target, canonicalRedirect)
+
+	logentry.LogEntryFrom(r).WithFields(log.Fields{
+		"redirect_to":           ssoServerLogoutURL,
+		"redirect_after_logout": canonicalRedirect,
+	}).Info("logout: redirecting to sso server")
+
+	http.Redirect(w, r, ssoServerLogoutURL, http.StatusFound)
 }
 
 func (s *SSOProxy) LogoutCallback(w http.ResponseWriter, r *http.Request) {

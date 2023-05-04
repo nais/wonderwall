@@ -15,6 +15,8 @@ type Redirect interface {
 	Canonical(r *http.Request) string
 	// Clean parses and cleans a target URL according to implementation-specific validations. It should always return a fallback URL string, regardless of validation errors.
 	Clean(r *http.Request, target string) string
+	// GetValidator returns the Validator used to Clean URLs.
+	GetValidator() Validator
 }
 
 var _ Redirect = &StandaloneRedirect{}
@@ -33,7 +35,7 @@ func (h *StandaloneRedirect) Canonical(r *http.Request) string {
 	target := redirectQueryParam(r)
 	redirect, err := url.ParseRequestURI(target)
 	if err != nil {
-		redirect = fallback(r, target, h.FallbackRedirect(r))
+		redirect = fallback(r, target, h.getFallbackRedirect(r))
 	}
 
 	// redirect must be a relative URL to avoid cross-domain redirects
@@ -44,10 +46,10 @@ func (h *StandaloneRedirect) Canonical(r *http.Request) string {
 }
 
 func (h *StandaloneRedirect) Clean(r *http.Request, target string) string {
-	return h.clean(r, target, h.FallbackRedirect(r))
+	return h.clean(r, target, h.getFallbackRedirect(r))
 }
 
-func (h *StandaloneRedirect) FallbackRedirect(r *http.Request) *url.URL {
+func (h *StandaloneRedirect) getFallbackRedirect(r *http.Request) *url.URL {
 	return MatchingPath(r)
 }
 
@@ -143,6 +145,10 @@ func newRelativeCleaner(allowedHosts []string) *cleaner {
 	return &cleaner{
 		Validator: NewRelativeValidator(allowedHosts),
 	}
+}
+
+func (c *cleaner) GetValidator() Validator {
+	return c.Validator
 }
 
 func (c *cleaner) clean(r *http.Request, target string, fallbackTarget *url.URL) string {

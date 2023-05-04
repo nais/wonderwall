@@ -18,6 +18,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 var (
@@ -91,8 +92,8 @@ func (c *Client) Logout(r *http.Request) (*Logout, error) {
 	return logout, nil
 }
 
-func (c *Client) LogoutCallback(r *http.Request) *LogoutCallback {
-	return NewLogoutCallback(c, r)
+func (c *Client) LogoutCallback(r *http.Request, cookie *openid.LogoutCookie, validator urlpkg.Validator) *LogoutCallback {
+	return NewLogoutCallback(c, r, cookie, validator)
 }
 
 func (c *Client) LogoutFrontchannel(r *http.Request) *LogoutFrontchannel {
@@ -181,4 +182,16 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid
 	}
 
 	return &tokenResponse, nil
+}
+
+func StateMismatchError(expectedState, actualState string) error {
+	if len(actualState) <= 0 {
+		return fmt.Errorf("missing state parameter in request (possible csrf)")
+	}
+
+	if expectedState != actualState {
+		return fmt.Errorf("state parameter mismatch (possible csrf): expected %s, got %s", expectedState, actualState)
+	}
+
+	return nil
 }

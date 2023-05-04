@@ -1,34 +1,54 @@
 package client
 
 import (
+	"fmt"
 	"net/http"
 
-	mw "github.com/nais/wonderwall/pkg/middleware"
+	"github.com/nais/wonderwall/pkg/openid"
+	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 type LogoutCallback struct {
 	*Client
-	request *http.Request
+	cookie    *openid.LogoutCookie
+	validator urlpkg.Validator
+	request   *http.Request
 }
 
-func NewLogoutCallback(c *Client, r *http.Request) *LogoutCallback {
+func NewLogoutCallback(c *Client, r *http.Request, cookie *openid.LogoutCookie, validator urlpkg.Validator) *LogoutCallback {
 	return &LogoutCallback{
-		Client:  c,
-		request: r,
+		Client:    c,
+		cookie:    cookie,
+		validator: validator,
+		request:   r,
 	}
 }
 
 func (in *LogoutCallback) PostLogoutRedirectURI() string {
-	redirect := in.cfg.Client().PostLogoutRedirectURI()
-
-	if len(redirect) > 0 {
-		return redirect
+	if in.cookie != nil && in.stateMismatchError() == nil && in.validator.IsValidRedirect(in.request, in.cookie.RedirectTo) {
+		return in.cookie.RedirectTo
 	}
 
-	ingress, ok := mw.IngressFrom(in.request.Context())
-	if !ok {
+	defaultRedirect := in.cfg.Client().PostLogoutRedirectURI()
+	if defaultRedirect != "" {
+		return defaultRedirect
+	}
+
+	ingress, err := urlpkg.MatchingIngress(in.request)
+	if err != nil {
 		return "/"
 	}
 
 	return ingress.String()
+}
+
+func (in *LogoutCallback) stateMismatchError() error {
+	if in.cookie == nil {
+		return fmt.Errorf("logout cookie is nil")
+	}
+
+	expectedState := in.cookie.State
+	actualState := in.request.URL.Query().Get(openid.State)
+
+	return StateMismatchError(expectedState, actualState)
 }
