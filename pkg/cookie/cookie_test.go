@@ -192,3 +192,18 @@ func TestCookie_Decrypt(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, value, plaintext)
 }
+
+func TestCookieNames(t *testing.T) {
+	assert.Equal(t, "io.nais.wonderwall.callback", cookie.Login)
+	assert.Equal(t, "io.nais.wonderwall.callback.legacy", cookie.LoginLegacy)
+	assert.Equal(t, "io.nais.wonderwall.logout", cookie.Logout)
+	assert.Equal(t, "io.nais.wonderwall.retry", cookie.Retry)
+	assert.Equal(t, "io.nais.wonderwall.session", cookie.Session)
+
+	cookie.ConfigureCookieNamesWithPrefix("some-prefix")
+	assert.Equal(t, "some-prefix.callback", cookie.Login)
+	assert.Equal(t, "some-prefix.callback.legacy", cookie.LoginLegacy)
+	assert.Equal(t, "some-prefix.logout", cookie.Logout)
+	assert.Equal(t, "some-prefix.retry", cookie.Retry)
+	assert.Equal(t, "some-prefix.session", cookie.Session)
+}

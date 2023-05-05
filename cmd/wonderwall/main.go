@@ -41,8 +41,13 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if cfg.Session.CookieName != cookie.Session {
-		cookie.Session = cfg.Session.CookieName
+	if cfg.CookiePrefix != cookie.DefaultPrefix {
+		cookie.ConfigureCookieNamesWithPrefix(cfg.CookiePrefix)
+	}
+
+	if cfg.SSO.Enabled {
+		cookie.ConfigureCookieNamesWithPrefix(cfg.SSO.SessionCookieName)
+		cookie.Session = cfg.SSO.SessionCookieName
 	}
 
 	var src router.Source

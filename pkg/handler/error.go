@@ -76,8 +76,7 @@ func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, status
 		}
 
 		retryUri := s.Retry(r, loginCookie)
-		logger.Warnf(msg, cause)
-
+		logger.Infof(msg, cause)
 		logger.Infof("errorhandler: auto-retry (attempt %d/%d) redirecting to %q...", attempts+1, MaxAutoRetryAttempts, retryUri)
 		http.Redirect(w, r, retryUri, http.StatusTemporaryRedirect)
 

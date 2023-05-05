@@ -21,6 +21,7 @@ type Config struct {
 
 	AutoLogin            bool     `json:"auto-login"`
 	AutoLoginIgnorePaths []string `json:"auto-login-ignore-paths"`
+	CookiePrefix         string   `json:"cookie-prefix"`
 	EncryptionKey        string   `json:"encryption-key"`
 	Ingresses            []string `json:"ingress"`
 	Session              Session  `json:"session"`
@@ -33,7 +34,6 @@ type Config struct {
 }
 
 type Session struct {
-	CookieName        string        `json:"cookie-name"`
 	Inactivity        bool          `json:"inactivity"`
 	InactivityTimeout time.Duration `json:"inactivity-timeout"`
 	MaxLifetime       time.Duration `json:"max-lifetime"`
@@ -44,6 +44,7 @@ type SSO struct {
 	Enabled                  bool    `json:"enabled"`
 	Domain                   string  `json:"domain"`
 	Mode                     SSOMode `json:"mode"`
+	SessionCookieName        string  `json:"session-cookie-name"`
 	ServerURL                string  `json:"server-url"`
 	ServerDefaultRedirectURL string  `json:"server-default-redirect-url"`
 }
@@ -67,6 +68,7 @@ const (
 
 	AutoLogin            = "auto-login"
 	AutoLoginIgnorePaths = "auto-login-ignore-paths"
+	CookiePrefix         = "cookie-prefix"
 	EncryptionKey        = "encryption-key"
 	Ingress              = "ingress"
 	UpstreamHost         = "upstream-host"
@@ -78,8 +80,9 @@ const (
 	SessionRefresh              = "session.refresh"
 	SSOEnabled                  = "sso.enabled"
 	SSODomain                   = "sso.domain"
-	SSOServerDefaultRedirectURL = "sso.server-default-redirect-url"
 	SSOModeFlag                 = "sso.mode"
+	SSOServerDefaultRedirectURL = "sso.server-default-redirect-url"
+	SSOSessionCookieName        = "sso.session-cookie-name"
 	SSOServerURL                = "sso.server-url"
 )
 
@@ -93,11 +96,11 @@ func Initialize() (*Config, error) {
 
 	flag.Bool(AutoLogin, false, "Automatically redirect all HTTP GET requests to login if the user does not have a valid session for all matching upstream paths.")
 	flag.StringSlice(AutoLoginIgnorePaths, []string{}, "Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style asterisks. Invalid patterns are ignored.")
+	flag.String(CookiePrefix, "io.nais.wonderwall", "Prefix for cookie names.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 
-	flag.String(SessionCookieName, "io.nais.wonderwall.session", "Session cookie name.")
 	flag.Bool(SessionInactivity, false, "Automatically expire user sessions if they have not refreshed their tokens within a given duration.")
 	flag.Duration(SessionInactivityTimeout, 30*time.Minute, "Inactivity timeout for user sessions.")
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
@@ -106,6 +109,7 @@ func Initialize() (*Config, error) {
 	flag.Bool(SSOEnabled, false, "Enable single sign-on mode; one server acting as the OIDC Relying Party, and N proxies. The proxies delegate most endpoint operations to the server, and only implements a reverse proxy that reads the user's session data from the shared store.")
 	flag.String(SSODomain, "", "The domain that the session cookies should be set for, usually the second-level domain name (e.g. example.com).")
 	flag.String(SSOModeFlag, string(SSOModeServer), "The SSO mode for this instance. Must be one of 'server' or 'proxy'.")
+	flag.String(SSOSessionCookieName, "", "Session cookie name. Must be the same across all SSO Servers and Proxies.")
 	flag.String(SSOServerDefaultRedirectURL, "", "The URL that the SSO server should redirect to by default if a given redirect query parameter is invalid.")
 	flag.String(SSOServerURL, "", "The URL used by the proxy to point to the SSO server instance.")
 
@@ -171,6 +175,10 @@ func (c *Config) Validate() error {
 	if c.SSO.Enabled {
 		if len(c.Redis.Address) == 0 {
 			return fmt.Errorf("%q must not be empty when %s is set", RedisAddress, SSOEnabled)
+		}
+
+		if len(c.SSO.SessionCookieName) == 0 {
+			return fmt.Errorf("%q must not be empty when %s is set", SSOSessionCookieName, SSOEnabled)
 		}
 
 		switch c.SSO.Mode {

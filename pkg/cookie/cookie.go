@@ -11,17 +11,17 @@ import (
 )
 
 const (
-	Login       = "io.nais.wonderwall.callback"
-	LoginLegacy = "io.nais.wonderwall.callback.legacy"
-	Logout      = "io.nais.wonderwall.logout"
-	Retry       = "io.nais.wonderwall.retry"
-
-	loginservice = "selvbetjening-idtoken"
-	loginstatus  = "innloggingsstatus-token"
+	DefaultPrefix = "io.nais.wonderwall"
+	loginservice  = "selvbetjening-idtoken"
+	loginstatus   = "innloggingsstatus-token"
 )
 
 var (
-	Session         = "io.nais.wonderwall.session"
+	Login           = login(DefaultPrefix)
+	LoginLegacy     = loginLegacy(DefaultPrefix)
+	Logout          = logout(DefaultPrefix)
+	Retry           = retry(DefaultPrefix)
+	Session         = session(DefaultPrefix)
 	ErrInvalidValue = errors.New("invalid value")
 	ErrDecrypt      = errors.New("unable to decrypt, key or scheme mismatch")
 )
@@ -156,4 +156,36 @@ func ClearLegacyCookies(w http.ResponseWriter, opts Options) {
 	Clear(w, loginstatus, opts.
 		WithSameSite(http.SameSiteDefaultMode).
 		WithPath("/"))
+}
+
+func ConfigureCookieNamesWithPrefix(prefix string) {
+	Login = login(prefix)
+	LoginLegacy = loginLegacy(prefix)
+	Logout = logout(prefix)
+	Retry = retry(prefix)
+	Session = session(prefix)
+}
+
+func withPrefix(prefix, s string) string {
+	return fmt.Sprintf("%s.%s", prefix, s)
+}
+
+func login(prefix string) string {
+	return withPrefix(prefix, "callback")
+}
+
+func loginLegacy(prefix string) string {
+	return withPrefix(prefix, "callback.legacy")
+}
+
+func logout(prefix string) string {
+	return withPrefix(prefix, "logout")
+}
+
+func retry(prefix string) string {
+	return withPrefix(prefix, "retry")
+}
+
+func session(prefix string) string {
+	return withPrefix(prefix, "session")
 }

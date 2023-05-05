@@ -186,6 +186,7 @@ The following flags are available:
 --auto-login                               Automatically redirect all HTTP GET requests to login if the user does not have a valid session for all matching upstream paths.
 --auto-login-ignore-paths strings          Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style asterisks. Invalid patterns are ignored.
 --bind-address string                      Listen address for public connections. (default "127.0.0.1:3000")
+--cookie-prefix string                     Prefix for cookie names. (default "io.nais.wonderwall")
 --encryption-key string                    Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.
 --ingress strings                          Comma separated list of ingresses used to access the main application.
 --log-format string                        Log format, either 'json' or 'text'. (default "json")
@@ -201,11 +202,10 @@ The following flags are available:
 --openid.ui-locales string                 Space-separated string that configures the default UI locale (ui_locales) parameter for OAuth2 consent screen.
 --openid.well-known-url string             URI to the well-known OpenID Configuration metadata document.
 --redis.address string                     Address of Redis. An empty value will use in-memory session storage.
---redis.connection-idle-timeout            Idle timeout for Redis connections, in seconds. If non-zero, the value should be less than the client timeout configured at the Redis server. A value of -1 disables timeout. Default is 30 minutes.
+--redis.connection-idle-timeout int        Idle timeout for Redis connections, in seconds. If non-zero, the value should be less than the client timeout configured at the Redis server. A value of -1 disables timeout. Default is 30 minutes.
 --redis.password string                    Password for Redis.
 --redis.tls                                Whether or not to use TLS for connecting to Redis. (default true)
 --redis.username string                    Username for Redis.
---session.cookie-name string               Session cookie name. (default "io.nais.wonderwall.session")
 --session.inactivity                       Automatically expire user sessions if they have not refreshed their tokens within a given duration.
 --session.inactivity-timeout duration      Inactivity timeout for user sessions. (default 30m0s)
 --session.max-lifetime duration            Max lifetime for user sessions. (default 1h0m0s)
@@ -215,6 +215,7 @@ The following flags are available:
 --sso.mode string                          The SSO mode for this instance. Must be one of 'server' or 'proxy'. (default "server")
 --sso.server-default-redirect-url string   The URL that the SSO server should redirect to by default if a given redirect query parameter is invalid.
 --sso.server-url string                    The URL used by the proxy to point to the SSO server instance.
+--sso.session-cookie-name string           Session cookie name. Must be the same across all SSO Servers and Proxies.
 --upstream-host string                     Address of upstream host. (default "127.0.0.1:8080")
 ```
 
