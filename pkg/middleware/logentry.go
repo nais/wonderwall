@@ -30,7 +30,7 @@ func (l *LogEntryMiddleware) Handler(next http.Handler) http.Handler {
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
 		if !strings.HasSuffix(r.URL.Path, paths.Ping) {
-			entry.WithRequestLogFields(r).Infof("%s - %s", r.Method, r.URL.Path)
+			entry.Logger.Debugf("%s - %s", r.Method, r.URL.Path)
 			t1 := time.Now()
 			defer func() {
 				entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(t1), nil)
@@ -60,27 +60,6 @@ type requestLogger struct {
 }
 
 func (l *requestLogger) NewLogEntry(r *http.Request) *requestLoggerEntry {
-	entry := &requestLoggerEntry{}
-	correlationID := middleware.GetReqID(r.Context())
-
-	fields := log.Fields{
-		"correlation_id":     correlationID,
-		"provider":           l.Provider,
-		"request_host":       r.Host,
-		"request_method":     r.Method,
-		"request_path":       r.URL.Path,
-		"request_user_agent": r.UserAgent(),
-	}
-
-	entry.Logger = l.Logger.WithFields(fields)
-	return entry
-}
-
-type requestLoggerEntry struct {
-	Logger *log.Entry
-}
-
-func (l *requestLoggerEntry) WithRequestLogFields(r *http.Request) *log.Entry {
 	referer := r.Referer()
 	refererUrl, err := url.Parse(referer)
 	if err == nil {
@@ -89,7 +68,12 @@ func (l *requestLoggerEntry) WithRequestLogFields(r *http.Request) *log.Entry {
 		referer = refererUrl.String()
 	}
 
+	entry := &requestLoggerEntry{}
+	correlationID := middleware.GetReqID(r.Context())
+
 	fields := log.Fields{
+		"correlation_id":     correlationID,
+		"provider":           l.Provider,
 		"request_cookies":    nonEmptyRequestCookies(r),
 		"request_host":       r.Host,
 		"request_method":     r.Method,
@@ -99,7 +83,12 @@ func (l *requestLoggerEntry) WithRequestLogFields(r *http.Request) *log.Entry {
 		"request_user_agent": r.UserAgent(),
 	}
 
-	return l.Logger.WithFields(fields)
+	entry.Logger = l.Logger.WithFields(fields)
+	return entry
+}
+
+type requestLoggerEntry struct {
+	Logger *log.Entry
 }
 
 func (l *requestLoggerEntry) Write(status, bytes int, _ http.Header, elapsed time.Duration, _ any) {

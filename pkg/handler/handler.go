@@ -268,7 +268,7 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, globalLogout
 		metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
 		http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusFound)
 	} else {
-		logger.Info("logout: successful local logout")
+		logger.Debug("logout: successful local logout")
 		metrics.ObserveLogout(metrics.LogoutOperationLocal)
 		w.WriteHeader(http.StatusNoContent)
 	}

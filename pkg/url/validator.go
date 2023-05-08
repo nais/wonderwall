@@ -86,7 +86,7 @@ func (v *RelativeValidator) IsValidRedirect(r *http.Request, redirect string) bo
 
 func parsableRequestURI(r *http.Request, redirect string) (*url.URL, bool) {
 	if redirect == "" {
-		mw.LogEntryFrom(r).Infof("validator: redirect is empty")
+		mw.LogEntryFrom(r).Debugf("validator: redirect is empty")
 		return nil, false
 	}
 

@@ -76,8 +76,8 @@ func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, status
 		}
 
 		retryUri := s.Retry(r, loginCookie)
-		logger.Infof(msg, cause)
-		logger.Infof("errorhandler: auto-retry (attempt %d/%d) redirecting to %q...", attempts+1, MaxAutoRetryAttempts, retryUri)
+		logger.Debugf(msg, cause)
+		logger.Debugf("errorhandler: auto-retry (attempt %d/%d) redirecting to %q...", attempts+1, MaxAutoRetryAttempts, retryUri)
 		http.Redirect(w, r, retryUri, http.StatusTemporaryRedirect)
 
 		return
@@ -89,7 +89,7 @@ func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, status
 		logger.Errorf(msg, cause)
 	}
 
-	logger.Info("errorhandler: maximum retry attempts exceeded; executing error template...")
+	logger.Debugf("errorhandler: maximum retry attempts exceeded; executing error template...")
 	s.defaultErrorResponse(w, r, statusCode)
 }
 
