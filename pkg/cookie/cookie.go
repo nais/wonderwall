@@ -148,6 +148,14 @@ func EncryptAndSet(w http.ResponseWriter, key, value string, opts Options, crypt
 	return nil
 }
 
+func SetLegacyCookie(w http.ResponseWriter, value string, opts Options) {
+	c := Make(loginservice, value, opts.
+		WithSameSite(http.SameSiteNoneMode).
+		WithPath("/"))
+	c.UnsetExpiry()
+	Set(w, c)
+}
+
 func ClearLegacyCookies(w http.ResponseWriter, opts Options) {
 	// TODO - remove when legacy services are sunset and shut down
 	Clear(w, loginservice, opts.

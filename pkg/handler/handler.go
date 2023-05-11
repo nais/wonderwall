@@ -210,6 +210,11 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		"jti":         tokens.IDToken.GetJwtID(),
 	}
 
+	// TODO - remove when legacy services are sunset and shut down
+	if s.Config.SSO.IsServer() && s.Config.OpenID.Provider == config.ProviderIDPorten {
+		cookie.SetLegacyCookie(w, tokens.AccessToken, opts)
+	}
+
 	mw.LogEntryFrom(r).WithFields(fields).Info("callback: successful login")
 	metrics.ObserveLogin(tokens.IDToken.GetAmrClaim(), redirect)
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
