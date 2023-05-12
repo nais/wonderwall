@@ -21,8 +21,8 @@ type AutoLogin struct {
 	cache          sync.Map
 }
 
-func (a *AutoLogin) NeedsLogin(r *http.Request, isAuthenticated, isAcrValid bool) bool {
-	if (isAuthenticated && isAcrValid) || !a.Enabled || r.Method != http.MethodGet {
+func (a *AutoLogin) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
+	if isAuthenticated || !a.Enabled || r.Method != http.MethodGet {
 		return false
 	}
 

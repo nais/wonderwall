@@ -69,7 +69,7 @@ func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, status
 	incrementRetryAttempt(w, r, s.GetCookieOptions(r))
 
 	attempts, ok := getRetryAttempts(r)
-	if !ok || ok && attempts < MaxAutoRetryAttempts {
+	if !ok || (ok && attempts < MaxAutoRetryAttempts) {
 		loginCookie, err := openid.GetLoginCookie(r, s.Crypter)
 		if err != nil {
 			loginCookie = nil

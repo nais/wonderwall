@@ -21,7 +21,7 @@ func (h *Handler) Validate(sess *session.Session) error {
 
 func NewHandler(cfg *config.Config) *Handler {
 	return &Handler{
-		Enabled:       len(cfg.OpenID.ACRValues) > 0 && cfg.AutoLogin,
+		Enabled:       len(cfg.OpenID.ACRValues) > 0,
 		ExpectedValue: cfg.OpenID.ACRValues,
 	}
 }

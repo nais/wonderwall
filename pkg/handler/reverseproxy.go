@@ -89,14 +89,13 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		logger.Errorf("default: unauthenticated: unexpected error: %+v", err)
 	}
 
-	isAcrValid := true
 	err = src.GetAcrHandler().Validate(sess)
 	if err != nil {
-		isAcrValid = false
-		logger.Infof("default: acr: %+v; checking for autologin...", err)
+		isAuthenticated = false
+		logger.Infof("default: unauthenticated: acr: %+v; checking for autologin...", err)
 	}
 
-	if src.GetAutoLogin().NeedsLogin(r, isAuthenticated, isAcrValid) {
+	if src.GetAutoLogin().NeedsLogin(r, isAuthenticated) {
 		loginRedirect(src, w, r, "request matches autologin")
 		return
 	}
