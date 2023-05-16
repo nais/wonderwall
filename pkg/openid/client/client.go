@@ -18,6 +18,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	"github.com/nais/wonderwall/pkg/server"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
@@ -53,13 +54,9 @@ func NewClient(cfg openidconfig.Config, jwksProvider JwksProvider) *Client {
 		Scopes: cfg.Client().Scopes(),
 	}
 
-	t := http.DefaultTransport.(*http.Transport).Clone()
-	t.MaxIdleConns = 200
-	t.MaxIdleConnsPerHost = 100
-
 	httpClient := &http.Client{
 		Timeout:   time.Second * 10,
-		Transport: t,
+		Transport: server.DefaultTransport(),
 	}
 
 	return &Client{

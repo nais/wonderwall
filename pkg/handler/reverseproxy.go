@@ -13,6 +13,7 @@ import (
 	"github.com/nais/wonderwall/pkg/handler/acr"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	mw "github.com/nais/wonderwall/pkg/middleware"
+	"github.com/nais/wonderwall/pkg/server"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/url"
 )
@@ -29,10 +30,6 @@ type ReverseProxy struct {
 }
 
 func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *ReverseProxy {
-	t := http.DefaultTransport.(*http.Transport).Clone()
-	t.MaxIdleConns = 200
-	t.MaxIdleConnsPerHost = 100
-
 	rp := &httputil.ReverseProxy{
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			logger := mw.LogEntryFrom(r)
@@ -63,7 +60,7 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 				r.Out.Header.Set("authorization", "Bearer "+accessToken)
 			}
 		},
-		Transport: t,
+		Transport: server.DefaultTransport(),
 	}
 	return &ReverseProxy{rp}
 }
