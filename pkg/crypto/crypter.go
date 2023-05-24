@@ -13,6 +13,11 @@ import (
 
 const (
 	KeySize = chacha20poly1305.KeySize
+
+	// MaxPlaintextSize is set to 64 MB, which is a fairly generous limit. The implementation in x/crypto/xchacha20poly1305 has a plaintext limit to 256 GB.
+	// We generally only handle data that is stored within a cookie or a session store, i.e. it should be reasonably small.
+	// In most cases the data is around 4 KB or less, mostly depending on the length of the tokens returned from the identity provider.
+	MaxPlaintextSize = 64 * 1024 * 1024
 )
 
 type crypter struct {
@@ -59,8 +64,13 @@ func (c *crypter) Encrypt(plaintext []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	plaintextSize := len(plaintext)
+	if plaintextSize > MaxPlaintextSize {
+		return nil, fmt.Errorf("crypter: plaintext too large (%d > %d)", plaintextSize, MaxPlaintextSize)
+	}
+
 	// Select a random nonce, and leave capacity for the ciphertext.
-	nonce := make([]byte, aead.NonceSize(), aead.NonceSize()+len(plaintext)+aead.Overhead())
+	nonce := make([]byte, aead.NonceSize(), aead.NonceSize()+plaintextSize+aead.Overhead())
 	_, err = cryptorand.Read(nonce)
 	if err != nil {
 		return nil, err
