@@ -10,10 +10,10 @@ import (
 
 	"golang.org/x/oauth2"
 
+	pkgcfg "github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/strings"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
@@ -45,12 +45,12 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 		return nil, fmt.Errorf("generating callback url: %w", err)
 	}
 
-	acr, err := getParameterOrDefault(r, SecurityLevelURLParameter, c.cfg.Client().ACRValues(), c.cfg.Provider().ACRValuesSupported())
+	acr, err := getAcrParam(c, r)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidSecurityLevel, err)
 	}
 
-	locale, err := getParameterOrDefault(r, LocaleURLParameter, c.cfg.Client().UILocales(), c.cfg.Provider().UILocalesSupported())
+	locale, err := getLocaleParam(c, r)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidLocale, err)
 	}
@@ -183,33 +183,47 @@ func (in *loginParameters) cookie() *openid.LoginCookie {
 	}
 }
 
-func getParameterOrDefault(r *http.Request, parameter, defaultValue string, supportedValues config.Supported) (string, error) {
+func getAcrParam(c *Client, r *http.Request) (string, error) {
+	defaultValue := c.cfg.Client().ACRValues()
 	if len(defaultValue) == 0 {
 		return "", nil
 	}
 
-	value, err := LoginURLParameter(r, parameter, defaultValue, supportedValues)
-	if err != nil {
-		return "", err
+	paramValue := r.URL.Query().Get(SecurityLevelURLParameter)
+	if len(paramValue) == 0 {
+		paramValue = defaultValue
 	}
 
-	return value, nil
+	supported := c.cfg.Provider().ACRValuesSupported()
+	if supported.Contains(paramValue) {
+		return paramValue, nil
+	}
+
+	translatedAcr, ok := pkgcfg.IDPortenAcrMapping[paramValue]
+	if ok && supported.Contains(translatedAcr) {
+		return translatedAcr, nil
+	}
+
+	return "", fmt.Errorf("%w: invalid value for %s=%s (must be one of '%s')", ErrInvalidLoginParameter, SecurityLevelURLParameter, paramValue, supported)
 }
 
-// LoginURLParameter attempts to get a given parameter from the given HTTP request, falling back if none found.
-// The value must exist in the supplied list of supported values.
-func LoginURLParameter(r *http.Request, parameter, fallback string, supported config.Supported) (string, error) {
-	value := r.URL.Query().Get(parameter)
-
-	if len(value) == 0 {
-		value = fallback
+func getLocaleParam(c *Client, r *http.Request) (string, error) {
+	defaultValue := c.cfg.Client().UILocales()
+	if len(defaultValue) == 0 {
+		return "", nil
 	}
 
-	if supported.Contains(value) {
-		return value, nil
+	paramValue := r.URL.Query().Get(LocaleURLParameter)
+	if len(paramValue) == 0 {
+		paramValue = defaultValue
 	}
 
-	return value, fmt.Errorf("%w: invalid value for %s=%s (must be one of '%s')", ErrInvalidLoginParameter, parameter, value, supported)
+	supported := c.cfg.Provider().UILocalesSupported()
+	if supported.Contains(paramValue) {
+		return paramValue, nil
+	}
+
+	return "", fmt.Errorf("%w: invalid value for %s=%s (must be one of '%s')", ErrInvalidLoginParameter, LocaleURLParameter, paramValue, supported)
 }
 
 func CodeChallenge(codeVerifier string) string {

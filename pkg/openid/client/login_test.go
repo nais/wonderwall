@@ -2,68 +2,119 @@ package client_test
 
 import (
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid/client"
-	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	"github.com/nais/wonderwall/pkg/openid/config"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 func TestLogin_URL(t *testing.T) {
 	type loginURLTest struct {
+		name        string
 		url         string
 		extraParams map[string]string
+		metadata    *config.ProviderMetadata
 		error       error
 	}
 
 	tests := []loginURLTest{
 		{
-			url: mock.Ingress + "/oauth2/login?level=Level4",
-			extraParams: map[string]string{
-				"acr_values": "Level4",
-			},
-			error: nil,
-		},
-		{
+			name:  "happy path",
 			url:   mock.Ingress + "/oauth2/login",
 			error: nil,
 		},
 		{
+			name: "happy path with level",
+			url:  mock.Ingress + "/oauth2/login?level=Level3",
+			extraParams: map[string]string{
+				"acr_values": "Level3",
+			},
+			error: nil,
+		},
+		{
+			name: "happy path with locale",
+			url:  mock.Ingress + "/oauth2/login?locale=nb",
+			extraParams: map[string]string{
+				"ui_locales": "nb",
+			},
+			error: nil,
+		},
+		{
+			name: "happy path with both locale and level",
+			url:  mock.Ingress + "/oauth2/login?level=Level3&locale=nb",
+			extraParams: map[string]string{
+				"acr_values": "Level3",
+				"ui_locales": "nb",
+			},
+			error: nil,
+		},
+		{
+			name:  "invalid level",
 			url:   mock.Ingress + "/oauth2/login?level=NoLevel",
 			error: client.ErrInvalidSecurityLevel,
 		},
 		{
-			url: mock.Ingress + "/oauth2/login?locale=nb",
-			extraParams: map[string]string{
-				"ui_locales": "nb",
-			},
-			error: nil,
-		},
-		{
-			url: mock.Ingress + "/oauth2/login?level=Level4&locale=nb",
-			extraParams: map[string]string{
-				"acr_values": "Level4",
-				"ui_locales": "nb",
-			},
-			error: nil,
-		},
-		{
+			name:  "invalid locale",
 			url:   mock.Ingress + "/oauth2/login?locale=es",
 			error: client.ErrInvalidLocale,
+		},
+		{
+			name: "level idporten-loa-substantial should translate to Level3 for old IDP",
+			url:  mock.Ingress + "/oauth2/login?level=idporten-loa-substantial",
+			extraParams: map[string]string{
+				"acr_values": "Level3",
+			},
+			error: nil,
+		},
+		{
+			name: "level idporten-loa-high should translate to Level4 for old IDP",
+			url:  mock.Ingress + "/oauth2/login?level=idporten-loa-high",
+			extraParams: map[string]string{
+				"acr_values": "Level4",
+			},
+			error: nil,
+		},
+		{
+			name: "level Level3 should translate to idporten-loa-substantial for new IDP",
+			url:  mock.Ingress + "/oauth2/login?level=Level3",
+			extraParams: map[string]string{
+				"acr_values": "idporten-loa-substantial",
+			},
+			metadata: &config.ProviderMetadata{
+				ACRValuesSupported: config.Supported{"idporten-loa-substantial", "idporten-loa-high"},
+				UILocalesSupported: config.Supported{"nb", "nb", "en", "se"},
+			},
+			error: nil,
+		},
+		{
+			name: "level Level4 should translate to idporten-loa-high for new IDP",
+			url:  mock.Ingress + "/oauth2/login?level=Level4",
+			extraParams: map[string]string{
+				"acr_values": "idporten-loa-high",
+			},
+			metadata: &config.ProviderMetadata{
+				ACRValuesSupported: config.Supported{"idporten-loa-substantial", "idporten-loa-high"},
+				UILocalesSupported: config.Supported{"nb", "nb", "en", "se"},
+			},
+			error: nil,
 		},
 	}
 
 	for _, test := range tests {
-		t.Run(test.url, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			cfg := mock.Config()
 			openidConfig := mock.NewTestConfiguration(cfg)
 			ingresses := mock.Ingresses(cfg)
+
+			if test.metadata != nil {
+				openidConfig.TestProvider.Metadata = test.metadata
+			}
 
 			c := client.NewClient(openidConfig, nil)
 
@@ -73,7 +124,7 @@ func TestLogin_URL(t *testing.T) {
 			if test.error != nil {
 				assert.True(t, errors.Is(err, test.error))
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				parsed, err := url.Parse(result.AuthCodeURL())
 				assert.NoError(t, err)
@@ -110,6 +161,11 @@ func TestLogin_URL(t *testing.T) {
 						assert.Contains(t, query, key)
 						assert.ElementsMatch(t, query[key], []string{value})
 					}
+				} else {
+					assert.Contains(t, query, "acr_values")
+					assert.Contains(t, query, "ui_locales")
+					assert.ElementsMatch(t, query["acr_values"], []string{openidConfig.Client().ACRValues()})
+					assert.ElementsMatch(t, query["ui_locales"], []string{openidConfig.Client().UILocales()})
 				}
 			}
 		})
@@ -137,79 +193,4 @@ func TestLoginURL_WithResourceIndicator(t *testing.T) {
 	query := parsed.Query()
 	assert.Contains(t, query, "resource")
 	assert.ElementsMatch(t, query["resource"], []string{"https://some-resource"})
-}
-
-func TestLoginURLParameter(t *testing.T) {
-	for _, test := range []struct {
-		name      string
-		parameter string
-		fallback  string
-		supported openidconfig.Supported
-		url       string
-		expectErr error
-		expected  string
-	}{
-		{
-			name:     "no URL parameter should use fallback value",
-			url:      mock.Ingress + "/oauth2/login",
-			expected: "valid",
-		},
-		{
-			name:     "non-matching URL parameter should be ignored",
-			url:      mock.Ingress + "/oauth2/login?other_param=value2",
-			expected: "valid",
-		},
-		{
-			name:     "matching URL parameter should take precedence",
-			url:      mock.Ingress + "/oauth2/login?param=valid2",
-			expected: "valid2",
-		},
-		{
-			name:      "invalid URL parameter value should return error",
-			url:       mock.Ingress + "/oauth2/login?param=invalid",
-			expectErr: client.ErrInvalidLoginParameter,
-		},
-		{
-			name:      "invalid fallback value should return error",
-			fallback:  "invalid",
-			url:       mock.Ingress + "/oauth2/login",
-			expectErr: client.ErrInvalidLoginParameter,
-		},
-		{
-			name:      "no supported values should return error",
-			url:       mock.Ingress + "/oauth2/login",
-			supported: openidconfig.Supported{""},
-			expectErr: client.ErrInvalidLoginParameter,
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			r := httptest.NewRequest(http.MethodGet, test.url, nil)
-
-			// default test values
-			parameter := "param"
-			fallback := "valid"
-			supported := openidconfig.Supported{"valid", "valid2"}
-
-			if len(test.parameter) > 0 {
-				parameter = test.parameter
-			}
-
-			if len(test.fallback) > 0 {
-				fallback = test.fallback
-			}
-
-			if len(test.supported) > 0 {
-				supported = test.supported
-			}
-
-			val, err := client.LoginURLParameter(r, parameter, fallback, supported)
-
-			if test.expectErr == nil {
-				assert.NoError(t, err)
-				assert.Equal(t, test.expected, val)
-			} else {
-				assert.Error(t, err)
-			}
-		})
-	}
 }

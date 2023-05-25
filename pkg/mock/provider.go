@@ -40,81 +40,81 @@ func NewTestJwksProvider() *TestProvider {
 }
 
 type TestProviderConfiguration struct {
-	cfg      *config.Config
-	metadata *openidconfig.ProviderMetadata
+	Cfg      *config.Config
+	Metadata *openidconfig.ProviderMetadata
 }
 
 func (t *TestProviderConfiguration) AuthorizationEndpoint() string {
-	return t.metadata.AuthorizationEndpoint
+	return t.Metadata.AuthorizationEndpoint
 }
 
 func (t *TestProviderConfiguration) EndSessionEndpointURL() url.URL {
-	u, _ := url.Parse(t.metadata.EndSessionEndpoint)
+	u, _ := url.Parse(t.Metadata.EndSessionEndpoint)
 	return *u
 }
 
 func (t *TestProviderConfiguration) Issuer() string {
-	return t.metadata.Issuer
+	return t.Metadata.Issuer
 }
 
 func (t *TestProviderConfiguration) JwksURI() string {
-	return t.metadata.JwksURI
+	return t.Metadata.JwksURI
 }
 
 func (t *TestProviderConfiguration) TokenEndpoint() string {
-	return t.metadata.TokenEndpoint
+	return t.Metadata.TokenEndpoint
 }
 
 func (t *TestProviderConfiguration) ACRValuesSupported() openidconfig.Supported {
-	return t.metadata.ACRValuesSupported
+	return t.Metadata.ACRValuesSupported
 }
 
 func (t *TestProviderConfiguration) UILocalesSupported() openidconfig.Supported {
-	return t.metadata.UILocalesSupported
+	return t.Metadata.UILocalesSupported
 }
 
 func (t *TestProviderConfiguration) Name() string {
-	return string(t.cfg.OpenID.Provider)
+	return string(t.Cfg.OpenID.Provider)
 }
 
 func (t *TestProviderConfiguration) SessionStateRequired() bool {
-	return len(t.metadata.CheckSessionIframe) > 0
+	return len(t.Metadata.CheckSessionIframe) > 0
 }
 
 func (t *TestProviderConfiguration) SidClaimRequired() bool {
-	return t.metadata.FrontchannelLogoutSupported && t.metadata.FrontchannelLogoutSessionSupported
+	return t.Metadata.FrontchannelLogoutSupported && t.Metadata.FrontchannelLogoutSessionSupported
 }
 
 func (t *TestProviderConfiguration) SetAuthorizationEndpoint(url string) {
-	t.metadata.AuthorizationEndpoint = url
+	t.Metadata.AuthorizationEndpoint = url
 }
 
 func (t *TestProviderConfiguration) SetCheckSessionIframe(url string) {
-	t.metadata.CheckSessionIframe = url
+	t.Metadata.CheckSessionIframe = url
 }
 
 func (t *TestProviderConfiguration) SetEndSessionEndpoint(url string) {
-	t.metadata.EndSessionEndpoint = url
+	t.Metadata.EndSessionEndpoint = url
 }
 
 func (t *TestProviderConfiguration) SetFrontchannelLogoutSupported(val bool) {
-	t.metadata.FrontchannelLogoutSupported = val
+	t.Metadata.FrontchannelLogoutSupported = val
 }
 
 func (t *TestProviderConfiguration) SetFrontchannelLogoutSessionSupported(val bool) {
-	t.metadata.FrontchannelLogoutSessionSupported = val
+	t.Metadata.FrontchannelLogoutSessionSupported = val
 }
 
 func (t *TestProviderConfiguration) SetIssuer(url string) {
-	t.metadata.Issuer = url
+	t.Metadata.Issuer = url
 }
 
 func (t *TestProviderConfiguration) SetJwksURI(url string) {
-	t.metadata.JwksURI = url
+	t.Metadata.JwksURI = url
 }
 
 func (t *TestProviderConfiguration) SetTokenEndpoint(url string) {
-	t.metadata.TokenEndpoint = url
+	t.Metadata.TokenEndpoint = url
 }
 
 func (t *TestProviderConfiguration) WithFrontChannelLogoutSupport() {
@@ -128,8 +128,8 @@ func (t *TestProviderConfiguration) WithCheckSessionIFrameSupport(url string) {
 
 func providerConfiguration(cfg *config.Config) *TestProviderConfiguration {
 	return &TestProviderConfiguration{
-		cfg: cfg,
-		metadata: &openidconfig.ProviderMetadata{
+		Cfg: cfg,
+		Metadata: &openidconfig.ProviderMetadata{
 			ACRValuesSupported: openidconfig.Supported{"Level3", "Level4"},
 			UILocalesSupported: openidconfig.Supported{"nb", "nb", "en", "se"},
 		},

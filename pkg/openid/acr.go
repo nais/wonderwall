@@ -12,8 +12,10 @@ import (
 // - if we require an ACR value of "Level3", then both "Level3" and "Level4" are accepted values.
 // - if we require an ACR value of "Level4", then only "Level4" is an acceptable value.
 var acrAcceptedValues = map[string][]string{
-	config.IDPortenAcrLevel3: {config.IDPortenAcrLevel3, config.IDPortenAcrLevel4},
-	config.IDPortenAcrLevel4: {config.IDPortenAcrLevel4},
+	config.IDPortenAcrLevel3:           {config.IDPortenAcrLevel3, config.IDPortenAcrLevel4, config.IDPortenAcrLevelSubstantial, config.IDPortenAcrLevelHigh},
+	config.IDPortenAcrLevelSubstantial: {config.IDPortenAcrLevel3, config.IDPortenAcrLevel4, config.IDPortenAcrLevelSubstantial, config.IDPortenAcrLevelHigh},
+	config.IDPortenAcrLevel4:           {config.IDPortenAcrLevel4, config.IDPortenAcrLevelHigh},
+	config.IDPortenAcrLevelHigh:        {config.IDPortenAcrLevel4, config.IDPortenAcrLevelHigh},
 }
 
 func ValidateAcr(expected, actual string) error {

@@ -8,7 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	wonderwallconfig "github.com/nais/wonderwall/pkg/config"
+	pkgcfg "github.com/nais/wonderwall/pkg/config"
 )
 
 type Provider interface {
@@ -66,7 +66,7 @@ func (p *provider) SidClaimRequired() bool {
 	return p.metadata.FrontchannelLogoutSupported && p.metadata.FrontchannelLogoutSessionSupported
 }
 
-func NewProviderConfig(cfg *wonderwallconfig.Config) (Provider, error) {
+func NewProviderConfig(cfg *pkgcfg.Config) (Provider, error) {
 	response, err := http.Get(cfg.OpenID.WellKnownURL)
 	if err != nil {
 		return nil, fmt.Errorf("fetching well known configuration: %w", err)
@@ -78,14 +78,9 @@ func NewProviderConfig(cfg *wonderwallconfig.Config) (Provider, error) {
 		return nil, fmt.Errorf("decoding well known configuration: %w", err)
 	}
 
-	acrValues := cfg.OpenID.ACRValues
-	if len(acrValues) > 0 && !providerCfg.ACRValuesSupported.Contains(acrValues) {
-		return nil, fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", wonderwallconfig.OpenIDACRValues, acrValues, providerCfg.ACRValuesSupported)
-	}
-
-	uiLocales := cfg.OpenID.UILocales
-	if len(uiLocales) > 0 && !providerCfg.UILocalesSupported.Contains(uiLocales) {
-		return nil, fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", wonderwallconfig.OpenIDUILocales, acrValues, providerCfg.UILocalesSupported)
+	err = providerCfg.Validate(cfg.OpenID)
+	if err != nil {
+		return nil, fmt.Errorf("validating well known configuration: %w", err)
 	}
 
 	endSessionEndpointURL, err := url.Parse(providerCfg.EndSessionEndpoint)
@@ -133,6 +128,41 @@ func (c *ProviderMetadata) Print() {
 
 	logger.Info("😗 openid provider configuration 😗")
 	logger.Infof("%#v", *c)
+}
+
+func (c *ProviderMetadata) Validate(cfg pkgcfg.OpenID) error {
+	err := c.validateAcrValues(cfg.ACRValues)
+	if err != nil {
+		return err
+	}
+
+	err = c.validateLocaleValues(cfg.UILocales)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *ProviderMetadata) validateAcrValues(acr string) error {
+	if len(acr) == 0 || c.ACRValuesSupported.Contains(acr) {
+		return nil
+	}
+
+	translatedAcr, ok := pkgcfg.IDPortenAcrMapping[acr]
+	if ok && c.ACRValuesSupported.Contains(translatedAcr) {
+		return nil
+	}
+
+	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", pkgcfg.OpenIDACRValues, acr, c.ACRValuesSupported)
+}
+
+func (c *ProviderMetadata) validateLocaleValues(locale string) error {
+	if len(locale) == 0 || c.UILocalesSupported.Contains(locale) {
+		return nil
+	}
+
+	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", pkgcfg.OpenIDUILocales, locale, c.UILocalesSupported)
 }
 
 type Supported []string
