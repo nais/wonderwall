@@ -239,11 +239,11 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, globalLogout
 
 	var idToken string
 
-	sess, err := s.SessionManager.Get(r)
-	if err == nil && sess != nil {
+	sess, _ := s.SessionManager.Get(r)
+	if sess != nil {
 		idToken = sess.IDToken()
 
-		err = s.SessionManager.Delete(r.Context(), sess)
+		err := s.SessionManager.Delete(r.Context(), sess)
 		if err != nil && !errors.Is(err, session.ErrNotFound) {
 			s.InternalError(w, r, fmt.Errorf("logout: destroying session: %w", err))
 			return
