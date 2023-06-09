@@ -113,7 +113,7 @@ func (in *Data) Validate() error {
 	}
 
 	if in.Metadata.IsTimedOut() {
-		return fmt.Errorf("%w: is inactive", ErrInvalid)
+		return fmt.Errorf("%w: %w", ErrInvalid, ErrInactive)
 	}
 
 	return nil

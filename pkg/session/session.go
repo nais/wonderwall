@@ -13,6 +13,7 @@ import (
 )
 
 var (
+	ErrInactive        = errors.New("is inactive")
 	ErrInvalid         = errors.New("session is invalid")
 	ErrInvalidExternal = errors.New("session has invalid state at identity provider")
 	ErrNotFound        = errors.New("not found")
