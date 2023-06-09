@@ -270,7 +270,7 @@ Sessions can be configured with a maximum lifetime with the `session.max-lifetim
 There's also an endpoint that returns metadata about the user's session as a JSON object at `GET /oauth2/session`. This
 endpoint will respond with HTTP status codes on errors:
 
-- `401 Unauthorized` - no session cookie or matching session found
+- `401 Unauthorized` - no session cookie or matching session found, or maximum lifetime reached
 - `500 Internal Server Error` - the session store is unavailable, or Wonderwall wasn't able to process the request
 
 Otherwise, an `HTTP 200 OK` is returned with the metadata with the `application/json` as the `Content-Type`.
