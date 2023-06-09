@@ -69,10 +69,12 @@ func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, e
 		return nil, fmt.Errorf("%w: decrypting session data: %w", ErrInvalid, err)
 	}
 
+	sess := NewSession(data, ticket)
+
 	err = data.Validate()
 	if err != nil {
-		return nil, err
+		return sess, err
 	}
 
-	return NewSession(data, ticket), nil
+	return sess, nil
 }
