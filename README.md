@@ -270,10 +270,13 @@ Sessions can be configured with a maximum lifetime with the `session.max-lifetim
 There's also an endpoint that returns metadata about the user's session as a JSON object at `GET /oauth2/session`. This
 endpoint will respond with HTTP status codes on errors:
 
-- `401 Unauthorized` - no session cookie or matching session found (e.g. user is not authenticated, or has logged out)
+- `401 Unauthorized` - no session cookie or matching session found
 - `500 Internal Server Error` - the session store is unavailable, or Wonderwall wasn't able to process the request
 
 Otherwise, an `HTTP 200 OK` is returned with the metadata with the `application/json` as the `Content-Type`.
+
+Note that this endpoint will return `HTTP 200 OK` for [_inactive_ sessions](#inactivity). This allows applications to display errors before redirecting the user to login on timeouts.
+This also means that you should not use the HTTP response status codes alone as an indication of whether the user is authenticated or not.
 
 #### Example
 

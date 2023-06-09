@@ -326,7 +326,7 @@ func (s *Standalone) Session(w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r)
 
 	sess, err := s.SessionManager.Get(r)
-	if err != nil {
+	if err != nil && !errors.Is(err, session.ErrInactive) {
 		handleGetSessionError("session/info", w, r, err)
 		return
 	}
