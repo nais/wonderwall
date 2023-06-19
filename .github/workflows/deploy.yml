@@ -81,7 +81,7 @@ jobs:
             type=sha,prefix={{date 'YYYY-MM-DD'}}-
       - name: Build and push
         id: build-push
-        uses: docker/build-push-action@44ea916f6c540f9302d50c2b1e5a8dc071f15cdf # ratchet:docker/build-push-action@v4
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # ratchet:docker/build-push-action@v4
         with:
           context: .
           file: Dockerfile
