@@ -43,6 +43,7 @@ jobs:
           name: wonderwall
           dockerfile: Dockerfile
           google_service_account: gh-wonderwall
+          multi-platform: true
           push: true
           push_ghcr: true
           workload_identity_provider: ${{ secrets.NAIS_IO_WORKLOAD_IDENTITY_PROVIDER }}
