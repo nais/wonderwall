@@ -21,7 +21,7 @@ require (
 	go.uber.org/automaxprocs v1.5.2
 	golang.org/x/crypto v0.10.0
 	golang.org/x/oauth2 v0.9.0
-	golang.org/x/vuln v0.1.0
+	golang.org/x/vuln v0.2.0
 	honnef.co/go/tools v0.4.3
 	mvdan.cc/gofumpt v0.5.0
 )
