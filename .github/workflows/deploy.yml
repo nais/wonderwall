@@ -33,11 +33,9 @@ jobs:
         uses: sigstore/cosign-installer@6e04d228eb30da1757ee4e1dd75a0ec73a653e06 # ratchet:sigstore/cosign-installer@main
         with:
           cosign-release: 'v2.0.0'
-      - name: Verify builder image
-        run: cosign verify --certificate-identity "https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main"  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" cgr.dev/chainguard/go:1.20
       - name: Verify runner image
         run: cosign verify --certificate-oidc-issuer https://accounts.google.com  --certificate-identity keyless@distroless.iam.gserviceaccount.com gcr.io/distroless/static-debian11:nonroot
-      - uses: nais/platform-build-push-sign@3089e4707cf0721ccdc812ab218c6e061de59371 # ratchet:nais/platform-build-push-sign@main
+      - uses: nais/platform-build-push-sign@fb7da39ee56c8904ed15c02705a1780cb278a65b # ratchet:nais/platform-build-push-sign@main
         id: build_push_sign
         with:
           name: wonderwall
