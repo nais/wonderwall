@@ -61,7 +61,7 @@ type SSOServerRedirect struct {
 }
 
 func NewSSOServerRedirect(config *config.Config) (*SSOServerRedirect, error) {
-	u, err := url.Parse(config.SSO.ServerDefaultRedirectURL)
+	u, err := url.ParseRequestURI(config.SSO.ServerDefaultRedirectURL)
 	if err != nil {
 		return nil, fmt.Errorf("parsing fallback redirect URL: %w", err)
 	}
@@ -113,7 +113,7 @@ func (h *SSOProxyRedirect) Canonical(r *http.Request) string {
 	if err != nil {
 		logInvalidRedirect(r, target, redirect.String())
 	} else {
-		// preserve path, query and fragment from redirect parameter to base redirect
+		// copy and preserve relevant parts from parsed redirect parameter to base redirect
 		redirect.Path = redirectParamURL.Path
 		redirect.RawQuery = redirectParamURL.RawQuery
 		redirect.Fragment = redirectParamURL.Fragment
