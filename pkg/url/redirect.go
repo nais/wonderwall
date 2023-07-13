@@ -33,7 +33,7 @@ func NewStandaloneRedirect(ingresses *ingress.Ingresses) *StandaloneRedirect {
 
 func (h *StandaloneRedirect) Canonical(r *http.Request) string {
 	target := redirectQueryParam(r)
-	redirect, err := url.ParseRequestURI(target)
+	redirect, err := url.Parse(target)
 	if err != nil {
 		redirect = fallback(r, target, h.getFallbackRedirect(r))
 	}
@@ -61,7 +61,7 @@ type SSOServerRedirect struct {
 }
 
 func NewSSOServerRedirect(config *config.Config) (*SSOServerRedirect, error) {
-	u, err := url.ParseRequestURI(config.SSO.ServerDefaultRedirectURL)
+	u, err := url.Parse(config.SSO.ServerDefaultRedirectURL)
 	if err != nil {
 		return nil, fmt.Errorf("parsing fallback redirect URL: %w", err)
 	}
@@ -74,7 +74,7 @@ func NewSSOServerRedirect(config *config.Config) (*SSOServerRedirect, error) {
 
 func (h *SSOServerRedirect) Canonical(r *http.Request) string {
 	target := redirectQueryParam(r)
-	redirect, err := url.ParseRequestURI(target)
+	redirect, err := url.Parse(target)
 	if err != nil {
 		redirect = fallback(r, target, h.fallbackRedirect)
 	}
@@ -109,13 +109,14 @@ func (h *SSOProxyRedirect) Canonical(r *http.Request) string {
 
 	// get redirect from request query parameter
 	target := redirectQueryParam(r)
-	redirectParamURL, err := url.ParseRequestURI(target)
+	redirectParamURL, err := url.Parse(target)
 	if err != nil {
 		logInvalidRedirect(r, target, redirect.String())
 	} else {
-		// copy desired path and query to base redirect
+		// preserve path, query and fragment from redirect parameter to base redirect
 		redirect.Path = redirectParamURL.Path
 		redirect.RawQuery = redirectParamURL.RawQuery
+		redirect.Fragment = redirectParamURL.Fragment
 	}
 
 	return h.Clean(r, redirect.String())

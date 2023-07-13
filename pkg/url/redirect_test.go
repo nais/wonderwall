@@ -142,6 +142,22 @@ func TestDefault(t *testing.T) {
 				clean:     "/",
 			},
 		},
+		{
+			name: "relative url with fragment in redirect",
+			url:  "/?redirect=%2F%23%2Fsome-path",
+			expected: expected{
+				canonical: "/#/some-path",
+				clean:     "/?redirect=%2F%23%2Fsome-path",
+			},
+		},
+		{
+			name: "absolute url with fragment in redirect",
+			url:  "/?redirect=http%3A%2F%2Fwonderwall%2F%23%2Fsome-path",
+			expected: expected{
+				canonical: "/#/some-path",
+				clean:     "/?redirect=http%3A%2F%2Fwonderwall%2F%23%2Fsome-path",
+			},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			r := mock.NewGetRequest(tt.url, ingresses)
@@ -306,6 +322,14 @@ func TestSSOServer(t *testing.T) {
 				clean:     "http://wonderwall/?redirect=http%3A%2F%2Fsome.app.wonderwall%2Fsome-path%3Fwith%3Dquery",
 			},
 		},
+		{
+			name: "absolute url with fragment in redirect",
+			url:  "http://wonderwall/?redirect=http%3A%2F%2Fwonderwall%2F%23%2Fsome-path",
+			expected: expected{
+				canonical: "http://wonderwall/#/some-path",
+				clean:     "http://wonderwall/?redirect=http%3A%2F%2Fwonderwall%2F%23%2Fsome-path",
+			},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			r := mock.NewGetRequest(tt.url, ingresses)
@@ -389,10 +413,10 @@ func TestSSOProxy(t *testing.T) {
 		},
 		{
 			name: "absolute url",
-			url:  "http://wonderwall/?redirect=%2Fpath",
+			url:  "http://app.wonderwall/?redirect=%2Fpath",
 			expected: expected{
 				canonical: "http://app.wonderwall/path",
-				clean:     "http://app.wonderwall",
+				clean:     "http://app.wonderwall/?redirect=%2Fpath",
 			},
 		},
 		{
@@ -405,26 +429,26 @@ func TestSSOProxy(t *testing.T) {
 		},
 		{
 			name: "absolute url with context path",
-			url:  "http://wonderwall/some-path?redirect=%2Fpath",
+			url:  "http://app.wonderwall/some-path?redirect=%2Fpath",
 			expected: expected{
 				canonical: "http://app.wonderwall/path",
-				clean:     "http://app.wonderwall",
+				clean:     "http://app.wonderwall/some-path?redirect=%2Fpath",
 			},
 		},
 		{
 			name: "absolute url with query parameters",
-			url:  "http://wonderwall/some-path?redirect=%2Fpath%3Fgnu%3Dnotunix",
+			url:  "http://app.wonderwall/some-path?redirect=%2Fpath%3Fgnu%3Dnotunix",
 			expected: expected{
 				canonical: "http://app.wonderwall/path?gnu=notunix",
-				clean:     "http://app.wonderwall",
+				clean:     "http://app.wonderwall/some-path?redirect=%2Fpath%3Fgnu%3Dnotunix",
 			},
 		},
 		{
 			name: "absolute url with multiple query parameters",
-			url:  "http://wonderwall/some-path?redirect=%2Fpath%3Fgnu%3Dnotunix%26foo%3Dbar",
+			url:  "http://app.wonderwall/some-path?redirect=%2Fpath%3Fgnu%3Dnotunix%26foo%3Dbar",
 			expected: expected{
 				canonical: "http://app.wonderwall/path?gnu=notunix&foo=bar",
-				clean:     "http://app.wonderwall",
+				clean:     "http://app.wonderwall/some-path?redirect=%2Fpath%3Fgnu%3Dnotunix%26foo%3Dbar",
 			},
 		},
 		{
@@ -445,26 +469,42 @@ func TestSSOProxy(t *testing.T) {
 		},
 		{
 			name: "absolute url with different domain in redirect",
-			url:  "http://wonderwall/?redirect=http%3A%2F%2Fnot-wonderwall%2Fsome-path%3Fwith%3Dquery",
+			url:  "http://app.wonderwall/?redirect=http%3A%2F%2Fnot-wonderwall%2Fsome-path%3Fwith%3Dquery",
 			expected: expected{
 				canonical: "http://app.wonderwall/some-path?with=query",
-				clean:     "http://app.wonderwall",
+				clean:     "http://app.wonderwall/?redirect=http%3A%2F%2Fnot-wonderwall%2Fsome-path%3Fwith%3Dquery",
 			},
 		},
 		{
 			name: "absolute url with subdomain in redirect",
-			url:  "http://wonderwall/?redirect=http%3A%2F%2Fanother-app.wonderwall%2Fsome-path%3Fwith%3Dquery",
+			url:  "http://app.wonderwall/?redirect=http%3A%2F%2Fanother-app.wonderwall%2Fsome-path%3Fwith%3Dquery",
 			expected: expected{
 				canonical: "http://app.wonderwall/some-path?with=query",
-				clean:     "http://app.wonderwall",
+				clean:     "http://app.wonderwall/?redirect=http%3A%2F%2Fanother-app.wonderwall%2Fsome-path%3Fwith%3Dquery",
 			},
 		},
 		{
 			name: "absolute url with nested subdomain in redirect",
-			url:  "http://wonderwall/?redirect=http%3A%2F%2Fsome.app.wonderwall%2Fsome-path%3Fwith%3Dquery",
+			url:  "http://app.wonderwall/?redirect=http%3A%2F%2Fsome.app.wonderwall%2Fsome-path%3Fwith%3Dquery",
 			expected: expected{
 				canonical: "http://app.wonderwall/some-path?with=query",
-				clean:     "http://app.wonderwall",
+				clean:     "http://app.wonderwall/?redirect=http%3A%2F%2Fsome.app.wonderwall%2Fsome-path%3Fwith%3Dquery",
+			},
+		},
+		{
+			name: "relative url with fragment in redirect",
+			url:  "http://app.wonderwall/?redirect=%2F%23%2Fsome-path",
+			expected: expected{
+				canonical: "http://app.wonderwall/#/some-path",
+				clean:     "http://app.wonderwall/?redirect=%2F%23%2Fsome-path",
+			},
+		},
+		{
+			name: "absolute url with fragment in redirect",
+			url:  "http://app.wonderwall/?redirect=http%3A%2F%2Fwonderwall%2F%23%2Fsome-path",
+			expected: expected{
+				canonical: "http://app.wonderwall/#/some-path",
+				clean:     "http://app.wonderwall/?redirect=http%3A%2F%2Fwonderwall%2F%23%2Fsome-path",
 			},
 		},
 	} {
