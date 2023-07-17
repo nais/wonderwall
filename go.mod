@@ -6,7 +6,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.30.4
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bsm/redislock v0.9.3
-	github.com/go-chi/chi/v5 v5.0.8
+	github.com/go-chi/chi/v5 v5.0.10
 	github.com/google/uuid v1.3.0
 	github.com/lestrrat-go/jwx/v2 v2.0.11
 	github.com/nais/liberator v0.0.0-20230502174148-dde82d2019da
