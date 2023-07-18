@@ -25,9 +25,9 @@ type StandaloneRedirect struct {
 	*cleaner
 }
 
-func NewStandaloneRedirect(ingresses *ingress.Ingresses) *StandaloneRedirect {
+func NewStandaloneRedirect() *StandaloneRedirect {
 	return &StandaloneRedirect{
-		cleaner: newRelativeCleaner(ingresses.Hosts()),
+		cleaner: newRelativeCleaner(),
 	}
 }
 
@@ -142,9 +142,9 @@ func newAbsoluteCleaner(allowedHosts []string) *cleaner {
 	}
 }
 
-func newRelativeCleaner(allowedHosts []string) *cleaner {
+func newRelativeCleaner() *cleaner {
 	return &cleaner{
-		Validator: NewRelativeValidator(allowedHosts),
+		Validator: NewRelativeValidator(),
 	}
 }
 

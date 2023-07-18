@@ -23,7 +23,7 @@ func TestDefault(t *testing.T) {
 	}
 	ingresses := mock.Ingresses(cfg)
 
-	h := url.NewStandaloneRedirect(ingresses)
+	h := url.NewStandaloneRedirect()
 
 	for _, tt := range []struct {
 		name     string

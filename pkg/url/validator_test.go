@@ -138,11 +138,7 @@ func TestRelativeValidator_IsValidRedirect(t *testing.T) {
 	ingresses := mock.Ingresses(cfg)
 	r := mock.NewGetRequest("https://wonderwall", ingresses)
 
-	allowedDomains := []string{
-		cfg.SSO.Domain,
-		"www.whitelisteddomain.tld",
-	}
-	relativeValidator := urlpkg.NewRelativeValidator(allowedDomains)
+	relativeValidator := urlpkg.NewRelativeValidator()
 
 	t.Run("open redirects list", func(t *testing.T) {
 		file, err := os.Open("testdata/open-redirects.txt")

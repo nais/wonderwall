@@ -60,12 +60,10 @@ func (v *AbsoluteValidator) IsValidRedirect(r *http.Request, redirect string) bo
 
 var _ Validator = &RelativeValidator{}
 
-type RelativeValidator struct {
-	allowedDomains []string
-}
+type RelativeValidator struct{}
 
-func NewRelativeValidator(allowedDomains []string) *RelativeValidator {
-	return &RelativeValidator{allowedDomains: allowedDomains}
+func NewRelativeValidator() *RelativeValidator {
+	return &RelativeValidator{}
 }
 
 // IsValidRedirect validates that the given redirect string is a valid relative URL.

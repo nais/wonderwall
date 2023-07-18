@@ -82,7 +82,7 @@ func NewStandalone(
 		CookieOptions:  cookieOpts,
 		Crypter:        crypter,
 		Ingresses:      ingresses,
-		Redirect:       url.NewStandaloneRedirect(ingresses),
+		Redirect:       url.NewStandaloneRedirect(),
 		SessionManager: sessionManager,
 		UpstreamProxy:  NewReverseProxy(upstream, true),
 	}, nil
