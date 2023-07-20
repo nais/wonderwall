@@ -222,14 +222,6 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) Logout(w http.ResponseWriter, r *http.Request) {
-	s.logout(w, r, true)
-}
-
-func (s *Standalone) LogoutLocal(w http.ResponseWriter, r *http.Request) {
-	s.logout(w, r, false)
-}
-
-func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, globalLogout bool) {
 	logger := mw.LogEntryFrom(r)
 	logout, err := s.Client.Logout(r)
 	if err != nil {
@@ -254,29 +246,43 @@ func (s *Standalone) logout(w http.ResponseWriter, r *http.Request, globalLogout
 
 	cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
 
-	if globalLogout {
-		// only set a canonical redirect if it was provided in the request as a query parameter
-		canonicalRedirect := r.URL.Query().Get(url.RedirectQueryParameter)
-		if canonicalRedirect != "" {
-			canonicalRedirect = s.Redirect.Canonical(r)
-		}
+	// only set a canonical redirect if it was provided in the request as a query parameter
+	canonicalRedirect := r.URL.Query().Get(url.RedirectQueryParameter)
+	if canonicalRedirect != "" {
+		canonicalRedirect = s.Redirect.Canonical(r)
+	}
 
-		opts := s.CookieOptions.WithExpiresIn(5 * time.Minute)
-		err = logout.SetCookie(w, opts, s.Crypter, canonicalRedirect)
-		if err != nil {
-			s.InternalError(w, r, fmt.Errorf("logout: setting logout cookie: %w", err))
+	opts := s.CookieOptions.WithExpiresIn(5 * time.Minute)
+	err = logout.SetCookie(w, opts, s.Crypter, canonicalRedirect)
+	if err != nil {
+		s.InternalError(w, r, fmt.Errorf("logout: setting logout cookie: %w", err))
+		return
+	}
+
+	logger.WithField("redirect_after_logout", canonicalRedirect).
+		Info("logout: redirecting to identity provider for global/single-logout")
+	metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
+	http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusFound)
+}
+
+func (s *Standalone) LogoutLocal(w http.ResponseWriter, r *http.Request) {
+	logger := mw.LogEntryFrom(r)
+
+	sess, _ := s.SessionManager.Get(r)
+	if sess != nil {
+		err := s.SessionManager.Delete(r.Context(), sess)
+		if err != nil && !errors.Is(err, session.ErrNotFound) {
+			s.InternalError(w, r, fmt.Errorf("logout/local: destroying session: %w", err))
 			return
 		}
 
-		logger.WithField("redirect_after_logout", canonicalRedirect).
-			Info("logout: redirecting to identity provider for global/single-logout")
-		metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
-		http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusFound)
-	} else {
-		logger.Debug("logout: successful local logout")
-		metrics.ObserveLogout(metrics.LogoutOperationLocal)
-		w.WriteHeader(http.StatusNoContent)
+		logger.Debug("logout/local: session deleted")
 	}
+
+	cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
+	logger.Debug("logout/local: successful local logout")
+	metrics.ObserveLogout(metrics.LogoutOperationLocal)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
