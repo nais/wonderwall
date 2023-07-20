@@ -288,7 +288,7 @@ func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 		logger.Debugf("logout/callback: getting cookie: %+v; ignoring...", err)
 	}
 
-	logoutCallback := s.Client.LogoutCallback(r, logoutCookie, s.Redirect.GetValidator())
+	logoutCallback := s.Client.LogoutCallback(r, logoutCookie, s.Redirect)
 	redirect := logoutCallback.PostLogoutRedirectURI()
 
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
