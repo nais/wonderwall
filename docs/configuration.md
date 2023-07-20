@@ -1,0 +1,215 @@
+# Configuration
+
+Wonderwall can be configured using either command-line flags or equivalent environment variables (i.e. `-`, `.` -> `_`
+and uppercase), with `WONDERWALL_` as prefix. E.g.:
+
+```text
+openid.client-id -> WONDERWALL_OPENID_CLIENT_ID
+```
+
+The following flags are available:
+
+| Flag                              | Type     | Description                                                                                                                                                                                                                                        | Default Value        |
+|:----------------------------------|:---------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------|
+| `auto-login`                      | boolean  | Automatically redirect all HTTP GET requests to login if the user does not have a valid session for all matching upstream paths.                                                                                                                   |                      |
+| `auto-login-ignore-paths`         | strings  | Comma separated list of absolute paths to ignore when `auto-login` is enabled. Supports basic wildcard matching with glob-style asterisks. Invalid patterns are ignored.                                                                           |                      |
+| `bind-address`                    | string   | Listen address for public connections.                                                                                                                                                                                                             | `127.0.0.1:3000`     |
+| `cookie-prefix`                   | string   | Prefix for cookie names.                                                                                                                                                                                                                           | `io.nais.wonderwall` |
+| `encryption-key`                  | string   | Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.                                                                                                                                             |                      |
+| `ingress`                         | strings  | Comma separated list of ingresses used to access the main application.                                                                                                                                                                             |                      |
+| `log-format`                      | string   | Log format, either `json` or `text`.                                                                                                                                                                                                               | `json`               |
+| `log-level`                       | string   | Logging verbosity level.                                                                                                                                                                                                                           | `info`               |
+| `metrics-bind-address`            | string   | Listen address for metrics only.                                                                                                                                                                                                                   | `127.0.0.1:3001`     |
+| `openid.acr-values`               | string   | Space separated string that configures the default security level (`acr_values`) parameter for authorization requests.                                                                                                                             |                      |
+| `openid.client-id`                | string   | Client ID for the OpenID client.                                                                                                                                                                                                                   |                      |
+| `openid.client-jwk`               | string   | JWK containing the private key for the OpenID client in string format.                                                                                                                                                                             |                      |
+| `openid.post-logout-redirect-uri` | string   | URI for redirecting the user after successful logout at the Identity Provider.                                                                                                                                                                     |                      |
+| `openid.provider`                 | string   | Provider configuration to load and use, either `openid`, `azure`, `idporten`.                                                                                                                                                                      | `openid`             |
+| `openid.resource-indicator`       | string   | OAuth2 resource indicator to include in authorization request for acquiring audience-restricted tokens.                                                                                                                                            |                      |
+| `openid.scopes`                   | strings  | List of additional scopes (other than `openid`) that should be used during the login flow.                                                                                                                                                         |                      |
+| `openid.ui-locales`               | string   | Space-separated string that configures the default UI locale (`ui_locales`) parameter for OAuth2 consent screen.                                                                                                                                   |                      |
+| `openid.well-known-url`           | string   | URI to the well-known OpenID Configuration metadata document.                                                                                                                                                                                      |                      |
+| `redis.address`                   | string   | Address of Redis. An empty value will use in-memory session storage.                                                                                                                                                                               |                      |
+| `redis.connection-idle-timeout`   | int      | Idle timeout for Redis connections, in seconds. If non-zero, the value should be less than the client timeout configured at the Redis server. A value of `-1` disables timeout. Default is 30 minutes.                                             | `1800`               |
+| `redis.password`                  | string   | Password for Redis.                                                                                                                                                                                                                                |                      |
+| `redis.tls`                       | boolean  | Whether or not to use TLS for connecting to Redis.                                                                                                                                                                                                 | `true`               |
+| `redis.username`                  | string   | Username for Redis.                                                                                                                                                                                                                                |                      |
+| `session.inactivity`              | boolean  | Automatically expire user sessions if they have not refreshed their tokens within a given duration.                                                                                                                                                |                      |
+| `session.inactivity-timeout`      | duration | Inactivity timeout for user sessions.                                                                                                                                                                                                              | `30m`                |
+| `session.max-lifetime`            | duration | Max lifetime for user sessions.                                                                                                                                                                                                                    | `1h`                 |
+| `session.refresh`                 | boolean  | Enable refresh tokens. In standalone mode, will automatically refresh tokens if they are expired as long as the session is valid (i.e. not exceeding `session.max-lifetime` or `session.inactivity-timeout`).                                      |                      |
+| `sso.domain`                      | string   | The domain that the session cookies should be set for, usually the second-level domain name (e.g. `example.com`).                                                                                                                                  |                      |
+| `sso.enabled`                     | boolean  | Enable single sign-on mode; one server acting as the OIDC Relying Party, and N proxies. The proxies delegate most endpoint operations to the server, and only implements a reverse proxy that reads the user's session data from the shared store. |                      |
+| `sso.mode`                        | string   | The SSO mode for this instance. Must be one of `server` or `proxy`.                                                                                                                                                                                | `server`             |
+| `sso.server-default-redirect-url` | string   | The URL that the SSO server should redirect to by default if a given redirect query parameter is invalid.                                                                                                                                          |                      |
+| `sso.server-url`                  | string   | The URL used by the proxy to point to the SSO server instance.                                                                                                                                                                                     |                      |
+| `sso.session-cookie-name`         | string   | Session cookie name. Must be the same across all SSO Servers and Proxies that should share sessions.                                                                                                                                               |                      |
+| `upstream-host`                   | string   | Address of upstream host.                                                                                                                                                                                                                          | `127.0.0.1:8080`     |
+
+Boolean flags are by default set to `false` unless noted otherwise.
+
+String/strings flags are by default empty unless noted otherwise.
+
+Duration flags support [Go duration strings](https://pkg.go.dev/time#ParseDuration), e.g.`10h`, `5m`, `30s`, etc.
+
+## Production Use
+
+The `bind-address` configuration should be set to listen to a public interface, e.g. `0.0.0.0:3000`.
+The default value only listens to the loopback interface, i.e. localhost - which makes it unavailable for services outside the Kubernetes Pod.
+
+The `encryption-key` configuration should be set.
+Otherwise, a random key will be generated and used - which will not persist between restarts. Sessions will also be rendered invalid as they're unable to be decrypted.
+
+The `redis.address` configuration should be set. Otherwise, an in-memory store is used.
+This is especially important if you're running multiple replicas of your application that should share the same sessions.
+
+## Modes
+
+Wonderwall has two runtime modes, a standalone mode and a single sign-on (SSO) mode.
+See the [architecture](architecture.md#modes) document for further details.
+
+### Standalone Mode (Default)
+
+The default configuration of Wonderwall will start in [_standalone mode_](architecture.md#standalone-mode-default).
+
+At minimum, the following configuration must be provided when in standalone mode:
+
+- `openid.client-id`
+- `openid.client-jwk`
+- `openid.well-known-url`
+- `ingress`
+
+### Single Sign-On (SSO) Mode
+
+When the `sso.enabled` flag is enabled, Wonderwall will start in [_SSO mode_](architecture.md#single-sign-on-sso-mode).
+
+There are two possible modes when in SSO mode. This is controlled with the `sso.mode` flag; the default value is `server`.
+
+#### SSO Server
+
+When the `sso.enabled` flag is enabled and the `sso.mode` flag is set to `server`, Wonderwall will start in [SSO server mode](architecture.md#sso-server).
+
+At minimum, the following configuration must be provided when in SSO server mode:
+
+- `openid.client-id`
+- `openid.client-jwk`
+- `openid.well-known-url`
+- `ingress`
+- `redis.address`
+- `sso.domain`
+- `sso.session-cookie-name`
+- `sso.server-default-redirect-url`
+
+### SSO Proxy
+
+When the `sso.enabled` flag is enabled and the `sso.mode` flag is set to `proxy`, Wonderwall will start in [SSO proxy mode](architecture.md#sso-proxy).
+
+At minimum, the following configuration must be provided when in SSO proxy mode:
+
+- `ingress`
+- `redis.address`
+- `sso.session-cookie-name`
+- `sso.server-url`
+
+## Configuration Flag Details
+
+---
+
+### `auto-login-ignore-paths`
+
+List of paths or patterns to ignore when `auto-login` is enabled.
+
+The paths must be absolute paths. The match patterns use glob-style matching.
+
+<details>
+
+<summary>Example Match Patterns (click to expand)</summary>
+
+- `/allowed` or `/allowed/`
+    - Trailing slashes in paths and patterns are effectively ignored during matching.
+    - ✅ matches:
+        - `/allowed`
+        - `/allowed/`
+    - ❌ does not match:
+        - `/allowed/nope`
+        - `/allowed/nope/`
+- `/public/*`
+    - A single asterisk after a path means any subpath _directly_ below the path, excluding itself and any nested paths.
+    - ✅ matches:
+        - `/public/a`
+    - ❌ does not match:
+        - `/public`
+        - `/public/a/b`
+- `/public/**`
+    - Double asterisks means any subpath below the path, including itself and any nested paths.
+    - ✅ matches:
+        - `/public`
+        - `/public/a`
+        - `/public/a/b`
+    - ❌ does not match:
+        - `/not/public`
+        - `/not/public/a`
+- `/any*`
+    - ✅ matches:
+        - `/any`
+        - `/anything`
+        - `/anywho`
+    - ❌ does not match:
+        - `/any/thing`
+        - `/anywho/mst/ve`
+- `/a/*/*`
+    - ✅ matches:
+        - `/a/b/c`
+        - `/a/bee/cee`
+    - ❌ does not match:
+        - `/a`
+        - `/a/b`
+        - `/a/b/c/d`
+- `/static/**/*.js`
+    - ✅ matches:
+        - `/static/bundle.js`
+        - `/static/min/bundle.js`
+        - `/static/vendor/min/bundle.js`
+    - ❌ does not match:
+        - `/static`
+        - `/static/some.css`
+        - `/static/min`
+        - `/static/min/some.css`
+        - `/static/vendor/min/some.css`
+
+</details>
+
+---
+
+### `openid.provider`
+
+#### ID-porten
+
+When the `openid.provider` flag is set to `idporten`, the following environment variables are bound to the required `openid`
+flags described previously:
+
+- `IDPORTEN_CLIENT_ID`  
+  Client ID for the client at ID-porten.
+- `IDPORTEN_CLIENT_JWK`  
+  Private key belonging to the client in JWK format.
+- `IDPORTEN_WELL_KNOWN_URL`  
+  Well-known OpenID Configuration endpoint for ID-porten: <https://docs.digdir.no/oidc_func_wellknown.html>.
+
+The default values for the following flags are also changed:
+
+| Flag                | Value    |
+|---------------------|----------|
+| `openid.acr-values` | `Level4` |
+| `openid.ui-locales` | `nb`     |
+
+#### Azure AD
+
+When the `openid.provider` flag is set to `azure`, the following environment variables are bound to the required flags
+described previously:
+
+- `AZURE_APP_CLIENT_ID`  
+  Client ID for the client at Azure AD.
+- `AZURE_APP_CLIENT_JWK`  
+  Private key belonging to the client in JWK format.
+- `AZURE_APP_WELL_KNOWN_URL`  
+  Well-known OpenID Configuration endpoint for Azure AD.
