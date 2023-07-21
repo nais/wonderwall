@@ -33,7 +33,7 @@ cache or store payloads before redirecting them back to the login endpoint.
 
 ### 2. Logout
 
-When you must authenticate a user, redirect to the user to [the `/oauth2/logout` endpoint](endpoints.md#oauth2logout).
+When you must log out a user, redirect to the user to [the `/oauth2/logout` endpoint](endpoints.md#oauth2logout).
 
 The user's session with the sidecar will be cleared, and the user will be redirected to the identity provider for
 global/single-logout, if logged in with SSO (single sign-on) at the identity provider.
