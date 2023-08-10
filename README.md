@@ -49,7 +49,7 @@ Detailed documentation can be found in the [documentation](docs) directory:
 
 ### Binary
 
-Requires Go 1.20
+Requires Go 1.21
 
 `make wonderwall` and `./bin/wonderwall`
 
