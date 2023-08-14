@@ -3,7 +3,7 @@ module github.com/nais/wonderwall
 go 1.21
 
 require (
-	github.com/alicebob/miniredis/v2 v2.30.4
+	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bsm/redislock v0.9.4
 	github.com/go-chi/chi/v5 v5.0.10
