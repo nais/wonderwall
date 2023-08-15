@@ -12,6 +12,7 @@ import (
 
 type Client interface {
 	ACRValues() string
+	Audiences() map[string]bool
 	ClientID() string
 	ClientJWK() jwk.Key
 	PostLogoutRedirectURI() string
@@ -25,11 +26,16 @@ type Client interface {
 
 type client struct {
 	wonderwallconfig.OpenID
-	clientJwk jwk.Key
+	clientJwk        jwk.Key
+	trustedAudiences map[string]bool
 }
 
 func (in *client) ACRValues() string {
 	return in.OpenID.ACRValues
+}
+
+func (in *client) Audiences() map[string]bool {
+	return in.trustedAudiences
 }
 
 func (in *client) ClientID() string {
@@ -83,8 +89,9 @@ func NewClientConfig(cfg *wonderwallconfig.Config) (Client, error) {
 	}
 
 	c := &client{
-		OpenID:    cfg.OpenID,
-		clientJwk: clientJwk,
+		OpenID:           cfg.OpenID,
+		clientJwk:        clientJwk,
+		trustedAudiences: cfg.OpenID.TrustedAudiences(),
 	}
 
 	var clientConfig Client

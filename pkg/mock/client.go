@@ -10,11 +10,16 @@ import (
 
 type TestClientConfiguration struct {
 	*config.Config
-	clientJwk jwk.Key
+	clientJwk        jwk.Key
+	trustedAudiences map[string]bool
 }
 
 func (c *TestClientConfiguration) ACRValues() string {
 	return c.Config.OpenID.ACRValues
+}
+
+func (c *TestClientConfiguration) Audiences() map[string]bool {
+	return c.trustedAudiences
 }
 
 func (c *TestClientConfiguration) ClientID() string {
@@ -58,7 +63,8 @@ func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
 	}
 
 	return &TestClientConfiguration{
-		Config:    cfg,
-		clientJwk: key,
+		Config:           cfg,
+		clientJwk:        key,
+		trustedAudiences: cfg.OpenID.TrustedAudiences(),
 	}
 }

@@ -62,9 +62,22 @@ func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie) error 
 	clientConfig := cfg.Client()
 
 	opts := []jwtlib.ValidateOption{
-		jwtlib.WithAudience(clientConfig.ClientID()),
-		jwtlib.WithClaimValue("nonce", cookie.Nonce),
+		// OpenID Connect Core, section 2 - required claims.
+		jwtlib.WithRequiredClaim("iss"),
+		jwtlib.WithRequiredClaim("sub"),
+		jwtlib.WithRequiredClaim("aud"),
+		jwtlib.WithRequiredClaim("exp"),
+		jwtlib.WithRequiredClaim("iat"),
+		// OpenID Connect Core section 3.1.3.7, step 2.
+		//  The Issuer Identifier for the OpenID Provider (which is typically obtained during Discovery) MUST exactly match the value of the `iss` (issuer) Claim.
 		jwtlib.WithIssuer(openIDconfig.Issuer()),
+		// OpenID Connect Core section 3.1.3.7, step 3.
+		//  The Client MUST validate that the `aud` (audience) Claim contains its `client_id` value registered at the Issuer identified by the `iss` (issuer) Claim as an audience.
+		//  The ID Token MUST be rejected if the ID Token does not list the Client as a valid audience
+		jwtlib.WithAudience(clientConfig.ClientID()),
+		// OpenID Connect Core section 3.1.3.7, step 11.
+		//  If a nonce value was sent in the Authentication Request, a `nonce` Claim MUST be present and its value checked to verify that it is the same value as the one that was sent in the Authentication Request.
+		jwtlib.WithClaimValue("nonce", cookie.Nonce),
 		jwtlib.WithAcceptableSkew(jwt.AcceptableClockSkew),
 	}
 
@@ -72,6 +85,8 @@ func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie) error 
 		opts = append(opts, jwtlib.WithRequiredClaim(jwt.SidClaim))
 	}
 
+	// OpenID Connect Core 3.1.3.7, step 12.
+	//  If the `acr` Claim was requested, the Client SHOULD check that the asserted Claim Value is appropriate.
 	if len(clientConfig.ACRValues()) > 0 {
 		opts = append(opts, jwtlib.WithRequiredClaim(jwt.AcrClaim))
 
@@ -86,7 +101,31 @@ func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie) error 
 		}
 	}
 
-	return jwtlib.Validate(in.GetToken(), opts...)
+	err := jwtlib.Validate(in.GetToken(), opts...)
+	if err != nil {
+		return err
+	}
+
+	// OpenID Connect Core 3.1.3.7, step 3.
+	//  The `aud` (audience) Claim MAY contain an array with more than one element.
+	//  The ID Token MUST be rejected if the ID Token [...] contains additional audiences not trusted by the Client.
+	audiences := in.GetToken().Audience()
+	if len(audiences) > 1 {
+		trusted := clientConfig.Audiences()
+		untrusted := make([]string, 0)
+
+		for _, audience := range audiences {
+			if !trusted[audience] {
+				untrusted = append(untrusted, audience)
+			}
+		}
+
+		if len(untrusted) > 0 {
+			return fmt.Errorf("'aud' not satisfied, untrusted audience(s) found: %q", untrusted)
+		}
+	}
+
+	return nil
 }
 
 func NewIDToken(raw string, jwtToken jwtlib.Token) *IDToken {
