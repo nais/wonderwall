@@ -26,6 +26,8 @@ type Config struct {
 	Ingresses            []string `json:"ingress"`
 	Session              Session  `json:"session"`
 	UpstreamHost         string   `json:"upstream-host"`
+	UpstreamIP           string   `json:"upstream-ip"`
+	UpstreamPort         int      `json:"upstream-port"`
 
 	OpenID OpenID `json:"openid"`
 	Redis  Redis  `json:"redis"`
@@ -72,6 +74,8 @@ const (
 	EncryptionKey        = "encryption-key"
 	Ingress              = "ingress"
 	UpstreamHost         = "upstream-host"
+	UpstreamIP           = "upstream-ip"
+	UpstreamPort         = "upstream-port"
 
 	SessionCookieName           = "session.cookie-name"
 	SessionInactivity           = "session.inactivity"
@@ -100,6 +104,8 @@ func Initialize() (*Config, error) {
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
+	flag.String(UpstreamIP, "", "IP of upstream host. Overrides 'upstream-host' if set.")
+	flag.Int(UpstreamPort, 0, "Port of upstream host. Overrides 'upstream-host' if set.")
 
 	flag.Bool(SessionInactivity, false, "Automatically expire user sessions if they have not refreshed their tokens within a given duration.")
 	flag.Duration(SessionInactivityTimeout, 30*time.Minute, "Inactivity timeout for user sessions.")
@@ -164,6 +170,8 @@ func Initialize() (*Config, error) {
 		return nil, fmt.Errorf("validating config: %w", err)
 	}
 
+	cfg.upstreamHostOverride()
+
 	return cfg, nil
 }
 
@@ -201,5 +209,41 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if c.upstreamPortSet() {
+		if !c.upstreamIpSet() {
+			return fmt.Errorf("%q must be set when %q is set (was '%d')", UpstreamIP, UpstreamPort, c.UpstreamPort)
+		}
+		if !c.upstreamPortValid() {
+			return fmt.Errorf("%q must be in valid range (between '1' and '65535', was '%d')", UpstreamPort, c.UpstreamPort)
+		}
+	}
+
+	if c.upstreamIpSet() && !c.upstreamPortSet() {
+		return fmt.Errorf("%q must be set when %q is set (was %q)", UpstreamPort, UpstreamIP, c.UpstreamIP)
+	}
+
 	return nil
+}
+
+func (c *Config) upstreamIpSet() bool {
+	return c.UpstreamIP != ""
+}
+
+func (c *Config) upstreamPortSet() bool {
+	return c.UpstreamPort != 0
+}
+
+func (c *Config) upstreamPortValid() bool {
+	return c.UpstreamPort >= 1 && c.UpstreamPort <= 65535
+}
+
+func (c *Config) upstreamHostOverride() {
+	if c.upstreamIpSet() && c.upstreamPortSet() && c.upstreamPortValid() {
+		override := fmt.Sprintf("%s:%d", c.UpstreamIP, c.UpstreamPort)
+
+		log.WithField("logger", "wonderwall.config").
+			Infof("%q and %q were set; overriding %q from %q to %q", UpstreamHost, UpstreamPort, UpstreamHost, c.UpstreamHost, override)
+
+		c.UpstreamHost = override
+	}
 }

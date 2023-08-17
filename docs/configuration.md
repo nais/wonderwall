@@ -46,6 +46,8 @@ The following flags are available:
 | `sso.server-url`                  | string   | The URL used by the proxy to point to the SSO server instance.                                                                                                                                                                                     |                      |
 | `sso.session-cookie-name`         | string   | Session cookie name. Must be the same across all SSO Servers and Proxies that should share sessions.                                                                                                                                               |                      |
 | `upstream-host`                   | string   | Address of upstream host.                                                                                                                                                                                                                          | `127.0.0.1:8080`     |
+| `upstream-ip`                     | string   | IP of upstream host. Overrides 'upstream-host' if set.                                                                                                                                                                                             |                      |
+| `upstream-port`                   | int      | Port of upstream host. Overrides 'upstream-host' if set.                                                                                                                                                                                           |                      |
 
 Boolean flags are by default set to `false` unless noted otherwise.
 
