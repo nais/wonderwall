@@ -22,7 +22,7 @@ require (
 	golang.org/x/crypto v0.12.0
 	golang.org/x/oauth2 v0.11.0
 	golang.org/x/vuln v1.0.1
-	honnef.co/go/tools v0.4.3
+	honnef.co/go/tools v0.4.5
 	mvdan.cc/gofumpt v0.5.0
 )
 
