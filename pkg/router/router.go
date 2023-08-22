@@ -90,11 +90,12 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 				r.Route(paths.Session, func(r chi.Router) {
 					if cfg.SSO.IsServer() {
-						r.With(cors(http.MethodGet)).
-							Options("/", noopHandler)
-						r.With(cors(http.MethodGet, http.MethodPost)).
-							Options(paths.Refresh, noopHandler)
+						r.Use(cors(http.MethodGet, http.MethodPost))
+
+						r.Options("/", noopHandler)
+						r.Options(paths.Refresh, noopHandler)
 					}
+
 					r.Get("/", src.Session)
 					r.Get(paths.Refresh, src.SessionRefresh)
 					r.Post(paths.Refresh, src.SessionRefresh)
