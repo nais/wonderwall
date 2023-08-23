@@ -100,13 +100,7 @@ func (l *requestLoggerEntry) Write(status, bytes int, _ http.Header, elapsed tim
 	}
 
 	entry := l.Logger.WithFields(fields)
-
-	switch {
-	case status >= 400:
-		entry.Infof(msg)
-	default:
-		entry.Debugf(msg)
-	}
+	entry.Debugf(msg)
 }
 
 func (l *requestLoggerEntry) Panic(v interface{}, _ []byte) {
