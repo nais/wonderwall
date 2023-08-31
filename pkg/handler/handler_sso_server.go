@@ -44,7 +44,7 @@ func (s *SSOServer) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 	s.Standalone.LogoutLocal(w, r)
 }
 
-// Wildcard returns HTTP 404 Not Found.
+// Wildcard redirects unhandled requests to the default redirect URL.
 func (s *SSOServer) Wildcard(w http.ResponseWriter, r *http.Request) {
-	http.NotFound(w, r)
+	http.Redirect(w, r, s.Config.SSO.ServerDefaultRedirectURL, http.StatusFound)
 }
