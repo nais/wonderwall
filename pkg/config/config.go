@@ -14,10 +14,12 @@ import (
 )
 
 type Config struct {
-	BindAddress        string `json:"bind-address"`
-	LogFormat          string `json:"log-format"`
-	LogLevel           string `json:"log-level"`
-	MetricsBindAddress string `json:"metrics-bind-address"`
+	BindAddress              string        `json:"bind-address"`
+	LogFormat                string        `json:"log-format"`
+	LogLevel                 string        `json:"log-level"`
+	MetricsBindAddress       string        `json:"metrics-bind-address"`
+	ShutdownGracefulPeriod   time.Duration `json:"shutdown-graceful-period"`
+	ShutdownWaitBeforePeriod time.Duration `json:"shutdown-wait-before-period"`
 
 	AutoLogin            bool     `json:"auto-login"`
 	AutoLoginIgnorePaths []string `json:"auto-login-ignore-paths"`
@@ -63,10 +65,12 @@ const (
 )
 
 const (
-	BindAddress        = "bind-address"
-	LogFormat          = "log-format"
-	LogLevel           = "log-level"
-	MetricsBindAddress = "metrics-bind-address"
+	BindAddress              = "bind-address"
+	LogFormat                = "log-format"
+	LogLevel                 = "log-level"
+	MetricsBindAddress       = "metrics-bind-address"
+	ShutdownGracefulPeriod   = "shutdown-graceful-period"
+	ShutdownWaitBeforePeriod = "shutdown-wait-before-period"
 
 	AutoLogin            = "auto-login"
 	AutoLoginIgnorePaths = "auto-login-ignore-paths"
@@ -97,6 +101,8 @@ func Initialize() (*Config, error) {
 	flag.String(LogFormat, "json", "Log format, either 'json' or 'text'.")
 	flag.String(LogLevel, "info", "Logging verbosity level.")
 	flag.String(MetricsBindAddress, "127.0.0.1:3001", "Listen address for metrics only.")
+	flag.Duration(ShutdownGracefulPeriod, 30*time.Second, "Graceful shutdown period when receiving a shutdown signal after which the server is forcibly exited.")
+	flag.Duration(ShutdownWaitBeforePeriod, 0*time.Second, "Wait period when receiving a shutdown signal before actually starting a graceful shutdown. Useful for allowing propagation of Endpoint updates in Kubernetes.")
 
 	flag.Bool(AutoLogin, false, "Automatically redirect all HTTP GET requests to login if the user does not have a valid session for all matching upstream paths.")
 	flag.StringSlice(AutoLoginIgnorePaths, []string{}, "Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style asterisks. Invalid patterns are ignored.")
@@ -220,6 +226,10 @@ func (c *Config) Validate() error {
 
 	if c.upstreamIpSet() && !c.upstreamPortSet() {
 		return fmt.Errorf("%q must be set when %q is set (was %q)", UpstreamPort, UpstreamIP, c.UpstreamIP)
+	}
+
+	if c.ShutdownGracefulPeriod <= c.ShutdownWaitBeforePeriod {
+		return fmt.Errorf("%q must be greater than %q", ShutdownGracefulPeriod, ShutdownWaitBeforePeriod)
 	}
 
 	return nil

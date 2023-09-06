@@ -44,17 +44,22 @@ func Start(cfg *config.Config, r chi.Router) error {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
-		<-sig
+		s := <-sig
+		log.Infof("server: received %q; waiting for %s before starting graceful shutdown...", s, cfg.ShutdownWaitBeforePeriod)
+		time.Sleep(cfg.ShutdownWaitBeforePeriod)
 
-		shutdownCtx, shutdownStopCtx := context.WithTimeout(serverCtx, 20*time.Second)
+		// the total terminationGracePeriodSeconds in Kubernetes starts immediately when SIGTERM is sent, so we need to subtract the wait-before period to exit before SIGKILL
+		shutdownTimeout := cfg.ShutdownGracefulPeriod - cfg.ShutdownWaitBeforePeriod
+		shutdownCtx, shutdownStopCtx := context.WithTimeout(serverCtx, shutdownTimeout)
 
 		go func() {
 			<-shutdownCtx.Done()
 			if shutdownCtx.Err() == context.DeadlineExceeded {
-				log.Fatal("graceful shutdown timed out.. forcing exit.")
+				log.Fatalf("server: graceful shutdown timed out after %s; forcing exit.", shutdownTimeout)
 			}
 		}()
 
+		log.Infof("server: starting graceful shutdown (will timeout after %s)...", shutdownTimeout)
 		err := server.Shutdown(shutdownCtx)
 		if err != nil {
 			log.Fatal(err)
@@ -69,5 +74,6 @@ func Start(cfg *config.Config, r chi.Router) error {
 	}
 
 	<-serverCtx.Done()
+	log.Infof("server: shutdown completed")
 	return nil
 }
