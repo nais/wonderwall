@@ -29,12 +29,13 @@ The ability to refresh tokens requires the `session.refresh` flag to be enabled.
 
 The behaviour for refreshing depends on the [runtime mode](configuration.md#modes) for Wonderwall.
 
-In standalone mode, tokens will at the _earliest_ automatically be renewed 5 minutes before they expire.
+In standalone mode, tokens can automatically be refreshed by enabling the `session.refresh-auto` flag. 
+If enabled, token will at the _earliest_ automatically be renewed 5 minutes before they expire.
 If the token already _has_ expired, a refresh attempt is still automatically triggered as long as the session itself not has ended or is marked as inactive.
 
 Automatic refreshes happens whenever the end-user visits or requests any path that is proxied to the upstream application.
 
-In SSO mode, tokens are not automatically refreshed, and must be manually refreshed by performing a request to [the `/oauth2/session/refresh` endpoint](endpoints.md#oauth2sessionrefresh).
+In SSO mode, tokens can not be automatically refreshed. They must be refreshed by performing a request to [the `/oauth2/session/refresh` endpoint](endpoints.md#oauth2sessionrefresh).
 
 ## Session Inactivity
 

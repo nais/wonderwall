@@ -42,6 +42,7 @@ type Session struct {
 	InactivityTimeout time.Duration `json:"inactivity-timeout"`
 	MaxLifetime       time.Duration `json:"max-lifetime"`
 	Refresh           bool          `json:"refresh"`
+	RefreshAuto       bool          `json:"refresh-auto"`
 }
 
 type SSO struct {
@@ -86,6 +87,7 @@ const (
 	SessionInactivityTimeout    = "session.inactivity-timeout"
 	SessionMaxLifetime          = "session.max-lifetime"
 	SessionRefresh              = "session.refresh"
+	SessionRefreshAuto          = "session.refresh-auto"
 	SSOEnabled                  = "sso.enabled"
 	SSODomain                   = "sso.domain"
 	SSOModeFlag                 = "sso.mode"
@@ -116,7 +118,8 @@ func Initialize() (*Config, error) {
 	flag.Bool(SessionInactivity, false, "Automatically expire user sessions if they have not refreshed their tokens within a given duration.")
 	flag.Duration(SessionInactivityTimeout, 30*time.Minute, "Inactivity timeout for user sessions.")
 	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
-	flag.Bool(SessionRefresh, false, "Enable refresh tokens. In standalone mode, will automatically refresh tokens if they are expired as long as the session is valid (i.e. not exceeding 'session.max-lifetime' or 'session.inactivity-timeout').")
+	flag.Bool(SessionRefresh, false, "Enable refresh tokens.")
+	flag.Bool(SessionRefreshAuto, false, "Enable automatic refresh of tokens. Only available in standalone mode. Will automatically refresh tokens if they are expired as long as the session is valid (i.e. not exceeding 'session.max-lifetime' or 'session.inactivity-timeout').")
 
 	flag.Bool(SSOEnabled, false, "Enable single sign-on mode; one server acting as the OIDC Relying Party, and N proxies. The proxies delegate most endpoint operations to the server, and only implements a reverse proxy that reads the user's session data from the shared store.")
 	flag.String(SSODomain, "", "The domain that the session cookies should be set for, usually the second-level domain name (e.g. example.com).")
@@ -186,6 +189,10 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("%q cannot be enabled without %q", SessionInactivity, SessionRefresh)
 	}
 
+	if c.Session.RefreshAuto && !c.Session.Refresh {
+		return fmt.Errorf("%q cannot be enabled without %q", SessionRefreshAuto, SessionRefresh)
+	}
+
 	if c.SSO.Enabled {
 		if len(c.Redis.Address) == 0 {
 			return fmt.Errorf("%q must not be empty when %s is set", RedisAddress, SSOEnabled)
@@ -193,6 +200,10 @@ func (c *Config) Validate() error {
 
 		if len(c.SSO.SessionCookieName) == 0 {
 			return fmt.Errorf("%q must not be empty when %s is set", SSOSessionCookieName, SSOEnabled)
+		}
+
+		if c.Session.RefreshAuto {
+			return fmt.Errorf("%q cannot be enabled when %q is enabled", SessionRefreshAuto, SSOEnabled)
 		}
 
 		switch c.SSO.Mode {

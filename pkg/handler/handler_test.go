@@ -210,9 +210,9 @@ func TestSessionRefresh(t *testing.T) {
 	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
 	assert.Greater(t, tokenExpiryDuration, time.Second)
 
-	// 1 second < next token refresh <= seconds until token expires
-	assert.LessOrEqual(t, refreshedData.Tokens.NextAutoRefreshInSeconds, refreshedData.Tokens.ExpireInSeconds)
-	assert.Greater(t, refreshedData.Tokens.NextAutoRefreshInSeconds, int64(1))
+	// auto refresh is not enabled
+	assert.Less(t, refreshedData.Tokens.NextAutoRefreshInSeconds, refreshedData.Tokens.ExpireInSeconds)
+	assert.Equal(t, refreshedData.Tokens.NextAutoRefreshInSeconds, int64(-1))
 
 	assert.True(t, refreshedData.Tokens.RefreshCooldown)
 	// 1 second < refresh cooldown <= minimum refresh interval
@@ -296,10 +296,43 @@ func TestSessionRefresh_WithInactivity(t *testing.T) {
 	assert.WithinDuration(t, expectedTimeoutAt, time.Now().Add(refreshedTimeoutDuration), maxDelta)
 }
 
-func TestSession(t *testing.T) {
+func TestSessionRefresh_WithRefreshAuto(t *testing.T) {
 	cfg := mock.Config()
 	cfg.Session.Refresh = true
+	cfg.Session.RefreshAuto = true
 
+	idp := mock.NewIdentityProvider(cfg)
+	idp.ProviderHandler.TokenDuration = 5 * time.Second
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+
+	// get initial session info
+	resp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var data session.MetadataVerboseWithRefresh
+	err := json.Unmarshal([]byte(resp.Body), &data)
+	assert.NoError(t, err)
+
+	// wait until refresh cooldown has reached zero before refresh
+	waitForRefreshCooldownTimer(t, idp, rpClient)
+
+	resp = sessionRefresh(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var refreshedData session.MetadataVerboseWithRefresh
+	err = json.Unmarshal([]byte(resp.Body), &refreshedData)
+	assert.NoError(t, err)
+
+	// 1 second < next token refresh <= seconds until token expires
+	assert.LessOrEqual(t, refreshedData.Tokens.NextAutoRefreshInSeconds, refreshedData.Tokens.ExpireInSeconds)
+	assert.Greater(t, refreshedData.Tokens.NextAutoRefreshInSeconds, int64(1))
+}
+
+func TestSession(t *testing.T) {
+	cfg := mock.Config()
 	idp := mock.NewIdentityProvider(cfg)
 	idp.ProviderHandler.TokenDuration = 5 * time.Minute
 	defer idp.Close()
@@ -400,9 +433,9 @@ func TestSession_WithRefresh(t *testing.T) {
 	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
 	assert.Greater(t, tokenExpiryDuration, time.Second)
 
-	// 1 second < next token refresh <= seconds until token expires
-	assert.LessOrEqual(t, data.Tokens.NextAutoRefreshInSeconds, data.Tokens.ExpireInSeconds)
-	assert.Greater(t, data.Tokens.NextAutoRefreshInSeconds, int64(1))
+	// auto refresh is not enabled
+	assert.Less(t, data.Tokens.NextAutoRefreshInSeconds, data.Tokens.ExpireInSeconds)
+	assert.Equal(t, data.Tokens.NextAutoRefreshInSeconds, int64(-1))
 
 	assert.True(t, data.Tokens.RefreshCooldown)
 	// 1 second < refresh cooldown <= minimum refresh interval
@@ -412,6 +445,30 @@ func TestSession_WithRefresh(t *testing.T) {
 	assert.True(t, data.Session.Active)
 	assert.True(t, data.Session.TimeoutAt.IsZero())
 	assert.Equal(t, int64(-1), data.Session.TimeoutInSeconds)
+}
+
+func TestSession_WithRefreshAuto(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.Refresh = true
+	cfg.Session.RefreshAuto = true
+
+	idp := mock.NewIdentityProvider(cfg)
+	idp.ProviderHandler.TokenDuration = 5 * time.Minute
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	login(t, rpClient, idp)
+
+	resp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var data session.MetadataVerboseWithRefresh
+	err := json.Unmarshal([]byte(resp.Body), &data)
+	assert.NoError(t, err)
+
+	// 1 second < next token refresh <= seconds until token expires
+	assert.LessOrEqual(t, data.Tokens.NextAutoRefreshInSeconds, data.Tokens.ExpireInSeconds)
+	assert.Greater(t, data.Tokens.NextAutoRefreshInSeconds, int64(1))
 }
 
 func TestPing(t *testing.T) {

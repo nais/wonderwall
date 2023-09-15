@@ -388,7 +388,7 @@ func (s *Standalone) sessionWriteMetadataResponse(w http.ResponseWriter, r *http
 	}
 
 	metadata := sess.MetadataVerboseRefresh()
-	if s.Config.SSO.Enabled {
+	if !s.Config.Session.RefreshAuto {
 		metadata.Tokens.NextAutoRefreshInSeconds = int64(-1)
 	}
 
