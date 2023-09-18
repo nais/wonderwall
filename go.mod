@@ -22,7 +22,7 @@ require (
 	golang.org/x/crypto v0.13.0
 	golang.org/x/oauth2 v0.11.0
 	golang.org/x/vuln v1.0.1
-	honnef.co/go/tools v0.4.5
+	honnef.co/go/tools v0.4.6
 	mvdan.cc/gofumpt v0.5.0
 )
 
@@ -64,7 +64,7 @@ require (
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
-	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846 // indirect
+	golang.org/x/tools v0.12.1-0.20230825192346-2191a27a6dc5 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
