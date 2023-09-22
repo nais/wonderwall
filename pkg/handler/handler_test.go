@@ -675,28 +675,16 @@ type response struct {
 	StatusCode int
 }
 
-func get(t *testing.T, client *http.Client, url string) response {
-	resp, err := client.Get(url)
-	assert.NoError(t, err)
-
-	location, err := resp.Location()
-	if !errors.Is(http.ErrNoLocation, err) {
-		assert.NoError(t, err)
-	}
-
-	return response{
-		Body:       body(t, resp),
-		Location:   location,
-		StatusCode: resp.StatusCode,
-	}
+type header struct {
+	key, value string
 }
 
-func getWithHeaders(t *testing.T, client *http.Client, url string, headers map[string]string) response {
+func get(t *testing.T, client *http.Client, url string, headers ...header) response {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	assert.NoError(t, err)
 
-	for key, value := range headers {
-		req.Header.Set(key, value)
+	for _, h := range headers {
+		req.Header.Set(h.key, h.value)
 	}
 
 	resp, err := client.Do(req)

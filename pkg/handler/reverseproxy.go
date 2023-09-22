@@ -2,11 +2,13 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	urllib "net/url"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 
@@ -22,6 +24,7 @@ type ReverseProxySource interface {
 	GetAcrHandler() *acr.Handler
 	GetAutoLogin() *autologin.AutoLogin
 	GetPath(r *http.Request) string
+	GetRedirect() url.Redirect
 	GetSession(r *http.Request) (*session.Session, error)
 }
 
@@ -93,7 +96,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	}
 
 	if src.GetAutoLogin().NeedsLogin(r, isAuthenticated) {
-		loginRedirect(src, w, r, "request matches autologin")
+		handleAutologin(src, w, r, logger)
 		return
 	}
 
@@ -120,18 +123,83 @@ func getSessionWithValidToken(src ReverseProxySource, r *http.Request) (*session
 	return sess, accessToken, nil
 }
 
-func loginRedirect(src ReverseProxySource, w http.ResponseWriter, r *http.Request, message string) {
-	redirectTarget := r.URL.String()
+func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Request, logger *logrus.Entry) {
 	path := src.GetPath(r)
 
-	loginUrl := url.LoginRelative(path, redirectTarget)
-	fields := logrus.Fields{
-		"redirect_after_login": redirectTarget,
-		"redirect_to":          loginUrl,
+	if isNavigationRequest(r) {
+		redirectTarget := src.GetRedirect().Clean(r, r.URL.String())
+		loginUrl := url.LoginRelative(path, redirectTarget)
+
+		logger.WithFields(logrus.Fields{
+			"redirect_after_login": redirectTarget,
+			"redirect_to":          loginUrl,
+		}).Info("default: unauthenticated: autologin: navigation request detected; redirecting to login...")
+		http.Redirect(w, r, loginUrl, http.StatusFound)
+		return
 	}
 
-	mw.LogEntryFrom(r).WithFields(fields).Infof("default: unauthenticated: %s; redirecting to login...", message)
-	http.Redirect(w, r, loginUrl, http.StatusFound)
+	// not a navigation request, so we can't respond with 3xx to redirect
+	referrer, ok := validReferrer(r)
+	if !ok {
+		referrer = path
+	}
+
+	redirectTarget := src.GetRedirect().Clean(r, referrer)
+	loginUrl := url.LoginRelative(path, redirectTarget)
+
+	logger.WithFields(logrus.Fields{
+		"redirect_after_login": redirectTarget,
+		"redirect_to":          loginUrl,
+	}).Infof("default: unauthenticated: autologin: non-navigation request detected; responding with 401...")
+
+	w.Header().Set("Location", loginUrl)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"error":             "unauthenticated",
+		"error_description": "request is not authenticated, please log in",
+		"login_location":    loginUrl,
+	})
+	if err != nil {
+		logger.Errorf("default: unauthenticated: autologin: writing json: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
+func isNavigationRequest(r *http.Request) bool {
+	// we assume that navigation requests are always GET requests
+	if r.Method != http.MethodGet {
+		return false
+	}
+
+	// check for top-level navigation requests
+	mode := r.Header.Get("Sec-Fetch-Mode")
+	dest := r.Header.Get("Sec-Fetch-Dest")
+	isTopLevelNavigation := mode == "navigate" && dest == "document"
+
+	// fallback if browser doesn't support fetch metadata
+	accept := strings.ToLower(r.Header.Get("Accept"))
+	acceptsHtml := strings.Contains(accept, "text/html")
+
+	return isTopLevelNavigation || acceptsHtml
+}
+
+func validReferrer(r *http.Request) (string, bool) {
+	referer := r.Referer()
+	if len(referer) == 0 {
+		return "", false
+	}
+
+	refererUrl, err := urllib.Parse(referer)
+	if err != nil {
+		return "", false
+	}
+
+	// strip scheme and host to only allow redirects relative to domain root
+	refererUrl.Scheme = ""
+	refererUrl.Host = ""
+	return refererUrl.String(), true
 }
 
 type logrusErrorWriter struct{}

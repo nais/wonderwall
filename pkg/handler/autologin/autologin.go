@@ -22,7 +22,7 @@ type AutoLogin struct {
 }
 
 func (a *AutoLogin) NeedsLogin(r *http.Request, isAuthenticated bool) bool {
-	if isAuthenticated || !a.Enabled || r.Method != http.MethodGet {
+	if isAuthenticated || !a.Enabled {
 		return false
 	}
 

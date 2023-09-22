@@ -10,6 +10,11 @@ import (
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
+var navigateFetchHeaders = []header{
+	{"Sec-Fetch-Mode", "navigate"},
+	{"Sec-Fetch-Dest", "document"},
+}
+
 func TestReverseProxy(t *testing.T) {
 	up := newUpstream(t)
 	defer up.Server.Close()
@@ -50,7 +55,7 @@ func TestReverseProxy(t *testing.T) {
 		// initial request without session
 		target := idp.RelyingPartyServer.URL + "/"
 
-		resp := get(t, rpClient, target)
+		resp := get(t, rpClient, target, navigateFetchHeaders...)
 		assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 		// redirect should point to local login endpoint
@@ -125,8 +130,50 @@ func TestReverseProxy(t *testing.T) {
 				defer resp.Body.Close()
 
 				assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+				location, err := resp.Location()
+				assert.NoError(t, err)
+				assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login?redirect=%2F", location.String())
 			})
 		}
+	})
+
+	t.Run("with auto-login for non-navigation requests", func(t *testing.T) {
+		cfg := mock.Config()
+		cfg.AutoLogin = true
+		cfg.UpstreamHost = up.URL.Host
+		idp := mock.NewIdentityProvider(cfg)
+		defer idp.Close()
+
+		up.SetIdentityProvider(idp)
+		rpClient := idp.RelyingPartyClient()
+
+		target := idp.RelyingPartyServer.URL + "/"
+
+		resp := get(t, rpClient, target)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login?redirect=%2F", resp.Location.String())
+	})
+
+	t.Run("with auto-login for navigation request without fetch metadata", func(t *testing.T) {
+		cfg := mock.Config()
+		cfg.AutoLogin = true
+		cfg.UpstreamHost = up.URL.Host
+		idp := mock.NewIdentityProvider(cfg)
+		defer idp.Close()
+
+		up.SetIdentityProvider(idp)
+		rpClient := idp.RelyingPartyClient()
+
+		target := idp.RelyingPartyServer.URL + "/"
+
+		resp := get(t, rpClient, target,
+			header{"Sec-Fetch-Mode", ""},
+			header{"Sec-Fetch-Dest", ""},
+			header{"Accept", "text/html"},
+		)
+		assert.Equal(t, http.StatusFound, resp.StatusCode)
+		assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login?redirect=%2F", resp.Location.String())
 	})
 
 	t.Run("with auto-login and ignored paths", func(t *testing.T) {
@@ -260,7 +307,7 @@ func TestReverseProxy(t *testing.T) {
 					for _, path := range tt.match {
 						t.Run(path, func(t *testing.T) {
 							target := idp.RelyingPartyServer.URL + path
-							resp := get(t, rpClient, target)
+							resp := get(t, rpClient, target, navigateFetchHeaders...)
 
 							assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 							assert.Equal(t, "not ok", resp.Body)
@@ -272,7 +319,7 @@ func TestReverseProxy(t *testing.T) {
 					for _, path := range tt.nonMatch {
 						t.Run(path, func(t *testing.T) {
 							target := idp.RelyingPartyServer.URL + path
-							resp := get(t, rpClient, target)
+							resp := get(t, rpClient, target, navigateFetchHeaders...)
 
 							assert.Equal(t, http.StatusFound, resp.StatusCode)
 						})
@@ -297,9 +344,7 @@ func TestReverseProxy(t *testing.T) {
 				assert.Equal(t, "Bearer some-authorization", authorization)
 			}
 
-			resp := getWithHeaders(t, rpClient, idp.RelyingPartyServer.URL, map[string]string{
-				"Authorization": "Bearer some-authorization",
-			})
+			resp := get(t, rpClient, idp.RelyingPartyServer.URL, header{"Authorization", "Bearer some-authorization"})
 			assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 			assert.Equal(t, "not ok", resp.Body)
 		})
@@ -313,9 +358,7 @@ func TestReverseProxy(t *testing.T) {
 				assert.NotEqual(t, "Bearer some-authorization", authorization)
 			}
 
-			resp := getWithHeaders(t, rpClient, idp.RelyingPartyServer.URL, map[string]string{
-				"Authorization": "Bearer some-authorization",
-			})
+			resp := get(t, rpClient, idp.RelyingPartyServer.URL, header{"Authorization", "Bearer some-authorization"})
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
 			assert.Equal(t, "ok", resp.Body)
 		})
@@ -341,12 +384,12 @@ func TestReverseProxy(t *testing.T) {
 			assert.Equal(t, "https", r.Header.Get("X-Forwarded-Proto"))
 		}
 
-		resp := getWithHeaders(t, rpClient, idp.RelyingPartyServer.URL, map[string]string{
-			"Forwarded":         "for=192.168.0.99;proto=http;by=203.0.113.43",
-			"X-Forwarded-For":   "192.168.0.99",
-			"X-Forwarded-Host":  "wonderwall.example",
-			"X-Forwarded-Proto": "https",
-		})
+		resp := get(t, rpClient, idp.RelyingPartyServer.URL, []header{
+			{"Forwarded", "for=192.168.0.99;proto=http;by=203.0.113.43"},
+			{"X-Forwarded-For", "192.168.0.99"},
+			{"X-Forwarded-Host", "wonderwall.example"},
+			{"X-Forwarded-Proto", "https"},
+		}...)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Equal(t, "ok", resp.Body)
 	})
