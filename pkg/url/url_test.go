@@ -18,6 +18,12 @@ func TestLogin(t *testing.T) {
 		want           string
 	}{
 		{
+			name:           "empty target",
+			targetURL:      "https://sso.wonderwall",
+			redirectTarget: "",
+			want:           "https://sso.wonderwall/oauth2/login",
+		},
+		{
 			name:           "root path",
 			targetURL:      "https://sso.wonderwall",
 			redirectTarget: "https://test.example.com?some=param&other=param2",
@@ -59,6 +65,11 @@ func TestLoginRelative(t *testing.T) {
 		redirectTarget string
 		want           string
 	}{
+		{
+			name:           "empty target",
+			redirectTarget: "",
+			want:           "/oauth2/login",
+		},
 		{
 			name:           "no prefix",
 			prefix:         "",

@@ -20,9 +20,11 @@ var ErrNoMatchingIngress = errors.New("request host does not match any configure
 func Login(target *url.URL, redirect string) string {
 	u := target.JoinPath(paths.OAuth2, paths.Login)
 
-	v := u.Query()
-	v.Set(RedirectQueryParameter, redirect)
-	u.RawQuery = v.Encode()
+	if len(redirect) > 0 {
+		v := u.Query()
+		v.Set(RedirectQueryParameter, redirect)
+		u.RawQuery = v.Encode()
+	}
 
 	return u.String()
 }

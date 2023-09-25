@@ -133,7 +133,7 @@ func TestReverseProxy(t *testing.T) {
 
 				location, err := resp.Location()
 				assert.NoError(t, err)
-				assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login?redirect=%2F", location.String())
+				assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login", location.String())
 			})
 		}
 	})
@@ -152,7 +152,7 @@ func TestReverseProxy(t *testing.T) {
 
 		resp := get(t, rpClient, target)
 		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-		assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login?redirect=%2F", resp.Location.String())
+		assert.Equal(t, idp.RelyingPartyServer.URL+"/oauth2/login", resp.Location.String())
 	})
 
 	t.Run("with auto-login for navigation request without fetch metadata", func(t *testing.T) {
