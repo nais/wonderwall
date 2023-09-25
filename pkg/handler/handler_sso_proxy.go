@@ -89,10 +89,6 @@ func (s *SSOProxy) GetPath(r *http.Request) string {
 	return GetPath(r, s.GetIngresses())
 }
 
-func (s *SSOProxy) GetRedirect() url.Redirect {
-	return s.Redirect
-}
-
 func (s *SSOProxy) GetSession(r *http.Request) (*session.Session, error) {
 	return s.SessionReader.Get(r)
 }

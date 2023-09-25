@@ -113,10 +113,6 @@ func (s *Standalone) GetPath(r *http.Request) string {
 	return GetPath(r, s.GetIngresses())
 }
 
-func (s *Standalone) GetRedirect() url.Redirect {
-	return s.Redirect
-}
-
 func (s *Standalone) GetSession(r *http.Request) (*session.Session, error) {
 	return s.SessionManager.GetOrRefresh(r)
 }
