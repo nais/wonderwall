@@ -164,8 +164,8 @@ func isNavigationRequest(r *http.Request) bool {
 	// check for top-level navigation requests
 	mode := r.Header.Get("Sec-Fetch-Mode")
 	dest := r.Header.Get("Sec-Fetch-Dest")
-	if mode == "navigate" && dest == "document" {
-		return true
+	if mode != "" && dest != "" {
+		return mode == "navigate" && dest == "document"
 	}
 
 	// fallback if browser doesn't support fetch metadata
