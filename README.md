@@ -47,13 +47,11 @@ Detailed documentation can be found in the [documentation](docs) directory:
 
 ## Running Locally
 
-### Binary
-
 Requires Go 1.21
 
-`make wonderwall` and `./bin/wonderwall`
+`make run`
 
-### Docker Compose
+## Docker Compose
 
 See the [docker-compose file](docker-compose.yml) for an example setup:
 
