@@ -8,7 +8,7 @@ require (
 	github.com/bsm/redislock v0.9.4
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/google/uuid v1.3.1
-	github.com/lestrrat-go/jwx/v2 v2.0.12
+	github.com/lestrrat-go/jwx/v2 v2.0.13
 	github.com/nais/liberator v0.0.0-20230919140655-f3c67d98b64e
 	github.com/prometheus/client_golang v1.17.0
 	github.com/redis/go-redis/v9 v9.2.1
