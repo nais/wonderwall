@@ -1,6 +1,14 @@
 # Session Management
 
-Sessions are stored server-side; we only store a session identifier at the end-user's user agent.
+When a user authenticates themselves, they receive a session. Sessions are stored server-side; we only store a session identifier at the end-user's user agent.
+
+A session has three states:
+
+- _active_ - the session is valid
+- _inactive_ - the session has reached the _inactivity timeout_ and is considered invalid
+- _expired_ - the session has reached its _maximum lifetime_ and is considered invalid
+
+Requests with an _invalid_ session are considered _unauthenticated_.
 
 ## Session Metadata
 
@@ -11,7 +19,7 @@ User agents can access their own session metadata by using [the `/oauth2/session
 Every session has a maximum lifetime. 
 The lifetime is indicated by the `session.ends_at` and `session.ends_in_seconds` fields in the session metadata.
 
-When the session reaches the maximum lifetime, it is considered to be _expired_ or _ended_, after which the user is essentially unauthenticated.
+When the session reaches the maximum lifetime, it is considered to be _expired_, after which the user is essentially unauthenticated.
 A new session must be acquired by redirecting the user to [the `/oauth2/login` endpoint](endpoints.md#oauth2login) again.
 
 The maximum lifetime can be configured with the `session.max-lifetime` flag.
@@ -42,7 +50,7 @@ In SSO mode, tokens can not be automatically refreshed. They must be refreshed b
 A session can be marked as _inactive_ before it _expires_ (reaches the maximum lifetime).
 This happens if the time since the last _refresh_ exceeds the given _inactivity timeout_.
 
-An inactive session _cannot_ be refreshed; a new session must be acquired by redirecting the user to the `/oauth2/login` endpoint.
+An _inactive_ session _cannot_ be refreshed; a new session must be acquired by redirecting the user to the `/oauth2/login` endpoint.
 This is useful if you want to ensure that an end-user can re-authenticate with the identity provider if they've been gone from an authenticated session for some time.
 
 Inactivity support is enabled with the `session.inactivity` option, which also requires `session.refresh`.

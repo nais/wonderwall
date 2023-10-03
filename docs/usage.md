@@ -21,15 +21,36 @@ When you must authenticate a user, redirect to the user to [the `/oauth2/login` 
 
 #### 1.1. Autologin
 
-The `auto-login` option (disabled by default) will configure Wonderwall to automatically redirect any HTTP `GET` requests to the login endpoint if the user does not have a valid session.
-It will automatically set the `redirect` parameter for logins to the URL for the original request so that the user is redirected back to their intended location after login.
+The `auto-login` option will configure Wonderwall to enforce authentication for **all** requests, except for the paths that are explicitly [excluded](configuration.md#auto-login-ignore-paths).
 
-You should still check the `Authorization` header for a token and validate the token.
-This is especially important as auto-login will **NOT** trigger for HTTP requests that are not `GET` requests, such as `POST` or `PUT`.
+If the user is _unauthenticated_ or has an [_inactive_ or _expired_ session](sessions.md), all requests will be short-circuited (i.e. return early and **not** proxied to your application).
+The short-circuited response depends on whether the request is a _top-level navigation_ request or not.
+A _top-level navigation_ request has the following properties:
 
-To ensure smooth end-user experiences whenever their session expires, your application must thus actively validate and
-properly handle such requests. For example, your application might respond with an HTTP 401 to allow frontends to
-cache or store payloads before redirecting them back to the login endpoint.
+1. Is a `GET` request
+2. Has the Fetch metadata headers `Sec-Fetch-Dest=document` and `Sec-Fetch-Mode=navigate`
+
+If the user agent does not support the Fetch metadata headers, we look for an `Accept` header that includes `text/html`.
+
+A _top-level navigation_ request results in a HTTP 302 Found response with the `Location` header pointing to [the `/oauth2/login` endpoint](endpoints.md#oauth2login).
+The `redirect` parameter in the login URL is automatically set to the URL for the original request, so that the user is redirected back to their intended location after login.
+
+Other requests are considered non-navigational requests, and they will result in a HTTP 401 Unauthorized response.
+The `Location` header is set as before, and a JSON response is included for convenience:
+
+```json
+{
+   "correlation_id": "388d19c6-d439-4ff3-a77f-0ac3421418b2",
+   "error": "unauthenticated",
+   "error_description": "request is not authenticated, please log in",
+   "login_url": "/oauth2/login?redirect=http%3A%2F%2Flocalhost%3A3000%2Fasdf"
+}
+```
+
+The `redirect` parameter in the login URL is set to the value found in the `Referer` header, so that the user is redirected back to their intended location after login.
+If the `Referer` header is empty, the `redirect` parameter is set to the matching ingress path for the original request.
+
+For defence in depth, you should still check the `Authorization` header for a token and validate the token even when using auto-login.
 
 ### 2. Logout
 
