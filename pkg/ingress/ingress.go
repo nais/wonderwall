@@ -60,22 +60,13 @@ func (i *Ingresses) Strings() []string {
 }
 
 func (i *Ingresses) MatchingIngress(r *http.Request) (Ingress, bool) {
-	var match Ingress
-	found := false
-
 	for _, ingress := range i.ingressMap {
 		hostMatch := ingress.Host() == r.Host || ingress.Host() == r.Header.Get(XForwardedHost)
 		pathMatch := ingress.Path() == i.MatchingPath(r)
 
 		if hostMatch && pathMatch {
-			match = ingress
-			found = true
-			break
+			return ingress, true
 		}
-	}
-
-	if found {
-		return match, true
 	}
 
 	return Ingress{}, false
