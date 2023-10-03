@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	urllib "net/url"
 	"strings"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/handler/acr"
@@ -141,17 +143,27 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 		location := loginURL(target, "navigation request detected; redirecting to login...")
 		http.Redirect(w, r, location, http.StatusFound)
 		return
-	} else {
-		// not a navigation request, so we can't respond with 3xx to redirect
-		target := r.Referer()
-		if target == "" {
-			target = path
-		}
+	}
 
-		location := loginURL(target, "non-navigation request detected; responding with 401 (see Location header)")
-		w.Header().Set("Location", location)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
+	// not a navigation request, so we can't respond with 3xx to redirect
+	target := r.Referer()
+	if target == "" {
+		target = path
+	}
+
+	location := loginURL(target, "non-navigation request detected; responding with 401")
+	w.Header().Set("Location", location)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+	err := json.NewEncoder(w).Encode(map[string]string{
+		"error":             "unauthenticated",
+		"error_description": "request is not authenticated, please log in",
+		"login_url":         location,
+		"correlation_id":    middleware.GetReqID(r.Context()),
+	})
+	if err != nil {
+		logger.Warnf("default: unauthenticated: autologin: marshalling json response: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
