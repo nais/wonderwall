@@ -36,16 +36,7 @@ A _top-level navigation_ request results in a HTTP 302 Found response with the `
 The `redirect` parameter in the login URL is automatically set to the URL for the original request, so that the user is redirected back to their intended location after login.
 
 Other requests are considered non-navigational requests, and they will result in a HTTP 401 Unauthorized response.
-The `Location` header is set as before, and a JSON response is included for convenience:
-
-```json
-{
-   "correlation_id": "388d19c6-d439-4ff3-a77f-0ac3421418b2",
-   "error": "unauthenticated",
-   "error_description": "request is not authenticated, please log in",
-   "login_url": "/oauth2/login?redirect=http%3A%2F%2Flocalhost%3A3000%2Fasdf"
-}
-```
+The `Location` header is set as described in the above case.
 
 The `redirect` parameter in the login URL is set to the value found in the `Referer` header, so that the user is redirected back to their intended location after login.
 If the `Referer` header is empty, the `redirect` parameter is set to the matching ingress path for the original request.
