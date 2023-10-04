@@ -361,7 +361,7 @@ func (s *Standalone) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 
 	sess, err = s.SessionManager.Refresh(r, sess)
 	if err != nil {
-		if errors.Is(err, session.ErrInvalidExternal) || errors.Is(err, session.ErrInvalid) {
+		if errors.Is(err, session.ErrInvalidExternal) || errors.Is(err, session.ErrInvalid) || errors.Is(err, session.ErrNotFound) {
 			logger.Infof("session/refresh: refreshing: %+v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
