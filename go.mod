@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/automaxprocs v1.5.3
 	golang.org/x/crypto v0.13.0
-	golang.org/x/oauth2 v0.12.0
+	golang.org/x/oauth2 v0.13.0
 	golang.org/x/vuln v1.0.1
 	honnef.co/go/tools v0.4.6
 	mvdan.cc/gofumpt v0.5.0
