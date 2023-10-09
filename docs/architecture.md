@@ -1,58 +1,99 @@
 # Architecture
 
-The diagram below shows the overall architecture of an application when using Wonderwall as a sidecar in Kubernetes:
+Wonderwall is a reverse-proxy that sits in front of your application:
 
 ```mermaid
-flowchart TB
-    accTitle: System Architecture
-    accDescr: The architectural diagram shows the browser sending a request into the Kubernetes container, requesting the ingress https://&ltapp&gt.nav.no, requesting the service https://&ltapp&gt.&ltnamespace&gt, sending it to the pod, which contains the sidecar. The sidecar sends a proxy request to the app, in addition to triggering and handling the Open ID Connect Auth Code Flow to the identity provider. The identity provider is outside the Kubernetes environment.
+graph LR
+  style Wonderwall stroke:#0f0,stroke-dasharray: 5
+  style Application stroke:#f00
+    
+  U((User)) -- "request" ---> Wonderwall
+  Wonderwall -. "proxies request as-is" -..-> Application
+```
 
-    idp(Identity Provider)
-    Browser -- 1. initial request --> k8s
-    Browser -- 2. redirected by Wonderwall --> idp
-    idp -- 3. performs OpenID Connect Auth Code flow --> Browser
+It handles the OpenID Connect Auth Code flow with an identity provider...
 
-    subgraph k8s [Kubernetes]
-        direction LR
-        Ingress(Ingress<br>https://&ltapp&gt.nav.no) --> Service(Service<br>http://&ltapp&gt.&ltnamespace&gt) --> Wonderwall
-        subgraph Pod
-            direction TB
-            Wonderwall -- 4. proxy request with access token --> Application
-            Application -- 5. return response --> Wonderwall
-        end
+```mermaid
+graph LR
+  IDP[Identity Provider]
+  style Wonderwall stroke:#0f0,stroke-dasharray: 5
+  style IDP stroke:#f00
+
+  U((User)) -- "redirected to /oauth2/login" --> Wonderwall
+
+  subgraph OIDC["OpenID Connect Authorization Code Flow"]
+    IDP == "redirect back after login" ====> Wonderwall
+    Wonderwall == "redirect to log in" ====> IDP
+  end
+```
+
+...as well as session management...
+
+```mermaid
+graph LR
+  style Wonderwall stroke:#0f0,stroke-dasharray: 5
+  style IDP stroke:#f00
+  
+  IDP[Identity Provider] -- "redirects user back after login" ---> Wonderwall
+  
+  subgraph Wonderwall
+    Server -- "manages sessions in" --> Store[Session Store]
+  end
+  
+  Wonderwall -- "establishes session" ----> U((User))
+```
+
+...so that your application can focus on serving requests:
+
+```mermaid
+graph LR
+  style Wonderwall stroke:#0f0,stroke-dasharray: 5
+  style Application stroke:#f00
+
+  subgraph Session["Authenticated Session"]
+    direction LR
+    U((User)) -- "request" ---> Wonderwall
+    Wonderwall -. "proxies request with User's access_token in Authorization header" -..-> Application
+  end
+```
+
+## Kubernetes Setup
+
+Wonderwall is primarily designed to be deployed as a _sidecar_ container in Kubernetes. An example setup could look like this:
+
+```mermaid
+graph LR
+  classDef Wonderwall stroke:#0f0,stroke-dasharray: 5
+  classDef Application stroke:#f00
+
+  U((User)) -- "https://myapp.example.com" --> ing
+  subgraph Kubernetes
+    ing[Ingress]
+    ing --> svc
+
+    svc[Service]
+    svc --> pod1
+    svc --> podDot
+    svc --> podN
+
+    subgraph pod1[Pod 1]
+      direction LR
+      w1[Wonderwall]:::Wonderwall .-> a1[Application]:::Application
     end
+
+    subgraph podDot[Pod ...]
+      direction LR
+      wDot[Wonderwall]:::Wonderwall .-> aDot[Application]:::Application
+    end
+
+    subgraph podN[Pod N]
+      direction LR
+      wN[Wonderwall]:::Wonderwall .-> aN[Application]:::Application
+    end
+  end
 ```
 
 Note that we do not provide any mechanisms to configure `Services` or inject the sidecar into `Deployments` at this time; this is left as an exercise for the reader.
-
-The sequence diagram below shows the default behavior of Wonderwall:
-
-```mermaid
-sequenceDiagram
-    accTitle: Sequence Diagram
-    accDescr: The sequence diagram shows the default behaviour of the sidecar, depending on whether the user already has a session or not. If the user does have a session, the sequence is as follows: 1. The user visits a path, that requests the ingress.  2. The request is forwarded to wonderwall 3. Wonderwall checks for a session in session storage. 4. Wonderwall attaches Authorization header and proxies request and sends it to the application. 5. The application returns a response to Wonderwall. 6. Wonderwall returns the response to the user. If the user does not have a session, the sequence is as follows: 1. The user visits a path, that requests the ingress.  2. The request is forwarded to wonderwall 3. Wonderwall checks for a session in session storage. 4. Wonderwall proxies the request as-is and sends it to the application. 5. The application returns a response to Wonderwall. 6. Wonderwall returns the response to the user.
-
-    actor User
-    User->>Ingress: visits /path
-    Ingress-->>Wonderwall: forwards request
-    activate Wonderwall
-    Wonderwall-->>Session Storage: checks for session
-    alt has session
-        Session Storage-->>Wonderwall: session found
-        activate Wonderwall
-        Wonderwall-->>Application: attaches Authorization header and proxies request
-        Application-->>Wonderwall: returns response
-        Wonderwall->>User: returns response
-        deactivate Wonderwall
-    else does not have session
-        Session Storage-->>Wonderwall: no session found
-        activate Wonderwall
-        Wonderwall-->>Application: proxies request as-is
-        Application-->>Wonderwall: returns response
-        Wonderwall->>User: returns response
-        deactivate Wonderwall
-    end
-```
 
 # Modes
 
@@ -92,9 +133,59 @@ The most notable changes are:
 - The [`/oauth2/session`](endpoints.md#oauth2session) and [`/oauth2/session/refresh`](endpoints.md#oauth2sessionrefresh) endpoints are configured to allow CORS from origins matching the SSO (sub-)domain.
 - [Automatic token refreshes are unavailable](sessions.md#automatic-vs-manual-refresh).
 
-The SSO mode is mostly just the standalone mode split into two parts; a server part and a proxy part.
+This mode is essentially just the standalone mode split into two parts...
 
-It allows a single identity provider client to be used across multiple upstream applications within the same domain.
+...a proxy part that proxies requests (like the standalone mode)...
+
+```mermaid
+graph LR
+  style Wonderwall stroke:#0f0,stroke-dasharray: 5
+  style Application stroke:#f00
+
+  U((User)) -- "requests" ---> Wonderwall
+  Wonderwall[Wonderwall SSO Proxy] -. "proxies request as-is" -..-> Application
+```
+...and a server part that handles the OpenID Connect Authorization Code flow and sessions (like the standalone mode)
+
+```mermaid
+graph LR
+  IDP[Identity Provider]
+  Server([Wonderwall SSO Server])
+
+  style Server stroke:#ff0,stroke-dasharray: 5
+  style IDP stroke:#f00
+
+  U((User)) -- "redirected to /oauth2/login" --> Server
+
+  subgraph OIDC["OpenID Connect Authorization Code Flow"]
+    IDP == "redirect back after login" ====> Server
+    Server == "redirect to log in" ====> IDP
+  end
+```
+
+The major difference is that _all_ instances of the Wonderwall SSO proxies and servers use the _same_ session store.
+This means that a user's session is the same and is shared across all applications within the same SSO (sub-)domain:
+
+```mermaid
+graph LR
+  Server([Wonderwall SSO Server])
+  Store[Session Store]
+
+  classDef Proxy stroke:#0f0,stroke-dasharray: 5
+  style Server stroke:#ff0,stroke-dasharray: 5
+
+  subgraph Single Sign-On Authentication Realm
+    direction TB
+    
+    Server -- "manages sessions in" ---> Store
+    w1[Wonderwall SSO Proxy]:::Proxy -- "reads from" ---> Store
+    wDot[Wonderwall SSO Proxy]:::Proxy -- "reads from" ---> Store
+    wN[Wonderwall SSO Proxy]:::Proxy -- "reads from" ---> Store
+  end
+```
+
+This architecture allows for a single identity provider client to be used across multiple upstream applications within the same domain.
+
 While you technically can do the same using the standalone mode, that approach has multiple issues:
 
 - Having to distribute and synchronize the private JWK to all deployments.
@@ -103,44 +194,38 @@ While you technically can do the same using the standalone mode, that approach h
 Using the SSO mode only requires you to register the callback URLs that belong to the SSO server.
 The server is also the only part that needs to access the private JWK; the SSO proxies will work without it.
 
-The diagram below shows the overall architecture when deploying Wonderwall in SSO mode:
+The diagram below shows the overall architecture when deploying Wonderwall in SSO mode.
 
 ```mermaid
-flowchart BT
-    accTitle: System Architecture (SSO Mode)
-    accDescr: The architectural diagram shows the browser sending a request into the Kubernetes container, requesting the ingress https://&ltapp&gt.nav.no, requesting the service https://&ltapp&gt.&ltnamespace&gt, sending it to the pod, which contains the sidecar. The sidecar sends a proxy request to the app, in addition to triggering and handling the Open ID Connect Auth Code Flow to the identity provider. The identity provider is outside the Kubernetes environment.
+graph LR
+  Server([Wonderwall SSO Server])
 
-    Browser["Browser (User Agent)"]
-    idp["Identity Provider"]
+  classDef Proxy stroke:#0f0,stroke-dasharray: 5
+  classDef Application stroke:#f00
+  style Server stroke:#ff0,stroke-dasharray: 5
 
-    Ingress["Application Ingress<br>https://&ltapp&gt.nav.no"]
-    Service["Application Service<br>http://&ltapp&gt.&ltnamespace&gt"]
-    Wonderwall["Wonderwall SSO Proxy"]
+  subgraph Single Sign-On Authentication Realm
+    direction LR
 
-    IngressSSO["Ingress<br>https://sso.nav.no"]
-    ServiceSSO["Service<br>http://wonderwall-sso-server.&ltnamespace&gt"]
-    WonderwallSSO["Wonderwall SSO Server"]
-
-    Browser -- 1. initial request --> Application
-    Application -- 2. redirected by Wonderwall SSO Proxy --> ApplicationSSO
-    ApplicationSSO -- 3. redirected by Wonderwall SSO Server --> idp
-    idp -- 4. performs OpenID Connect Auth Code flow <--> Browser
-    idp -- 5. redirect to callback after successful login --> ApplicationSSO
-    ApplicationSSO -- 6. redirect after successful callback --> Application
-    Application -- 8. return response --> Browser
-
-    subgraph ApplicationSSO["Wonderwall SSO Server"]
-        direction TB
-        IngressSSO <--> ServiceSSO <--> WonderwallSSO
+    subgraph pod1[Pod 1]
+      direction LR
+      w1[Wonderwall SSO Proxy]:::Proxy -. "proxies " .-> a1[Application 1]:::Application
     end
 
-    subgraph Application["Application with SSO Proxy"]
-        direction TB
-        Ingress <--> Service <--> Wonderwall
-        subgraph Pod
-            Wonderwall -- 7. proxy request with access token <--> ApplicationContainer["Application Container"]
-        end
+    subgraph podDot[Pod ...]
+      direction LR
+      wDot[Wonderwall SSO Proxy]:::Proxy -. "proxies " .-> aDot[Application ...]:::Application
     end
+
+    subgraph podN[Pod N]
+      direction LR
+      wN[Wonderwall SSO Proxy]:::Proxy -. "proxies " .-> aN[Application N]:::Application
+    end
+
+    w1 -- "delegates oidc/write operations to" ---> Server
+    wDot -- "delegates oidc/write operations to" ---> Server
+    wN -- "delegates oidc/write operations to" ---> Server
+  end
 ```
 
 See the [configuration](configuration.md#single-sign-on-sso-mode) document for enabling and configuring the SSO mode.

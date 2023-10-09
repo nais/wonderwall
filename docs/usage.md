@@ -30,16 +30,14 @@ A _top-level navigation_ request has the following properties:
 1. Is a `GET` request
 2. Has the Fetch metadata headers `Sec-Fetch-Dest=document` and `Sec-Fetch-Mode=navigate`
 
-If the user agent does not support the Fetch metadata headers, we look for an `Accept` header that includes `text/html`.
+If the user agent does not support the Fetch metadata headers, we look for an `Accept` header that includes `text/html`, which all major browsers send for navigation requests. 
+Internet Explorer 8 won't work with this of course, so hopefully you're not in a position that requires supporting this browser.
 
 A _top-level navigation_ request results in a HTTP 302 Found response with the `Location` header pointing to [the `/oauth2/login` endpoint](endpoints.md#oauth2login).
-The `redirect` parameter in the login URL is automatically set to the URL for the original request, so that the user is redirected back to their intended location after login.
-
-Other requests are considered non-navigational requests, and they will result in a HTTP 401 Unauthorized response.
-The `Location` header is set as described in the above case.
-
 The `redirect` parameter in the login URL is set to the value found in the `Referer` header, so that the user is redirected back to their intended location after login.
 If the `Referer` header is empty, the `redirect` parameter is set to the matching ingress path for the original request.
+
+Other requests are considered non-navigational requests, and they will result in a HTTP 401 Unauthorized response with the `Location` header set as described above.
 
 For defence in depth, you should still check the `Authorization` header for a token and validate the token even when using auto-login.
 
