@@ -146,17 +146,19 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid
 	}
 
 	v := url.Values{}
-	v.Set(openid.GrantType, openid.RefreshTokenValue)
-	v.Set(openid.RefreshToken, refreshToken)
-	v.Set(openid.ClientID, c.cfg.Client().ClientID())
-	v.Set(openid.ClientAssertion, assertion)
-	v.Set(openid.ClientAssertionType, openid.ClientAssertionTypeJwtBearer)
+	v.Set("grant_type", "refresh_token")
+	v.Set("refresh_token", refreshToken)
+	v.Set("client_id", c.cfg.Client().ClientID())
+
+	for key, val := range openid.JwtAuthenticationParameters(assertion) {
+		v.Set(key, val)
+	}
 
 	r, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.Provider().TokenEndpoint(), strings.NewReader(v.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
-	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := c.httpClient.Do(r)
 	if err != nil {
@@ -185,16 +187,4 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid
 	}
 
 	return &tokenResponse, nil
-}
-
-func StateMismatchError(expectedState, actualState string) error {
-	if len(actualState) <= 0 {
-		return fmt.Errorf("missing state parameter in request (possible csrf)")
-	}
-
-	if expectedState != actualState {
-		return fmt.Errorf("state parameter mismatch (possible csrf): expected %s, got %s", expectedState, actualState)
-	}
-
-	return nil
 }

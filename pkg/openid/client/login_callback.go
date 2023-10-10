@@ -41,9 +41,9 @@ func NewLoginCallback(c *Client, r *http.Request, cookie *openid.LoginCookie) (*
 }
 
 func (in *LoginCallback) IdentityProviderError() error {
-	if in.requestParams.Get(openid.Error) != "" {
-		oauthError := in.requestParams.Get(openid.Error)
-		oauthErrorDescription := in.requestParams.Get(openid.ErrorDescription)
+	if in.requestParams.Get("error") != "" {
+		oauthError := in.requestParams.Get("error")
+		oauthErrorDescription := in.requestParams.Get("error_description")
 		return fmt.Errorf("error from identity provider: %s: %s", oauthError, oauthErrorDescription)
 	}
 
@@ -51,10 +51,7 @@ func (in *LoginCallback) IdentityProviderError() error {
 }
 
 func (in *LoginCallback) StateMismatchError() error {
-	expectedState := in.cookie.State
-	actualState := in.requestParams.Get(openid.State)
-
-	return StateMismatchError(expectedState, actualState)
+	return openid.StateMismatchError(in.requestParams, in.cookie.State)
 }
 
 func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
@@ -64,13 +61,12 @@ func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, erro
 	}
 
 	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam(openid.CodeVerifier, in.cookie.CodeVerifier),
-		oauth2.SetAuthURLParam(openid.ClientAssertion, clientAssertion),
-		oauth2.SetAuthURLParam(openid.ClientAssertionType, openid.ClientAssertionTypeJwtBearer),
-		oauth2.SetAuthURLParam(openid.RedirectURI, in.cookie.RedirectURI),
+		openid.RedirectURIOption(in.cookie.RedirectURI),
+		oauth2.VerifierOption(in.cookie.CodeVerifier),
 	}
+	opts = openid.WithJwtAuthentication(opts, clientAssertion)
 
-	code := in.requestParams.Get(openid.Code)
+	code := in.requestParams.Get("code")
 	rawTokens, err := in.AuthCodeGrant(ctx, code, opts)
 	if err != nil {
 		return nil, fmt.Errorf("exchanging authorization code for token: %w", err)

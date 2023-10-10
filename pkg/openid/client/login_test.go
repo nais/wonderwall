@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid/client"
@@ -126,7 +127,7 @@ func TestLogin_URL(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 
-				parsed, err := url.Parse(result.AuthCodeURL())
+				parsed, err := url.Parse(result.AuthCodeURL)
 				assert.NoError(t, err)
 
 				query := parsed.Query()
@@ -148,13 +149,11 @@ func TestLogin_URL(t *testing.T) {
 				assert.ElementsMatch(t, query["client_id"], []string{openidConfig.Client().ClientID()})
 				assert.ElementsMatch(t, query["redirect_uri"], []string{callbackURL})
 				assert.ElementsMatch(t, query["scope"], []string{openidConfig.Client().Scopes().String()})
-				assert.ElementsMatch(t, query["state"], []string{result.State()})
-				assert.ElementsMatch(t, query["nonce"], []string{result.Nonce()})
+				assert.ElementsMatch(t, query["state"], []string{result.State})
+				assert.ElementsMatch(t, query["nonce"], []string{result.Nonce})
 				assert.ElementsMatch(t, query["response_mode"], []string{"query"})
-				assert.ElementsMatch(t, query["code_challenge"], []string{result.CodeChallenge()})
 				assert.ElementsMatch(t, query["code_challenge_method"], []string{"S256"})
-
-				assert.Equal(t, client.CodeChallenge(result.CodeVerifier()), result.CodeChallenge())
+				assert.ElementsMatch(t, query["code_challenge"], []string{oauth2.S256ChallengeFromVerifier(result.CodeVerifier)})
 
 				if test.extraParams != nil {
 					for key, value := range test.extraParams {
@@ -187,7 +186,7 @@ func TestLoginURL_WithResourceIndicator(t *testing.T) {
 	result, err := c.Login(req)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
-	parsed, err := url.Parse(result.AuthCodeURL())
+	parsed, err := url.Parse(result.AuthCodeURL)
 	assert.NoError(t, err)
 
 	query := parsed.Query()

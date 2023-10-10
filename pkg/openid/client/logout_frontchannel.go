@@ -2,8 +2,6 @@ package client
 
 import (
 	"net/http"
-
-	"github.com/nais/wonderwall/pkg/openid"
 )
 
 type LogoutFrontchannel struct {
@@ -12,7 +10,7 @@ type LogoutFrontchannel struct {
 
 func NewLogoutFrontchannel(r *http.Request) *LogoutFrontchannel {
 	params := r.URL.Query()
-	sid := params.Get(openid.Sid)
+	sid := params.Get("sid")
 
 	return &LogoutFrontchannel{
 		sid: sid,

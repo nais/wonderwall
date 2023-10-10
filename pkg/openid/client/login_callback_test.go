@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid"
@@ -132,7 +133,7 @@ func newLoginCallback(t *testing.T, url string) (*mock.IdentityProvider, *client
 		"some-code": {
 			AcrLevel:      "some-acr",
 			ClientID:      idp.OpenIDConfig.Client().ClientID(),
-			CodeChallenge: client.CodeChallenge("some-verifier"),
+			CodeChallenge: oauth2.S256ChallengeFromVerifier("some-verifier"),
 			Nonce:         "some-nonce",
 			RedirectUri:   redirect,
 		},

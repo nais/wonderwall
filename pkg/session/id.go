@@ -43,9 +43,9 @@ func ExternalID(r *http.Request, cfg openidconfig.Provider, idToken *openid.IDTo
 func getSessionStateFrom(r *http.Request) (string, error) {
 	params := r.URL.Query()
 
-	sessionState := params.Get(openid.SessionState)
+	sessionState := params.Get("session_state")
 	if len(sessionState) == 0 {
-		return "", fmt.Errorf("missing required '%s' in params", openid.SessionState)
+		return "", fmt.Errorf("missing required 'session_state' in params")
 	}
 	return sessionState, nil
 }

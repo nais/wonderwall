@@ -47,8 +47,5 @@ func (in *LogoutCallback) stateMismatchError() error {
 		return fmt.Errorf("logout cookie is nil")
 	}
 
-	expectedState := in.cookie.State
-	actualState := in.request.URL.Query().Get(openid.State)
-
-	return StateMismatchError(expectedState, actualState)
+	return openid.StateMismatchError(in.request.URL.Query(), in.cookie.State)
 }

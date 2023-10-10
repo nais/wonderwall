@@ -16,13 +16,12 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	handlerpkg "github.com/nais/wonderwall/pkg/handler"
-	"github.com/nais/wonderwall/pkg/openid"
-	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	scopespkg "github.com/nais/wonderwall/pkg/openid/scopes"
 	"github.com/nais/wonderwall/pkg/router"
@@ -311,7 +310,7 @@ func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	grantType := r.PostForm.Get(openid.GrantType)
+	grantType := r.PostForm.Get("grant_type")
 	switch grantType {
 	case "authorization_code":
 		ip.TokenCodeGrant(w, r)
@@ -373,7 +372,7 @@ func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http
 		return
 	}
 
-	expectedCodeChallenge := openidclient.CodeChallenge(codeVerifier)
+	expectedCodeChallenge := oauth2.S256ChallengeFromVerifier(codeVerifier)
 
 	if expectedCodeChallenge != auth.CodeChallenge {
 		w.WriteHeader(http.StatusBadRequest)

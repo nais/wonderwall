@@ -43,11 +43,11 @@ func NewLogout(c *Client, r *http.Request) (*Logout, error) {
 func (in *Logout) SingleLogoutURL(idToken string) string {
 	endSessionEndpoint := in.cfg.Provider().EndSessionEndpointURL()
 	v := endSessionEndpoint.Query()
-	v.Add(openid.PostLogoutRedirectURI, in.logoutCallbackURL)
-	v.Add(openid.State, in.Cookie.State)
+	v.Set("post_logout_redirect_uri", in.logoutCallbackURL)
+	v.Set("state", in.Cookie.State)
 
 	if len(idToken) > 0 {
-		v.Add(openid.IDTokenHint, idToken)
+		v.Set("id_token_hint", idToken)
 	}
 
 	endSessionEndpoint.RawQuery = v.Encode()

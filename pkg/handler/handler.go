@@ -143,7 +143,7 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 		"redirect_after_login": canonicalRedirect,
 	}
 	mw.LogEntryFrom(r).WithFields(fields).Info("login: redirecting to identity provider")
-	http.Redirect(w, r, login.AuthCodeURL(), http.StatusFound)
+	http.Redirect(w, r, login.AuthCodeURL, http.StatusFound)
 }
 
 func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
