@@ -27,7 +27,7 @@ func NewAbsoluteValidator(allowedDomains []string) *AbsoluteValidator {
 	return &AbsoluteValidator{allowedDomains: allowedDomains}
 }
 
-// IsValidRedirect validates that the given redirect string is a valid absolute URL.
+// IsValidRedirect validates that the given redirect string is a valid absolute URI.
 // It must use the 'http' or 'https' scheme.
 // It must point to a host that matches the configured list of allowed domains.
 func (v *AbsoluteValidator) IsValidRedirect(r *http.Request, redirect string) bool {
@@ -66,7 +66,7 @@ func NewRelativeValidator() *RelativeValidator {
 	return &RelativeValidator{}
 }
 
-// IsValidRedirect validates that the given redirect string is a valid relative URL.
+// IsValidRedirect validates that the given redirect string is a valid relative URI.
 // It must be an absolute path (i.e. has a leading '/').
 func (v *RelativeValidator) IsValidRedirect(r *http.Request, redirect string) bool {
 	u, ok := parsableRequestURI(r, redirect)

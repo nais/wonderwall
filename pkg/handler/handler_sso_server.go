@@ -44,7 +44,7 @@ func (s *SSOServer) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 	s.Standalone.LogoutLocal(w, r)
 }
 
-// Wildcard redirects unhandled requests to the default redirect URL.
+// Wildcard redirects unhandled requests to the default redirect URI.
 func (s *SSOServer) Wildcard(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, s.Config.SSO.ServerDefaultRedirectURL, http.StatusFound)
 }

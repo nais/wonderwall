@@ -15,7 +15,7 @@ const (
 
 var ErrNoMatchingIngress = errors.New("request host does not match any configured ingresses")
 
-// Login constructs a URL string that points to the login path for the given target URL.
+// Login constructs a URI string that points to the login path for the given target URI.
 // The given redirect string should point to the location to be redirected to after login.
 func Login(target *url.URL, redirect string) string {
 	u := target.JoinPath(paths.OAuth2, paths.Login)
@@ -29,7 +29,7 @@ func Login(target *url.URL, redirect string) string {
 	return u.String()
 }
 
-// LoginRelative constructs the relative URL with an absolute path that points to the application's login path, given an optional path prefix.
+// LoginRelative constructs the relative URI with an absolute path that points to the application's login path, given an optional path prefix.
 // The given redirect string should point to the location to be redirected to after login.
 func LoginRelative(prefix, redirect string) string {
 	u := new(url.URL)
@@ -42,7 +42,7 @@ func LoginRelative(prefix, redirect string) string {
 	return Login(u, redirect)
 }
 
-// Logout constructs a URL string that points to the logout path for the given target URL.
+// Logout constructs a URI string that points to the logout path for the given target URI.
 // The given redirect string should point to the location to be redirected to after logout.
 func Logout(target *url.URL, redirect string) string {
 	u := target.JoinPath(paths.OAuth2, paths.Logout)

@@ -12,9 +12,9 @@ import (
 
 type Redirect interface {
 	Validator
-	// Canonical constructs a redirect URL that points back to the application.
+	// Canonical constructs a redirect URI that points back to the application.
 	Canonical(r *http.Request) string
-	// Clean parses and cleans a target URL according to implementation-specific validations. It should always return a fallback URL string, regardless of validation errors.
+	// Clean parses and cleans a target URI according to implementation-specific validations. It should always return a fallback URI string, regardless of validation errors.
 	Clean(r *http.Request, target string) string
 }
 
@@ -37,7 +37,7 @@ func (h *StandaloneRedirect) Canonical(r *http.Request) string {
 		redirect = fallback(r, target, h.getFallbackRedirect(r))
 	}
 
-	// redirect must be a relative URL to avoid cross-domain redirects
+	// redirect must be a relative URI to avoid cross-domain redirects
 	redirect.Scheme = ""
 	redirect.Host = ""
 
