@@ -75,7 +75,7 @@ func TestCallback_SessionStateRequired(t *testing.T) {
 
 	resp := authorize(t, rpClient, idp)
 
-	// Get callback URI after successful auth
+	// Get callback URL after successful auth
 	params := resp.Location.Query()
 	sessionState := params.Get("session_state")
 	assert.NotEmpty(t, sessionState)
@@ -513,7 +513,7 @@ func authorize(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) 
 }
 
 func callback(t *testing.T, rpClient *http.Client, authorizeResponse response) *http.Cookie {
-	// Get callback URI after successful auth
+	// Get callback URL after successful auth
 	callbackURL := authorizeResponse.Location
 
 	// Follow redirect to callback

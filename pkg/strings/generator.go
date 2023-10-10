@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-// GenerateBase64 generates a random string of a given length, and base64 URI-encodes it.
+// GenerateBase64 generates a random string of a given length, and base64 URL-encodes it.
 func GenerateBase64(length int) (string, error) {
 	bytes, err := Generate(length)
 	if err != nil {
