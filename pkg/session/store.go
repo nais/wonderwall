@@ -20,7 +20,7 @@ type Store interface {
 }
 
 func NewStore(cfg *config.Config) (Store, error) {
-	if len(cfg.Redis.Address) == 0 {
+	if len(cfg.Redis.Address) == 0 && len(cfg.Redis.URI) == 0 {
 		log.Warnf("Redis not configured, using in-memory session backing store; not suitable for multi-pod deployments!")
 		return NewMemory(), nil
 	}
