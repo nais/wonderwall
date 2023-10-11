@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	pkgcfg "github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/openid/acr"
 )
 
 type Provider interface {
@@ -144,17 +145,17 @@ func (c *ProviderMetadata) Validate(cfg pkgcfg.OpenID) error {
 	return nil
 }
 
-func (c *ProviderMetadata) validateAcrValues(acr string) error {
-	if len(acr) == 0 || c.ACRValuesSupported.Contains(acr) {
+func (c *ProviderMetadata) validateAcrValues(acrValue string) error {
+	if len(acrValue) == 0 || c.ACRValuesSupported.Contains(acrValue) {
 		return nil
 	}
 
-	translatedAcr, ok := pkgcfg.IDPortenAcrMapping[acr]
+	translatedAcr, ok := acr.IDPortenMapping[acrValue]
 	if ok && c.ACRValuesSupported.Contains(translatedAcr) {
 		return nil
 	}
 
-	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", pkgcfg.OpenIDACRValues, acr, c.ACRValuesSupported)
+	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", pkgcfg.OpenIDACRValues, acrValue, c.ACRValuesSupported)
 }
 
 func (c *ProviderMetadata) validateLocaleValues(locale string) error {

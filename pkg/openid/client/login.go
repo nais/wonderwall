@@ -8,10 +8,10 @@ import (
 
 	"golang.org/x/oauth2"
 
-	cfg "github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
+	"github.com/nais/wonderwall/pkg/openid/acr"
 	"github.com/nais/wonderwall/pkg/strings"
 	"github.com/nais/wonderwall/pkg/url"
 )
@@ -137,7 +137,7 @@ func getAcrParam(c *Client, r *http.Request) (string, error) {
 		return paramValue, nil
 	}
 
-	translatedAcr, ok := cfg.IDPortenAcrMapping[paramValue]
+	translatedAcr, ok := acr.IDPortenMapping[paramValue]
 	if ok && supported.Contains(translatedAcr) {
 		return translatedAcr, nil
 	}

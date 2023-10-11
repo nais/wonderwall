@@ -1,4 +1,4 @@
-package openid
+package acr
 
 import (
 	"testing"
@@ -35,7 +35,7 @@ func TestValidateAcr(t *testing.T) {
 		{"idporten-loa-high, lower acr not accepted 2", "idporten-loa-high", "idporten-loa-substantial", true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateAcr(tt.expected, tt.actual)
+			err := Validate(tt.expected, tt.actual)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

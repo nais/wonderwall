@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/nais/wonderwall/pkg/logging"
+	"github.com/nais/wonderwall/pkg/openid/acr"
 )
 
 type Config struct {

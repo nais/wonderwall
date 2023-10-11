@@ -10,6 +10,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/jwt"
+	"github.com/nais/wonderwall/pkg/openid/acr"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 )
 
@@ -94,7 +95,7 @@ func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie) error 
 			actual := in.GetAcrClaim()
 			expected := cookie.Acr
 
-			err := ValidateAcr(expected, actual)
+			err := acr.Validate(expected, actual)
 			if err != nil {
 				return err
 			}
