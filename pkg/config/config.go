@@ -117,9 +117,9 @@ func Initialize() (*Config, error) {
 
 	flag.Bool(SessionInactivity, false, "Automatically expire user sessions if they have not refreshed their tokens within a given duration.")
 	flag.Duration(SessionInactivityTimeout, 30*time.Minute, "Inactivity timeout for user sessions.")
-	flag.Duration(SessionMaxLifetime, time.Hour, "Max lifetime for user sessions.")
-	flag.Bool(SessionRefresh, false, "Enable refresh tokens.")
-	flag.Bool(SessionRefreshAuto, false, "Enable automatic refresh of tokens. Only available in standalone mode. Will automatically refresh tokens if they are expired as long as the session is valid (i.e. not exceeding 'session.max-lifetime' or 'session.inactivity-timeout').")
+	flag.Duration(SessionMaxLifetime, 10*time.Hour, "Max lifetime for user sessions.")
+	flag.Bool(SessionRefresh, true, "Enable refresh tokens.")
+	flag.Bool(SessionRefreshAuto, true, "Enable automatic refresh of tokens. Only available in standalone mode. Will automatically refresh tokens if they are expired as long as the session is valid (i.e. not exceeding 'session.max-lifetime' or 'session.inactivity-timeout').")
 
 	flag.Bool(SSOEnabled, false, "Enable single sign-on mode; one server acting as the OIDC Relying Party, and N proxies. The proxies delegate most endpoint operations to the server, and only implements a reverse proxy that reads the user's session data from the shared store.")
 	flag.String(SSODomain, "", "The domain that the session cookies should be set for, usually the second-level domain name (e.g. example.com).")
