@@ -5,7 +5,7 @@ services:
     ports:
       - "6379:6379"
   mock-oauth2-server:
-    image: ghcr.io/navikt/mock-oauth2-server:0.5.7
+    image: ghcr.io/navikt/mock-oauth2-server:2.0.0
     ports:
       - "8080:8080"
     environment:
@@ -13,8 +13,6 @@ services:
     hostname: host.docker.internal
   wonderwall:
     image: ghcr.io/nais/wonderwall:latest
-    # alternatively,
-    # build: .
     ports:
       - "3000:3000"
     command: >
@@ -23,8 +21,7 @@ services:
       --ingress=http://localhost:3000
       --bind-address=0.0.0.0:3000
       --upstream-host=upstream:4000
-      --redis.address=redis:6379
-      --redis.tls=false
+      --redis.uri=redis://redis:6379
       --log-level=debug
       --log-format=text
     restart: on-failure
@@ -44,7 +41,7 @@ services:
           "n":"7CU8tTANiN6W_fD9SP1dK2vQvCkf7-nwvBYe5CfANV0_Bb0ZmQb77FVVsl1beJ7EYLz3cJmL8Is1RCHKUK_4ydqihNjEWTyZiQoj1i67pkqk_zRvfQa9raZR4uZbuBxx7dWUoPC6fFH2F_psAlHW0zf90fsLvhB6Aqq3uvO7XXqo8qNl9d_JSG0Rg_2QUYVb0WKmPVbbhgwtkFu0Tyuev-VZ9IzTbbr5wmZwEUVY7YAi73pDJkcZt5r2WjOF_cuIXe-O2vwbOrRgmJfHO9--mVLdATnEyrb6q2oy_75h6JjP-R4-TD1hyoFFoE2gmj-kSS6Z_Gggljs3Aw7--Nh10Q"
         }
   upstream:
-    image: mendhak/http-https-echo:28
+    image: mendhak/http-https-echo:30
     ports:
       - "4000:4000"
     environment:
