@@ -1,11 +1,14 @@
 package config
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/url"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/nais/liberator/pkg/conftools"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -26,15 +29,79 @@ type Config struct {
 	CookiePrefix         string   `json:"cookie-prefix"`
 	EncryptionKey        string   `json:"encryption-key"`
 	Ingresses            []string `json:"ingress"`
-	Session              Session  `json:"session"`
 	UpstreamHost         string   `json:"upstream-host"`
 	UpstreamIP           string   `json:"upstream-ip"`
 	UpstreamPort         int      `json:"upstream-port"`
 
-	OpenID OpenID `json:"openid"`
-	Redis  Redis  `json:"redis"`
+	OpenID  OpenID  `json:"openid"`
+	Redis   Redis   `json:"redis"`
+	Session Session `json:"session"`
+	SSO     SSO     `json:"sso"`
+}
 
-	SSO SSO `json:"sso"`
+type OpenID struct {
+	ACRValues             string   `json:"acr-values"`
+	Audiences             []string `json:"audiences"`
+	ClientID              string   `json:"client-id"`
+	ClientJWK             string   `json:"client-jwk"`
+	PostLogoutRedirectURI string   `json:"post-logout-redirect-uri"`
+	Provider              Provider `json:"provider"`
+	ResourceIndicator     string   `json:"resource-indicator"`
+	Scopes                []string `json:"scopes"`
+	UILocales             string   `json:"ui-locales"`
+	WellKnownURL          string   `json:"well-known-url"`
+}
+
+func (in OpenID) TrustedAudiences() map[string]bool {
+	m := make(map[string]bool)
+	m[in.ClientID] = true
+	for _, aud := range in.Audiences {
+		m[aud] = true
+	}
+
+	return m
+}
+
+type Redis struct {
+	Address               string `json:"address"`
+	Username              string `json:"username"`
+	Password              string `json:"password"`
+	TLS                   bool   `json:"tls"`
+	URI                   string `json:"uri"`
+	ConnectionIdleTimeout int    `json:"connection-idle-timeout"`
+}
+
+func (r *Redis) Client() (*redis.Client, error) {
+	opts := &redis.Options{
+		Network:  "tcp",
+		Addr:     r.Address,
+		Username: r.Username,
+		Password: r.Password,
+	}
+
+	if r.TLS {
+		opts.TLSConfig = &tls.Config{}
+	}
+
+	if r.URI != "" {
+		var err error
+
+		opts, err = redis.ParseURL(r.URI)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	opts.MinIdleConns = 1
+	opts.MaxRetries = 5
+
+	if r.ConnectionIdleTimeout > 0 {
+		opts.ConnMaxIdleTime = time.Duration(r.ConnectionIdleTimeout) * time.Second
+	} else if r.ConnectionIdleTimeout == -1 {
+		opts.ConnMaxIdleTime = -1
+	}
+
+	return redis.NewClient(opts), nil
 }
 
 type Session struct {
@@ -57,6 +124,14 @@ type SSO struct {
 func (in SSO) IsServer() bool {
 	return in.Enabled && in.Mode == SSOModeServer
 }
+
+type Provider string
+
+const (
+	ProviderAzure    Provider = "azure"
+	ProviderIDPorten Provider = "idporten"
+	ProviderOpenID   Provider = "openid"
+)
 
 type SSOMode string
 
@@ -82,12 +157,30 @@ const (
 	UpstreamIP           = "upstream-ip"
 	UpstreamPort         = "upstream-port"
 
-	SessionCookieName           = "session.cookie-name"
-	SessionInactivity           = "session.inactivity"
-	SessionInactivityTimeout    = "session.inactivity-timeout"
-	SessionMaxLifetime          = "session.max-lifetime"
-	SessionRefresh              = "session.refresh"
-	SessionRefreshAuto          = "session.refresh-auto"
+	OpenIDACRValues             = "openid.acr-values"
+	OpenIDAudiences             = "openid.audiences"
+	OpenIDClientID              = "openid.client-id"
+	OpenIDClientJWK             = "openid.client-jwk"
+	OpenIDPostLogoutRedirectURI = "openid.post-logout-redirect-uri"
+	OpenIDProvider              = "openid.provider"
+	OpenIDResourceIndicator     = "openid.resource-indicator"
+	OpenIDScopes                = "openid.scopes"
+	OpenIDUILocales             = "openid.ui-locales"
+	OpenIDWellKnownURL          = "openid.well-known-url"
+
+	RedisAddress               = "redis.address"
+	RedisPassword              = "redis.password"
+	RedisTLS                   = "redis.tls"
+	RedisUsername              = "redis.username"
+	RedisURI                   = "redis.uri"
+	RedisConnectionIdleTimeout = "redis.connection-idle-timeout"
+
+	SessionInactivity        = "session.inactivity"
+	SessionInactivityTimeout = "session.inactivity-timeout"
+	SessionMaxLifetime       = "session.max-lifetime"
+	SessionRefresh           = "session.refresh"
+	SessionRefreshAuto       = "session.refresh-auto"
+
 	SSOEnabled                  = "sso.enabled"
 	SSODomain                   = "sso.domain"
 	SSOModeFlag                 = "sso.mode"
@@ -115,6 +208,24 @@ func Initialize() (*Config, error) {
 	flag.String(UpstreamIP, "", "IP of upstream host. Overrides 'upstream-host' if set.")
 	flag.Int(UpstreamPort, 0, "Port of upstream host. Overrides 'upstream-host' if set.")
 
+	flag.String(OpenIDACRValues, "", "Space separated string that configures the default security level (acr_values) parameter for authorization requests.")
+	flag.StringSlice(OpenIDAudiences, []string{}, "List of additional trusted audiences (other than the client_id) for OpenID Connect id_token validation.")
+	flag.String(OpenIDClientID, "", "Client ID for the OpenID client.")
+	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format.")
+	flag.String(OpenIDPostLogoutRedirectURI, "", "URI for redirecting the user after successful logout at the Identity Provider.")
+	flag.String(OpenIDProvider, string(ProviderOpenID), "Provider configuration to load and use, either 'openid', 'azure', 'idporten'.")
+	flag.String(OpenIDResourceIndicator, "", "OAuth2 resource indicator to include in authorization request for acquiring audience-restricted tokens.")
+	flag.StringSlice(OpenIDScopes, []string{}, "List of additional scopes (other than 'openid') that should be used during the login flow.")
+	flag.String(OpenIDUILocales, "", "Space-separated string that configures the default UI locale (ui_locales) parameter for OAuth2 consent screen.")
+	flag.String(OpenIDWellKnownURL, "", "URI to the well-known OpenID Configuration metadata document.")
+
+	flag.String(RedisURI, "", "Redis URI string. Prefer using this. An empty value will fall back to 'redis-address'.")
+	flag.String(RedisAddress, "", "Address of the Redis instance (host:port). An empty value will use in-memory session storage. Does not override address set by 'redis.uri'.")
+	flag.String(RedisPassword, "", "Password for Redis. Does not override password set by 'redis.uri'.")
+	flag.Bool(RedisTLS, true, "Whether or not to use TLS for connecting to Redis. Does not override TLS config set by 'redis.uri'.")
+	flag.String(RedisUsername, "", "Username for Redis. Does not override username set by 'redis.uri'.")
+	flag.Int(RedisConnectionIdleTimeout, 0, "Idle timeout for Redis connections, in seconds. If non-zero, the value should be less than the client timeout configured at the Redis server. A value of -1 disables timeout. If zero, the default value from go-redis is used (30 minutes). Overrides options set by 'redis.uri'.")
+
 	flag.Bool(SessionInactivity, false, "Automatically expire user sessions if they have not refreshed their tokens within a given duration.")
 	flag.Duration(SessionInactivityTimeout, 30*time.Minute, "Inactivity timeout for user sessions.")
 	flag.Duration(SessionMaxLifetime, 10*time.Hour, "Max lifetime for user sessions.")
@@ -128,10 +239,6 @@ func Initialize() (*Config, error) {
 	flag.String(SSOServerDefaultRedirectURL, "", "The URL that the SSO server should redirect to by default if a given redirect query parameter is invalid.")
 	flag.String(SSOServerURL, "", "The URL used by the proxy to point to the SSO server instance.")
 
-	redisFlags()
-	openIDFlags()
-
-	flag.String(OpenIDProvider, string(ProviderOpenID), "Provider configuration to load and use, either 'openid', 'azure', 'idporten'.")
 	flag.Parse()
 
 	if err := viper.ReadInConfig(); err != nil {
@@ -145,16 +252,25 @@ func Initialize() (*Config, error) {
 
 	switch Provider(viper.GetString(OpenIDProvider)) {
 	case ProviderIDPorten:
-		idportenFlags()
+		viper.BindEnv(OpenIDClientID, "IDPORTEN_CLIENT_ID")
+		viper.BindEnv(OpenIDClientJWK, "IDPORTEN_CLIENT_JWK")
+		viper.BindEnv(OpenIDWellKnownURL, "IDPORTEN_WELL_KNOWN_URL")
+
+		viper.SetDefault(OpenIDACRValues, acr.IDPortenLevel4) // TODO - change to new value after migration
+		viper.SetDefault(OpenIDUILocales, "nb")
 	case ProviderAzure:
-		azureFlags()
+		viper.BindEnv(OpenIDClientID, "AZURE_APP_CLIENT_ID")
+		viper.BindEnv(OpenIDClientJWK, "AZURE_APP_JWK")
+		viper.BindEnv(OpenIDWellKnownURL, "AZURE_APP_WELL_KNOWN_URL")
 	default:
 		viper.Set(OpenIDProvider, ProviderOpenID)
 	}
 
 	cfg := new(Config)
-
-	if err := conftools.Load(cfg); err != nil {
+	err := viper.UnmarshalExact(cfg, func(dc *mapstructure.DecoderConfig) {
+		dc.TagName = "json"
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -174,7 +290,7 @@ func Initialize() (*Config, error) {
 		log.WithField("logger", "wonderwall.config").Info(line)
 	}
 
-	err := cfg.Validate()
+	err = cfg.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("validating config: %w", err)
 	}
