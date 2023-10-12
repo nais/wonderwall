@@ -680,31 +680,20 @@ type header struct {
 }
 
 func get(t *testing.T, client *http.Client, url string, headers ...header) response {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	return request(t, client, http.MethodGet, url, headers...)
+}
+
+func post(t *testing.T, client *http.Client, url string) response {
+	return request(t, client, http.MethodPost, url)
+}
+
+func request(t *testing.T, client *http.Client, method, url string, headers ...header) response {
+	req, err := http.NewRequest(method, url, nil)
 	assert.NoError(t, err)
 
 	for _, h := range headers {
 		req.Header.Set(h.key, h.value)
 	}
-
-	resp, err := client.Do(req)
-	assert.NoError(t, err)
-
-	location, err := resp.Location()
-	if !errors.Is(http.ErrNoLocation, err) {
-		assert.NoError(t, err)
-	}
-
-	return response{
-		Body:       body(t, resp),
-		Location:   location,
-		StatusCode: resp.StatusCode,
-	}
-}
-
-func post(t *testing.T, client *http.Client, url string) response {
-	req, err := http.NewRequest(http.MethodPost, url, nil)
-	assert.NoError(t, err)
 
 	resp, err := client.Do(req)
 	assert.NoError(t, err)
