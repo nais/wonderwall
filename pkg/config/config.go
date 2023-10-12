@@ -74,10 +74,8 @@ type Redis struct {
 
 func (r *Redis) Client() (*redis.Client, error) {
 	opts := &redis.Options{
-		Network:  "tcp",
-		Addr:     r.Address,
-		Username: r.Username,
-		Password: r.Password,
+		Network: "tcp",
+		Addr:    r.Address,
 	}
 
 	if r.TLS {
@@ -95,6 +93,14 @@ func (r *Redis) Client() (*redis.Client, error) {
 
 	opts.MinIdleConns = 1
 	opts.MaxRetries = 5
+
+	if r.Username != "" {
+		opts.Username = r.Username
+	}
+
+	if r.Password != "" {
+		opts.Password = r.Password
+	}
 
 	if r.ConnectionIdleTimeout > 0 {
 		opts.ConnMaxIdleTime = time.Duration(r.ConnectionIdleTimeout) * time.Second
@@ -222,9 +228,9 @@ func Initialize() (*Config, error) {
 
 	flag.String(RedisURI, "", "Redis URI string. Prefer using this. An empty value will fall back to 'redis-address'.")
 	flag.String(RedisAddress, "", "Address of the Redis instance (host:port). An empty value will use in-memory session storage. Does not override address set by 'redis.uri'.")
-	flag.String(RedisPassword, "", "Password for Redis. Does not override password set by 'redis.uri'.")
+	flag.String(RedisPassword, "", "Password for Redis. Overrides password set by 'redis.uri'.")
 	flag.Bool(RedisTLS, true, "Whether or not to use TLS for connecting to Redis. Does not override TLS config set by 'redis.uri'.")
-	flag.String(RedisUsername, "", "Username for Redis. Does not override username set by 'redis.uri'.")
+	flag.String(RedisUsername, "", "Username for Redis. Overrides username set by 'redis.uri'.")
 	flag.Int(RedisConnectionIdleTimeout, 0, "Idle timeout for Redis connections, in seconds. If non-zero, the value should be less than the client timeout configured at the Redis server. A value of -1 disables timeout. If zero, the default value from go-redis is used (30 minutes). Overrides options set by 'redis.uri'.")
 
 	flag.Bool(SessionInactivity, false, "Automatically expire user sessions if they have not refreshed their tokens within a given duration.")
