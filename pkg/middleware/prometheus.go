@@ -6,12 +6,14 @@ package middleware
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/nais/wonderwall/pkg/metrics"
+	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
 var defaultBuckets = []float64{.001, .01, .05, .1, .5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5}
@@ -68,7 +70,32 @@ func (m *PrometheusMiddleware) Initialize(path, method string, code int) {
 }
 
 func (m *PrometheusMiddleware) Handler(next http.Handler) http.Handler {
+	relevantPaths := map[string]bool{
+		paths.OAuth2 + paths.Login:                   true,
+		paths.OAuth2 + paths.LoginCallback:           true,
+		paths.OAuth2 + paths.Logout:                  true,
+		paths.OAuth2 + paths.LogoutCallback:          true,
+		paths.OAuth2 + paths.LogoutFrontChannel:      true,
+		paths.OAuth2 + paths.LogoutLocal:             true,
+		paths.OAuth2 + paths.Ping:                    false,
+		paths.OAuth2 + paths.Session:                 true,
+		paths.OAuth2 + paths.Session + paths.Refresh: true,
+	}
+
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		found := false
+		for path, relevant := range relevantPaths {
+			if strings.HasSuffix(r.URL.Path, path) && relevant {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		start := time.Now()
 		ww := chi_middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 		next.ServeHTTP(ww, r)
