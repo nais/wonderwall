@@ -692,7 +692,7 @@ func request(t *testing.T, client *http.Client, method, url string, headers ...h
 	assert.NoError(t, err)
 
 	for _, h := range headers {
-		req.Header.Set(h.key, h.value)
+		req.Header.Add(h.key, h.value)
 	}
 
 	resp, err := client.Do(req)

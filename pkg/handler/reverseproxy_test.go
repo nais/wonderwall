@@ -37,7 +37,7 @@ func TestReverseProxy(t *testing.T) {
 	assertAutoLoginUnauthorizedResponse := func(t *testing.T, idp *mock.IdentityProvider, resp response, originalReferer string) {
 		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 		assert.Equal(t, loginURL(idp, originalReferer), resp.Location.String())
-		assert.Empty(t, resp.Body)
+		assert.Equal(t, "unauthenticated, please log in", resp.Body)
 	}
 
 	// assert that the request is proxied to the upstream, which returns a 401 unauthorized
@@ -147,7 +147,14 @@ func TestReverseProxy(t *testing.T) {
 				rpClient := idp.RelyingPartyClient()
 
 				resp := request(t, rpClient, method, idp.RelyingPartyServer.URL)
-				assertAutoLoginUnauthorizedResponse(t, idp, resp, "")
+
+				if method == http.MethodHead {
+					assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+					assert.Equal(t, loginURL(idp, ""), resp.Location.String())
+					assert.Empty(t, resp.Body)
+				} else {
+					assertAutoLoginUnauthorizedResponse(t, idp, resp, "")
+				}
 			})
 		}
 	})
@@ -184,12 +191,39 @@ func TestReverseProxy(t *testing.T) {
 
 		target := idp.RelyingPartyServer.URL + "/some-path"
 
-		resp := get(t, rpClient, target,
-			header{"Sec-Fetch-Mode", ""},
-			header{"Sec-Fetch-Dest", ""},
-			header{"Accept", "text/html"},
-		)
-		assertAutoLoginRedirectResponse(t, idp, resp, "/some-path")
+		for _, tt := range []struct {
+			name    string
+			headers []header
+		}{
+			{"happy path", []header{
+				{"Accept", "text/html"},
+			}},
+			{"multiple values", []header{
+				{"Accept", "application/xhtml+xml, application/xml, text/html"},
+			}},
+			{"multiple accept headers", []header{
+				{"Accept", "application/xhtml+xml, application/xml;q=0.9"},
+				{"Accept", "text/plain"},
+				{"Accept", "text/html"},
+			}},
+			{"non-canonical value", []header{
+				{"Accept", ", text/HTML "},
+			}},
+			{"with quality parameter", []header{
+				{"Accept", "text/html;q=0.9"},
+			}},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				noFetchMetadata := []header{
+					{"Sec-Fetch-Mode", ""},
+					{"Sec-Fetch-Dest", ""},
+				}
+				tt.headers = append(tt.headers, noFetchMetadata...)
+
+				resp := get(t, rpClient, target, tt.headers...)
+				assertAutoLoginRedirectResponse(t, idp, resp, "/some-path")
+			})
+		}
 	})
 
 	t.Run("with auto-login and ignored paths", func(t *testing.T) {

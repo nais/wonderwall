@@ -152,6 +152,13 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 	location := loginURL(target, "non-navigation request detected; responding with 401 and Location header")
 	w.Header().Set("Location", location)
 	w.WriteHeader(http.StatusUnauthorized)
+
+	if accepts(r, "*/*", "application/json") {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"error": "unauthenticated, please log in"}`))
+	} else {
+		w.Write([]byte("unauthenticated, please log in"))
+	}
 }
 
 func isNavigationRequest(r *http.Request) bool {
@@ -168,10 +175,23 @@ func isNavigationRequest(r *http.Request) bool {
 	}
 
 	// fallback if browser doesn't support fetch metadata
-	acceptValues := strings.Split(r.Header.Get("Accept"), ",")
-	for _, v := range acceptValues {
-		if strings.ToLower(v) == "text/html" {
-			return true
+	return accepts(r, "text/html")
+}
+
+func accepts(r *http.Request, accepted ...string) bool {
+	// iterate over all Accept headers
+	for _, header := range r.Header.Values("Accept") {
+		// iterate over all comma-separated values in a single Accept header
+		for _, v := range strings.Split(header, ",") {
+			v = strings.ToLower(v)
+			v = strings.TrimSpace(v)
+			v = strings.Split(v, ";")[0]
+
+			for _, accept := range accepted {
+				if v == accept {
+					return true
+				}
+			}
 		}
 	}
 
