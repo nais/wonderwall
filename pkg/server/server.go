@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -54,7 +55,7 @@ func Start(cfg *config.Config, r chi.Router) error {
 
 		go func() {
 			<-shutdownCtx.Done()
-			if shutdownCtx.Err() == context.DeadlineExceeded {
+			if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
 				log.Fatalf("server: graceful shutdown timed out after %s; forcing exit.", shutdownTimeout)
 			}
 		}()
