@@ -8,7 +8,7 @@ graph LR
   style Application stroke:#f00
     
   U((User)) -- "request" ---> Wonderwall
-  Wonderwall -. "proxies request as-is" -..-> Application
+  Wonderwall -. "proxy request\nas-is" -..-> Application
 ```
 
 It handles the OpenID Connect Auth Code flow with an identity provider...
@@ -19,10 +19,10 @@ graph LR
   style Wonderwall stroke:#0f0,stroke-dasharray: 5
   style IDP stroke:#f00
 
-  U((User)) -- "redirected to /oauth2/login" --> Wonderwall
+  U((User)) -- "/oauth2/login" --> Wonderwall
 
   subgraph OIDC["OpenID Connect Authorization Code Flow"]
-    IDP == "redirect back after login" ====> Wonderwall
+    IDP == "redirect callback" ====> Wonderwall
     Wonderwall == "redirect to log in" ====> IDP
   end
 ```
@@ -34,13 +34,13 @@ graph LR
   style Wonderwall stroke:#0f0,stroke-dasharray: 5
   style IDP stroke:#f00
   
-  IDP[Identity Provider] -- "redirects user back after login" ---> Wonderwall
+  IDP[Identity Provider] -- "redirect after login" ---> Wonderwall
   
   subgraph Wonderwall
-    Server -- "manages sessions in" --> Store[Session Store]
+    Server -- "manage sessions" --> Store[Session Store]
   end
   
-  Wonderwall -- "establishes session" ----> U((User))
+  Wonderwall -- "establish session" ----> U((User))
 ```
 
 ...so that your application can focus on serving requests:
@@ -53,7 +53,7 @@ graph LR
   subgraph Session["Authenticated Session"]
     direction LR
     U((User)) -- "request" ---> Wonderwall
-    Wonderwall -. "proxies request with User's access_token in Authorization header" -..-> Application
+    Wonderwall -. "proxy request\nwith token" -..-> Application
   end
 ```
 
@@ -142,8 +142,8 @@ graph LR
   style Wonderwall stroke:#0f0,stroke-dasharray: 5
   style Application stroke:#f00
 
-  U((User)) -- "requests" ---> Wonderwall
-  Wonderwall[Wonderwall SSO Proxy] -. "proxies request as-is" -..-> Application
+  U((User)) -- "request" ---> Wonderwall
+  Wonderwall[Wonderwall SSO Proxy] -. "proxy request\n as-is" -..-> Application
 ```
 ...and a server part that handles the OpenID Connect Authorization Code flow and sessions (like the standalone mode)
 
@@ -155,10 +155,10 @@ graph LR
   style Server stroke:#ff0,stroke-dasharray: 5
   style IDP stroke:#f00
 
-  U((User)) -- "redirected to /oauth2/login" --> Server
+  U((User)) -- "/oauth2/login" --> Server
 
   subgraph OIDC["OpenID Connect Authorization Code Flow"]
-    IDP == "redirect back after login" ====> Server
+    IDP == "redirect callback" ====> Server
     Server == "redirect to log in" ====> IDP
   end
 ```
@@ -177,10 +177,10 @@ graph LR
   subgraph Single Sign-On Authentication Realm
     direction TB
     
-    Server -- "manages sessions in" ---> Store
-    w1[Wonderwall SSO Proxy]:::Proxy -- "reads from" ---> Store
-    wDot[Wonderwall SSO Proxy]:::Proxy -- "reads from" ---> Store
-    wN[Wonderwall SSO Proxy]:::Proxy -- "reads from" ---> Store
+    Server -- "manage session" ---> Store
+    w1[Wonderwall SSO Proxy]:::Proxy -- "read session" ---> Store
+    wDot[Wonderwall SSO Proxy]:::Proxy -- "read session" ---> Store
+    wN[Wonderwall SSO Proxy]:::Proxy -- "read session" ---> Store
   end
 ```
 
@@ -209,22 +209,22 @@ graph LR
 
     subgraph pod1[Pod 1]
       direction LR
-      w1[Wonderwall SSO Proxy]:::Proxy -. "proxies " .-> a1[Application 1]:::Application
+      w1[Wonderwall SSO Proxy]:::Proxy -. "proxy" .-> a1[Application 1]:::Application
     end
 
     subgraph podDot[Pod ...]
       direction LR
-      wDot[Wonderwall SSO Proxy]:::Proxy -. "proxies " .-> aDot[Application ...]:::Application
+      wDot[Wonderwall SSO Proxy]:::Proxy -. "proxy" .-> aDot[Application ...]:::Application
     end
 
     subgraph podN[Pod N]
       direction LR
-      wN[Wonderwall SSO Proxy]:::Proxy -. "proxies " .-> aN[Application N]:::Application
+      wN[Wonderwall SSO Proxy]:::Proxy -. "proxy" .-> aN[Application N]:::Application
     end
 
-    w1 -- "delegates oidc/write operations to" ---> Server
-    wDot -- "delegates oidc/write operations to" ---> Server
-    wN -- "delegates oidc/write operations to" ---> Server
+    w1 -- "delegate oidc/write operations" ---> Server
+    wDot -- "delegate oidc/write operations" ---> Server
+    wN -- "delegate oidc/write operations" ---> Server
   end
 ```
 
