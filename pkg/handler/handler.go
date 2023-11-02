@@ -403,7 +403,13 @@ func (s *Standalone) Wildcard(w http.ResponseWriter, r *http.Request) {
 func handleGetSessionError(route string, w http.ResponseWriter, r *http.Request, err error) {
 	logger := mw.LogEntryFrom(r)
 
-	if errors.Is(err, session.ErrInvalid) || errors.Is(err, session.ErrNotFound) {
+	if errors.Is(err, session.ErrNotFound) {
+		logger.Debugf("%s: getting session: %+v", route, err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if errors.Is(err, session.ErrInvalid) {
 		logger.Infof("%s: getting session: %+v", route, err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
