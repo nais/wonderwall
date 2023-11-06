@@ -205,18 +205,35 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 
 	redirect := s.Redirect.Clean(r, loginCookie.Referer)
 
-	fields := log.Fields{
-		"redirect_to": redirect,
-		"jti":         tokens.IDToken.GetJwtID(),
-	}
+	amr := tokens.IDToken.GetAmrClaim()
+	locale := tokens.IDToken.GetLocaleClaim()
 
 	// TODO - remove when legacy services are sunset and shut down
 	if s.Config.SSO.IsServer() && s.Config.OpenID.Provider == config.ProviderIDPorten {
 		cookie.SetLegacyCookie(w, tokens.AccessToken, opts)
+
+		if amr == "MinID Passport" {
+			redirect = "https://nav.no/minid-passport"
+			if locale == "en" {
+				redirect = "https://nav.no/minid-passport/en"
+			}
+			log.WithField("redirect_to", redirect).Infof("callback: overriding redirect for MinID Passport user")
+		}
+	}
+
+	fields := log.Fields{
+		"redirect_to": redirect,
+		"jti":         tokens.IDToken.GetJwtID(),
+	}
+	if amr != "" {
+		fields["amr"] = amr
+	}
+	if locale != "" {
+		fields["locale"] = locale
 	}
 
 	mw.LogEntryFrom(r).WithFields(fields).Info("callback: successful login")
-	metrics.ObserveLogin(tokens.IDToken.GetAmrClaim(), redirect)
+	metrics.ObserveLogin(amr, redirect)
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	http.Redirect(w, r, redirect, http.StatusFound)
 }

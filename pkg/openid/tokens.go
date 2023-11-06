@@ -54,6 +54,10 @@ func (in *IDToken) GetAmrClaim() string {
 	return s
 }
 
+func (in *IDToken) GetLocaleClaim() string {
+	return in.GetStringClaimOrEmpty(jwt.LocaleClaim)
+}
+
 func (in *IDToken) GetSidClaim() (string, error) {
 	return in.GetStringClaim(jwt.SidClaim)
 }

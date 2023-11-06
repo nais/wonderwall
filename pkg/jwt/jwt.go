@@ -12,11 +12,12 @@ import (
 const (
 	AcceptableClockSkew = 5 * time.Second
 
-	AcrClaim = "acr"
-	AmrClaim = "amr"
-	JtiClaim = "jti"
-	SidClaim = "sid"
-	UtiClaim = "uti"
+	AcrClaim    = "acr"
+	AmrClaim    = "amr"
+	JtiClaim    = "jti"
+	LocaleClaim = "locale"
+	SidClaim    = "sid"
+	UtiClaim    = "uti"
 )
 
 type Token struct {
