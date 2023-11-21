@@ -89,7 +89,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 				})
 
 				r.Route(paths.Session, func(r chi.Router) {
-					if cfg.SSO.IsServer() {
+					if cfg.SSO.Enabled {
 						r.Use(cors(http.MethodGet, http.MethodPost))
 
 						r.Options("/", noopHandler)

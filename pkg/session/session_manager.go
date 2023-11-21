@@ -113,12 +113,16 @@ func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
 	}
 
 	refreshed, err := in.Refresh(r, sess)
+	if err == nil {
+		return refreshed, nil
+	}
+
 	if errors.Is(err, ErrInvalidExternal) || errors.Is(err, ErrInvalid) {
 		return nil, err
-	} else if err != nil {
+	}
+
+	if !errors.Is(err, context.Canceled) {
 		mw.LogEntryFrom(r).Warnf("session: could not refresh tokens; falling back to existing tokens: %+v", err)
-	} else {
-		sess = refreshed
 	}
 
 	return sess, nil
@@ -166,7 +170,7 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 	}
 	defer func(lock Lock, ctx context.Context) {
 		err := lock.Release(ctx)
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			logger.Warnf("session: releasing lock: %+v", err)
 		}
 	}(lock, ctx)
