@@ -9,6 +9,8 @@ import (
 	urllib "net/url"
 	"time"
 
+	"go.opentelemetry.io/otel"
+
 	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
 
@@ -30,6 +32,8 @@ import (
 )
 
 var _ router.Source = &Standalone{}
+
+var loginCallbackTracer = otel.Tracer("login callback")
 
 type Standalone struct {
 	AcrHandler     *acr.Handler
@@ -147,6 +151,9 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
+	_, span := loginCallbackTracer.Start(r.Context(), "login callback")
+	defer span.End()
+
 	opts := s.GetCookieOptions(r)
 
 	// unconditionally clear login cookies

@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+
+	"github.com/nais/wonderwall/pkg/otel"
 
 	log "github.com/sirupsen/logrus"
 	_ "go.uber.org/automaxprocs"
@@ -76,6 +80,17 @@ func run() error {
 			log.Fatalf("fatal: metrics server error: %s", err)
 		}
 	}()
+
+	runtimeEnv := envOrDefault("NAIS_CLUSTER_NAME", "unknown_env")
+	otelShutdown, err := otel.SetupOTelSDK(ctx,
+		envOrDefault("OTEL_SERVICE_NAME", "wonderwall")+"-"+runtimeEnv, "")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = errors.Join(err, otelShutdown(context.Background()))
+	}()
+
 	return server.Start(cfg, r)
 }
 
@@ -104,4 +119,12 @@ func ssoServer(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*
 
 func ssoProxy(cfg *config.Config, crypt crypto.Crypter) (*handler.SSOProxy, error) {
 	return handler.NewSSOProxy(cfg, crypt)
+}
+
+func envOrDefault(name string, defaultValue string) string {
+	realValue := os.Getenv(name)
+	if realValue != "" {
+		return realValue
+	}
+	return defaultValue
 }
