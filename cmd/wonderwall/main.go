@@ -81,9 +81,8 @@ func run() error {
 		}
 	}()
 
-	runtimeEnv := envOrDefault("NAIS_CLUSTER_NAME", "unknown_env")
 	otelShutdown, err := otel.SetupOTelSDK(ctx,
-		envOrDefault("OTEL_SERVICE_NAME", "wonderwall")+"-"+runtimeEnv, "")
+		envOrDefault("OTEL_SERVICE_NAME", "wonderwall"), "")
 	if err != nil {
 		return err
 	}
