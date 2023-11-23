@@ -151,9 +151,6 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
-	_, span := loginCallbackTracer.Start(r.Context(), "login callback")
-	defer span.End()
-
 	opts := s.GetCookieOptions(r)
 
 	// unconditionally clear login cookies

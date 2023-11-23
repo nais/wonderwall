@@ -3,6 +3,8 @@ package router
 import (
 	"net/http"
 
+	"github.com/riandyrn/otelchi"
+
 	"github.com/go-chi/chi/v5"
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
 
@@ -54,6 +56,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 	r.Use(middleware.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)
 	r.Use(ingressMw.Handler)
+	r.Use(otelchi.Middleware("wonderwall", otelchi.WithChiRoutes(r)))
 
 	prefixes := src.GetIngresses().Paths()
 

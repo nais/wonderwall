@@ -54,6 +54,15 @@ func run() error {
 		cookie.Session = cfg.SSO.SessionCookieName
 	}
 
+	otelShutdown, err := otel.SetupOTelSDK(ctx,
+		envOrDefault("OTEL_SERVICE_NAME", "wonderwall"), "")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = errors.Join(err, otelShutdown(context.Background()))
+	}()
+
 	var src router.Source
 
 	if cfg.SSO.Enabled {
@@ -79,15 +88,6 @@ func run() error {
 		if err != nil {
 			log.Fatalf("fatal: metrics server error: %s", err)
 		}
-	}()
-
-	otelShutdown, err := otel.SetupOTelSDK(ctx,
-		envOrDefault("OTEL_SERVICE_NAME", "wonderwall"), "")
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = errors.Join(err, otelShutdown(context.Background()))
 	}()
 
 	return server.Start(cfg, r)
