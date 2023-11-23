@@ -54,8 +54,9 @@ func run() error {
 		cookie.Session = cfg.SSO.SessionCookieName
 	}
 
-	otelShutdown, err := otel.SetupOTelSDK(ctx,
-		envOrDefault("OTEL_SERVICE_NAME", "wonderwall"), "")
+	otelServiceName := envOrDefault("OTEL_SERVICE_NAME", "wonderwall") + "-" +
+		envOrDefault("CLUSTERNAME", "unknown-cluster")
+	otelShutdown, err := otel.SetupOTelSDK(ctx, otelServiceName, "")
 	if err != nil {
 		return err
 	}
