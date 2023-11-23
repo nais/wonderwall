@@ -9,8 +9,6 @@ import (
 	urllib "net/url"
 	"time"
 
-	"go.opentelemetry.io/otel"
-
 	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
 
@@ -32,8 +30,6 @@ import (
 )
 
 var _ router.Source = &Standalone{}
-
-var loginCallbackTracer = otel.Tracer("login callback")
 
 type Standalone struct {
 	AcrHandler     *acr.Handler
