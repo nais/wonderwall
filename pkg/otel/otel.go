@@ -82,8 +82,7 @@ func newTraceProvider(ctx context.Context, res *resource.Resource) (*trace.Trace
 
 	traceProvider := trace.NewTracerProvider(
 		trace.WithBatcher(traceExporter,
-			// Default is 5s. Set to 1s for demonstrative purposes.
-			trace.WithBatchTimeout(time.Second)),
+			trace.WithBatchTimeout(5*time.Second)),
 		trace.WithResource(res),
 	)
 	return traceProvider, nil
@@ -98,8 +97,7 @@ func newMeterProvider(res *resource.Resource) (*metric.MeterProvider, error) {
 	meterProvider := metric.NewMeterProvider(
 		metric.WithResource(res),
 		metric.WithReader(metric.NewPeriodicReader(metricExporter,
-			// Default is 1m. Set to 3s for demonstrative purposes.
-			metric.WithInterval(3*time.Second))),
+			metric.WithInterval(1*time.Minute))),
 	)
 	return meterProvider, nil
 }
