@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redis/go-redis/extra/redisotel/v9"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -39,6 +41,11 @@ func NewStore(cfg *config.Config) (Store, error) {
 	} else {
 		log.Infof("Using Redis as session backing store")
 	}
+
+	if err := redisotel.InstrumentTracing(redisClient); err != nil {
+		return nil, fmt.Errorf("failed to instrument Redis Client: %w", err)
+	}
+	log.Infof("Setup telemtry for Redis")
 
 	return NewRedis(redisClient), nil
 }
