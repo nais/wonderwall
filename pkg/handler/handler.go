@@ -211,14 +211,6 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	// TODO - remove when legacy services are sunset and shut down
 	if s.Config.SSO.IsServer() && s.Config.OpenID.Provider == config.ProviderIDPorten {
 		cookie.SetLegacyCookie(w, tokens.AccessToken, opts)
-
-		if amr == "MinID Passport" {
-			redirect = "https://nav.no/minid-passport"
-			if locale == "en" {
-				redirect = "https://nav.no/minid-passport/en"
-			}
-			log.WithField("redirect_to", redirect).Infof("callback: overriding redirect for MinID Passport user")
-		}
 	}
 
 	fields := log.Fields{
