@@ -56,7 +56,7 @@ func run() error {
 
 	otelServiceName := envOrDefault("OTEL_SERVICE_NAME", "wonderwall") + "-" +
 		envOrDefault("CLUSTERNAME", "unknown-cluster")
-	otelShutdown, err := otel.SetupOTelSDK(ctx, otelServiceName, "")
+	otelShutdown, err := otel.Setup(ctx, otelServiceName, "")
 	if err != nil {
 		return err
 	}
