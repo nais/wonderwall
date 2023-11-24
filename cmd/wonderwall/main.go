@@ -2,10 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"os"
-
 	"github.com/nais/wonderwall/pkg/otel"
 
 	log "github.com/sirupsen/logrus"
@@ -54,15 +51,15 @@ func run() error {
 		cookie.Session = cfg.SSO.SessionCookieName
 	}
 
-	otelServiceName := envOrDefault("OTEL_SERVICE_NAME", "wonderwall") + "-" +
-		envOrDefault("CLUSTERNAME", "unknown-cluster")
-	otelShutdown, err := otel.Setup(ctx, otelServiceName, "")
-	if err != nil {
-		return err
+	if cfg.OpenTelemetry.Enabled {
+		otelShutdown, err := otel.Setup(ctx, cfg)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			log.Fatalf("fatal: otel shutdown error: %+v", otelShutdown(context.Background()))
+		}()
 	}
-	defer func() {
-		err = errors.Join(err, otelShutdown(context.Background()))
-	}()
 
 	var src router.Source
 
@@ -119,12 +116,4 @@ func ssoServer(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*
 
 func ssoProxy(cfg *config.Config, crypt crypto.Crypter) (*handler.SSOProxy, error) {
 	return handler.NewSSOProxy(cfg, crypt)
-}
-
-func envOrDefault(name string, defaultValue string) string {
-	realValue := os.Getenv(name)
-	if realValue != "" {
-		return realValue
-	}
-	return defaultValue
 }

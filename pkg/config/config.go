@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/url"
+	"runtime/debug"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -24,6 +25,7 @@ type Config struct {
 	MetricsBindAddress       string        `json:"metrics-bind-address"`
 	ShutdownGracefulPeriod   time.Duration `json:"shutdown-graceful-period"`
 	ShutdownWaitBeforePeriod time.Duration `json:"shutdown-wait-before-period"`
+	Version                  string        `json:"version"`
 
 	AutoLogin            bool     `json:"auto-login"`
 	AutoLoginIgnorePaths []string `json:"auto-login-ignore-paths"`
@@ -34,10 +36,11 @@ type Config struct {
 	UpstreamIP           string   `json:"upstream-ip"`
 	UpstreamPort         int      `json:"upstream-port"`
 
-	OpenID  OpenID  `json:"openid"`
-	Redis   Redis   `json:"redis"`
-	Session Session `json:"session"`
-	SSO     SSO     `json:"sso"`
+	OpenTelemetry OpenTelemetry `json:"otel"`
+	OpenID        OpenID        `json:"openid"`
+	Redis         Redis         `json:"redis"`
+	Session       Session       `json:"session"`
+	SSO           SSO           `json:"sso"`
 }
 
 type OpenID struct {
@@ -61,6 +64,11 @@ func (in OpenID) TrustedAudiences() map[string]bool {
 	}
 
 	return m
+}
+
+type OpenTelemetry struct {
+	Enabled     bool   `json:"enabled"`
+	ServiceName string `json:"service-name"`
 }
 
 type Redis struct {
@@ -175,6 +183,9 @@ const (
 	OpenIDUILocales             = "openid.ui-locales"
 	OpenIDWellKnownURL          = "openid.well-known-url"
 
+	OpenTelemetryEnabled     = "otel.enabled"
+	OpenTelemetryServiceName = "otel.service-name"
+
 	RedisAddress               = "redis.address"
 	RedisPassword              = "redis.password"
 	RedisTLS                   = "redis.tls"
@@ -226,6 +237,9 @@ func Initialize() (*Config, error) {
 	flag.String(OpenIDUILocales, "", "Space-separated string that configures the default UI locale (ui_locales) parameter for OAuth2 consent screen.")
 	flag.String(OpenIDWellKnownURL, "", "URI to the well-known OpenID Configuration metadata document.")
 
+	flag.Bool(OpenTelemetryEnabled, false, "Enable OpenTelemetry tracing.")
+	flag.String(OpenTelemetryServiceName, "wonderwall", "Service name to use for OpenTelemetry.")
+
 	flag.String(RedisURI, "", "Redis URI string. Prefer using this. An empty value will fall back to 'redis-address'.")
 	flag.String(RedisAddress, "", "Address of the Redis instance (host:port). An empty value will use in-memory session storage. Does not override address set by 'redis.uri'.")
 	flag.String(RedisPassword, "", "Password for Redis. Overrides password set by 'redis.uri'.")
@@ -272,6 +286,8 @@ func Initialize() (*Config, error) {
 	default:
 		viper.Set(OpenIDProvider, ProviderOpenID)
 	}
+
+	viper.Set("version", version())
 
 	cfg := new(Config)
 	err := viper.UnmarshalExact(cfg, func(dc *mapstructure.DecoderConfig) {
@@ -390,4 +406,37 @@ func (c *Config) upstreamHostOverride() {
 
 		c.UpstreamHost = override
 	}
+}
+
+func version() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+
+	var rev string
+	var last time.Time
+	var dirty bool
+
+	for _, kv := range info.Settings {
+		switch kv.Key {
+		case "vcs.revision":
+			rev = kv.Value
+		case "vcs.time":
+			last, _ = time.Parse(time.RFC3339, kv.Value)
+		case "vcs.modified":
+			dirty = kv.Value == "true"
+		}
+	}
+
+	if len(rev) > 7 {
+		rev = rev[:7]
+	}
+
+	v := fmt.Sprintf("%s-%s", last.Format("2006-01-02-150405"), rev)
+	if dirty {
+		v += " (dirty)"
+	}
+
+	return v
 }

@@ -3,6 +3,7 @@ package otel
 import (
 	"context"
 	"errors"
+	"github.com/nais/wonderwall/pkg/config"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -13,7 +14,7 @@ import (
 	"go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
-func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown func(context.Context) error, err error) {
+func Setup(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
 	var shutdownFuncs []func(context.Context) error
 
 	shutdown = func(ctx context.Context) error {
@@ -29,7 +30,7 @@ func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown fu
 		err = errors.Join(inErr, shutdown(ctx))
 	}
 
-	res, err := newResource(serviceName, serviceVersion)
+	res, err := newResource(cfg.OpenTelemetry.ServiceName, cfg.Version)
 	if err != nil {
 		handleErr(err)
 		return
