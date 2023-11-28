@@ -42,10 +42,12 @@ func NewStore(cfg *config.Config) (Store, error) {
 		log.Infof("Using Redis as session backing store")
 	}
 
-	if err := redisotel.InstrumentTracing(redisClient); err != nil {
-		return nil, fmt.Errorf("failed to instrument Redis Client: %w", err)
+	if cfg.OpenTelemetry.Enabled {
+		if err := redisotel.InstrumentTracing(redisClient); err != nil {
+			return nil, fmt.Errorf("failed to instrument Redis Client: %w", err)
+		}
+		log.Infof("Setup telemtry for Redis")
 	}
-	log.Infof("Setup telemtry for Redis")
 
 	return NewRedis(redisClient), nil
 }
