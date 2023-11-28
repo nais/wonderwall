@@ -1,5 +1,5 @@
 wonderwall:
-	go build -trimpath -ldflags "-s -w" -a -o bin/wonderwall cmd/wonderwall/main.go
+	go build -trimpath -ldflags "-s -w" -a -o bin/wonderwall ./cmd/wonderwall
 
 run: fmt
 	go run cmd/wonderwall/main.go
