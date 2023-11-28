@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/nais/wonderwall/pkg/otel"
 
 	log "github.com/sirupsen/logrus"
 	_ "go.uber.org/automaxprocs"
@@ -15,6 +14,7 @@ import (
 	"github.com/nais/wonderwall/pkg/metrics"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/openid/provider"
+	"github.com/nais/wonderwall/pkg/otel"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/server"
 )

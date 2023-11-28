@@ -3,8 +3,9 @@ package otel
 import (
 	"context"
 	"errors"
-	"github.com/nais/wonderwall/pkg/config"
 	"time"
+
+	"github.com/nais/wonderwall/pkg/config"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
