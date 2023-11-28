@@ -56,9 +56,12 @@ func New(src Source, cfg *config.Config) chi.Router {
 	r.Use(middleware.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)
 	r.Use(ingressMw.Handler)
-	r.Use(otelchi.Middleware("wonderwall",
-		otelchi.WithChiRoutes(r),
-		otelchi.WithRequestMethodInSpanName(true)))
+
+	if cfg.OpenTelemetry.Enabled {
+		r.Use(otelchi.Middleware(cfg.OpenTelemetry.ServiceName,
+			otelchi.WithChiRoutes(r),
+			otelchi.WithRequestMethodInSpanName(true)))
+	}
 
 	prefixes := src.GetIngresses().Paths()
 
