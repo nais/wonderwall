@@ -50,24 +50,37 @@ jobs:
         name: 'Setup Helm'
         with:
           version: '3.13.2'
-      - name: Set versions
-        run: |-
-          for chart in charts/*; do
-            yq e '.version = "${{ needs.build_push_sign.outputs.version }}"' --inplace "${chart}/Chart.yaml"
-            yq e '.image.tag = "${{ needs.build_push_sign.outputs.version }}"' --inplace "${chart}/values.yaml"
-          done
-      - name: Build Chart
-        run: |-
-          for chart in charts/*; do
-            helm package "$chart"
-          done
+      - name: Package chart
+        id: package_chart
+        env:
+          CHART_PATH: ./charts/wonderwall
+        run: |
+          base_version="$(yq '.version' < "${{ env.CHART_PATH }}/Chart.yaml")"
+          chart_version="${base_version}-${{ steps.build_push_sign.outputs.version }}"
+          
+          yq eval \
+            '.version="'"$chart_version"'"' \
+            "${{ env.CHART_PATH }}/Chart.yaml" --inplace
+          yq eval \
+            '.image.tag="${{ steps.build_push_sign.outputs.version }}"' \
+            "${{ env.CHART_PATH }}/values.yaml" --inplace
+          
+          # helm dependency update "${{ env.CHART_PATH }}"
+          helm package "${{ env.CHART_PATH }}" --destination .
+          
+          name=$(yq '.name' < "${{ env.CHART_PATH }}/Chart.yaml")
+          echo "name=$name" >> $GITHUB_OUTPUT
+          echo "version=$chart_version" >> $GITHUB_OUTPUT
+          echo "archive=$name-$chart_version.tgz" >> $GITHUB_OUTPUT
       - name: Push Chart
         run: |-
-          for chart in *.tgz; do
-            helm push "$chart" oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature
-          done
+          chart="${{ steps.package_chart.outputs.archive }}"
+          echo "Pushing: $chart"
+          helm push "$chart" oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature
     outputs:
-      version: ${{ steps.build_push_sign.outputs.version }}
+      chart_name: ${{ steps.package_chart.outputs.name }}
+      chart_version: ${{ steps.package_chart.outputs.version }}
+      chart_archive: ${{ steps.package_chart.outputs.archive }}
   rollout:
     name: Rollout
     if: github.actor != 'dependabot[bot]' && github.ref == 'refs/heads/master'
@@ -78,5 +91,5 @@ jobs:
     steps:
       - uses: nais/fasit-deploy@v2 # ratchet:exclude
         with:
-          chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/wonderwall
-          version: ${{ needs.build.outputs.version }}
+          chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/${{ needs.build_and_push.outputs.chart_name }}
+          version: ${{ needs.build_and_push.outputs.chart_version }}
