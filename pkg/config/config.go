@@ -416,7 +416,6 @@ func version() string {
 
 	var rev string
 	var last time.Time
-	var dirty bool
 
 	for _, kv := range info.Settings {
 		switch kv.Key {
@@ -424,8 +423,6 @@ func version() string {
 			rev = kv.Value
 		case "vcs.time":
 			last, _ = time.Parse(time.RFC3339, kv.Value)
-		case "vcs.modified":
-			dirty = kv.Value == "true"
 		}
 	}
 
@@ -433,10 +430,5 @@ func version() string {
 		rev = rev[:7]
 	}
 
-	v := fmt.Sprintf("%s-%s", last.Format("2006-01-02-150405"), rev)
-	if dirty {
-		v += " (dirty)"
-	}
-
-	return v
+	return fmt.Sprintf("%s-%s", last.Format("2006-01-02-150405"), rev)
 }
