@@ -33,7 +33,7 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@1fc5bd396d372bee37d608f955b336615edf79c8 # ratchet:sigstore/cosign-installer@main
         with:
-          cosign-release: 'v2.0.0'
+          cosign-release: 'v2.2.1'
       - name: Verify runner image
         run: cosign verify --certificate-oidc-issuer https://accounts.google.com  --certificate-identity keyless@distroless.iam.gserviceaccount.com gcr.io/distroless/static-debian11:nonroot
       - uses: nais/platform-build-push-sign@fb7da39ee56c8904ed15c02705a1780cb278a65b # ratchet:nais/platform-build-push-sign@main
