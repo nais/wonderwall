@@ -73,6 +73,5 @@ values:
     config:
       type: string
   image.tag:
-    required: true
     config:
       type: string
