@@ -1,0 +1,51 @@
+{{ if .Values.idporten.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    {{- include "wonderwall.labelsIdporten" . | nindent 4 }}
+  name: {{ include "wonderwall.fullname" . }}-idporten
+spec:
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              linkerd.io/is-control-plane: "true"
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nais-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tempo
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nais-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nais-system
+          podSelector:
+            matchLabels:
+              nais.io/ingressClass: {{ .Values.idporten.ingressClassName }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              linkerd.io/is-control-plane: "true"
+  podSelector:
+    matchLabels:
+      {{- include "wonderwall.selectorLabelsIdporten" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+{{ end }}

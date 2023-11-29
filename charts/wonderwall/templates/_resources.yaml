@@ -1,0 +1,83 @@
+{{/*
+Redis resource template.
+Expects a dict as input with the following keys:
+- root: The root values, e.g "."
+- provider: The identity provider, e.g. "azure" or "idporten"
+*/}}
+{{- define "common.redis.tpl" -}}
+{{- $root := .root }}
+{{- $provider := .provider }}
+{{- $name := include "aiven.redisName" (dict "root" $root "provider" $provider) }}
+---
+apiVersion: aiven.io/v1alpha1
+kind: Redis
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "wonderwall.labels" $root | nindent 4 }}
+    wonderwall.nais.io/provider: {{ $provider }}
+spec:
+  project: {{ $root.Values.aiven.project | required ".Values.aiven.project is required." }}
+  plan: {{ $root.Values.aiven.redisPlan | required ".Values.aiven.redisPlan is required." }}
+  maintenanceWindowDow: "sunday"
+  maintenanceWindowTime: "02:00:00"
+  terminationProtection: true
+  userConfig:
+    redis_maxmemory_policy: "allkeys-lru"
+{{- end }}
+
+{{/*
+Prometheus ServiceIntegration resource template.
+Expects a dict as input with the following keys:
+- root: The root values, e.g "."
+- provider: The identity provider, e.g. "azure" or "idporten"
+*/}}
+{{- define "common.serviceintegration.tpl" -}}
+{{- $root := .root }}
+{{- $provider := .provider }}
+{{- $name := include "aiven.serviceintegrationName" (dict "root" $root "provider" $provider) }}
+{{- $redisName := include "aiven.redisName" (dict "root" $root "provider" $provider) }}
+---
+apiVersion: aiven.io/v1alpha1
+kind: ServiceIntegration
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "wonderwall.labels" $root | nindent 4 }}
+    wonderwall.nais.io/provider: {{ $provider }}
+spec:
+  sourceServiceName: {{ $redisName }}
+  project: {{ $root.Values.aiven.project }}
+  integrationType: prometheus
+  destinationEndpointId: {{ $root.Values.aiven.prometheusEndpointId | required ".Values.aiven.prometheusEndpointId is required." | splitList "/" | last }}
+{{- end }}
+
+{{/*
+AivenApplication resource template.
+Expects a dict as input with the following keys:
+- root: The root values, e.g "."
+- provider: The identity provider, e.g. "azure" or "idporten"
+- access: The access level for the Redis instance, e.g. "readwrite" or "read"
+- secretName: The name of the secret that should be generated
+*/}}
+{{- define "common.aivenapplication.tpl" -}}
+{{- $root := .root }}
+{{- $provider := .provider }}
+{{- $access := .access }}
+{{- $secretName := .secretName -}}
+{{- $instance := include "aiven.instanceName" $provider }}
+---
+apiVersion: aiven.nais.io/v1
+kind: AivenApplication
+metadata:
+  name: {{ $instance }}-{{ $access }}
+  labels:
+    {{- include "wonderwall.labels" $root | nindent 4 }}
+    wonderwall.nais.io/provider: {{ $provider }}
+spec:
+  redis:
+    - access: {{ $access }}
+      instance: {{ $instance }}
+  secretName: {{ $secretName }}
+  protected: true
+{{- end }}

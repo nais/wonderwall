@@ -1,0 +1,7 @@
+apiVersion: v2
+description: Reverse proxy with OIDC auth. Configuration for sidecar proxies and SSO server. Feature toggle in naiserator must be enabled for sidecars to be injected to Applications.
+name: wonderwall
+type: application
+version: 1.0.0
+sources:
+  - https://github.com/nais/wonderwall/tree/master/charts/wonderwall

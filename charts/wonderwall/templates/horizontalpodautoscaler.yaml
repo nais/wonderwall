@@ -1,0 +1,22 @@
+{{ if .Values.idporten.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  labels:
+    {{- include "wonderwall.labelsIdporten" . | nindent 4 }}
+  name: {{ include "wonderwall.fullname" . }}-idporten
+spec:
+  minReplicas: {{ .Values.idporten.replicasMin }}
+  maxReplicas: {{ .Values.idporten.replicasMax }}
+  metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 75
+          type: Utilization
+      type: Resource
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "wonderwall.fullname" . }}-idporten
+{{ end }}

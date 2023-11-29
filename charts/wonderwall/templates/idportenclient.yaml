@@ -1,0 +1,22 @@
+{{- if .Values.idporten.enabled }}
+---
+apiVersion: nais.io/v1
+kind: IDPortenClient
+metadata:
+  name: {{ include "wonderwall.fullname" . }}-idporten
+  labels:
+    {{- include "wonderwall.labelsIdporten" . | nindent 4 }}
+  annotations:
+    "digdir.nais.io/preserve": "true"
+    "helm.sh/resource-policy": "keep"
+spec:
+  clientURI: "{{ .Values.idporten.ssoDefaultRedirectURL }}"
+  redirectURIs:
+    - "{{- include "wonderwall.idporten.ssoServerURL" . }}/oauth2/callback"
+  secretName: "{{ .Values.idporten.clientSecretName }}"
+  frontchannelLogoutURI: "{{ include "wonderwall.idporten.ssoServerURL" . }}/oauth2/logout/frontchannel"
+  postLogoutRedirectURIs:
+    - "{{- include "wonderwall.idporten.ssoServerURL" . }}/oauth2/logout/callback"
+  accessTokenLifetime: {{ .Values.idporten.clientAccessTokenLifetime }}
+  sessionLifetime: {{ .Values.idporten.clientSessionLifetime }}
+{{- end }}

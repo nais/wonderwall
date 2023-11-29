@@ -1,0 +1,73 @@
+{{ if .Values.idporten.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "wonderwall.fullname" . }}-idporten-alerts
+  labels:
+    {{- include "wonderwall.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: "wonderwall-idporten"
+      rules:
+        - alert: Wonderwall sidecars for ID-porten reports a high amount of internal errors
+          expr: sum(increase(requests_total{job="nais-system/monitoring-wonderwall", code="500", provider="idporten"}[5m])) > 10
+          for: 5m
+          annotations:
+            summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
+            consequence: This probably means that end-users are having trouble with authentication.
+            action: |
+              * Check the logs for errors: <https://logs.adeo.no/app/discover#/view/e57e8c70-dd0e-11ed-8b42-0b0644af4500?_g=(filters%3A!()%2CrefreshInterval%3A(pause%3A!t%2Cvalue%3A60000)%2Ctime%3A(from%3Anow-12h%2Cto%3Anow))>
+              * Check DigDir status: <https://status.digdir.no> / <https://testmiljo.status.digdir.no/>
+              * Check Aiven Redis (session store) and verify Aiven network connectivity
+              * Check with DigDir in [#nav-digdir](https://nav-it.slack.com/archives/C013RTT99G9)
+
+              Instrumentation: <https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=idporten>
+          labels:
+            severity: critical
+            namespace: {{ .Release.Namespace }}
+        - alert: Wonderwall SSO server for ID-porten reports a high amount of internal errors
+          expr: sum(increase(requests_total{app="wonderwall-idporten", namespace="{{ .Release.Namespace }}", code="500"}[5m])) > 10
+          for: 5m
+          annotations:
+            summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
+            consequence: This probably means that end-users are having trouble with authentication.
+            action: |
+              * Check the logs for errors: <https://logs.adeo.no/app/discover#/view/34ab4180-dd0f-11ed-8b42-0b0644af4500?_g=(filters%3A!()%2CrefreshInterval%3A(pause%3A!t%2Cvalue%3A60000)%2Ctime%3A(from%3Anow-12h%2Cto%3Anow))>
+              * Check DigDir status: <https://status.digdir.no> / <https://testmiljo.status.digdir.no/>
+              * Check Aiven Redis (session store) and verify Aiven network connectivity
+              * Check with DigDir in [#nav-digdir](https://nav-it.slack.com/archives/C013RTT99G9)
+
+              Instrumentation: <https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=idporten&var-namespace=nais-system>
+          labels:
+            severity: critical
+            namespace: {{ .Release.Namespace }}
+{{ end }}
+{{ if .Values.azure.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "wonderwall.fullname" . }}-azure-alerts
+  labels:
+    {{- include "wonderwall.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: "wonderwall-azure"
+      rules:
+        - alert: Wonderwall for Azure AD reports a high amount of internal errors
+          expr: sum(increase(requests_total{job="nais-system/monitoring-wonderwall", code="500", provider="azure"}[5m])) > 30
+          for: 5m
+          annotations:
+            summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
+            consequence: This probably means that end-users are having trouble with authentication.
+            action: |
+              * Check the logs for errors: <https://logs.adeo.no/app/discover#/view/9b3473a0-dd0e-11ed-8b42-0b0644af4500?_g=(filters%3A!()%2CrefreshInterval%3A(pause%3A!t%2Cvalue%3A60000)%2Ctime%3A(from%3Anow-12h%2Cto%3Anow))>
+              * Check Azure status: https://status.azure.com/nb-no/status
+              * Check Aiven Redis (session store) and verify Aiven network connectivity
+
+              Instrumentation: <https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=azure>
+          labels:
+            severity: critical
+            namespace: {{ .Release.Namespace }}
+{{ end }}

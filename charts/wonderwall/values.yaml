@@ -1,0 +1,61 @@
+nameOverride: ""
+fullnameOverride: ""
+
+clusterName: "unknown-cluster"
+
+image:
+  repository: europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall
+  tag: latest
+imagePullSecrets: []
+
+aiven:
+  project:
+  prometheusEndpointId:
+  redisPlan:
+azure:
+  enabled: true
+  redisSecretName: wonderwall-azure-redis-rw
+  sessionRefresh: true
+  sessionMaxLifetime: 10h
+idporten:
+  enabled: true
+  clientAccessTokenLifetime: 3600
+  clientSessionLifetime: 21600
+  clientSecretName: idporten-sso-server
+  ingressClassName: nais-ingress-external
+  openidAcrValues: Level4
+  openidLocale: nb
+  openidPostLogoutRedirectURL:
+  openidResourceIndicator:
+  redisSecretNames:
+    read: wonderwall-idporten-redis-ro
+    readwrite: wonderwall-idporten-redis-rw
+  replicasMax: 2
+  replicasMin: 2
+  sessionCookieName:
+  # 256 bits key, in standard base64 encoding
+  sessionCookieEncryptionKey:
+  sessionInactivity: true
+  sessionInactivityTimeout: 1h
+  sessionRefresh: true
+  sessionMaxLifetime: 6h
+  ssoServerHost:
+  # secret for configuring Wonderwall server itself
+  ssoServerSecretName: wonderwall-idporten-sso-server
+  ssoDefaultRedirectURL:
+  ssoDomain:
+redis:
+  connectionIdleTimeout: 299
+resources:
+  limits:
+    cpu: "2"
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 64Mi
+podDisruptionBudget:
+  maxUnavailable: 1
+otel:
+  serviceName: wonderwall
+  endpoint: http://tempo-distributor.nais-system:4317
+  resourceAttributes: service.name=wonderwall

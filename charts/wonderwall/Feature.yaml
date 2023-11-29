@@ -1,0 +1,78 @@
+dependencies:
+  - allOf:
+      - aiven-operator
+      - aivenator
+      - replicator
+environmentKinds:
+  - tenant
+  - legacy
+values:
+  clusterName:
+    description: Which cluster am I running in?
+    computed:
+      template: '"{{ .Env.name }}"'
+  aiven.project:
+    description: Aiven project for Redis.
+    computed:
+      template: '"{{ .Env.aiven_project }}"'
+  aiven.redisPlan:
+    description: Aiven plan for Redis.
+    required: true
+    config:
+      type: string
+  aiven.prometheusEndpointId:
+    description: Aiven Prometheus integration endpoint ID.
+    computed:
+      template: '"{{ .Env.aiven_prometheus_endpoint_id }}"'
+  idporten.openidResourceIndicator:
+    description: Resource indicator for audience-restricted tokens.
+    required: true
+    config:
+      type: string
+  idporten.openidPostLogoutRedirectURL:
+    description: Where to redirect the user after global logout.
+    required: true
+    config:
+      type: string
+  idporten.replicasMax:
+    description: Maximum replicas for SSO server.
+    config:
+      type: int
+  idporten.replicasMin:
+    description: Minimum replicas for SSO server.
+    config:
+      type: int
+  idporten.sessionCookieEncryptionKey:
+    description: Cookie encryption key, 256 bits encoded with standard base64.
+    required: true
+    config:
+      type: string
+      secret: true
+  idporten.sessionCookieName:
+    description: Cookie name for SSO sessions.
+    required: true
+    config:
+      type: string
+  idporten.ssoDefaultRedirectURL:
+    description: Fallback URL for invalid SSO redirects.
+    required: true
+    config:
+      type: string
+  idporten.ssoDomain:
+    description: Allowed domain for SSO (for cookies, CORS and redirect URL validation).
+    required: true
+    config:
+      type: string
+  idporten.ssoServerHost:
+    description: Host for SSO server.
+    required: true
+    config:
+      type: string
+  idporten.ingressClassName:
+    description: Ingress class for SSO server.
+    config:
+      type: string
+  image.tag:
+    required: true
+    config:
+      type: string

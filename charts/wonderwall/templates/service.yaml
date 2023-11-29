@@ -1,0 +1,17 @@
+{{ if .Values.idporten.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "wonderwall.labelsIdporten" . | nindent 4 }}
+  name: {{ include "wonderwall.fullname" . }}-idporten
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    {{- include "wonderwall.selectorLabelsIdporten" . | nindent 4 }}
+{{ end }}

@@ -1,0 +1,119 @@
+{{- if .Values.azure.enabled }}
+---
+apiVersion: nais.io/v1
+kind: ReplicationConfig
+metadata:
+  name: {{ include "wonderwall.fullname" . }}-azure
+  labels:
+    {{- include "wonderwall.labels" . | nindent 4 }}
+    wonderwall.nais.io/provider: azure
+spec:
+  namespaceSelector:
+    matchExpressions:
+      - key: team
+        operator: Exists
+  templateValues:
+    secrets:
+      - name: "{{ .Values.azure.redisSecretName }}"
+        validate: false
+  resources:
+    # used by naiserator to inject wonderwall config into sidecar
+    - template: |
+        apiVersion: v1
+        kind: Secret
+        type: kubernetes.io/Opaque
+        metadata:
+          name: wonderwall-azure-config
+          annotations:
+            reloader.stakater.com/match: "true"
+        stringData:
+          WONDERWALL_REDIS_CONNECTION_IDLE_TIMEOUT: "{{ .Values.redis.connectionIdleTimeout }}"
+          WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_AZURE ]]"
+          WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_AZURE ]]"
+          WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_AZURE ]]"
+          WONDERWALL_SESSION_REFRESH: "{{ .Values.azure.sessionRefresh }}"
+          WONDERWALL_SESSION_REFRESH_AUTO: "{{ .Values.azure.sessionRefresh }}"
+          WONDERWALL_SESSION_MAX_LIFETIME: "{{ .Values.azure.sessionMaxLifetime }}"
+{{- end }}
+{{- if .Values.idporten.enabled }}
+---
+apiVersion: nais.io/v1
+kind: ReplicationConfig
+metadata:
+  name: {{ include "wonderwall.fullname" . }}-idporten
+  labels:
+    {{- include "wonderwall.labels" . | nindent 4 }}
+    wonderwall.nais.io/provider: idporten
+spec:
+  namespaceSelector:
+    matchExpressions:
+      - key: team
+        operator: Exists
+  templateValues:
+    secrets:
+      - name: "{{ .Values.idporten.clientSecretName }}"
+        validate: false
+      - name: "{{ .Values.idporten.redisSecretNames.read }}"
+        validate: false
+  resources:
+    # used by naiserator to inject wonderwall config into sidecar
+    - template: |
+        apiVersion: v1
+        kind: Secret
+        type: kubernetes.io/Opaque
+        metadata:
+          name: wonderwall-idporten-config
+          annotations:
+            reloader.stakater.com/match: "true"
+        stringData:
+          WONDERWALL_ENCRYPTION_KEY: "{{ .Values.idporten.sessionCookieEncryptionKey | required ".Values.idporten.sessionCookieEncryptionKey is required." }}"
+          WONDERWALL_REDIS_CONNECTION_IDLE_TIMEOUT: "{{ .Values.redis.connectionIdleTimeout }}"
+          WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_IDPORTEN ]]"
+          WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_IDPORTEN ]]"
+          WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_IDPORTEN ]]"
+          WONDERWALL_SESSION_REFRESH_AUTO: "false"
+          WONDERWALL_SSO_ENABLED: "true"
+          WONDERWALL_SSO_MODE: "proxy"
+          WONDERWALL_SSO_SESSION_COOKIE_NAME: "{{ .Values.idporten.sessionCookieName | required ".Values.idporten.sessionCookieName is required." }}"
+          WONDERWALL_SSO_SERVER_URL: "{{- include "wonderwall.idporten.ssoServerURL" . }}"
+    # used by naiserator to inject idp config into sidecar and application, primarily for token validation
+    - template: |
+        apiVersion: v1
+        kind: Secret
+        type: kubernetes.io/Opaque
+        metadata:
+          name: idporten-sso
+          annotations:
+            reloader.stakater.com/match: "true"
+        stringData:
+          IDPORTEN_CLIENT_ID: "[[ .Values.IDPORTEN_CLIENT_ID ]]"
+          IDPORTEN_ISSUER: "[[ .Values.IDPORTEN_ISSUER ]]"
+          IDPORTEN_JWKS_URI: "[[ .Values.IDPORTEN_JWKS_URI ]]"
+          IDPORTEN_TOKEN_ENDPOINT: "[[ .Values.IDPORTEN_TOKEN_ENDPOINT ]]"
+          IDPORTEN_WELL_KNOWN_URL: "[[ .Values.IDPORTEN_WELL_KNOWN_URL ]]"
+          IDPORTEN_AUDIENCE: "{{ .Values.idporten.openidResourceIndicator }}"
+          IDPORTEN_CLIENT_JWK: "dummy-value-do-not-use"
+  {{- if .Capabilities.APIVersions.Has "networking.gke.io/v1alpha3" }}
+    - template: |
+        apiVersion: networking.gke.io/v1alpha3
+        kind: FQDNNetworkPolicy
+        metadata:
+          name: {{ include "wonderwall.fullname" . }}-idporten-fqdn
+          annotations:
+            fqdnnetworkpolicies.networking.gke.io/aaaa-lookups: "skip"
+        spec:
+          egress:
+            - ports:
+                - port: 443
+                  protocol: TCP
+              to:
+                - fqdns:
+                  - {{ .Values.idporten.ssoServerHost }}
+          podSelector:
+            matchLabels:
+              idporten: enabled
+              wonderwall: enabled
+          policyTypes:
+            - Egress
+  {{- end }}
+{{- end }}

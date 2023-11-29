@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    {{- include "wonderwall.labels" . | nindent 4 }}
+  name: {{ include "wonderwall.fullname" . }}
+spec:
+  {{- toYaml .Values.podDisruptionBudget | nindent 2 }}
+  selector:
+    matchLabels:
+      {{- include "wonderwall.selectorLabels" . | nindent 6 }}

@@ -1,0 +1,14 @@
+{{- if .Values.azure.enabled }}
+{{ $provider := "azure" }}
+{{ include "common.redis.tpl" (dict "root" . "provider" $provider) }}
+{{ include "common.serviceintegration.tpl" (dict "root" . "provider" $provider) }}
+{{ include "common.aivenapplication.tpl" (dict "root" . "provider" $provider "access" "readwrite" "secretName" .Values.azure.redisSecretName) }}
+{{- end }}
+
+{{- if .Values.idporten.enabled }}
+{{ $provider := "idporten" }}
+{{ include "common.redis.tpl" (dict "root" . "provider" $provider) }}
+{{ include "common.serviceintegration.tpl" (dict "root" . "provider" $provider) }}
+{{ include "common.aivenapplication.tpl" (dict "root" . "provider" $provider "access" "readwrite" "secretName" .Values.idporten.redisSecretNames.readwrite) }}
+{{ include "common.aivenapplication.tpl" (dict "root" . "provider" $provider "access" "read" "secretName" .Values.idporten.redisSecretNames.read) }}
+{{- end }}
