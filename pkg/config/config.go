@@ -277,7 +277,7 @@ func Initialize() (*Config, error) {
 		viper.BindEnv(OpenIDClientJWK, "IDPORTEN_CLIENT_JWK")
 		viper.BindEnv(OpenIDWellKnownURL, "IDPORTEN_WELL_KNOWN_URL")
 
-		viper.SetDefault(OpenIDACRValues, acr.IDPortenLevel4) // TODO - change to new value after migration
+		viper.SetDefault(OpenIDACRValues, acr.IDPortenLevelHigh)
 		viper.SetDefault(OpenIDUILocales, "nb")
 	case ProviderAzure:
 		viper.BindEnv(OpenIDClientID, "AZURE_APP_CLIENT_ID")

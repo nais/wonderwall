@@ -23,7 +23,7 @@ idporten:
   clientSessionLifetime: 21600
   clientSecretName: idporten-sso-server
   ingressClassName: nais-ingress-external
-  openidAcrValues: Level4
+  openidAcrValues: idporten-loa-high
   openidLocale: nb
   openidPostLogoutRedirectURL:
   openidResourceIndicator:
