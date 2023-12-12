@@ -48,18 +48,25 @@ func (s *Standalone) Retry(r *http.Request, loginCookie *openid.LoginCookie) str
 	requestPath := r.URL.Path
 	ingressPath := s.GetPath(r)
 
-	for _, path := range []string{paths.Logout, paths.LogoutLocal, paths.LogoutFrontChannel} {
-		if strings.HasSuffix(requestPath, paths.OAuth2+path) {
-			return requestPath
+	// redirect failed logout callbacks to logout
+	if strings.HasSuffix(requestPath, paths.OAuth2+paths.LogoutCallback) {
+		return ingressPath + paths.OAuth2 + paths.Logout
+	}
+
+	// redirect failed login callbacks to login with original referer as the redirect_uri
+	if strings.HasSuffix(requestPath, paths.OAuth2+paths.LoginCallback) {
+		redirect := s.Redirect.Canonical(r)
+		if loginCookie != nil && len(loginCookie.Referer) > 0 {
+			redirect = s.Redirect.Clean(r, loginCookie.Referer)
 		}
+
+		return urlpkg.LoginRelative(ingressPath, redirect)
 	}
 
-	redirect := s.Redirect.Canonical(r)
-	if loginCookie != nil && len(loginCookie.Referer) > 0 {
-		redirect = s.Redirect.Clean(r, loginCookie.Referer)
-	}
-
-	return urlpkg.LoginRelative(ingressPath, redirect)
+	u := *r.URL
+	u.Host = ""
+	u.Scheme = ""
+	return u.String()
 }
 
 func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level log.Level) {
