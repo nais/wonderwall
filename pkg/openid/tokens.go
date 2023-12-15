@@ -54,8 +54,16 @@ func (in *IDToken) GetAmrClaim() string {
 	return s
 }
 
+func (in *IDToken) GetAuthTimeClaim() time.Time {
+	return in.GetTimeClaim(jwt.AuthTimeClaim)
+}
+
 func (in *IDToken) GetLocaleClaim() string {
 	return in.GetStringClaimOrEmpty(jwt.LocaleClaim)
+}
+
+func (in *IDToken) GetOidClaim() string {
+	return in.GetStringClaimOrEmpty(jwt.OidClaim)
 }
 
 func (in *IDToken) GetSidClaim() (string, error) {

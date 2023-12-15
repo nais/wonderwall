@@ -18,10 +18,10 @@ func decryptedEqual(t *testing.T, expected, actual *session.Data) {
 	assert.Equal(t, expected.AccessToken, actual.AccessToken)
 	assert.Equal(t, expected.RefreshToken, actual.RefreshToken)
 	assert.Equal(t, expected.IDToken, actual.IDToken)
-	assert.Equal(t, expected.IDTokenJwtID, actual.IDTokenJwtID)
 	assert.Equal(t, expected.ExternalSessionID, actual.ExternalSessionID)
 	assert.Equal(t, expected.Acr, actual.Acr)
-
+	assert.Equal(t, expected.Amr, actual.Amr)
+	assert.WithinDuration(t, expected.AuthTime, actual.AuthTime, 0)
 	assert.WithinDuration(t, expected.Metadata.Session.CreatedAt, actual.Metadata.Session.CreatedAt, 0)
 	assert.WithinDuration(t, expected.Metadata.Session.EndsAt, actual.Metadata.Session.EndsAt, 0)
 	assert.WithinDuration(t, expected.Metadata.Tokens.ExpireAt, actual.Metadata.Tokens.ExpireAt, 0)

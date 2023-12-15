@@ -133,7 +133,7 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 		return sess, nil
 	}
 
-	logger := mw.LogEntryFrom(r)
+	logger := mw.LogEntryFrom(r).WithField("sid", sess.ExternalSessionID())
 	logger.Debug("session: initiating refresh attempt...")
 
 	ctx := r.Context()

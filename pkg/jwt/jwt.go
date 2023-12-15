@@ -12,12 +12,12 @@ import (
 const (
 	AcceptableClockSkew = 5 * time.Second
 
-	AcrClaim    = "acr"
-	AmrClaim    = "amr"
-	JtiClaim    = "jti"
-	LocaleClaim = "locale"
-	SidClaim    = "sid"
-	UtiClaim    = "uti"
+	AcrClaim      = "acr"
+	AmrClaim      = "amr"
+	AuthTimeClaim = "auth_time"
+	LocaleClaim   = "locale"
+	SidClaim      = "sid"
+	OidClaim      = "oid"
 )
 
 type Token struct {
@@ -40,19 +40,6 @@ func (in *Token) GetClaim(claim string) (any, error) {
 
 func (in *Token) GetExpiration() time.Time {
 	return in.token.Expiration()
-}
-
-func (in *Token) GetJwtID() string {
-	jti := in.GetStringClaimOrEmpty(JtiClaim)
-	uti := in.GetStringClaimOrEmpty(UtiClaim)
-
-	// jti is the standard JWT ID claim
-	if len(jti) > 0 {
-		return jti
-	}
-
-	// else, try to return uti - which seems to be Azure AD's variant
-	return uti
 }
 
 func (in *Token) GetSerialized() string {
@@ -113,6 +100,22 @@ func (in *Token) GetStringSliceClaimOrEmpty(claim string) []string {
 	}
 
 	return s
+}
+
+func (in *Token) GetTimeClaim(claim string) time.Time {
+	gotClaim, err := in.GetClaim(claim)
+	if err != nil {
+		return time.Time{}
+	}
+
+	// jwx uses encoding/json for unmarshaling - JSON numbers are stored as float64
+	claimTime, ok := gotClaim.(float64)
+	if !ok {
+		return time.Time{}
+	}
+
+	// time claims are NumericDate, which is the number of seconds since Epoch.
+	return time.Unix(int64(claimTime), 0)
 }
 
 func (in *Token) GetToken() jwt.Token {

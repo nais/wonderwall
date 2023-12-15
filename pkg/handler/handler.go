@@ -174,6 +174,7 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 
 func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	opts := s.GetCookieOptions(r)
+	logger := mw.LogEntryFrom(r)
 
 	// unconditionally clear login cookies
 	cookie.Clear(w, cookie.Login, opts.WithSameSite(http.SameSiteNoneMode))
@@ -231,9 +232,6 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 
 	redirect := s.Redirect.Clean(r, loginCookie.Referer)
 
-	amr := tokens.IDToken.GetAmrClaim()
-	locale := tokens.IDToken.GetLocaleClaim()
-
 	// TODO - remove when legacy services are sunset and shut down
 	if s.Config.SSO.IsServer() && s.Config.OpenID.Provider == config.ProviderIDPorten {
 		cookie.SetLegacyCookie(w, tokens.AccessToken, opts)
@@ -241,16 +239,35 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 
 	fields := log.Fields{
 		"redirect_to": redirect,
-		"jti":         tokens.IDToken.GetJwtID(),
+		"sid":         sess.ExternalSessionID(),
 	}
+
+	if acr := tokens.IDToken.GetAcrClaim(); acr != "" {
+		fields["acr"] = acr
+	}
+
+	amr := tokens.IDToken.GetAmrClaim()
 	if amr != "" {
 		fields["amr"] = amr
 	}
-	if locale != "" {
+
+	if authTime := tokens.IDToken.GetAuthTimeClaim(); !authTime.IsZero() {
+		fields["auth_time"] = authTime.Format(time.RFC3339)
+	}
+
+	if locale := tokens.IDToken.GetLocaleClaim(); locale != "" {
 		fields["locale"] = locale
 	}
 
-	mw.LogEntryFrom(r).WithFields(fields).Info("callback: successful login")
+	if oid := tokens.IDToken.GetOidClaim(); oid != "" {
+		fields["oid"] = oid
+	}
+
+	if sub := tokens.IDToken.GetToken().Subject(); sub != "" {
+		fields["sub"] = sub
+	}
+
+	logger.WithFields(fields).Info("callback: successful login")
 	metrics.ObserveLogin(amr, redirect)
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	http.Redirect(w, r, redirect, http.StatusFound)
@@ -269,6 +286,7 @@ func (s *Standalone) Logout(w http.ResponseWriter, r *http.Request) {
 	sess, _ := s.SessionManager.Get(r)
 	if sess != nil {
 		idToken = sess.IDToken()
+		logger = logger.WithField("sid", sess.ExternalSessionID())
 
 		err := s.SessionManager.Delete(r.Context(), sess)
 		if err != nil && !errors.Is(err, session.ErrNotFound) {
@@ -305,6 +323,8 @@ func (s *Standalone) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 
 	sess, _ := s.SessionManager.Get(r)
 	if sess != nil {
+		logger = logger.WithField("sid", sess.ExternalSessionID())
+
 		err := s.SessionManager.Delete(r.Context(), sess)
 		if err != nil && !errors.Is(err, session.ErrNotFound) {
 			s.InternalError(w, r, fmt.Errorf("logout/local: destroying session: %w", err))
@@ -358,6 +378,7 @@ func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	logger.WithField("sid", id).Info("front-channel logout: session deleted")
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	metrics.ObserveLogout(metrics.LogoutOperationFrontChannel)
 	w.WriteHeader(http.StatusOK)
@@ -393,6 +414,8 @@ func (s *Standalone) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 		handleGetSessionError("session/refresh", w, r, err)
 		return
 	}
+
+	logger = logger.WithField("sid", sess.ExternalSessionID())
 
 	sess, err = s.SessionManager.Refresh(r, sess)
 	if err != nil {

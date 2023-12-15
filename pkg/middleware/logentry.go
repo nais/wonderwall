@@ -30,7 +30,7 @@ func (l *LogEntryMiddleware) Handler(next http.Handler) http.Handler {
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
 		if !strings.HasSuffix(r.URL.Path, paths.Ping) {
-			entry.Logger.Debugf("%s - %s", r.Method, r.URL.Path)
+			entry.Logger.Debugf("request start: %s - %s", r.Method, r.URL.Path)
 			t1 := time.Now()
 			defer func() {
 				entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(t1), nil)
@@ -92,7 +92,7 @@ type requestLoggerEntry struct {
 }
 
 func (l *requestLoggerEntry) Write(status, bytes int, _ http.Header, elapsed time.Duration, _ any) {
-	msg := fmt.Sprintf("response: HTTP %d (%s)", status, statusLabel(status))
+	msg := fmt.Sprintf("request end: HTTP %d (%s)", status, statusLabel(status))
 	fields := log.Fields{
 		"response_status":     status,
 		"response_bytes":      bytes,

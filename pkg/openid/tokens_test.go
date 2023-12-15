@@ -100,6 +100,36 @@ func TestIDToken_GetAmrClaim(t *testing.T) {
 	}
 }
 
+func TestIDToken_GetAuthTimeClaim(t *testing.T) {
+	idToken, err := makeIDToken(&claims{
+		set: map[string]any{
+			"auth_time": time.Now().Unix(),
+		},
+	})
+	require.NoError(t, err)
+	assert.NotZero(t, idToken.GetAuthTimeClaim())
+}
+
+func TestIDToken_GetLocaleClaim(t *testing.T) {
+	idToken, err := makeIDToken(&claims{
+		set: map[string]any{
+			"locale": "some-locale",
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "some-locale", idToken.GetLocaleClaim())
+}
+
+func TestIDToken_GetOidClaim(t *testing.T) {
+	idToken, err := makeIDToken(&claims{
+		set: map[string]any{
+			"oid": "some-oid",
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "some-oid", idToken.GetOidClaim())
+}
+
 func TestIDToken_GetSidClaim(t *testing.T) {
 	idToken, err := makeIDToken(&claims{
 		set: map[string]any{

@@ -49,13 +49,14 @@ func (in *EncryptedData) Decrypt(crypter crypto.Crypter) (*Data, error) {
 }
 
 type Data struct {
-	ExternalSessionID string   `json:"external_session_id"`
-	AccessToken       string   `json:"access_token"`
-	IDToken           string   `json:"id_token"`
-	RefreshToken      string   `json:"refresh_token"`
-	IDTokenJwtID      string   `json:"id_token_jwt_id"`
-	Acr               string   `json:"acr"`
-	Metadata          Metadata `json:"metadata"`
+	ExternalSessionID string    `json:"external_session_id"`
+	AccessToken       string    `json:"access_token"`
+	IDToken           string    `json:"id_token"`
+	RefreshToken      string    `json:"refresh_token"`
+	Acr               string    `json:"acr"`
+	Amr               string    `json:"amr"`
+	AuthTime          time.Time `json:"auth_time"`
+	Metadata          Metadata  `json:"metadata"`
 }
 
 func NewData(externalSessionID string, tokens *openid.Tokens, metadata *Metadata) *Data {
@@ -63,9 +64,10 @@ func NewData(externalSessionID string, tokens *openid.Tokens, metadata *Metadata
 		ExternalSessionID: externalSessionID,
 		AccessToken:       tokens.AccessToken,
 		IDToken:           tokens.IDToken.GetSerialized(),
-		IDTokenJwtID:      tokens.IDToken.GetJwtID(),
 		RefreshToken:      tokens.RefreshToken,
 		Acr:               tokens.IDToken.GetAcrClaim(),
+		Amr:               tokens.IDToken.GetAmrClaim(),
+		AuthTime:          tokens.IDToken.GetAuthTimeClaim(),
 	}
 
 	if metadata != nil {

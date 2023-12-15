@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/nais/wonderwall/pkg/cookie"
@@ -62,7 +63,24 @@ func (in *Session) AccessToken() (string, error) {
 }
 
 func (in *Session) Acr() string {
-	return in.data.Acr
+	if in.data != nil {
+		return in.data.Acr
+	}
+	return ""
+}
+
+func (in *Session) Amr() string {
+	if in.data != nil {
+		return in.data.Amr
+	}
+	return ""
+}
+
+func (in *Session) AuthTime() string {
+	if in.data != nil && !in.data.AuthTime.IsZero() {
+		return strconv.FormatInt(in.data.AuthTime.Unix(), 10)
+	}
+	return ""
 }
 
 func (in *Session) ExternalSessionID() string {

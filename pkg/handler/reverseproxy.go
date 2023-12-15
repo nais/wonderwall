@@ -60,6 +60,31 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 			if ok {
 				r.Out.Header.Set("authorization", "Bearer "+accessToken)
 			}
+
+			r.Out.Header.Del("X-Wonderwall-Acr")
+			r.Out.Header.Del("X-Wonderwall-Amr")
+			r.Out.Header.Del("X-Wonderwall-Auth-Time")
+			r.Out.Header.Del("X-Wonderwall-Sid")
+
+			sessAcr, ok := mw.AcrFrom(r.In.Context())
+			if ok && sessAcr != "" {
+				r.Out.Header.Set("X-Wonderwall-Acr", sessAcr)
+			}
+
+			amr, ok := mw.AmrFrom(r.In.Context())
+			if ok && amr != "" {
+				r.Out.Header.Set("X-Wonderwall-Amr", amr)
+			}
+
+			authTime, ok := mw.AuthTimeFrom(r.In.Context())
+			if ok && authTime != "" {
+				r.Out.Header.Set("X-Wonderwall-Auth-Time", authTime)
+			}
+
+			sid, ok := mw.SessionIDFrom(r.In.Context())
+			if ok && sid != "" {
+				r.Out.Header.Set("X-Wonderwall-Sid", sid)
+			}
 		},
 		Transport: server.DefaultTransport(),
 	}
@@ -87,6 +112,37 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		logger.Errorf("default: unauthenticated: unexpected error: %+v", err)
 	}
 
+	ctx := r.Context()
+	if sess != nil {
+		fields := logrus.Fields{}
+
+		sessAcr := sess.Acr()
+		if sessAcr != "" {
+			fields["acr"] = sessAcr
+			ctx = mw.WithAcr(ctx, sessAcr)
+		}
+
+		amr := sess.Amr()
+		if amr != "" {
+			fields["amr"] = amr
+			ctx = mw.WithAmr(ctx, amr)
+		}
+
+		authTime := sess.AuthTime()
+		if authTime != "" {
+			fields["auth_time"] = authTime
+			ctx = mw.WithAuthTime(ctx, authTime)
+		}
+
+		sid := sess.ExternalSessionID()
+		if sid != "" {
+			fields["sid"] = sid
+			ctx = mw.WithSessionID(ctx, sid)
+		}
+
+		logger = logger.WithFields(fields)
+	}
+
 	err = src.GetAcrHandler().Validate(sess)
 	if err != nil {
 		isAuthenticated = false
@@ -98,10 +154,9 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		return
 	}
 
-	ctx := r.Context()
-
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
+		logger.Info("reverseproxy: proxying authenticated request...")
 	}
 
 	rp.ServeHTTP(w, r.WithContext(ctx))
