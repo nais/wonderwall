@@ -120,6 +120,9 @@ func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 	if reqQuery.Has(openidclient.LocaleURLParameter) {
 		targetQuery.Set(openidclient.LocaleURLParameter, reqQuery.Get(openidclient.LocaleURLParameter))
 	}
+	if reqQuery.Has(openidclient.PromptURLParameter) {
+		targetQuery.Set(openidclient.PromptURLParameter, reqQuery.Get(openidclient.PromptURLParameter))
+	}
 
 	target.RawQuery = targetQuery.Encode()
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"golang.org/x/oauth2"
 
@@ -19,11 +20,14 @@ import (
 const (
 	LocaleURLParameter        = "locale"
 	SecurityLevelURLParameter = "level"
+	PromptURLParameter        = "prompt"
+	MaxAgeURLParameter        = "max_age"
 )
 
 var (
 	ErrInvalidSecurityLevel  = errors.New("InvalidSecurityLevel")
 	ErrInvalidLocale         = errors.New("InvalidLocale")
+	ErrInvalidPrompt         = errors.New("InvalidPrompt")
 	ErrInvalidLoginParameter = errors.New("InvalidLoginParameter")
 
 	// LoginParameterMapping maps incoming login parameters to OpenID Connect parameters
@@ -31,6 +35,8 @@ var (
 		LocaleURLParameter:        "ui_locales",
 		SecurityLevelURLParameter: "acr_values",
 	}
+
+	PromptAllowedValues = []string{"login", "select_account"}
 )
 
 func NewLogin(c *Client, r *http.Request) (*Login, error) {
@@ -47,6 +53,11 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 	locale, err := getLocaleParam(c, r)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidLocale, err)
+	}
+
+	prompt, err := getPromptParam(r)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidPrompt, err)
 	}
 
 	nonce, err := strings.GenerateBase64(32)
@@ -80,8 +91,16 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 		opts = append(opts, oauth2.SetAuthURLParam(LoginParameterMapping[LocaleURLParameter], locale))
 	}
 
+	if len(prompt) > 0 {
+		opts = append(opts, oauth2.SetAuthURLParam(PromptURLParameter, prompt))
+		opts = append(opts, oauth2.SetAuthURLParam(MaxAgeURLParameter, "0"))
+	}
+
 	return &Login{
 		AuthCodeURL: c.oauth2Config.AuthCodeURL(state, opts...),
+		Acr:         acr,
+		Locale:      locale,
+		Prompt:      prompt,
 		LoginCookie: &openid.LoginCookie{
 			Acr:          acr,
 			CodeVerifier: codeVerifier,
@@ -94,6 +113,9 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 
 type Login struct {
 	AuthCodeURL string
+	Acr         string
+	Locale      string
+	Prompt      string
 	*openid.LoginCookie
 }
 
@@ -162,4 +184,17 @@ func getLocaleParam(c *Client, r *http.Request) (string, error) {
 	}
 
 	return "", fmt.Errorf("%w: invalid value for %s=%s (must be one of '%s')", ErrInvalidLoginParameter, LocaleURLParameter, paramValue, supported)
+}
+
+func getPromptParam(r *http.Request) (string, error) {
+	paramValue := r.URL.Query().Get(PromptURLParameter)
+	if len(paramValue) == 0 {
+		return "", nil
+	}
+
+	if slices.Contains(PromptAllowedValues, paramValue) {
+		return paramValue, nil
+	}
+
+	return "", fmt.Errorf("%w: invalid value for %s=%s (must be one of '%s')", ErrInvalidLoginParameter, PromptURLParameter, paramValue, PromptAllowedValues)
 }

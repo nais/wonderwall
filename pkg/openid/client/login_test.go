@@ -17,11 +17,11 @@ import (
 
 func TestLogin_URL(t *testing.T) {
 	type loginURLTest struct {
-		name        string
-		url         string
-		extraParams map[string]string
-		metadata    *config.ProviderMetadata
-		error       error
+		name       string
+		url        string
+		wantParams map[string]string
+		metadata   *config.ProviderMetadata
+		error      error
 	}
 
 	tests := []loginURLTest{
@@ -33,7 +33,7 @@ func TestLogin_URL(t *testing.T) {
 		{
 			name: "happy path with level",
 			url:  mock.Ingress + "/oauth2/login?level=Level3",
-			extraParams: map[string]string{
+			wantParams: map[string]string{
 				"acr_values": "Level3",
 			},
 			error: nil,
@@ -41,15 +41,24 @@ func TestLogin_URL(t *testing.T) {
 		{
 			name: "happy path with locale",
 			url:  mock.Ingress + "/oauth2/login?locale=nb",
-			extraParams: map[string]string{
+			wantParams: map[string]string{
 				"ui_locales": "nb",
+			},
+			error: nil,
+		},
+		{
+			name: "happy path with prompt",
+			url:  mock.Ingress + "/oauth2/login?prompt=login",
+			wantParams: map[string]string{
+				"prompt":  "login",
+				"max_age": "0",
 			},
 			error: nil,
 		},
 		{
 			name: "happy path with both locale and level",
 			url:  mock.Ingress + "/oauth2/login?level=Level3&locale=nb",
-			extraParams: map[string]string{
+			wantParams: map[string]string{
 				"acr_values": "Level3",
 				"ui_locales": "nb",
 			},
@@ -66,9 +75,14 @@ func TestLogin_URL(t *testing.T) {
 			error: client.ErrInvalidLocale,
 		},
 		{
+			name:  "invalid prompt",
+			url:   mock.Ingress + "/oauth2/login?prompt=invalid",
+			error: client.ErrInvalidPrompt,
+		},
+		{
 			name: "level idporten-loa-substantial should translate to Level3 for old IDP",
 			url:  mock.Ingress + "/oauth2/login?level=idporten-loa-substantial",
-			extraParams: map[string]string{
+			wantParams: map[string]string{
 				"acr_values": "Level3",
 			},
 			error: nil,
@@ -76,7 +90,7 @@ func TestLogin_URL(t *testing.T) {
 		{
 			name: "level idporten-loa-high should translate to Level4 for old IDP",
 			url:  mock.Ingress + "/oauth2/login?level=idporten-loa-high",
-			extraParams: map[string]string{
+			wantParams: map[string]string{
 				"acr_values": "Level4",
 			},
 			error: nil,
@@ -84,7 +98,7 @@ func TestLogin_URL(t *testing.T) {
 		{
 			name: "level Level3 should translate to idporten-loa-substantial for new IDP",
 			url:  mock.Ingress + "/oauth2/login?level=Level3",
-			extraParams: map[string]string{
+			wantParams: map[string]string{
 				"acr_values": "idporten-loa-substantial",
 			},
 			metadata: &config.ProviderMetadata{
@@ -96,7 +110,7 @@ func TestLogin_URL(t *testing.T) {
 		{
 			name: "level Level4 should translate to idporten-loa-high for new IDP",
 			url:  mock.Ingress + "/oauth2/login?level=Level4",
-			extraParams: map[string]string{
+			wantParams: map[string]string{
 				"acr_values": "idporten-loa-high",
 			},
 			metadata: &config.ProviderMetadata{
@@ -155,8 +169,8 @@ func TestLogin_URL(t *testing.T) {
 				assert.ElementsMatch(t, query["code_challenge_method"], []string{"S256"})
 				assert.ElementsMatch(t, query["code_challenge"], []string{oauth2.S256ChallengeFromVerifier(result.CodeVerifier)})
 
-				if test.extraParams != nil {
-					for key, value := range test.extraParams {
+				if test.wantParams != nil {
+					for key, value := range test.wantParams {
 						assert.Contains(t, query, key)
 						assert.ElementsMatch(t, query[key], []string{value})
 					}

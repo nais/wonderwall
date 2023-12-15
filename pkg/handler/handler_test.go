@@ -56,6 +56,52 @@ func TestLogin(t *testing.T) {
 	assert.NotEmpty(t, callbackURL.Query().Get("code"))
 }
 
+func TestLoginPrompt(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+
+	// initial login and callback
+	initialSessionCookie := login(t, rpClient, idp)
+
+	// verify session created
+	sess := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, sess.StatusCode)
+
+	// trigger authorize with prompt=login
+	loginURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/login?prompt=login")
+	assert.NoError(t, err)
+	loginResp := get(t, rpClient, loginURL.String())
+	assert.Equal(t, http.StatusFound, loginResp.StatusCode)
+
+	cookies := rpClient.Jar.Cookies(loginURL)
+	sessionCookie := getCookieFromJar(cookie.Session, cookies)
+	loginCookie := getCookieFromJar(cookie.Login, cookies)
+	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
+
+	assert.Nil(t, sessionCookie)
+	assert.NotNil(t, loginCookie)
+	assert.NotNil(t, loginLegacyCookie)
+
+	// verify session deleted
+	sess = sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusUnauthorized, sess.StatusCode)
+
+	// follow redirect to idp
+	authorizeResp := get(t, rpClient, loginResp.Location.String())
+	assert.Equal(t, http.StatusFound, authorizeResp.StatusCode)
+
+	// follow callback back to rp
+	sessionCookie = callback(t, rpClient, authorizeResp)
+
+	// verify new session created
+	sess = sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, sess.StatusCode)
+	assert.NotEqual(t, initialSessionCookie.Value, sessionCookie.Value)
+}
+
 func TestCallback(t *testing.T) {
 	cfg := mock.Config()
 	idp := mock.NewIdentityProvider(cfg)

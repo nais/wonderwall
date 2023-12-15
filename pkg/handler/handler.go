@@ -139,10 +139,36 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger := mw.LogEntryFrom(r)
 	fields := log.Fields{
 		"redirect_after_login": canonicalRedirect,
 	}
-	mw.LogEntryFrom(r).WithFields(fields).Info("login: redirecting to identity provider")
+
+	if acr := login.Acr; acr != "" {
+		fields["acr"] = acr
+	}
+
+	if locale := login.Locale; locale != "" {
+		fields["locale"] = locale
+	}
+
+	if prompt := login.Prompt; prompt != "" {
+		fields["prompt"] = prompt
+		logger.Infof("login: prompt='%s'; clearing local session...", prompt)
+
+		sess, _ := s.SessionManager.Get(r)
+		if sess != nil {
+			err := s.SessionManager.Delete(r.Context(), sess)
+			if err != nil && !errors.Is(err, session.ErrNotFound) {
+				s.InternalError(w, r, fmt.Errorf("login: destroying session: %w", err))
+				return
+			}
+		}
+
+		cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
+	}
+
+	logger.WithFields(fields).Info("login: redirecting to identity provider")
 	http.Redirect(w, r, login.AuthCodeURL, http.StatusFound)
 }
 
