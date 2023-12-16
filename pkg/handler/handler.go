@@ -132,7 +132,7 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 
 	opts := s.GetCookieOptions(r).
 		WithExpiresIn(1 * time.Hour).
-		WithSameSite(http.SameSiteNoneMode)
+		WithSameSite(http.SameSiteLaxMode)
 	err = login.SetCookie(w, opts, s.Crypter, canonicalRedirect)
 	if err != nil {
 		s.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
@@ -177,7 +177,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r)
 
 	// unconditionally clear login cookies
-	cookie.Clear(w, cookie.Login, opts.WithSameSite(http.SameSiteNoneMode))
+	cookie.Clear(w, cookie.Login, opts.WithSameSite(http.SameSiteLaxMode))
 	cookie.Clear(w, cookie.LoginLegacy, opts.WithSameSite(http.SameSiteDefaultMode))
 
 	loginCookie, err := openid.GetLoginCookie(r, s.Crypter)
