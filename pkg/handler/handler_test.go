@@ -79,11 +79,9 @@ func TestLoginPrompt(t *testing.T) {
 	cookies := rpClient.Jar.Cookies(loginURL)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)
 	loginCookie := getCookieFromJar(cookie.Login, cookies)
-	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
 
 	assert.Nil(t, sessionCookie)
 	assert.NotNil(t, loginCookie)
-	assert.NotNil(t, loginLegacyCookie)
 
 	// verify session deleted
 	sess = sessionInfo(t, idp, rpClient)
@@ -539,11 +537,9 @@ func localLogin(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider)
 	cookies := rpClient.Jar.Cookies(loginURL)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)
 	loginCookie := getCookieFromJar(cookie.Login, cookies)
-	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
 
 	assert.Nil(t, sessionCookie)
 	assert.NotNil(t, loginCookie)
-	assert.NotNil(t, loginLegacyCookie)
 
 	return resp
 }
@@ -569,11 +565,9 @@ func callback(t *testing.T, rpClient *http.Client, authorizeResponse response) *
 	cookies := rpClient.Jar.Cookies(callbackURL)
 	sessionCookie := getCookieFromJar(cookie.Session, cookies)
 	loginCookie := getCookieFromJar(cookie.Login, cookies)
-	loginLegacyCookie := getCookieFromJar(cookie.LoginLegacy, cookies)
 
 	assert.NotNil(t, sessionCookie)
 	assert.Nil(t, loginCookie)
-	assert.Nil(t, loginLegacyCookie)
 
 	return sessionCookie
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
-	"github.com/nais/wonderwall/pkg/middleware"
 )
 
 type LoginCookie struct {
@@ -27,12 +26,7 @@ type LogoutCookie struct {
 func GetLoginCookie(r *http.Request, crypter crypto.Crypter) (*LoginCookie, error) {
 	loginCookieJson, err := cookie.GetDecrypted(r, cookie.Login, crypter)
 	if err != nil {
-		middleware.LogEntryFrom(r).Debugf("failed to fetch login cookie: %+v; falling back to legacy cookie", err)
-
-		loginCookieJson, err = cookie.GetDecrypted(r, cookie.LoginLegacy, crypter)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	var loginCookie LoginCookie

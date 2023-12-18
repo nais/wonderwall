@@ -17,7 +17,6 @@ const (
 
 var (
 	Login           = login(DefaultPrefix)
-	LoginLegacy     = loginLegacy(DefaultPrefix)
 	Logout          = logout(DefaultPrefix)
 	Session         = session(DefaultPrefix)
 	ErrInvalidValue = errors.New("invalid value")
@@ -163,7 +162,6 @@ func ClearLegacyCookies(w http.ResponseWriter, opts Options) {
 
 func ConfigureCookieNamesWithPrefix(prefix string) {
 	Login = login(prefix)
-	LoginLegacy = loginLegacy(prefix)
 	Logout = logout(prefix)
 	Session = session(prefix)
 }
@@ -174,10 +172,6 @@ func withPrefix(prefix, s string) string {
 
 func login(prefix string) string {
 	return withPrefix(prefix, "callback")
-}
-
-func loginLegacy(prefix string) string {
-	return withPrefix(prefix, "callback.legacy")
 }
 
 func logout(prefix string) string {

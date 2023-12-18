@@ -178,14 +178,10 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 
 	// unconditionally clear login cookies
 	cookie.Clear(w, cookie.Login, opts.WithSameSite(http.SameSiteLaxMode))
-	cookie.Clear(w, cookie.LoginLegacy, opts.WithSameSite(http.SameSiteDefaultMode))
 
 	loginCookie, err := openid.GetLoginCookie(r, s.Crypter)
 	if err != nil {
-		msg := "callback: fetching login cookie"
-		if errors.Is(err, http.ErrNoCookie) {
-			msg += ": fallback cookie not found (user might have blocked all cookies, or the callback route was accessed before the login route)"
-		}
+		msg := "callback: fetching login cookie (user might have blocked all cookies, or the callback route was accessed before the login route)"
 		s.Unauthorized(w, r, fmt.Errorf("%s: %w", msg, err))
 		return
 	}

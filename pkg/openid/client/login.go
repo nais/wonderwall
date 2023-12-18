@@ -129,18 +129,7 @@ func (l *Login) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter cr
 
 	value := string(loginCookieJson)
 
-	err = cookie.EncryptAndSet(w, cookie.Login, value, opts, crypter)
-	if err != nil {
-		return err
-	}
-
-	// set a duplicate cookie without the SameSite value set for user agents that do not properly handle SameSite
-	err = cookie.EncryptAndSet(w, cookie.LoginLegacy, value, opts.WithSameSite(http.SameSiteDefaultMode), crypter)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return cookie.EncryptAndSet(w, cookie.Login, value, opts, crypter)
 }
 
 func getAcrParam(c *Client, r *http.Request) (string, error) {
