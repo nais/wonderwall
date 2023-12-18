@@ -269,7 +269,6 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 
 	logger.WithFields(fields).Info("callback: successful login")
 	metrics.ObserveLogin(amr, redirect)
-	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	http.Redirect(w, r, redirect, http.StatusFound)
 }
 
@@ -352,7 +351,6 @@ func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 	logoutCallback := s.Client.LogoutCallback(r, logoutCookie, s.Redirect)
 	redirect := logoutCallback.PostLogoutRedirectURI()
 
-	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	logger.Infof("logout/callback: redirecting to %q", redirect)
 	http.Redirect(w, r, redirect, http.StatusFound)
 }
@@ -379,7 +377,6 @@ func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) 
 	}
 
 	logger.WithField("sid", id).Info("front-channel logout: session deleted")
-	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	metrics.ObserveLogout(metrics.LogoutOperationFrontChannel)
 	w.WriteHeader(http.StatusOK)
 }

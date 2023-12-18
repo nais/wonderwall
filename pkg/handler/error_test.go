@@ -8,8 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nais/wonderwall/pkg/cookie"
-	errorhandler "github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/ingress"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/mock"
@@ -46,23 +44,6 @@ func TestHandler_Error(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			r := idp.GetRequest(idp.RelyingPartyServer.URL)
-
-			// should be automatically redirected to the retry URI until maximum attempts are exhausted
-			for i := 0; i < errorhandler.MaxAutoRetryAttempts; i++ {
-				w := httptest.NewRecorder()
-
-				test.fn(w, r, fmt.Errorf("some error"))
-				assert.Equal(t, http.StatusTemporaryRedirect, w.Result().StatusCode)
-
-				// ensure cookie in request is set/updated
-				for _, c := range w.Result().Cookies() {
-					if c.Name == cookie.Retry {
-						r.Header.Set("Cookie", fmt.Sprintf("%s=%s", c.Name, c.Value))
-					}
-				}
-			}
-
-			// should return an error response when maximum attempts are exhausted
 			w := httptest.NewRecorder()
 			test.fn(w, r, fmt.Errorf("some error"))
 			assert.Equal(t, test.expectedStatusCode, w.Result().StatusCode)

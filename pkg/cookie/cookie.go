@@ -19,7 +19,6 @@ var (
 	Login           = login(DefaultPrefix)
 	LoginLegacy     = loginLegacy(DefaultPrefix)
 	Logout          = logout(DefaultPrefix)
-	Retry           = retry(DefaultPrefix)
 	Session         = session(DefaultPrefix)
 	ErrInvalidValue = errors.New("invalid value")
 	ErrDecrypt      = errors.New("unable to decrypt, key or scheme mismatch")
@@ -166,7 +165,6 @@ func ConfigureCookieNamesWithPrefix(prefix string) {
 	Login = login(prefix)
 	LoginLegacy = loginLegacy(prefix)
 	Logout = logout(prefix)
-	Retry = retry(prefix)
 	Session = session(prefix)
 }
 
@@ -184,10 +182,6 @@ func loginLegacy(prefix string) string {
 
 func logout(prefix string) string {
 	return withPrefix(prefix, "logout")
-}
-
-func retry(prefix string) string {
-	return withPrefix(prefix, "retry")
 }
 
 func session(prefix string) string {
