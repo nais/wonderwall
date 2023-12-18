@@ -3,7 +3,6 @@ package cookie_test
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -15,7 +14,6 @@ func TestDefaultOptions(t *testing.T) {
 
 	assert.Equal(t, http.SameSiteLaxMode, opts.SameSite)
 	assert.True(t, opts.Secure)
-	assert.Empty(t, opts.ExpiresIn)
 	assert.Empty(t, opts.Domain)
 	assert.Empty(t, opts.Path)
 }
@@ -33,21 +31,6 @@ func TestOptions_WithDomain(t *testing.T) {
 
 	assert.Equal(t, ".domain", opts.Domain, "original options should be unchanged")
 	assert.Equal(t, ".some.other.domain", newOpts.Domain, "copy of options should have new value")
-}
-
-func TestOptions_WithExpiresIn(t *testing.T) {
-	expiresIn := 1 * time.Minute
-	opts := cookie.Options{}.WithExpiresIn(expiresIn)
-
-	assert.Equal(t, 1*time.Minute, opts.ExpiresIn)
-
-	opts = cookie.Options{
-		ExpiresIn: 2 * time.Minute,
-	}
-	newOpts := opts.WithExpiresIn(expiresIn)
-
-	assert.Equal(t, 2*time.Minute, opts.ExpiresIn, "original options should be unchanged")
-	assert.Equal(t, 1*time.Minute, newOpts.ExpiresIn, "copy of options should have new value")
 }
 
 func TestOptions_WithPath(t *testing.T) {

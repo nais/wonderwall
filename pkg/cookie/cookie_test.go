@@ -15,17 +15,15 @@ import (
 var encryptionKey = `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq` // 256 bits key
 
 func TestMake(t *testing.T) {
-	expiresIn := 5 * time.Minute
-	opts := cookie.DefaultOptions().WithExpiresIn(expiresIn)
+	opts := cookie.DefaultOptions()
 
 	name := "some-cookie"
 	value := "some-value"
 
 	result := cookie.Make(name, value, opts)
 
-	shouldExpireBefore := time.Now().Add(expiresIn)
-	assert.True(t, result.Expires.Before(shouldExpireBefore))
-	assert.Equal(t, int(opts.ExpiresIn.Seconds()), result.MaxAge)
+	assert.True(t, result.Expires.IsZero())
+	assert.Equal(t, 0, result.MaxAge)
 	assert.True(t, result.HttpOnly)
 	assert.Equal(t, name, result.Name)
 	assert.Equal(t, value, result.Value)
@@ -166,7 +164,7 @@ func TestClearWithPath(t *testing.T) {
 func TestCookie_Encrypt(t *testing.T) {
 	crypter := crypto.NewCrypter([]byte(encryptionKey))
 
-	opts := cookie.DefaultOptions().WithExpiresIn(1 * time.Minute)
+	opts := cookie.DefaultOptions()
 	name := "some-name"
 	value := "some-value"
 
@@ -179,7 +177,7 @@ func TestCookie_Encrypt(t *testing.T) {
 func TestCookie_Decrypt(t *testing.T) {
 	crypter := crypto.NewCrypter([]byte(encryptionKey))
 
-	opts := cookie.DefaultOptions().WithExpiresIn(1 * time.Minute)
+	opts := cookie.DefaultOptions()
 	name := "some-name"
 	value := "some-value"
 

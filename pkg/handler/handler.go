@@ -130,9 +130,7 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	opts := s.GetCookieOptions(r).
-		WithExpiresIn(1 * time.Hour).
-		WithSameSite(http.SameSiteLaxMode)
+	opts := s.GetCookieOptions(r).WithSameSite(http.SameSiteLaxMode)
 	err = login.SetCookie(w, opts, s.Crypter, canonicalRedirect)
 	if err != nil {
 		s.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
@@ -220,7 +218,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = sess.SetCookie(w, opts.WithExpiresIn(sessionLifetime), s.Crypter)
+	err = sess.SetCookie(w, opts, s.Crypter)
 	if err != nil {
 		s.InternalError(w, r, fmt.Errorf("callback: setting session cookie: %w", err))
 		return
@@ -300,8 +298,7 @@ func (s *Standalone) Logout(w http.ResponseWriter, r *http.Request) {
 		canonicalRedirect = s.Redirect.Canonical(r)
 	}
 
-	opts := s.CookieOptions.WithExpiresIn(5 * time.Minute)
-	err = logout.SetCookie(w, opts, s.Crypter, canonicalRedirect)
+	err = logout.SetCookie(w, s.CookieOptions, s.Crypter, canonicalRedirect)
 	if err != nil {
 		s.InternalError(w, r, fmt.Errorf("logout: setting logout cookie: %w", err))
 		return

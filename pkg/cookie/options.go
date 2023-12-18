@@ -2,15 +2,13 @@ package cookie
 
 import (
 	"net/http"
-	"time"
 )
 
 type Options struct {
-	ExpiresIn time.Duration
-	Domain    string
-	Path      string
-	SameSite  http.SameSite
-	Secure    bool
+	Domain   string
+	Path     string
+	SameSite http.SameSite
+	Secure   bool
 }
 
 func DefaultOptions() Options {
@@ -22,11 +20,6 @@ func DefaultOptions() Options {
 
 func (o Options) WithDomain(domain string) Options {
 	o.Domain = domain
-	return o
-}
-
-func (o Options) WithExpiresIn(expiresIn time.Duration) Options {
-	o.ExpiresIn = expiresIn
 	return o
 }
 

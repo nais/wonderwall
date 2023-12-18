@@ -53,15 +53,6 @@ func (in *Cookie) Decrypt(crypter crypto.Crypter) (string, error) {
 	return string(plaintext), err
 }
 
-// UnsetExpiry sets the MaxAge and Expires fields to their 'nil' values to unset them. For most user agents, this means
-// that the cookie should expire at the 'end of a session', typically when the browser is closed.
-//
-// The cookie should still be explicitly cleared/expired whenever it is no longer needed.
-func (in *Cookie) UnsetExpiry() {
-	in.MaxAge = 0
-	in.Expires = time.Time{}
-}
-
 func Clear(w http.ResponseWriter, name string, opts Options) {
 	expires := time.Unix(0, 0)
 	maxAge := -1
@@ -106,13 +97,8 @@ func GetDecrypted(r *http.Request, key string, crypter crypto.Crypter) (string, 
 }
 
 func Make(name, value string, opts Options) *Cookie {
-	expires := time.Now().Add(opts.ExpiresIn)
-	maxAge := int(opts.ExpiresIn.Seconds())
-
 	cookie := &http.Cookie{
-		Expires:  expires,
 		HttpOnly: true,
-		MaxAge:   maxAge,
 		Name:     name,
 		Path:     "/",
 		SameSite: opts.SameSite,
@@ -149,7 +135,6 @@ func SetLegacyCookie(w http.ResponseWriter, value string, opts Options) {
 	c := Make(loginservice, value, opts.
 		WithSameSite(http.SameSiteLaxMode).
 		WithPath("/"))
-	c.UnsetExpiry()
 	Set(w, c)
 }
 
