@@ -257,10 +257,6 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		fields["oid"] = oid
 	}
 
-	if sub := tokens.IDToken.GetToken().Subject(); sub != "" {
-		fields["sub"] = sub
-	}
-
 	logger.WithFields(fields).Info("callback: successful login")
 	metrics.ObserveLogin(amr, redirect)
 	http.Redirect(w, r, redirect, http.StatusFound)
