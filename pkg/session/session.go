@@ -84,7 +84,11 @@ func (in *Session) AuthTime() string {
 }
 
 func (in *Session) ExternalSessionID() string {
-	return in.data.ExternalSessionID
+	if in.data != nil {
+		return in.data.ExternalSessionID
+	}
+
+	return ""
 }
 
 func (in *Session) IDToken() string {

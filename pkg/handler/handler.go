@@ -156,6 +156,10 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 
 		sess, _ := s.SessionManager.Get(r)
 		if sess != nil {
+			if sid := sess.ExternalSessionID(); sid != "" {
+				fields["sid"] = sid
+			}
+
 			err := s.SessionManager.Delete(r.Context(), sess)
 			if err != nil && !errors.Is(err, session.ErrNotFound) {
 				s.InternalError(w, r, fmt.Errorf("login: destroying session: %w", err))
