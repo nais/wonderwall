@@ -114,33 +114,22 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 
 	ctx := r.Context()
 	if sess != nil {
-		fields := logrus.Fields{}
-
-		sessAcr := sess.Acr()
-		if sessAcr != "" {
-			fields["acr"] = sessAcr
+		if sessAcr := sess.Acr(); sessAcr != "" {
 			ctx = mw.WithAcr(ctx, sessAcr)
 		}
 
-		amr := sess.Amr()
-		if amr != "" {
-			fields["amr"] = amr
+		if amr := sess.Amr(); amr != "" {
 			ctx = mw.WithAmr(ctx, amr)
 		}
 
-		authTime := sess.AuthTime()
-		if authTime != "" {
-			fields["auth_time"] = authTime
+		if authTime := sess.AuthTime(); authTime != "" {
 			ctx = mw.WithAuthTime(ctx, authTime)
 		}
 
-		sid := sess.ExternalSessionID()
-		if sid != "" {
-			fields["sid"] = sid
+		if sid := sess.ExternalSessionID(); sid != "" {
+			logger = logger.WithField("sid", sid)
 			ctx = mw.WithSessionID(ctx, sid)
 		}
-
-		logger = logger.WithFields(fields)
 	}
 
 	err = src.GetAcrHandler().Validate(sess)
@@ -156,7 +145,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
-		logger.Info("reverseproxy: proxying authenticated request...")
+		logger.Info("default: authenticated request")
 	}
 
 	rp.ServeHTTP(w, r.WithContext(ctx))
