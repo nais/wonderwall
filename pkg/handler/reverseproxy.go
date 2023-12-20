@@ -155,7 +155,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
 
-		if rp.EnableAccessLogs {
+		if rp.EnableAccessLogs && isRelevantAccessLog(r) {
 			logger.Info("default: authenticated request")
 		}
 	}
@@ -215,6 +215,16 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 	} else {
 		w.Write([]byte("unauthenticated, please log in"))
 	}
+}
+
+func isRelevantAccessLog(r *http.Request) bool {
+	if r.Method == http.MethodGet {
+		// only log GET requests that are navigation requests
+		return isNavigationRequest(r)
+	}
+
+	// all other methods are relevant
+	return true
 }
 
 func isNavigationRequest(r *http.Request) bool {
