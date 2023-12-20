@@ -84,7 +84,7 @@ func NewStandalone(
 		Ingresses:      ingresses,
 		Redirect:       url.NewStandaloneRedirect(),
 		SessionManager: sessionManager,
-		UpstreamProxy:  NewReverseProxy(upstream, true),
+		UpstreamProxy:  NewUpstreamProxy(upstream, cfg.UpstreamAccessLogs),
 	}, nil
 }
 

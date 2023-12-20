@@ -28,6 +28,13 @@ type ReverseProxySource interface {
 
 type ReverseProxy struct {
 	*httputil.ReverseProxy
+	EnableAccessLogs bool
+}
+
+func NewUpstreamProxy(upstream *urllib.URL, enableAccessLogs bool) *ReverseProxy {
+	rp := NewReverseProxy(upstream, true)
+	rp.EnableAccessLogs = enableAccessLogs
+	return rp
 }
 
 func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *ReverseProxy {
@@ -88,7 +95,9 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 		},
 		Transport: server.DefaultTransport(),
 	}
-	return &ReverseProxy{rp}
+	return &ReverseProxy{
+		ReverseProxy: rp,
+	}
 }
 
 func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r *http.Request) {
@@ -145,7 +154,10 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
-		logger.Info("default: authenticated request")
+
+		if rp.EnableAccessLogs {
+			logger.Info("default: authenticated request")
+		}
 	}
 
 	rp.ServeHTTP(w, r.WithContext(ctx))

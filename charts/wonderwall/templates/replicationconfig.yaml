@@ -76,6 +76,7 @@ spec:
           WONDERWALL_SSO_MODE: "proxy"
           WONDERWALL_SSO_SESSION_COOKIE_NAME: "{{ .Values.idporten.sessionCookieName | required ".Values.idporten.sessionCookieName is required." }}"
           WONDERWALL_SSO_SERVER_URL: "{{- include "wonderwall.idporten.ssoServerURL" . }}"
+          WONDERWALL_UPSTREAM_ACCESS_LOGS: "true"
     # used by naiserator to inject idp config into sidecar and application, primarily for token validation
     - template: |
         apiVersion: v1

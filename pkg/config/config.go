@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/url"
 	"runtime/debug"
@@ -32,6 +33,7 @@ type Config struct {
 	CookiePrefix         string   `json:"cookie-prefix"`
 	EncryptionKey        string   `json:"encryption-key"`
 	Ingresses            []string `json:"ingress"`
+	UpstreamAccessLogs   bool     `json:"upstream-access-logs"`
 	UpstreamHost         string   `json:"upstream-host"`
 	UpstreamIP           string   `json:"upstream-ip"`
 	UpstreamPort         int      `json:"upstream-port"`
@@ -168,6 +170,7 @@ const (
 	CookiePrefix         = "cookie-prefix"
 	EncryptionKey        = "encryption-key"
 	Ingress              = "ingress"
+	UpstreamAccessLogs   = "upstream-access-logs"
 	UpstreamHost         = "upstream-host"
 	UpstreamIP           = "upstream-ip"
 	UpstreamPort         = "upstream-port"
@@ -222,6 +225,7 @@ func Initialize() (*Config, error) {
 	flag.String(CookiePrefix, "io.nais.wonderwall", "Prefix for cookie names.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
+	flag.Bool(UpstreamAccessLogs, false, "Enable access logs for upstream requests.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 	flag.String(UpstreamIP, "", "IP of upstream host. Overrides 'upstream-host' if set.")
 	flag.Int(UpstreamPort, 0, "Port of upstream host. Overrides 'upstream-host' if set.")
@@ -263,7 +267,7 @@ func Initialize() (*Config, error) {
 	flag.Parse()
 
 	if err := viper.ReadInConfig(); err != nil {
-		if err.(viper.ConfigFileNotFoundError) != err {
+		if !errors.Is(err, err.(viper.ConfigFileNotFoundError)) {
 			return nil, err
 		}
 	}
