@@ -4,16 +4,23 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5/middleware"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/handler/templates"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/router/paths"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
+)
+
+const (
+	// MaxAutoRetryAttempts is the maximum number of times to automatically redirect the user to retry their original request.
+	MaxAutoRetryAttempts = 3
 )
 
 type Page struct {
@@ -66,12 +73,34 @@ func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, status
 	logger := mw.LogEntryFrom(r)
 	msg := "error in route: %+v"
 
+	incrementRetryAttempt(w, r, s.GetCookieOptions(r))
+
+	attempts, ok := getRetryAttempts(r)
+	if !ok || attempts < MaxAutoRetryAttempts {
+		loginCookie, err := openid.GetLoginCookie(r, s.Crypter)
+		if err != nil {
+			loginCookie = nil
+		}
+
+		retryUri := s.Retry(r, loginCookie)
+		logger.Infof(msg, cause)
+		logger.Infof("errorhandler: auto-retry (attempt %d/%d) redirecting to %q...", attempts+1, MaxAutoRetryAttempts, retryUri)
+		http.Redirect(w, r, retryUri, http.StatusTemporaryRedirect)
+
+		return
+	}
+
 	if level == log.WarnLevel || errors.Is(cause, context.Canceled) {
 		logger.Warnf(msg, cause)
 	} else {
 		logger.Errorf(msg, cause)
 	}
 
+	logger.Infof("errorhandler: maximum retry attempts exceeded; executing error template...")
+	s.defaultErrorResponse(w, r, statusCode)
+}
+
+func (s *Standalone) defaultErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int) {
 	w.WriteHeader(statusCode)
 
 	loginCookie, err := openid.GetLoginCookie(r, s.Crypter)
@@ -85,6 +114,32 @@ func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, status
 	}
 	err = templates.ErrorTemplate.Execute(w, errorPage)
 	if err != nil {
-		logger.Errorf("errorhandler: executing error template: %+v", err)
+		mw.LogEntryFrom(r).Errorf("errorhandler: executing error template: %+v", err)
 	}
+}
+
+func getRetryAttempts(r *http.Request) (int, bool) {
+	c, err := cookie.Get(r, cookie.Retry)
+	if err != nil {
+		return 0, false
+	}
+
+	val, err := strconv.Atoi(c.Value)
+	if err != nil {
+		return 0, false
+	}
+
+	return val, true
+}
+
+func incrementRetryAttempt(w http.ResponseWriter, r *http.Request, opts cookie.Options) {
+	val := 1
+
+	prev, ok := getRetryAttempts(r)
+	if ok {
+		val = prev + 1
+	}
+
+	c := cookie.Make(cookie.Retry, strconv.Itoa(val), opts)
+	cookie.Set(w, c)
 }
