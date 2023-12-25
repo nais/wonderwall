@@ -13,7 +13,7 @@ require (
 	github.com/nais/liberator v0.0.0-20231116080924-3cb206988740
 	github.com/prometheus/client_golang v1.17.0
 	github.com/redis/go-redis/extra/redisotel/v9 v9.0.5
-	github.com/redis/go-redis/v9 v9.3.0
+	github.com/redis/go-redis/v9 v9.3.1
 	github.com/riandyrn/otelchi v0.5.1
 	github.com/rs/cors v1.10.1
 	github.com/sethvargo/go-retry v0.2.4
