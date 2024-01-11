@@ -67,31 +67,6 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 			if ok {
 				r.Out.Header.Set("authorization", "Bearer "+accessToken)
 			}
-
-			r.Out.Header.Del("X-Wonderwall-Acr")
-			r.Out.Header.Del("X-Wonderwall-Amr")
-			r.Out.Header.Del("X-Wonderwall-Auth-Time")
-			r.Out.Header.Del("X-Wonderwall-Sid")
-
-			sessAcr, ok := mw.AcrFrom(r.In.Context())
-			if ok && sessAcr != "" {
-				r.Out.Header.Set("X-Wonderwall-Acr", sessAcr)
-			}
-
-			amr, ok := mw.AmrFrom(r.In.Context())
-			if ok && amr != "" {
-				r.Out.Header.Set("X-Wonderwall-Amr", amr)
-			}
-
-			authTime, ok := mw.AuthTimeFrom(r.In.Context())
-			if ok && authTime != "" {
-				r.Out.Header.Set("X-Wonderwall-Auth-Time", authTime)
-			}
-
-			sid, ok := mw.SessionIDFrom(r.In.Context())
-			if ok && sid != "" {
-				r.Out.Header.Set("X-Wonderwall-Sid", sid)
-			}
 		},
 		Transport: server.DefaultTransport(),
 	}
@@ -123,21 +98,8 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 
 	ctx := r.Context()
 	if sess != nil {
-		if sessAcr := sess.Acr(); sessAcr != "" {
-			ctx = mw.WithAcr(ctx, sessAcr)
-		}
-
-		if amr := sess.Amr(); amr != "" {
-			ctx = mw.WithAmr(ctx, amr)
-		}
-
-		if authTime := sess.AuthTime(); authTime != "" {
-			ctx = mw.WithAuthTime(ctx, authTime)
-		}
-
 		if sid := sess.ExternalSessionID(); sid != "" {
 			logger = logger.WithField("sid", sid)
-			ctx = mw.WithSessionID(ctx, sid)
 		}
 	}
 
