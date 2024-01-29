@@ -1,8 +1,6 @@
 nameOverride: ""
 fullnameOverride: ""
 
-clusterName: "unknown-cluster"
-
 image:
   repository: europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall
   tag: latest

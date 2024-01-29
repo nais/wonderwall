@@ -59,8 +59,6 @@ spec:
             value: {{ .Values.otel.endpoint }}
           - name: OTEL_RESOURCE_ATTRIBUTES
             value: {{ .Values.otel.resourceAttributes }}
-          - name: CLUSTERNAME
-            value: {{ .Values.clusterName }}
           - name: WONDERWALL_REDIS_USERNAME
             valueFrom:
               secretKeyRef:

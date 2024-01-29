@@ -7,10 +7,6 @@ environmentKinds:
   - tenant
   - legacy
 values:
-  clusterName:
-    description: Which cluster am I running in?
-    computed:
-      template: '"{{ .Env.name }}"'
   aiven.project:
     description: Aiven project for Redis.
     computed:
