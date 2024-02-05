@@ -6,6 +6,7 @@ dependencies:
 environmentKinds:
   - tenant
   - legacy
+timeout: "1800s"
 values:
   aiven.project:
     description: Aiven project for Redis.
