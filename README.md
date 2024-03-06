@@ -47,7 +47,7 @@ Detailed documentation can be found in the [documentation](docs) directory:
 
 ## Running Locally
 
-Requires Go 1.21
+Requires Go 1.22
 
 `make run`
 
