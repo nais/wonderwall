@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout latest code
-        uses: actions/checkout@cd7d8d697e10461458bc61a30d094dc601a8b017 # ratchet:actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # ratchet:actions/checkout@v4
       - name: Set up Go
         uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # ratchet:actions/setup-go@v5
         with:
@@ -32,9 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@cd7d8d697e10461458bc61a30d094dc601a8b017 # ratchet:actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # ratchet:actions/checkout@v4
       - name: Install cosign
-        uses: sigstore/cosign-installer@e1523de7571e31dbe865fd2e80c5c7c23ae71eb4 # ratchet:sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@162dfdf7b9ab8be88c95b4fc982792c4c273e27a # ratchet:sigstore/cosign-installer@main
         with:
           cosign-release: 'v2.2.1'
       - name: Verify runner image
@@ -49,7 +49,7 @@ jobs:
           push: true
           push_ghcr: true
           workload_identity_provider: ${{ secrets.NAIS_IO_WORKLOAD_IDENTITY_PROVIDER }}
-      - uses: azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # ratchet:azure/setup-helm@v3
+      - uses: azure/setup-helm@b7246b12e77f7134dc2d460a3d5bad15bbe29390 # ratchet:azure/setup-helm@v4
         name: 'Setup Helm'
         with:
           version: '3.13.2'
@@ -60,17 +60,17 @@ jobs:
         run: |
           base_version="$(yq '.version' < "${{ env.CHART_PATH }}/Chart.yaml")"
           chart_version="${base_version}-${{ steps.build_push_sign.outputs.version }}"
-          
+
           yq eval \
             '.version="'"$chart_version"'"' \
             "${{ env.CHART_PATH }}/Chart.yaml" --inplace
           yq eval \
             '.image.tag="${{ steps.build_push_sign.outputs.version }}"' \
             "${{ env.CHART_PATH }}/values.yaml" --inplace
-          
+
           # helm dependency update "${{ env.CHART_PATH }}"
           helm package "${{ env.CHART_PATH }}" --destination .
-          
+
           name=$(yq '.name' < "${{ env.CHART_PATH }}/Chart.yaml")
           echo "name=$name" >> $GITHUB_OUTPUT
           echo "version=$chart_version" >> $GITHUB_OUTPUT
