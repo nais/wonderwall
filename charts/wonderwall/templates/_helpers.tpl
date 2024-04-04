@@ -98,10 +98,10 @@ Create the name of the service account to use
 Azure SSO server URL.
 */}}
 {{- define "wonderwall.azure.ssoServerURL" -}}
-{{- if not .Values.azure.ssoServerHost }}
-{{- fail ".Values.azure.ssoServerHost is required." }}
+{{- if not .Values.azure.ssoDomain }}
+{{- fail ".Values.azure.ssoDomain is required." }}
 {{ else }}
-{{- printf "https://%s" .Values.azure.ssoServerHost }}
+{{- printf "https://%s" .Values.azure.ssoDomain }}
 {{- end }}
 {{- end }}
 
