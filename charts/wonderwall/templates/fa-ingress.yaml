@@ -4,6 +4,7 @@ kind: Ingress
 metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-buffer-size: 16k
+    nginx.ingress.kubernetes.io/enable-global-auth: "false"
     prometheus.io/path: /oauth2/ping
     prometheus.io/scrape: "true"
   labels:
