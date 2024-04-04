@@ -17,6 +17,8 @@ azure:
   redisSecretName: wonderwall-azure-redis-rw
   forwardAuth: false
   sessionCookieName: forwardauth
+  # 256 bits key, in standard base64 encoding
+  sessionCookieEncryptionKey:
   ssoDomain:
   ssoDefaultRedirectURL:
   sessionMaxLifetime: 10h
