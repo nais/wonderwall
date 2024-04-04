@@ -21,6 +21,10 @@ values:
     description: Aiven Prometheus integration endpoint ID.
     computed:
       template: '"{{ .Env.aiven_prometheus_endpoint_id }}"'
+  azure.enabled:
+    description: Enable Azure AD.
+    config:
+      type: bool
   azure.forwardAuth:
     description: Enables forward auth server
     config:
