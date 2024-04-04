@@ -24,7 +24,7 @@ values:
   azure.forwardAuth:
     description: Enables forward auth server
     config:
-      type: boolean
+      type: bool
   azure.ssoDomain:
     description: Cookie domain for forward auth
     config:
