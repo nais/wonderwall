@@ -1,0 +1,16 @@
+{{ if .Values.azure.forwardAuth }}
+---
+apiVersion: nais.io/v1
+kind: AzureAdApplication
+metadata:
+  name: {{ include "wonderwall.fullname" . }}-fa
+  labels:
+    {{- include "wonderwall.labelsForwardAuth" . | nindent 4 }}
+spec:
+  secretName: {{ .Values.azure.clientSecretName }}
+  allowAllUsers: true
+  logoutUrl: "{{ include "wonderwall.azure.ssoServerURL" . }}/oauth2/logout/frontchannel"
+  replyUrls:
+    - url: "{{- include "wonderwall.azure.ssoServerURL" . }}/oauth2/callback"
+  tenant: nav.no
+{{ end }}

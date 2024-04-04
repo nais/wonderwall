@@ -44,6 +44,14 @@ team: nais
 {{- end }}
 
 {{/*
+Common labels for forward auth
+*/}}
+{{- define "wonderwall.labelsForwardAuth" -}}
+{{ include "wonderwall.labels" . }}
+app: wonderwall-fa
+{{- end }}
+
+{{/*
 Common labels for ID-porten
 */}}
 {{- define "wonderwall.labelsIdporten" -}}
@@ -57,6 +65,14 @@ Selector labels
 {{- define "wonderwall.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "wonderwall.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Selector labels for forward auth
+*/}}
+{{- define "wonderwall.selectorLabelsForwardAuth" -}}
+{{ include "wonderwall.selectorLabels" . }}
+app: wonderwall-fa
 {{- end }}
 
 {{/*
@@ -75,6 +91,17 @@ Create the name of the service account to use
 {{- default (include "wonderwall.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
+{{- end }}
+{{- end }}
+
+{{/*
+Azure SSO server URL.
+*/}}
+{{- define "wonderwall.azure.ssoServerURL" -}}
+{{- if not .Values.azure.ssoServerHost }}
+{{- fail ".Values.azure.ssoServerHost is required." }}
+{{ else }}
+{{- printf "https://%s" .Values.azure.ssoServerHost }}
 {{- end }}
 {{- end }}
 

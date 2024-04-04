@@ -1,9 +1,8 @@
-{{ if .Values.idporten.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   labels:
-    {{- include "wonderwall.labelsIdporten" . | nindent 4 }}
+    {{- include "wonderwall.labels" . | nindent 4 }}
   name: {{ include "wonderwall.fullname" . }}-idporten
 spec:
   egress:
@@ -37,6 +36,13 @@ spec:
               kubernetes.io/metadata.name: nais-system
           podSelector:
             matchLabels:
+              nais.io/ingressClass: {{ .Values.azure.ingressClassName }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nais-system
+          podSelector:
+            matchLabels:
               nais.io/ingressClass: {{ .Values.idporten.ingressClassName }}
     - from:
         - namespaceSelector:
@@ -44,8 +50,7 @@ spec:
               linkerd.io/is-control-plane: "true"
   podSelector:
     matchLabels:
-      {{- include "wonderwall.selectorLabelsIdporten" . | nindent 6 }}
+      {{- include "wonderwall.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
     - Egress
-{{ end }}

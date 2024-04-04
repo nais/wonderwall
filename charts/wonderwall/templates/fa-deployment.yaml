@@ -1,0 +1,115 @@
+{{- if .Values.azure.forwardAuth -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    reloader.stakater.com/search: "true"
+  labels:
+    aiven: enabled
+    azure: enabled
+  name: {{ include "wonderwall.fullname" . }}-fa
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      {{- include "wonderwall.selectorLabelsForwardAuth" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: wonderwall-fa
+        prometheus.io/path: /
+        prometheus.io/port: "8081"
+        prometheus.io/scrape: "true"
+      labels:
+        aiven: enabled
+        azure: enabled
+        {{- include "wonderwall.labelsForwardAuth" . | nindent 8 }}
+      name: wonderwall-fa
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: "app.kubernetes.io/name"
+                      operator: In
+                      values:
+                        - "{{ include "wonderwall.name" . }}"
+                topologyKey: kubernetes.io/hostname
+              weight: 10
+      containers:
+        - env:
+          - name: WONDERWALL_REDIS_URI
+            valueFrom:
+              secretKeyRef:
+                key: REDIS_URI_WONDERWALL_AZURE
+                name: {{ .Values.azure.redisSecretName }}
+          - name: OTEL_SERVICE_NAME
+            value: {{ .Values.otel.serviceName }}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: {{ .Values.otel.endpoint }}
+          - name: OTEL_RESOURCE_ATTRIBUTES
+            value: {{ .Values.otel.resourceAttributes }}
+          - name: WONDERWALL_REDIS_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: REDIS_USERNAME_WONDERWALL_AZURE
+                name: {{ .Values.azure.redisSecretName }}
+          - name: WONDERWALL_REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: REDIS_PASSWORD_WONDERWALL_AZURE
+                name: {{ .Values.azure.redisSecretName }}
+          envFrom:
+            - secretRef:
+                name: "{{ .Values.azure.clientSecretName }}"
+            - secretRef:
+                name: "{{ .Values.azure.ssoServerSecretName }}"
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /oauth2/ping
+              port: http
+          name: wonderwall-fa
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /oauth2/ping
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1069
+            runAsNonRoot: true
+            runAsUser: 1069
+            seccompProfile:
+              type: RuntimeDefault
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /tmp
+              name: writable-tmp
+      dnsPolicy: ClusterFirst
+      imagePullSecrets: {{ toYaml .Values.imagePullSecrets }}
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: {{ include "wonderwall.fullname" . }}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - emptyDir: {}
+          name: writable-tmp
+{{- end }}

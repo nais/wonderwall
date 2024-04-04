@@ -21,6 +21,17 @@ values:
     description: Aiven Prometheus integration endpoint ID.
     computed:
       template: '"{{ .Env.aiven_prometheus_endpoint_id }}"'
+  azure.forwardAuth:
+    description: Enables forward auth server
+    config:
+      type: boolean
+  azure.ssoDomain:
+    description: Cookie domain for forward auth
+    config:
+      type: string
+  azure.ssoDefaultRedirectURL:
+    config:
+      type: string
   idporten.openidResourceIndicator:
     description: Resource indicator for audience-restricted tokens.
     required: true

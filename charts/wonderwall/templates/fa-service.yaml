@@ -1,0 +1,17 @@
+{{ if .Values.azure.forwardAuth }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "wonderwall.labelsForwardAuth" . | nindent 4 }}
+  name: {{ include "wonderwall.fullname" . }}-fa
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    {{- include "wonderwall.selectorLabelsForwardAuth" . | nindent 4 }}
+{{ end }}

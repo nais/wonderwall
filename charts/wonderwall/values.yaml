@@ -12,9 +12,16 @@ aiven:
   redisPlan:
 azure:
   enabled: true
+  clientSecretName: azure-sso-secret
+  ingressClassName: nais-ingress-fa
   redisSecretName: wonderwall-azure-redis-rw
-  sessionRefresh: true
+  forwardAuth: false
+  sessionCookieName: forwardauth
+  ssoDomain:
+  ssoDefaultRedirectURL:
   sessionMaxLifetime: 10h
+  sessionRefresh: true
+  ssoServerSecretName: wonderwall-azure-sso-server
 idporten:
   enabled: true
   clientAccessTokenLifetime: 3600
