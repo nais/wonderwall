@@ -37,14 +37,16 @@ values:
   azure.ssoDefaultRedirectURL:
     config:
       type: string
+  idporten.enabled:
+    description: Enable ID-porten.
+    config:
+      type: bool
   idporten.openidResourceIndicator:
     description: Resource indicator for audience-restricted tokens.
-    required: true
     config:
       type: string
   idporten.openidPostLogoutRedirectURL:
     description: Where to redirect the user after global logout.
-    required: true
     config:
       type: string
   idporten.replicasMax:
@@ -57,28 +59,23 @@ values:
       type: int
   idporten.sessionCookieEncryptionKey:
     description: Cookie encryption key, 256 bits encoded with standard base64.
-    required: true
     config:
       type: string
       secret: true
   idporten.sessionCookieName:
     description: Cookie name for SSO sessions.
-    required: true
     config:
       type: string
   idporten.ssoDefaultRedirectURL:
     description: Fallback URL for invalid SSO redirects.
-    required: true
     config:
       type: string
   idporten.ssoDomain:
     description: Allowed domain for SSO (for cookies, CORS and redirect URL validation).
-    required: true
     config:
       type: string
   idporten.ssoServerHost:
     description: Host for SSO server.
-    required: true
     config:
       type: string
   idporten.ingressClassName:
