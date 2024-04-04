@@ -25,6 +25,11 @@ values:
     description: Enables forward auth server
     config:
       type: bool
+  azure.sessionCookieEncryptionKey:
+    description: Cookie encryption key, 256 bits encoded with standard base64.
+    config:
+      type: string
+      secret: true
   azure.ssoDomain:
     description: Cookie domain for forward auth
     config:
