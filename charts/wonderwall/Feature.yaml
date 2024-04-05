@@ -36,7 +36,6 @@ values:
       secret: true
   azure.forwardAuth.ssoDomain:
     description: Cookie domain for forward auth
-    required: true
     config:
       type: string
   azure.forwardAuth.ssoDefaultRedirectURL:
@@ -78,7 +77,6 @@ values:
       type: string
   idporten.ssoDomain:
     description: Allowed domain for SSO (for cookies, CORS and redirect URL validation).
-    required: true
     config:
       type: string
   idporten.ssoServerHost:

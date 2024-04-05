@@ -1,4 +1,4 @@
-{{- if and .Values.azure.enabled .Values.azure.forwardAuth }}
+{{- if and .Values.azure.enabled .Values.azure.forwardAuth.enabled }}
 ---
 apiVersion: nais.io/v1
 kind: AzureAdApplication
