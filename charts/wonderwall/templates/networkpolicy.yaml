@@ -3,7 +3,7 @@ kind: NetworkPolicy
 metadata:
   labels:
     {{- include "wonderwall.labels" . | nindent 4 }}
-  name: {{ include "wonderwall.fullname" . }}-idporten
+  name: {{ include "wonderwall.fullname" . }}
 spec:
   egress:
     - to:
@@ -36,7 +36,7 @@ spec:
               kubernetes.io/metadata.name: nais-system
           podSelector:
             matchLabels:
-              nais.io/ingressClass: {{ .Values.azure.ingressClassName }}
+              nais.io/ingressClass: {{ .Values.azure.forwardAuth.ingressClassName }}
     - from:
         - namespaceSelector:
             matchLabels:

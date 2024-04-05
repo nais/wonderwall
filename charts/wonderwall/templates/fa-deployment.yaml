@@ -1,4 +1,4 @@
-{{- if .Values.azure.forwardAuth -}}
+{{- if and .Values.azure.enabled .Values.azure.forwardAuth }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -63,9 +63,9 @@ spec:
                 name: {{ .Values.azure.redisSecretName }}
           envFrom:
             - secretRef:
-                name: "{{ .Values.azure.clientSecretName }}"
+                name: "{{ .Values.azure.forwardAuth.clientSecretName }}"
             - secretRef:
-                name: "{{ .Values.azure.ssoServerSecretName }}"
+                name: "{{ .Values.azure.forwardAuth.ssoServerSecretName }}"
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           imagePullPolicy: IfNotPresent
           livenessProbe:

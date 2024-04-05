@@ -12,18 +12,21 @@ aiven:
   redisPlan:
 azure:
   enabled: true
-  clientSecretName: azure-sso-secret
-  ingressClassName: nais-ingress-fa
   redisSecretName: wonderwall-azure-redis-rw
-  forwardAuth: false
-  sessionCookieName: forwardauth
-  # 256 bits key, in standard base64 encoding
-  sessionCookieEncryptionKey:
-  ssoDomain:
-  ssoDefaultRedirectURL:
   sessionMaxLifetime: 10h
   sessionRefresh: true
-  ssoServerSecretName: wonderwall-azure-sso-server
+  forwardAuth:
+    enabled: false
+    replicasMin: 2
+    replicasMax: 4
+    clientSecretName: azure-sso-server
+    ingressClassName: nais-ingress-fa
+    # 256 bits key, in standard base64 encoding
+    sessionCookieEncryptionKey:
+    sessionCookieName: forwardauth
+    ssoDefaultRedirectURL:
+    ssoDomain:
+    ssoServerSecretName: wonderwall-azure-sso-server
 idporten:
   enabled: true
   clientAccessTokenLifetime: 3600
@@ -37,7 +40,7 @@ idporten:
   redisSecretNames:
     read: wonderwall-idporten-redis-ro
     readwrite: wonderwall-idporten-redis-rw
-  replicasMax: 2
+  replicasMax: 4
   replicasMin: 2
   sessionCookieName:
   # 256 bits key, in standard base64 encoding

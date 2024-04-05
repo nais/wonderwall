@@ -1,17 +1,13 @@
 {{- if and .Values.azure.enabled .Values.azure.forwardAuth }}
-apiVersion: v1
-kind: Service
+apiVersion: policy/v1
+kind: PodDisruptionBudget
 metadata:
   labels:
     {{- include "wonderwall.labelsForwardAuth" . | nindent 4 }}
   name: {{ include "wonderwall.fullname" . }}-fa
 spec:
-  type: ClusterIP
-  ports:
-    - name: http
-      port: 80
-      protocol: TCP
-      targetPort: http
+  {{- toYaml .Values.podDisruptionBudget | nindent 2 }}
   selector:
-    {{- include "wonderwall.selectorLabelsForwardAuth" . | nindent 4 }}
+    matchLabels:
+      {{- include "wonderwall.selectorLabelsForwardAuth" . | nindent 6 }}
 {{- end }}

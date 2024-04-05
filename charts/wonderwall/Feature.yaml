@@ -25,20 +25,21 @@ values:
     description: Enable Azure AD.
     config:
       type: bool
-  azure.forwardAuth:
+  azure.forwardAuth.enabled:
     description: Enables forward auth server
     config:
       type: bool
-  azure.sessionCookieEncryptionKey:
-    description: Cookie encryption key, 256 bits encoded with standard base64.
+  azure.forwardAuth.sessionCookieEncryptionKey:
+    description: Cookie encryption key, 256 bits (e.g. 32 ASCII characters) encoded with standard base64.
     config:
       type: string
       secret: true
-  azure.ssoDomain:
+  azure.forwardAuth.ssoDomain:
     description: Cookie domain for forward auth
     config:
       type: string
-  azure.ssoDefaultRedirectURL:
+  azure.forwardAuth.ssoDefaultRedirectURL:
+    description: Default redirect URL for forward auth
     config:
       type: string
   idporten.enabled:
@@ -62,7 +63,7 @@ values:
     config:
       type: int
   idporten.sessionCookieEncryptionKey:
-    description: Cookie encryption key, 256 bits encoded with standard base64.
+    description: Cookie encryption key, 256 bits (e.g. 32 ASCII characters) encoded with standard base64.
     config:
       type: string
       secret: true

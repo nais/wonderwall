@@ -95,13 +95,13 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Azure SSO server URL.
+Azure forward auth URL.
 */}}
-{{- define "wonderwall.azure.ssoServerURL" -}}
-{{- if not .Values.azure.ssoDomain }}
-{{- fail ".Values.azure.ssoDomain is required." }}
+{{- define "wonderwall.azure.forwardAuthURL" -}}
+{{- if not .Values.azure.forwardAuth.ssoDomain }}
+{{- fail ".Values.azure.forwardAuth.ssoDomain is required." }}
 {{ else }}
-{{- printf "https://%s" .Values.azure.ssoDomain }}
+{{- printf "https://%s" .Values.azure.forwardAuth.ssoDomain }}
 {{- end }}
 {{- end }}
 

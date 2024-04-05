@@ -1,0 +1,22 @@
+{{- if and .Values.azure.enabled .Values.azure.forwardAuth }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  labels:
+    {{- include "wonderwall.labelsForwardAuth" . | nindent 4 }}
+  name: {{ include "wonderwall.fullname" . }}-fa
+spec:
+  minReplicas: {{ .Values.azure.forwardAuth.replicasMin }}
+  maxReplicas: {{ .Values.azure.forwardAuth.replicasMax }}
+  metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 75
+          type: Utilization
+      type: Resource
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "wonderwall.fullname" . }}-fa
+{{- end }}

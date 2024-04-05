@@ -1,4 +1,4 @@
-{{ if .Values.idporten.enabled }}
+{{- if .Values.idporten.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -19,4 +19,4 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include "wonderwall.fullname" . }}-idporten
-{{ end }}
+{{- end }}
