@@ -4,8 +4,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"runtime/debug"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -31,6 +34,7 @@ type Config struct {
 	AutoLogin            bool     `json:"auto-login"`
 	AutoLoginIgnorePaths []string `json:"auto-login-ignore-paths"`
 	CookiePrefix         string   `json:"cookie-prefix"`
+	CookieSameSite       SameSite `json:"cookie-same-site"`
 	EncryptionKey        string   `json:"encryption-key"`
 	Ingresses            []string `json:"ingress"`
 	UpstreamAccessLogs   bool     `json:"upstream-access-logs"`
@@ -150,6 +154,45 @@ const (
 	ProviderOpenID   Provider = "openid"
 )
 
+type SameSite string
+
+const (
+	SameSiteLax    SameSite = "Lax"
+	SameSiteNone   SameSite = "None"
+	SameSiteStrict SameSite = "Strict"
+)
+
+func SameSiteAll() []SameSite {
+	return []SameSite{
+		SameSiteLax,
+		SameSiteNone,
+		SameSiteStrict,
+	}
+}
+
+func SameSiteAllStrings() []string {
+	all := SameSiteAll()
+	ret := make([]string, len(all))
+
+	for i, s := range all {
+		ret[i] = string(s)
+	}
+
+	return ret
+}
+
+// ToHttp returns the equivalent http.SameSite value for the SameSite attribute.
+func (s SameSite) ToHttp() http.SameSite {
+	switch s {
+	case SameSiteNone:
+		return http.SameSiteNoneMode
+	case SameSiteStrict:
+		return http.SameSiteStrictMode
+	default:
+		return http.SameSiteLaxMode
+	}
+}
+
 type SSOMode string
 
 const (
@@ -168,6 +211,7 @@ const (
 	AutoLogin            = "auto-login"
 	AutoLoginIgnorePaths = "auto-login-ignore-paths"
 	CookiePrefix         = "cookie-prefix"
+	CookieSameSite       = "cookie-same-site"
 	EncryptionKey        = "encryption-key"
 	Ingress              = "ingress"
 	UpstreamAccessLogs   = "upstream-access-logs"
@@ -223,6 +267,7 @@ func Initialize() (*Config, error) {
 	flag.Bool(AutoLogin, false, "Enforce authentication if the user does not have a valid session for all matching upstream paths. Automatically redirects HTTP navigation requests to login, otherwise responds with 401 with the Location header set.")
 	flag.StringSlice(AutoLoginIgnorePaths, []string{}, "Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style asterisks. Invalid patterns are ignored.")
 	flag.String(CookiePrefix, "io.nais.wonderwall", "Prefix for cookie names.")
+	flag.String(CookieSameSite, string(SameSiteLax), "SameSite attribute for session cookies.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
 	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
 	flag.Bool(UpstreamAccessLogs, false, "Enable access logs for upstream requests.")
@@ -386,7 +431,18 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("%q must be greater than %q", ShutdownGracefulPeriod, ShutdownWaitBeforePeriod)
 	}
 
+	if !c.sameSiteValid() {
+		valid := strings.Join(SameSiteAllStrings(), ", ")
+		return fmt.Errorf("%q must be one of [%s] (was %q)", CookieSameSite, valid, c.CookieSameSite)
+	}
+
 	return nil
+}
+
+func (c *Config) sameSiteValid() bool {
+	return slices.ContainsFunc(SameSiteAll(), func(it SameSite) bool {
+		return it == c.CookieSameSite
+	})
 }
 
 func (c *Config) upstreamIpSet() bool {
