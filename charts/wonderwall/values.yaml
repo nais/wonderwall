@@ -27,6 +27,7 @@ azure:
     ssoDefaultRedirectURL:
     ssoDomain:
     ssoServerSecretName: wonderwall-azure-sso-server
+    groupIds: [] # ["<group-id>"] - additional group IDs to grant access to
 idporten:
   enabled: true
   clientAccessTokenLifetime: 3600

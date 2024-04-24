@@ -29,6 +29,10 @@ values:
     description: Enables forward auth server
     config:
       type: bool
+  azure.forwardAuth.groupIds:
+    description: Additional group IDs to grant access to
+    config:
+      type: string_array
   azure.forwardAuth.sessionCookieEncryptionKey:
     description: Cookie encryption key, 256 bits (e.g. 32 ASCII characters) encoded with standard base64.
     config:

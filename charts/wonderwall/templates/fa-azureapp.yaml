@@ -9,6 +9,13 @@ metadata:
 spec:
   secretName: {{ .Values.azure.forwardAuth.clientSecretName }}
   allowAllUsers: true
+  {{- if .Values.azure.forwardAuth.groupIds }}
+  claims:
+    groups:
+      {{- range .Values.azure.forwardAuth.groupIds }}
+      - id: {{ . }}
+      {{- end }}
+  {{- end }}
   logoutUrl: "{{ include "wonderwall.azure.forwardAuthURL" . }}/oauth2/logout/frontchannel"
   replyUrls:
     - url: "{{- include "wonderwall.azure.forwardAuthURL" . }}/oauth2/callback"
