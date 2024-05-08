@@ -7,15 +7,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sethvargo/go-retry"
-
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
-	retrypkg "github.com/nais/wonderwall/pkg/retry"
+	"github.com/nais/wonderwall/pkg/retry"
 )
 
 const (
@@ -86,7 +84,7 @@ func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetim
 		return retry.RetryableError(err)
 	}
 
-	if err := retry.Do(r.Context(), retrypkg.DefaultBackoff, retryable); err != nil {
+	if err := retry.Do(r.Context(), retryable); err != nil {
 		return nil, fmt.Errorf("writing to store: %w", err)
 	}
 
@@ -196,7 +194,7 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 
 		return err
 	}
-	if err := retry.Do(ctx, retrypkg.DefaultBackoff, refresh); err != nil {
+	if err := retry.Do(ctx, refresh); err != nil {
 		if errors.Is(err, openidclient.ErrOpenIDClient) {
 			return nil, fmt.Errorf("%w: authorization might be invalid: %+v", ErrInvalidExternal, err)
 		}
@@ -234,7 +232,7 @@ func (in *manager) deleteForKey(ctx context.Context, key string) error {
 		return retry.RetryableError(err)
 	}
 
-	if err := retry.Do(ctx, retrypkg.DefaultBackoff, retryable); err != nil {
+	if err := retry.Do(ctx, retryable); err != nil {
 		return fmt.Errorf("deleting from store: %w", err)
 	}
 
@@ -262,7 +260,7 @@ func (in *manager) update(ctx context.Context, sess *Session) error {
 		return retry.RetryableError(err)
 	}
 
-	if err := retry.Do(ctx, retrypkg.DefaultBackoff, update); err != nil {
+	if err := retry.Do(ctx, update); err != nil {
 		return fmt.Errorf("updating in store: %w", err)
 	}
 

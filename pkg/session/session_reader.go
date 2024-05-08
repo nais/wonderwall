@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/sethvargo/go-retry"
-
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
-	retrypkg "github.com/nais/wonderwall/pkg/retry"
+	"github.com/nais/wonderwall/pkg/retry"
 )
 
 var _ Reader = &reader{}
@@ -60,7 +58,7 @@ func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, e
 		return retry.RetryableError(err)
 	}
 
-	if err := retry.Do(ctx, retrypkg.DefaultBackoff, retryable); err != nil {
+	if err := retry.Do(ctx, retryable); err != nil {
 		return nil, fmt.Errorf("reading from store: %w", err)
 	}
 

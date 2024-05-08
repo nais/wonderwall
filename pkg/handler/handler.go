@@ -9,7 +9,6 @@ import (
 	urllib "net/url"
 	"time"
 
-	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -23,7 +22,7 @@ import (
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
-	retrypkg "github.com/nais/wonderwall/pkg/retry"
+	"github.com/nais/wonderwall/pkg/retry"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/url"
@@ -205,7 +204,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var tokens *openid.Tokens
-	err = retry.Do(r.Context(), retrypkg.DefaultBackoff, func(ctx context.Context) error {
+	err = retry.Do(r.Context(), func(ctx context.Context) error {
 		tokens, err = loginCallback.RedeemTokens(ctx)
 		return retry.RetryableError(err)
 	})

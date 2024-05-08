@@ -1,48 +1,58 @@
 package retry
 
 import (
+	"context"
 	"time"
 
 	"github.com/sethvargo/go-retry"
 )
 
-const (
-	DefaultBaseDuration = 50 * time.Millisecond
-	DefaultMaxDuration  = 1 * time.Second
+var (
+	DefaultBackoff = Fibonacci()
+	RetryableError = retry.RetryableError
 )
 
-var DefaultBackoff = Fibonacci().Backoff()
-
 type FibonacciBackoff struct {
-	base    time.Duration
-	max     time.Duration
-	backoff retry.Backoff
+	Base time.Duration
+	Max  time.Duration
 }
 
-func (in *FibonacciBackoff) BaseDuration(base time.Duration) {
-	in.base = base
-	in.backoff = fibonacci(in.base, in.max)
-}
-
-func (in *FibonacciBackoff) MaxDuration(max time.Duration) {
-	in.max = max
-	in.backoff = fibonacci(in.base, in.max)
-}
-
-func (in *FibonacciBackoff) Backoff() retry.Backoff {
-	return in.backoff
-}
-
-func Fibonacci() *FibonacciBackoff {
-	return &FibonacciBackoff{
-		base:    DefaultBaseDuration,
-		max:     DefaultMaxDuration,
-		backoff: fibonacci(DefaultBaseDuration, DefaultMaxDuration),
+func WithBaseDuration(base time.Duration) func(*FibonacciBackoff) {
+	return func(f *FibonacciBackoff) {
+		f.Base = base
 	}
 }
 
-func fibonacci(base, max time.Duration) retry.Backoff {
-	b := retry.NewFibonacci(base)
-	b = retry.WithMaxDuration(max, b)
+func WithMaxDuration(max time.Duration) func(*FibonacciBackoff) {
+	return func(f *FibonacciBackoff) {
+		f.Max = max
+	}
+}
+
+func Fibonacci(opts ...func(f *FibonacciBackoff)) retry.Backoff {
+	const DefaultBaseDuration = 50 * time.Millisecond
+	const DefaultMaxDuration = 1 * time.Second
+
+	fb := &FibonacciBackoff{
+		Base: DefaultBaseDuration,
+		Max:  DefaultMaxDuration,
+	}
+
+	for _, opt := range opts {
+		opt(fb)
+	}
+
+	b := retry.NewFibonacci(fb.Base)
+	b = retry.WithMaxDuration(fb.Max, b)
 	return b
+}
+
+// Do retries the given function using the DefaultBackoff strategy.
+func Do(ctx context.Context, f retry.RetryFunc) error {
+	return DoWithBackoff(ctx, DefaultBackoff, f)
+}
+
+// DoWithBackoff retries the given function using the given backoff strategy.
+func DoWithBackoff(ctx context.Context, b retry.Backoff, f retry.RetryFunc) error {
+	return retry.Do(ctx, b, f)
 }
