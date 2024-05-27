@@ -23,7 +23,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/otel v1.27.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.26.0
-	go.opentelemetry.io/otel/sdk v1.26.0
+	go.opentelemetry.io/otel/sdk v1.27.0
 	go.uber.org/automaxprocs v1.5.3
 	golang.org/x/crypto v0.23.0
 	golang.org/x/oauth2 v0.20.0
