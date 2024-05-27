@@ -27,7 +27,7 @@ require (
 	go.uber.org/automaxprocs v1.5.3
 	golang.org/x/crypto v0.23.0
 	golang.org/x/oauth2 v0.20.0
-	golang.org/x/vuln v1.1.0
+	golang.org/x/vuln v1.1.1
 	honnef.co/go/tools v0.4.7
 	mvdan.cc/gofumpt v0.6.0
 )
@@ -81,7 +81,7 @@ require (
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
-	golang.org/x/tools v0.20.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240514024235-59d9797072e7 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240520151616-dc85e6b867a5 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240515191416-fc5f0ca64291 // indirect
 	google.golang.org/grpc v1.64.0 // indirect
