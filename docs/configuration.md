@@ -107,6 +107,10 @@ At minimum, the following configuration must be provided when in SSO server mode
 - `sso.session-cookie-name`
 - `sso.server-default-redirect-url`
 
+You should also explicitly configure the cookie encryption key:
+
+- `encrytion-key`
+
 ### SSO Proxy
 
 When the `sso.enabled` flag is enabled and the `sso.mode` flag is set to `proxy`, Wonderwall will start in [SSO proxy mode](architecture.md#sso-proxy).
@@ -117,6 +121,12 @@ At minimum, the following configuration must be provided when in SSO proxy mode:
 - `redis.address`
 - `sso.session-cookie-name`
 - `sso.server-url`
+
+You should also explicitly configure the cookie encryption key:
+
+- `encrytion-key`
+
+This must match the key used by the SSO server.
 
 ## Configuration Flag Details
 
