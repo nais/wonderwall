@@ -109,7 +109,7 @@ At minimum, the following configuration must be provided when in SSO server mode
 
 You should also explicitly configure the cookie encryption key:
 
-- `encrytion-key`
+- `encryption-key`
 
 ### SSO Proxy
 
@@ -124,7 +124,7 @@ At minimum, the following configuration must be provided when in SSO proxy mode:
 
 You should also explicitly configure the cookie encryption key:
 
-- `encrytion-key`
+- `encryption-key`
 
 This must match the key used by the SSO server.
 
