@@ -37,6 +37,7 @@ type Config struct {
 	CookieSameSite       SameSite `json:"cookie-same-site"`
 	EncryptionKey        string   `json:"encryption-key"`
 	Ingresses            []string `json:"ingress"`
+	LegacyCookie         bool     `json:"legacy-cookie"`
 	UpstreamAccessLogs   bool     `json:"upstream-access-logs"`
 	UpstreamHost         string   `json:"upstream-host"`
 	UpstreamIP           string   `json:"upstream-ip"`
@@ -214,6 +215,7 @@ const (
 	CookieSameSite       = "cookie-same-site"
 	EncryptionKey        = "encryption-key"
 	Ingress              = "ingress"
+	LegacyCookie         = "legacy-cookie"
 	UpstreamAccessLogs   = "upstream-access-logs"
 	UpstreamHost         = "upstream-host"
 	UpstreamIP           = "upstream-ip"
@@ -269,6 +271,7 @@ func Initialize() (*Config, error) {
 	flag.String(CookiePrefix, "io.nais.wonderwall", "Prefix for cookie names.")
 	flag.String(CookieSameSite, string(SameSiteLax), "SameSite attribute for session cookies.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
+	flag.Bool(LegacyCookie, false, "Set legacy session cookie.")
 	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
 	flag.Bool(UpstreamAccessLogs, false, "Enable access logs for upstream requests.")
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
