@@ -35,7 +35,9 @@ func Setup(level, format string) error {
 	if err != nil {
 		return fmt.Errorf("while setting log level: %s", err)
 	}
+
 	log.SetLevel(logLevel)
+	log.Tracef("Trace logging enabled")
 
 	return nil
 }
