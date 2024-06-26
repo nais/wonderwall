@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"runtime/debug"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -171,17 +170,6 @@ func SameSiteAll() []SameSite {
 	}
 }
 
-func SameSiteAllStrings() []string {
-	all := SameSiteAll()
-	ret := make([]string, len(all))
-
-	for i, s := range all {
-		ret[i] = string(s)
-	}
-
-	return ret
-}
-
 // ToHttp returns the equivalent http.SameSite value for the SameSite attribute.
 func (s SameSite) ToHttp() http.SameSite {
 	switch s {
@@ -256,6 +244,8 @@ const (
 	SSOServerURL                = "sso.server-url"
 )
 
+var logger = log.WithField("logger", "wonderwall.config")
+
 func Initialize() (*Config, error) {
 	conftools.Initialize("wonderwall")
 
@@ -323,23 +313,15 @@ func Initialize() (*Config, error) {
 		return nil, err
 	}
 
-	switch Provider(viper.GetString(OpenIDProvider)) {
-	case ProviderIDPorten:
-		viper.BindEnv(OpenIDClientID, "IDPORTEN_CLIENT_ID")
-		viper.BindEnv(OpenIDClientJWK, "IDPORTEN_CLIENT_JWK")
-		viper.BindEnv(OpenIDWellKnownURL, "IDPORTEN_WELL_KNOWN_URL")
-
-		viper.SetDefault(OpenIDACRValues, acr.IDPortenLevelHigh)
-		viper.SetDefault(OpenIDUILocales, "nb")
-	case ProviderAzure:
-		viper.BindEnv(OpenIDClientID, "AZURE_APP_CLIENT_ID")
-		viper.BindEnv(OpenIDClientJWK, "AZURE_APP_JWK")
-		viper.BindEnv(OpenIDWellKnownURL, "AZURE_APP_WELL_KNOWN_URL")
-	default:
-		viper.Set(OpenIDProvider, ProviderOpenID)
+	if err := logging.Setup(viper.GetString(LogLevel), viper.GetString(LogFormat)); err != nil {
+		return nil, err
 	}
 
-	viper.Set("version", version())
+	log.Tracef("Trace logging enabled")
+
+	resolveOpenIdProvider()
+	resolveUpstream()
+	resolveVersion()
 
 	cfg := new(Config)
 	err := viper.UnmarshalExact(cfg, func(dc *mapstructure.DecoderConfig) {
@@ -349,28 +331,16 @@ func Initialize() (*Config, error) {
 		return nil, err
 	}
 
-	if err := logging.Setup(cfg.LogLevel, cfg.LogFormat); err != nil {
-		return nil, err
-	}
-
-	log.Tracef("Trace logging enabled")
-
-	maskedConfig := []string{
-		OpenIDClientJWK,
-		EncryptionKey,
-		RedisPassword,
-	}
-
-	for _, line := range conftools.Format(maskedConfig) {
-		log.WithField("logger", "wonderwall.config").Info(line)
-	}
+	maskedCfg := *cfg
+	maskedCfg.OpenID.ClientJWK = "**REDACTED**"
+	maskedCfg.EncryptionKey = "**REDACTED**"
+	maskedCfg.Redis.Password = "**REDACTED**"
+	logger.Infof("config: %+v", maskedCfg)
 
 	err = cfg.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("validating config: %w", err)
 	}
-
-	cfg.upstreamHostOverride()
 
 	return cfg, nil
 }
@@ -417,64 +387,65 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	if c.upstreamPortSet() {
-		if !c.upstreamIpSet() {
-			return fmt.Errorf("%q must be set when %q is set (was '%d')", UpstreamIP, UpstreamPort, c.UpstreamPort)
+	if (c.UpstreamIP == "") != (c.UpstreamPort == 0) {
+		if c.UpstreamIP == "" {
+			return fmt.Errorf("%q must be set when %q is set", UpstreamIP, UpstreamPort)
 		}
-		if !c.upstreamPortValid() {
-			return fmt.Errorf("%q must be in valid range (between '1' and '65535', was '%d')", UpstreamPort, c.UpstreamPort)
+
+		if c.UpstreamPort == 0 {
+			return fmt.Errorf("%q must be set when %q is set", UpstreamPort, UpstreamIP)
 		}
 	}
 
-	if c.upstreamIpSet() && !c.upstreamPortSet() {
-		return fmt.Errorf("%q must be set when %q is set (was %q)", UpstreamPort, UpstreamIP, c.UpstreamIP)
+	if c.UpstreamIP != "" && (c.UpstreamPort < 1 || c.UpstreamPort > 65535) {
+		return fmt.Errorf("%q must be in valid range (between '1' and '65535', was '%d')", UpstreamPort, c.UpstreamPort)
 	}
 
 	if c.ShutdownGracefulPeriod <= c.ShutdownWaitBeforePeriod {
 		return fmt.Errorf("%q must be greater than %q", ShutdownGracefulPeriod, ShutdownWaitBeforePeriod)
 	}
 
-	if !c.sameSiteValid() {
-		valid := strings.Join(SameSiteAllStrings(), ", ")
-		return fmt.Errorf("%q must be one of [%s] (was %q)", CookieSameSite, valid, c.CookieSameSite)
+	if !slices.Contains(SameSiteAll(), c.CookieSameSite) {
+		return fmt.Errorf("%q must be one of %q (was %q)", CookieSameSite, SameSiteAll(), c.CookieSameSite)
 	}
 
 	return nil
 }
 
-func (c *Config) sameSiteValid() bool {
-	return slices.ContainsFunc(SameSiteAll(), func(it SameSite) bool {
-		return it == c.CookieSameSite
-	})
-}
+func resolveOpenIdProvider() {
+	switch Provider(viper.GetString(OpenIDProvider)) {
+	case ProviderIDPorten:
+		viper.BindEnv(OpenIDClientID, "IDPORTEN_CLIENT_ID")
+		viper.BindEnv(OpenIDClientJWK, "IDPORTEN_CLIENT_JWK")
+		viper.BindEnv(OpenIDWellKnownURL, "IDPORTEN_WELL_KNOWN_URL")
 
-func (c *Config) upstreamIpSet() bool {
-	return c.UpstreamIP != ""
-}
-
-func (c *Config) upstreamPortSet() bool {
-	return c.UpstreamPort != 0
-}
-
-func (c *Config) upstreamPortValid() bool {
-	return c.UpstreamPort >= 1 && c.UpstreamPort <= 65535
-}
-
-func (c *Config) upstreamHostOverride() {
-	if c.upstreamIpSet() && c.upstreamPortSet() && c.upstreamPortValid() {
-		override := fmt.Sprintf("%s:%d", c.UpstreamIP, c.UpstreamPort)
-
-		log.WithField("logger", "wonderwall.config").
-			Infof("%q and %q were set; overriding %q from %q to %q", UpstreamHost, UpstreamPort, UpstreamHost, c.UpstreamHost, override)
-
-		c.UpstreamHost = override
+		viper.SetDefault(OpenIDACRValues, acr.IDPortenLevelHigh)
+		viper.SetDefault(OpenIDUILocales, "nb")
+	case ProviderAzure:
+		viper.BindEnv(OpenIDClientID, "AZURE_APP_CLIENT_ID")
+		viper.BindEnv(OpenIDClientJWK, "AZURE_APP_JWK")
+		viper.BindEnv(OpenIDWellKnownURL, "AZURE_APP_WELL_KNOWN_URL")
+	default:
+		viper.Set(OpenIDProvider, ProviderOpenID)
 	}
 }
 
-func version() string {
+func resolveUpstream() {
+	upstreamIP := viper.GetString(UpstreamIP)
+	upstreamPort := viper.GetInt(UpstreamPort)
+	upstreamHost := viper.GetString(UpstreamHost)
+
+	if upstreamIP != "" && upstreamPort > 0 {
+		override := fmt.Sprintf("%s:%d", upstreamIP, upstreamPort)
+		logger.Debugf("%q and %q were set; overriding %q from %q to %q", UpstreamHost, UpstreamPort, UpstreamHost, upstreamHost, override)
+		viper.Set(UpstreamHost, override)
+	}
+}
+
+func resolveVersion() {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		return ""
+		return
 	}
 
 	var rev string
@@ -493,5 +464,5 @@ func version() string {
 		rev = rev[:7]
 	}
 
-	return fmt.Sprintf("%s-%s", last.Format("2006-01-02-150405"), rev)
+	viper.Set("version", fmt.Sprintf("%s-%s", last.Format("2006-01-02-150405"), rev))
 }

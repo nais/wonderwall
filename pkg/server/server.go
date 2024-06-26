@@ -69,8 +69,9 @@ func Start(cfg *config.Config, r chi.Router) error {
 		serverStopCtx()
 	}()
 
+	log.Infof("server: listening on %s", cfg.BindAddress)
 	err := server.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 

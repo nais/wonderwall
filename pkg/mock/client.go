@@ -54,8 +54,6 @@ func (c *TestClientConfiguration) WellKnownURL() string {
 	return c.Config.OpenID.WellKnownURL
 }
 
-func (c *TestClientConfiguration) Print() {}
-
 func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
 	key, err := crypto.NewJwk()
 	if err != nil {

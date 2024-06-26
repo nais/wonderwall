@@ -4,9 +4,8 @@ import (
 	"fmt"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	log "github.com/sirupsen/logrus"
 
-	wonderwallconfig "github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
 )
 
@@ -20,12 +19,10 @@ type Client interface {
 	Scopes() scopes.Scopes
 	UILocales() string
 	WellKnownURL() string
-
-	Print()
 }
 
 type client struct {
-	wonderwallconfig.OpenID
+	config.OpenID
 	clientJwk        jwk.Key
 	trustedAudiences map[string]bool
 }
@@ -66,21 +63,10 @@ func (in *client) WellKnownURL() string {
 	return in.OpenID.WellKnownURL
 }
 
-func (in *client) Print() {
-	logger := log.WithField("logger", "openid.config.client")
-
-	logger.Info("🤔 openid client configuration 🤔")
-	logger.Infof("acr values: '%s'", in.ACRValues())
-	logger.Infof("client id: '%s'", in.ClientID())
-	logger.Infof("post-logout redirect uri: '%s'", in.PostLogoutRedirectURI())
-	logger.Infof("scopes: '%s'", in.Scopes())
-	logger.Infof("ui locales: '%s'", in.UILocales())
-}
-
-func NewClientConfig(cfg *wonderwallconfig.Config) (Client, error) {
+func NewClientConfig(cfg *config.Config) (Client, error) {
 	clientJwkString := cfg.OpenID.ClientJWK
 	if len(clientJwkString) == 0 {
-		return nil, fmt.Errorf("missing required config %s", wonderwallconfig.OpenIDClientJWK)
+		return nil, fmt.Errorf("missing required config %s", config.OpenIDClientJWK)
 	}
 
 	clientJwk, err := jwk.ParseKey([]byte(clientJwkString))
@@ -96,25 +82,24 @@ func NewClientConfig(cfg *wonderwallconfig.Config) (Client, error) {
 
 	var clientConfig Client
 	switch cfg.OpenID.Provider {
-	case wonderwallconfig.ProviderIDPorten:
+	case config.ProviderIDPorten:
 		clientConfig = c.IDPorten()
-	case wonderwallconfig.ProviderAzure:
+	case config.ProviderAzure:
 		clientConfig = c.Azure()
 	case "":
-		return nil, fmt.Errorf("missing required config %s", wonderwallconfig.OpenIDProvider)
+		return nil, fmt.Errorf("missing required config %s", config.OpenIDProvider)
 	default:
 		clientConfig = c
 	}
 
 	if len(clientConfig.ClientID()) == 0 {
-		return nil, fmt.Errorf("missing required config %s", wonderwallconfig.OpenIDClientID)
+		return nil, fmt.Errorf("missing required config %s", config.OpenIDClientID)
 	}
 
 	if len(clientConfig.WellKnownURL()) == 0 {
-		return nil, fmt.Errorf("missing required config %s", wonderwallconfig.OpenIDWellKnownURL)
+		return nil, fmt.Errorf("missing required config %s", config.OpenIDWellKnownURL)
 	}
 
-	clientConfig.Print()
 	return clientConfig, nil
 }
 

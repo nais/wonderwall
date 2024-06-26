@@ -8,7 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	pkgcfg "github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/openid/acr"
 )
 
@@ -67,7 +67,7 @@ func (p *provider) SidClaimRequired() bool {
 	return p.metadata.FrontchannelLogoutSupported && p.metadata.FrontchannelLogoutSessionSupported
 }
 
-func NewProviderConfig(cfg *pkgcfg.Config) (Provider, error) {
+func NewProviderConfig(cfg *config.Config) (Provider, error) {
 	response, err := http.Get(cfg.OpenID.WellKnownURL)
 	if err != nil {
 		return nil, fmt.Errorf("fetching well known configuration: %w", err)
@@ -125,13 +125,11 @@ type ProviderMetadata struct {
 }
 
 func (c *ProviderMetadata) Print() {
-	logger := log.WithField("logger", "openid.config.provider")
-
-	logger.Info("😗 openid provider configuration 😗")
-	logger.Infof("%#v", *c)
+	log.WithField("logger", "wonderwall.config").
+		Debugf("openid provider config: %+v", c)
 }
 
-func (c *ProviderMetadata) Validate(cfg pkgcfg.OpenID) error {
+func (c *ProviderMetadata) Validate(cfg config.OpenID) error {
 	err := c.validateAcrValues(cfg.ACRValues)
 	if err != nil {
 		return err
@@ -155,7 +153,7 @@ func (c *ProviderMetadata) validateAcrValues(acrValue string) error {
 		return nil
 	}
 
-	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", pkgcfg.OpenIDACRValues, acrValue, c.ACRValuesSupported)
+	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", config.OpenIDACRValues, acrValue, c.ACRValuesSupported)
 }
 
 func (c *ProviderMetadata) validateLocaleValues(locale string) error {
@@ -163,7 +161,7 @@ func (c *ProviderMetadata) validateLocaleValues(locale string) error {
 		return nil
 	}
 
-	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", pkgcfg.OpenIDUILocales, locale, c.UILocalesSupported)
+	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", config.OpenIDUILocales, locale, c.UILocalesSupported)
 }
 
 type Supported []string

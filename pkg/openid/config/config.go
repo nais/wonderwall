@@ -9,16 +9,16 @@ type Config interface {
 	Provider() Provider
 }
 
-type config struct {
+type openidconfig struct {
 	clientConfig   Client
 	providerConfig Provider
 }
 
-func (c *config) Client() Client {
+func (c *openidconfig) Client() Client {
 	return c.clientConfig
 }
 
-func (c *config) Provider() Provider {
+func (c *openidconfig) Provider() Provider {
 	return c.providerConfig
 }
 
@@ -33,7 +33,7 @@ func NewConfig(cfg *wonderwallconfig.Config) (Config, error) {
 		return nil, err
 	}
 
-	return &config{
+	return &openidconfig{
 		clientConfig:   clientCfg,
 		providerConfig: providerCfg,
 	}, nil
