@@ -115,10 +115,11 @@ func Initialize() (*Config, error) {
 		return nil, err
 	}
 
+	const redacted = "**REDACTED**"
 	masked := *cfg
-	masked.OpenID.ClientJWK = "**REDACTED**"
-	masked.EncryptionKey = "**REDACTED**"
-	masked.Redis.Password = "**REDACTED**"
+	masked.EncryptionKey = redacted
+	masked.OpenID.ClientJWK = redacted
+	masked.Redis.Password = redacted
 	logger.Infof("config: %+v", masked)
 
 	if err := cfg.Validate(); err != nil {
@@ -153,17 +154,19 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validateUpstream() error {
-	if (c.UpstreamIP == "") != (c.UpstreamPort == 0) {
-		if c.UpstreamIP == "" {
-			return fmt.Errorf("%q must be set when %q is set", UpstreamIP, UpstreamPort)
-		}
-
-		if c.UpstreamPort == 0 {
-			return fmt.Errorf("%q must be set when %q is set", UpstreamPort, UpstreamIP)
-		}
+	if c.UpstreamIP == "" && c.UpstreamPort == 0 {
+		return nil
 	}
 
-	if c.UpstreamIP != "" && (c.UpstreamPort < 1 || c.UpstreamPort > 65535) {
+	if c.UpstreamIP == "" {
+		return fmt.Errorf("%q must be set when %q is set", UpstreamIP, UpstreamPort)
+	}
+
+	if c.UpstreamPort == 0 {
+		return fmt.Errorf("%q must be set when %q is set", UpstreamPort, UpstreamIP)
+	}
+
+	if c.UpstreamPort < 1 || c.UpstreamPort > 65535 {
 		return fmt.Errorf("%q must be in valid range (between '1' and '65535', was '%d')", UpstreamPort, c.UpstreamPort)
 	}
 

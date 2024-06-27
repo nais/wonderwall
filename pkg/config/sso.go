@@ -59,6 +59,7 @@ func (s SSO) Validate(c *Config) error {
 		if err != nil {
 			return fmt.Errorf("%q must be a valid url: %w", SSOServerDefaultRedirectURL, err)
 		}
+	default:
 		return fmt.Errorf("%q must be one of [%q, %q]", SSOModeFlag, SSOModeServer, SSOModeProxy)
 	}
 
