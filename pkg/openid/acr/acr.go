@@ -11,27 +11,27 @@ const (
 	IDPortenLevelHigh        = "idporten-loa-high"
 )
 
-// IDPortenMapping is a translation table of valid acr_values for migrating between old and new ID-porten.
-var IDPortenMapping = map[string]string{
-	IDPortenLevel3:           IDPortenLevelSubstantial,
-	IDPortenLevelSubstantial: IDPortenLevel3,
-	IDPortenLevel4:           IDPortenLevelHigh,
-	IDPortenLevelHigh:        IDPortenLevel4,
+// IDPortenLegacyMapping is a translation table of valid acr_values that maps values from "old" to "new" ID-porten.
+var IDPortenLegacyMapping = map[string]string{
+	IDPortenLevel3: IDPortenLevelSubstantial,
+	IDPortenLevel4: IDPortenLevelHigh,
 }
 
 // acceptedValuesMapping is a map of ACR (authentication context class reference) values.
 // Each value has an associated list of values that are regarded as equivalent or greater in terms of assurance levels.
 // Example:
-// - if we require an ACR value of "Level3", then both "Level3" and "Level4" are accepted values.
-// - if we require an ACR value of "Level4", then only "Level4" is an acceptable value.
+// - if we require an ACR value of "idporten-loa-substantial", then both "idporten-loa-substantial" and "idporten-loa-high" are accepted values.
+// - if we require an ACR value of "idporten-loa-high", then only "idporten-loa-high" is an acceptable value.
 var acceptedValuesMapping = map[string][]string{
-	IDPortenLevel3:           {IDPortenLevel3, IDPortenLevel4, IDPortenLevelSubstantial, IDPortenLevelHigh},
-	IDPortenLevelSubstantial: {IDPortenLevel3, IDPortenLevel4, IDPortenLevelSubstantial, IDPortenLevelHigh},
-	IDPortenLevel4:           {IDPortenLevel4, IDPortenLevelHigh},
-	IDPortenLevelHigh:        {IDPortenLevel4, IDPortenLevelHigh},
+	IDPortenLevelSubstantial: {IDPortenLevelSubstantial, IDPortenLevelHigh},
+	IDPortenLevelHigh:        {IDPortenLevelHigh},
 }
 
 func Validate(expected, actual string) error {
+	if translated, found := IDPortenLegacyMapping[expected]; found {
+		expected = translated
+	}
+
 	acceptedValues, found := acceptedValuesMapping[expected]
 	if !found {
 		if expected == actual {

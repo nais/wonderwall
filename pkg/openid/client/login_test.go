@@ -11,7 +11,6 @@ import (
 
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid/client"
-	"github.com/nais/wonderwall/pkg/openid/config"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
@@ -20,7 +19,6 @@ func TestLogin_URL(t *testing.T) {
 		name       string
 		url        string
 		wantParams map[string]string
-		metadata   *config.ProviderMetadata
 		error      error
 	}
 
@@ -34,7 +32,7 @@ func TestLogin_URL(t *testing.T) {
 			name: "happy path with level",
 			url:  mock.Ingress + "/oauth2/login?level=Level3",
 			wantParams: map[string]string{
-				"acr_values": "Level3",
+				"acr_values": "idporten-loa-substantial",
 			},
 			error: nil,
 		},
@@ -59,7 +57,7 @@ func TestLogin_URL(t *testing.T) {
 			name: "happy path with both locale and level",
 			url:  mock.Ingress + "/oauth2/login?level=Level3&locale=nb",
 			wantParams: map[string]string{
-				"acr_values": "Level3",
+				"acr_values": "idporten-loa-substantial",
 				"ui_locales": "nb",
 			},
 			error: nil,
@@ -80,42 +78,18 @@ func TestLogin_URL(t *testing.T) {
 			error: client.ErrInvalidPrompt,
 		},
 		{
-			name: "level idporten-loa-substantial should translate to Level3 for old IDP",
-			url:  mock.Ingress + "/oauth2/login?level=idporten-loa-substantial",
-			wantParams: map[string]string{
-				"acr_values": "Level3",
-			},
-			error: nil,
-		},
-		{
-			name: "level idporten-loa-high should translate to Level4 for old IDP",
-			url:  mock.Ingress + "/oauth2/login?level=idporten-loa-high",
-			wantParams: map[string]string{
-				"acr_values": "Level4",
-			},
-			error: nil,
-		},
-		{
-			name: "level Level3 should translate to idporten-loa-substantial for new IDP",
+			name: "level=Level3 should translate to idporten-loa-substantial",
 			url:  mock.Ingress + "/oauth2/login?level=Level3",
 			wantParams: map[string]string{
 				"acr_values": "idporten-loa-substantial",
 			},
-			metadata: &config.ProviderMetadata{
-				ACRValuesSupported: config.Supported{"idporten-loa-substantial", "idporten-loa-high"},
-				UILocalesSupported: config.Supported{"nb", "nb", "en", "se"},
-			},
 			error: nil,
 		},
 		{
-			name: "level Level4 should translate to idporten-loa-high for new IDP",
+			name: "level=Level4 should translate to idporten-loa-high",
 			url:  mock.Ingress + "/oauth2/login?level=Level4",
 			wantParams: map[string]string{
 				"acr_values": "idporten-loa-high",
-			},
-			metadata: &config.ProviderMetadata{
-				ACRValuesSupported: config.Supported{"idporten-loa-substantial", "idporten-loa-high"},
-				UILocalesSupported: config.Supported{"nb", "nb", "en", "se"},
 			},
 			error: nil,
 		},
@@ -126,10 +100,6 @@ func TestLogin_URL(t *testing.T) {
 			cfg := mock.Config()
 			openidConfig := mock.NewTestConfiguration(cfg)
 			ingresses := mock.Ingresses(cfg)
-
-			if test.metadata != nil {
-				openidConfig.TestProvider.Metadata = test.metadata
-			}
 
 			c := client.NewClient(openidConfig, nil)
 

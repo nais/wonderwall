@@ -17,7 +17,7 @@ func Config() *config.Config {
 		EncryptionKey: `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq`, // 256 bits key
 		Ingresses:     []string{Ingress},
 		OpenID: config.OpenID{
-			ACRValues:             "Level4",
+			ACRValues:             "idporten-loa-high",
 			ClientID:              "client-id",
 			PostLogoutRedirectURI: "https://google.com",
 			Provider:              "test",

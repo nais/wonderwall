@@ -130,7 +130,7 @@ func providerConfiguration(cfg *config.Config) *TestProviderConfiguration {
 	return &TestProviderConfiguration{
 		Cfg: cfg,
 		Metadata: &openidconfig.ProviderMetadata{
-			ACRValuesSupported: openidconfig.Supported{"Level3", "Level4"},
+			ACRValuesSupported: openidconfig.Supported{"idporten-loa-substantial", "idporten-loa-high"},
 			UILocalesSupported: openidconfig.Supported{"nb", "nb", "en", "se"},
 		},
 	}

@@ -11,7 +11,7 @@ import (
 
 func TestProviderMetadata_Validate(t *testing.T) {
 	metadata := &openidconfig.ProviderMetadata{
-		ACRValuesSupported: openidconfig.Supported{"Level3", "Level4"},
+		ACRValuesSupported: openidconfig.Supported{"idporten-loa-substantial", "idporten-loa-high"},
 		UILocalesSupported: openidconfig.Supported{"nb", "nb", "en", "se"},
 	}
 
@@ -19,10 +19,11 @@ func TestProviderMetadata_Validate(t *testing.T) {
 		name, acr, locale string
 		assertion         assert.ErrorAssertionFunc
 	}{
-		{"happy path", "Level4", "nb", assert.NoError},
+		{"happy path", "idporten-loa-high", "nb", assert.NoError},
 		{"invalid acr", "Level5", "nb", assert.Error},
-		{"invalid locale", "Level4", "de", assert.Error},
-		{"has matching acr translation", "idporten-loa-high", "nb", assert.NoError},
+		{"invalid locale", "idporten-loa-high", "de", assert.Error},
+		{"has acr translation for Level4", "Level4", "nb", assert.NoError},
+		{"has acr translation for Level3", "Level3", "nb", assert.NoError},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := mock.Config()

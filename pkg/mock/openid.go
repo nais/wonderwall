@@ -229,8 +229,8 @@ func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 		"code_challenge_method": {"S256"},
 		"response_type":         {"code"},
 		"response_mode":         {"query"},
-		"acr_values":            {"", "Level3", "Level4"},
-		"ui_locales":            {"", "nb", "nn", "en", "se"},
+		"acr_values":            append(ip.Config.Provider().ACRValuesSupported(), ""),
+		"ui_locales":            append(ip.Config.Provider().UILocalesSupported(), ""),
 	}
 
 	for param, allowed := range allowedParamValues {

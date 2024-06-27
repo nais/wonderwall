@@ -148,7 +148,7 @@ func getAcrParam(c *Client, r *http.Request) (string, error) {
 		return paramValue, nil
 	}
 
-	translatedAcr, ok := acr.IDPortenMapping[paramValue]
+	translatedAcr, ok := acr.IDPortenLegacyMapping[paramValue]
 	if ok && supported.Contains(translatedAcr) {
 		return translatedAcr, nil
 	}

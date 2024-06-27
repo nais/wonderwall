@@ -148,7 +148,7 @@ func (c *ProviderMetadata) validateAcrValues(acrValue string) error {
 		return nil
 	}
 
-	translatedAcr, ok := acr.IDPortenMapping[acrValue]
+	translatedAcr, ok := acr.IDPortenLegacyMapping[acrValue]
 	if ok && c.ACRValuesSupported.Contains(translatedAcr) {
 		return nil
 	}
