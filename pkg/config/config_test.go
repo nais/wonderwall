@@ -23,7 +23,7 @@ func TestConfig_Validate(t *testing.T) {
 		mutate func(cfg *config.Config)
 	}
 
-	run := func(t *testing.T, name string, base *config.Config, tests []test) {
+	run := func(name string, base *config.Config, tests []test) {
 		t.Run(name, func(t *testing.T) {
 			t.Run("happy path", func(t *testing.T) {
 				err = base.Validate()
@@ -42,7 +42,7 @@ func TestConfig_Validate(t *testing.T) {
 		})
 	}
 
-	run(t, "default", fixture, []test{
+	run("default", fixture, []test{
 		{
 			"invalid value for cookie-same-site",
 			func(cfg *config.Config) {
@@ -109,11 +109,17 @@ func TestConfig_Validate(t *testing.T) {
 	server.Session.RefreshAuto = false
 	server.Redis.Address = "localhost:6379"
 
-	run(t, "sso server", server, []test{
+	run("sso server", server, []test{
 		{
 			"missing redis",
 			func(cfg *config.Config) {
 				cfg.Redis = config.Redis{}
+			},
+		},
+		{
+			"missing cookie name",
+			func(cfg *config.Config) {
+				cfg.SSO.SessionCookieName = ""
 			},
 		},
 		{
@@ -135,7 +141,7 @@ func TestConfig_Validate(t *testing.T) {
 			},
 		},
 		{
-			"invalid server default redirect url",
+			"invalid default redirect url",
 			func(cfg *config.Config) {
 				cfg.SSO.ServerDefaultRedirectURL = "invalid"
 			},
@@ -156,11 +162,17 @@ func TestConfig_Validate(t *testing.T) {
 	proxy.Session.RefreshAuto = false
 	proxy.Redis.Address = "localhost:6379"
 
-	run(t, "sso proxy", proxy, []test{
+	run("sso proxy", proxy, []test{
 		{
 			"missing redis",
 			func(cfg *config.Config) {
 				cfg.Redis = config.Redis{}
+			},
+		},
+		{
+			"missing cookie name",
+			func(cfg *config.Config) {
+				cfg.SSO.SessionCookieName = ""
 			},
 		},
 		{
