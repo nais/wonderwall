@@ -1,5 +1,6 @@
 FROM --platform=$BUILDPLATFORM golang:1.22 as builder
 ENV CGO_ENABLED=0
+ENV GOTOOLCHAIN=auto
 WORKDIR /src
 
 COPY go.mod go.sum ./
