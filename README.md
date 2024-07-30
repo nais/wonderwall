@@ -45,21 +45,24 @@ Detailed documentation can be found in the [documentation](docs) directory:
 - [Usage](docs/usage.md)
   - [Session Management](docs/sessions.md)
 
-## Running Locally
+## Development
 
 Requires Go 1.22
 
-`make run`
+```shell
+docker-compose up -d
+make local
+```
 
 ## Docker Compose
 
-See the [docker-compose file](docker-compose.yml) for an example setup:
+See [docker-compose.example.yml](docker-compose.example.yml) for an example setup:
 
-- You need to be able to reach `host.docker.internal` to reach the identity provider mock, so make sure you
-  have `127.0.0.1 host.docker.internal` in your `/etc/hosts` file.
-- By default, the setup will use the latest available pre-built image.
+```shell
+docker-compose -f docker-compose.example.yml up
+```
 
-Run `docker-compose up`. This starts:
+This starts:
 
 - Wonderwall (port 3000) with Redis as the session storage
 - [http-https-echo](https://hub.docker.com/r/mendhak/http-https-echo) (port 4000) as the upstream server
