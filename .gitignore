@@ -3,5 +3,9 @@ run.sh
 .vscode/
 .idea
 *.iml
-.env
+.env*
 *.out
+
+# nix stuffs
+/.direnv
+result
