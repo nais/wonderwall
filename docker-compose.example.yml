@@ -25,7 +25,10 @@ services:
       --log-format=text
     restart: on-failure
     extra_hosts:
-      # needed to reach endpoints at and correctly redirect user agents to the mock-oauth2-server
+      # Wonderwall needs to both reach and redirect user agents to the mock-oauth2-server:
+      # - 'mock-oauth2-server:8888' resolves from the container, but is not resolvable for user agents at the host (e.g. during redirects).
+      # - 'localhost:8888' allows user agents to resolve redirects to the mock-oauth2-server, but breaks connectivity from the container itself.
+      # This additional mapping allows the container to reach the mock-oauth2-server at 'localhost' through the host network, as well as allowing user agents to correctly resolve redirects.
       - localhost:host-gateway
   upstream:
     image: mendhak/http-https-echo:30
