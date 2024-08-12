@@ -3,46 +3,38 @@ package config_test
 import (
 	"testing"
 
+	"github.com/nais/wonderwall/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/nais/wonderwall/pkg/config"
 )
 
 func TestConfig_Validate(t *testing.T) {
-	fixture, err := config.Initialize()
-	require.NoError(t, err)
-
-	deepcopy := func(src *config.Config) *config.Config {
-		c := *src
-		return &c
-	}
-
 	type test struct {
 		name   string
 		mutate func(cfg *config.Config)
 	}
 
-	run := func(name string, base *config.Config, tests []test) {
+	run := func(name string, base *config.Config, errorCases []test) {
+		cfg := *base
+
 		t.Run(name, func(t *testing.T) {
 			t.Run("happy path", func(t *testing.T) {
-				err = base.Validate()
-				assert.NoError(t, err)
+				assert.NoError(t, cfg.Validate())
 			})
 
-			for _, tt := range tests {
+			for _, tt := range errorCases {
 				t.Run(tt.name, func(t *testing.T) {
-					cfg := deepcopy(base)
-					tt.mutate(cfg)
-
-					err = cfg.Validate()
-					assert.Error(t, err)
+					tt.mutate(&cfg)
+					assert.Error(t, cfg.Validate())
 				})
 			}
 		})
 	}
 
-	run("default", fixture, []test{
+	base, err := config.Initialize()
+	require.NoError(t, err)
+
+	run("default", base, []test{
 		{
 			"invalid value for cookie-same-site",
 			func(cfg *config.Config) {
@@ -100,7 +92,7 @@ func TestConfig_Validate(t *testing.T) {
 		},
 	})
 
-	server := deepcopy(fixture)
+	server := *base
 	server.SSO.Enabled = true
 	server.SSO.Mode = config.SSOModeServer
 	server.SSO.Domain = "example.com"
@@ -109,7 +101,7 @@ func TestConfig_Validate(t *testing.T) {
 	server.Session.RefreshAuto = false
 	server.Redis.Address = "localhost:6379"
 
-	run("sso server", server, []test{
+	run("sso server", &server, []test{
 		{
 			"missing redis",
 			func(cfg *config.Config) {
@@ -154,7 +146,7 @@ func TestConfig_Validate(t *testing.T) {
 		},
 	})
 
-	proxy := deepcopy(fixture)
+	proxy := *base
 	proxy.SSO.Enabled = true
 	proxy.SSO.Mode = config.SSOModeProxy
 	proxy.SSO.ServerURL = "https://sso-server.local"
@@ -162,7 +154,7 @@ func TestConfig_Validate(t *testing.T) {
 	proxy.Session.RefreshAuto = false
 	proxy.Redis.Address = "localhost:6379"
 
-	run("sso proxy", proxy, []test{
+	run("sso proxy", &proxy, []test{
 		{
 			"missing redis",
 			func(cfg *config.Config) {
