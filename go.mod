@@ -2,7 +2,7 @@ module github.com/nais/wonderwall
 
 go 1.22.0
 
-toolchain go1.22.5
+toolchain go1.22.6
 
 require (
 	github.com/alicebob/miniredis/v2 v2.33.0
