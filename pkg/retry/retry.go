@@ -49,10 +49,10 @@ func Fibonacci(opts ...func(f *FibonacciBackoff)) retry.Backoff {
 
 // Do retries the given function using the DefaultBackoff strategy.
 func Do(ctx context.Context, f retry.RetryFunc) error {
-	return DoWithBackoff(ctx, DefaultBackoff, f)
+	return retry.Do(ctx, DefaultBackoff, f)
 }
 
-// DoWithBackoff retries the given function using the given backoff strategy.
-func DoWithBackoff(ctx context.Context, b retry.Backoff, f retry.RetryFunc) error {
-	return retry.Do(ctx, b, f)
+// DoValue is like Do, but returns a value of type T.
+func DoValue[T any](ctx context.Context, f retry.RetryFuncValue[T]) (T, error) {
+	return retry.DoValue(ctx, DefaultBackoff, f)
 }

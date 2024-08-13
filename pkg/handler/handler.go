@@ -203,10 +203,12 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tokens *openid.Tokens
-	err = retry.Do(r.Context(), func(ctx context.Context) error {
-		tokens, err = loginCallback.RedeemTokens(ctx)
-		return retry.RetryableError(err)
+	tokens, err := retry.DoValue(r.Context(), func(ctx context.Context) (*openid.Tokens, error) {
+		tokens, err := loginCallback.RedeemTokens(ctx)
+		if err != nil {
+			return nil, retry.RetryableError(err)
+		}
+		return tokens, nil
 	})
 	if err != nil {
 		s.InternalError(w, r, fmt.Errorf("callback: redeeming tokens: %w", err))

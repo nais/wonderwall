@@ -42,23 +42,17 @@ func (in *reader) Get(r *http.Request) (*Session, error) {
 }
 
 func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, error) {
-	var encrypted *EncryptedData
-	var err error
-
-	retryable := func(ctx context.Context) error {
-		encrypted, err = in.store.Read(ctx, ticket.Key())
-		if err == nil {
-			return nil
-		}
-
+	encrypted, err := retry.DoValue(ctx, func(ctx context.Context) (*EncryptedData, error) {
+		encrypted, err := in.store.Read(ctx, ticket.Key())
 		if errors.Is(err, ErrNotFound) {
-			return err
+			return nil, err
 		}
-
-		return retry.RetryableError(err)
-	}
-
-	if err := retry.Do(ctx, retryable); err != nil {
+		if err != nil {
+			return nil, retry.RetryableError(err)
+		}
+		return encrypted, nil
+	})
+	if err != nil {
 		return nil, fmt.Errorf("reading from store: %w", err)
 	}
 

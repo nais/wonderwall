@@ -79,12 +79,10 @@ func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetim
 		return nil, fmt.Errorf("encrypting session data: %w", err)
 	}
 
-	retryable := func(ctx context.Context) error {
+	if err := retry.Do(r.Context(), func(ctx context.Context) error {
 		err = in.store.Write(r.Context(), key, encrypted, sessionLifetime)
 		return retry.RetryableError(err)
-	}
-
-	if err := retry.Do(r.Context(), retryable); err != nil {
+	}); err != nil {
 		return nil, fmt.Errorf("writing to store: %w", err)
 	}
 
@@ -185,16 +183,17 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 	}
 
 	logger.Debug("session: performing refresh grant...")
-	var resp *openid.TokenResponse
-	refresh := func(ctx context.Context) error {
-		resp, err = in.client.RefreshGrant(ctx, sess.data.RefreshToken)
+	resp, err := retry.DoValue(ctx, func(ctx context.Context) (*openid.TokenResponse, error) {
+		resp, err := in.client.RefreshGrant(ctx, sess.data.RefreshToken)
 		if errors.Is(err, openidclient.ErrOpenIDServer) {
-			return retry.RetryableError(err)
+			return nil, retry.RetryableError(err)
 		}
-
-		return err
-	}
-	if err := retry.Do(ctx, refresh); err != nil {
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
+	})
+	if err != nil {
 		if errors.Is(err, openidclient.ErrOpenIDClient) {
 			return nil, fmt.Errorf("%w: authorization might be invalid: %+v", ErrInvalidExternal, err)
 		}
@@ -219,7 +218,7 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 }
 
 func (in *manager) deleteForKey(ctx context.Context, key string) error {
-	retryable := func(ctx context.Context) error {
+	if err := retry.Do(ctx, func(ctx context.Context) error {
 		err := in.store.Delete(ctx, key)
 		if err == nil {
 			return nil
@@ -230,9 +229,7 @@ func (in *manager) deleteForKey(ctx context.Context, key string) error {
 		}
 
 		return retry.RetryableError(err)
-	}
-
-	if err := retry.Do(ctx, retryable); err != nil {
+	}); err != nil {
 		return fmt.Errorf("deleting from store: %w", err)
 	}
 
@@ -252,15 +249,13 @@ func (in *manager) update(ctx context.Context, sess *Session) error {
 		return fmt.Errorf("encrypting session data: %w", err)
 	}
 
-	update := func(ctx context.Context) error {
+	if err := retry.Do(ctx, func(ctx context.Context) error {
 		err = in.store.Update(ctx, sess.ticket.Key(), encrypted)
 		if errors.Is(err, ErrNotFound) {
 			return err
 		}
 		return retry.RetryableError(err)
-	}
-
-	if err := retry.Do(ctx, update); err != nil {
+	}); err != nil {
 		return fmt.Errorf("updating in store: %w", err)
 	}
 
