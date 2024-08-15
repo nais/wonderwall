@@ -739,7 +739,7 @@ func request(t *testing.T, client *http.Client, method, url string, headers ...h
 	assert.NoError(t, err)
 
 	location, err := resp.Location()
-	if !errors.Is(http.ErrNoLocation, err) {
+	if !errors.Is(err, http.ErrNoLocation) {
 		assert.NoError(t, err)
 	}
 
