@@ -52,6 +52,7 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 		ErrorLog: log.New(logrusErrorWriter{}, "reverseproxy: ", 0),
 		Rewrite: func(r *httputil.ProxyRequest) {
 			// preserve inbound Forwarded and X-Forwarded-* headers that is stripped when using Rewrite
+			// this presumes that we're behind a trusted reverse proxy (e.g. gateway or ingress controller)
 			r.Out.Header["Forwarded"] = r.In.Header["Forwarded"]
 			r.Out.Header["X-Forwarded-For"] = r.In.Header["X-Forwarded-For"]
 			r.Out.Header["X-Forwarded-Host"] = r.In.Header["X-Forwarded-Host"]
