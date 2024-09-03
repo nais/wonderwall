@@ -12,7 +12,7 @@ import (
 	"github.com/nais/wonderwall/pkg/handler/acr"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	"github.com/nais/wonderwall/pkg/ingress"
-	logentry "github.com/nais/wonderwall/pkg/middleware"
+	mw "github.com/nais/wonderwall/pkg/middleware"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/router/paths"
@@ -99,7 +99,7 @@ func (s *SSOProxy) GetSSOServerURL() *urllib.URL {
 }
 
 func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
-	logger := logentry.LogEntryFrom(r)
+	logger := mw.LogEntryFrom(r)
 
 	target := s.GetSSOServerURL()
 	targetQuery := target.Query()
@@ -153,7 +153,7 @@ func (s *SSOProxy) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 	ssoServerLogoutURL := url.Logout(target, canonicalRedirect)
 
-	logentry.LogEntryFrom(r).WithFields(log.Fields{
+	mw.LogEntryFrom(r).WithFields(log.Fields{
 		"redirect_to":           ssoServerLogoutURL,
 		"redirect_after_logout": canonicalRedirect,
 	}).Info("logout: redirecting to sso server")
@@ -168,25 +168,44 @@ func (s *SSOProxy) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 
 func (s *SSOProxy) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
 	r.URL.Path = paths.OAuth2 + paths.LogoutFrontChannel
+	removeMiddlewareHeaders(w)
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
 func (s *SSOProxy) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 	r.URL.Path = paths.OAuth2 + paths.LogoutLocal
+	removeMiddlewareHeaders(w)
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
 func (s *SSOProxy) Session(w http.ResponseWriter, r *http.Request) {
 	r.URL.Path = paths.OAuth2 + paths.Session
+	removeMiddlewareHeaders(w)
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
 func (s *SSOProxy) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 	r.URL.Path = paths.OAuth2 + paths.Session + paths.Refresh
+	removeMiddlewareHeaders(w)
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
 // Wildcard proxies all requests to an upstream server.
 func (s *SSOProxy) Wildcard(w http.ResponseWriter, r *http.Request) {
 	s.UpstreamProxy.Handler(s, w, r)
+}
+
+// removeMiddlewareHeaders removes known headers added by the router middlewares.
+// These headers are already set by the very same middlewares at the SSO server.
+// This avoids duplicate response headers when using [httputil.ReverseProxy] which uses [http.Header.Add] instead of [http.Header.Set] when copying headers from the upstream response.
+func removeMiddlewareHeaders(w http.ResponseWriter) {
+	cacheHeaders := []string{
+		// added by [chi_middleware.NoCache]
+		"Expires", "Cache-Control", "Pragma", "X-Accel-Expires",
+		// added by [middleware.Cors]
+		"Vary",
+	}
+	for _, header := range cacheHeaders {
+		w.Header().Del(header)
+	}
 }
