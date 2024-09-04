@@ -199,13 +199,13 @@ func (s *SSOProxy) Wildcard(w http.ResponseWriter, r *http.Request) {
 // These headers are already set by the very same middlewares at the SSO server.
 // This avoids duplicate response headers when using [httputil.ReverseProxy] which uses [http.Header.Add] instead of [http.Header.Set] when copying headers from the upstream response.
 func removeMiddlewareHeaders(w http.ResponseWriter) {
-	cacheHeaders := []string{
+	headers := []string{
 		// added by [chi_middleware.NoCache]
 		"Expires", "Cache-Control", "Pragma", "X-Accel-Expires",
 		// added by [middleware.Cors]
 		"Vary",
 	}
-	for _, header := range cacheHeaders {
+	for _, header := range headers {
 		w.Header().Del(header)
 	}
 }
