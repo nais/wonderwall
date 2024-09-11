@@ -98,3 +98,9 @@ values:
   image.tag:
     config:
       type: string
+  openid.enabled:
+    description: Enable OpenID config.
+    config:
+      type: bool
+    ignoreKind:
+      - legacy

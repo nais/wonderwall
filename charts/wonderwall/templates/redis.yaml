@@ -12,3 +12,10 @@
 {{ include "common.aivenapplication.tpl" (dict "root" . "provider" $provider "access" "readwrite" "secretName" .Values.idporten.redisSecretNames.readwrite) }}
 {{ include "common.aivenapplication.tpl" (dict "root" . "provider" $provider "access" "read" "secretName" .Values.idporten.redisSecretNames.read) }}
 {{- end }}
+
+{{- if .Values.openid.enabled }}
+{{ $provider := "openid" }}
+{{ include "common.redis.tpl" (dict "root" . "provider" $provider) }}
+{{ include "common.serviceintegration.tpl" (dict "root" . "provider" $provider) }}
+{{ include "common.aivenapplication.tpl" (dict "root" . "provider" $provider "access" "readwrite" "secretName" .Values.openid.redisSecretName) }}
+{{- end }}

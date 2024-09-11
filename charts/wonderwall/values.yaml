@@ -56,6 +56,9 @@ idporten:
   ssoServerSecretName: wonderwall-idporten-sso-server
   ssoDefaultRedirectURL:
   ssoDomain:
+openid:
+  enabled: false
+  redisSecretName: wonderwall-openid-redis-rw
 redis:
   connectionIdleTimeout: 299
 resources:
