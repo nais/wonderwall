@@ -4,6 +4,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      otel:
+        patterns:
+          - 'go.opentelemetry.io/*'
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
