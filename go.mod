@@ -14,7 +14,7 @@ require (
 	github.com/prometheus/client_golang v1.20.4
 	github.com/redis/go-redis/extra/redisotel/v9 v9.5.3
 	github.com/redis/go-redis/v9 v9.6.1
-	github.com/riandyrn/otelchi v0.9.0
+	github.com/riandyrn/otelchi v0.10.0
 	github.com/rs/cors v1.11.1
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/sirupsen/logrus v1.9.3
