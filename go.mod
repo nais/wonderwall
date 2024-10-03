@@ -1,6 +1,6 @@
 module github.com/nais/wonderwall
 
-go 1.23.1
+go 1.23.2
 
 require (
 	github.com/alicebob/miniredis/v2 v2.33.0
