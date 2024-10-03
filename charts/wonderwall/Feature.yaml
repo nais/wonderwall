@@ -104,3 +104,9 @@ values:
       type: bool
     ignoreKind:
       - legacy
+  openid.wellKnownUrl:
+    description: Well-known URL to the identity provider.
+    config:
+      type: string
+    ignoreKind:
+      - legacy

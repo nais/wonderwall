@@ -151,4 +151,30 @@ spec:
           WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_OPENID ]]"
           WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_OPENID ]]"
           WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_OPENID ]]"
+        {{- if .Values.openid.wellKnownUrl }}
+          WONDERWALL_OPENID_WELL_KNOWN_URL: "{{ .Values.openid.wellKnownUrl }}"
+        {{- end }}
+  {{- if and (.Capabilities.APIVersions.Has "networking.gke.io/v1alpha3") .Values.openid.wellKnownUrl }}
+    - template: |
+        apiVersion: networking.gke.io/v1alpha3
+        kind: FQDNNetworkPolicy
+        metadata:
+          name: {{ include "wonderwall.fullname" . }}-openid-fqdn
+          annotations:
+            fqdnnetworkpolicies.networking.gke.io/aaaa-lookups: "skip"
+        spec:
+          egress:
+            - ports:
+                - port: 443
+                  protocol: TCP
+              to:
+                - fqdns:
+                  {{- $parsed := .Values.openid.wellKnownUrl | urlParse }}
+                  - {{ get $parsed "host" | required ".Values.openid.wellKnownUrl returned an empty host" }}
+          podSelector:
+            matchLabels:
+              wonderwall: enabled
+          policyTypes:
+            - Egress
+  {{- end }}
 {{- end }}

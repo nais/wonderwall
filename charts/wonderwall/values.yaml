@@ -59,6 +59,8 @@ idporten:
 openid:
   enabled: false
   redisSecretName: wonderwall-openid-redis-rw
+  # https://<identity-provider.tld/issuer>/.well-known/openid-configuration
+  wellKnownUrl:
 redis:
   connectionIdleTimeout: 299
 resources:
