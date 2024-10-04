@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -107,54 +106,19 @@ func (c *Client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.A
 	return c.oauth2Config.Exchange(ctx, code, opts...)
 }
 
-func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
-	clientCfg := c.cfg.Client()
-	providerCfg := c.cfg.Provider()
-	key := clientCfg.ClientJWK()
-
-	iat := time.Now().Add(-5 * time.Second).Truncate(time.Second)
-	exp := iat.Add(expiration)
-
-	errs := make([]error, 0)
-
-	tok := jwt.New()
-	errs = append(errs, tok.Set(jwt.IssuerKey, clientCfg.ClientID()))
-	errs = append(errs, tok.Set(jwt.SubjectKey, clientCfg.ClientID()))
-	errs = append(errs, tok.Set(jwt.AudienceKey, providerCfg.Issuer()))
-	errs = append(errs, tok.Set(jwt.IssuedAtKey, iat))
-	errs = append(errs, tok.Set(jwt.ExpirationKey, exp))
-	errs = append(errs, tok.Set(jwt.JwtIDKey, uuid.New().String()))
-
-	for _, err := range errs {
-		if err != nil {
-			return "", fmt.Errorf("setting claim for client assertion: %w", err)
-		}
-	}
-
-	encoded, err := jwt.Sign(tok, jwt.WithKey(key.Algorithm(), key))
-	if err != nil {
-		return "", fmt.Errorf("signing client assertion: %w", err)
-	}
-
-	return string(encoded), nil
-}
-
 func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error) {
-	assertion, err := c.MakeAssertion(DefaultClientAssertionLifetime)
+	params, err := c.AuthParams()
 	if err != nil {
-		return nil, fmt.Errorf("creating client assertion: %w", err)
+		return nil, err
 	}
 
-	v := url.Values{}
-	v.Set("grant_type", "refresh_token")
-	v.Set("refresh_token", refreshToken)
-	v.Set("client_id", c.cfg.Client().ClientID())
+	requestBody := strings.NewReader(params.URLValues(map[string]string{
+		"grant_type":    "refresh_token",
+		"refresh_token": refreshToken,
+		"client_id":     c.cfg.Client().ClientID(),
+	}).Encode())
 
-	for key, val := range openid.JwtAuthenticationParameters(assertion) {
-		v.Set(key, val)
-	}
-
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.Provider().TokenEndpoint(), strings.NewReader(v.Encode()))
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.Provider().TokenEndpoint(), requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -187,4 +151,53 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid
 	}
 
 	return &tokenResponse, nil
+}
+
+func (c *Client) AuthParams() (openid.AuthParams, error) {
+	switch c.cfg.Client().AuthMethod() {
+	case openidconfig.AuthMethodPrivateKeyJWT:
+		assertion, err := c.MakeAssertion(DefaultClientAssertionLifetime)
+		if err != nil {
+			return nil, fmt.Errorf("creating client assertion: %w", err)
+		}
+
+		return openid.AuthParamsJwtBearer(assertion), nil
+
+	case openidconfig.AuthMethodClientSecret:
+		return openid.AuthParamsClientSecret(c.cfg.Client().ClientSecret()), nil
+	}
+
+	return nil, fmt.Errorf("unsupported client authentication method: %q", c.cfg.Client().AuthMethod())
+}
+
+func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
+	clientCfg := c.cfg.Client()
+	providerCfg := c.cfg.Provider()
+	key := clientCfg.ClientJWK()
+
+	iat := time.Now().Add(-5 * time.Second).Truncate(time.Second)
+	exp := iat.Add(expiration)
+
+	errs := make([]error, 0)
+
+	tok := jwt.New()
+	errs = append(errs, tok.Set(jwt.IssuerKey, clientCfg.ClientID()))
+	errs = append(errs, tok.Set(jwt.SubjectKey, clientCfg.ClientID()))
+	errs = append(errs, tok.Set(jwt.AudienceKey, providerCfg.Issuer()))
+	errs = append(errs, tok.Set(jwt.IssuedAtKey, iat))
+	errs = append(errs, tok.Set(jwt.ExpirationKey, exp))
+	errs = append(errs, tok.Set(jwt.JwtIDKey, uuid.New().String()))
+
+	for _, err := range errs {
+		if err != nil {
+			return "", fmt.Errorf("setting claim for client assertion: %w", err)
+		}
+	}
+
+	encoded, err := jwt.Sign(tok, jwt.WithKey(key.Algorithm(), key))
+	if err != nil {
+		return "", fmt.Errorf("signing client assertion: %w", err)
+	}
+
+	return string(encoded), nil
 }

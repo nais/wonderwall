@@ -55,16 +55,15 @@ func (in *LoginCallback) StateMismatchError() error {
 }
 
 func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
-	clientAssertion, err := in.MakeAssertion(DefaultClientAssertionLifetime)
+	params, err := in.AuthParams()
 	if err != nil {
-		return nil, fmt.Errorf("creating client assertion: %w", err)
+		return nil, err
 	}
 
-	opts := []oauth2.AuthCodeOption{
+	opts := params.AuthCodeOptions([]oauth2.AuthCodeOption{
 		openid.RedirectURIOption(in.cookie.RedirectURI),
 		oauth2.VerifierOption(in.cookie.CodeVerifier),
-	}
-	opts = openid.WithJwtAuthentication(opts, clientAssertion)
+	})
 
 	code := in.requestParams.Get("code")
 	rawTokens, err := in.AuthCodeGrant(ctx, code, opts)

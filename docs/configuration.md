@@ -23,7 +23,8 @@ The following flags are available:
 | `openid.acr-values`               | string   | Space separated string that configures the default security level (`acr_values`) parameter for authorization requests.                                                                                                                                                             |                      |
 | `openid.audiences`                | strings  | List of additional trusted audiences (other than the client_id) for OpenID Connect id_token validation.                                                                                                                                                                            |                      |
 | `openid.client-id`                | string   | Client ID for the OpenID client.                                                                                                                                                                                                                                                   |                      |
-| `openid.client-jwk`               | string   | JWK containing the private key for the OpenID client in string format.                                                                                                                                                                                                             |                      |
+| `openid.client-jwk`               | string   | JWK containing the private key for the OpenID client in string format. If configured, this takes precedence over 'openid.client-secret'.                                                                                                                                           |                      |
+| `openid.client-secret`            | string   | Client secret for the OpenID client. Overridden by 'openid.client-jwk', if configured.                                                                                                                                                                                             |                      |
 | `openid.post-logout-redirect-uri` | string   | URI for redirecting the user after successful logout at the Identity Provider.                                                                                                                                                                                                     |                      |
 | `openid.provider`                 | string   | Provider configuration to load and use, either `openid`, `azure`, `idporten`.                                                                                                                                                                                                      | `openid`             |
 | `openid.resource-indicator`       | string   | OAuth2 resource indicator to include in authorization request for acquiring audience-restricted tokens.                                                                                                                                                                            |                      |
@@ -82,7 +83,7 @@ The default configuration of Wonderwall will start in [_standalone mode_](archit
 At minimum, the following configuration must be provided when in standalone mode:
 
 - `openid.client-id`
-- `openid.client-jwk`
+- `openid.client-jwk` or `openid.client-secret`
 - `openid.well-known-url`
 - `ingress`
 
@@ -99,7 +100,7 @@ When the `sso.enabled` flag is enabled and the `sso.mode` flag is set to `server
 At minimum, the following configuration must be provided when in SSO server mode:
 
 - `openid.client-id`
-- `openid.client-jwk`
+- `openid.client-jwk` or `openid.client-secret`
 - `openid.well-known-url`
 - `ingress`
 - `redis.address`

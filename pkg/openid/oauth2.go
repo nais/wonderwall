@@ -21,20 +21,47 @@ type TokenErrorResponse struct {
 	ErrorDescription string `json:"error_description"`
 }
 
-// JwtAuthenticationParameters returns a map of parameters to be sent to the authorization server when using a JWT for client authentication in RFC 7523, section 2.2.
-func JwtAuthenticationParameters(clientAssertion string) map[string]string {
+type AuthParams map[string]string
+
+// AuthCodeOptions adds AuthParams to the given [oauth2.AuthCodeOption] slice and returns the updated slice.
+func (a AuthParams) AuthCodeOptions(opts []oauth2.AuthCodeOption) []oauth2.AuthCodeOption {
+	for key, val := range a {
+		opts = append(opts, oauth2.SetAuthURLParam(key, val))
+	}
+
+	return opts
+}
+
+// URLValues adds AuthParams to the given map of parameters and returns a [url.Values].
+func (a AuthParams) URLValues(params map[string]string) url.Values {
+	v := url.Values{}
+
+	for key, val := range params {
+		v.Set(key, val)
+	}
+
+	for key, val := range a {
+		v.Set(key, val)
+	}
+
+	return v
+}
+
+// AuthParamsClientSecret returns a map of parameters to be sent to the authorization server when using a client secret for client authentication in RFC 6749, section 2.3.1.
+// The target authorization server must support the "client_secret_post" client authentication method.
+func AuthParamsClientSecret(clientSecret string) AuthParams {
+	return map[string]string{
+		"client_secret": clientSecret,
+	}
+}
+
+// AuthParamsJwtBearer returns a map of parameters to be sent to the authorization server when using a JWT for client authentication in RFC 7523, section 2.2.
+// The target authorization server must support the "private_key_jwt" client authentication method.
+func AuthParamsJwtBearer(clientAssertion string) AuthParams {
 	return map[string]string{
 		"client_assertion":      clientAssertion,
 		"client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
 	}
-}
-
-func WithJwtAuthentication(opts []oauth2.AuthCodeOption, clientAssertion string) []oauth2.AuthCodeOption {
-	for k, v := range JwtAuthenticationParameters(clientAssertion) {
-		opts = append(opts, oauth2.SetAuthURLParam(k, v))
-	}
-
-	return opts
 }
 
 func RedirectURIOption(redirectUri string) oauth2.AuthCodeOption {

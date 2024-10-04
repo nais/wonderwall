@@ -20,6 +20,7 @@ type OpenID struct {
 	Audiences             []string `json:"audiences"`
 	ClientID              string   `json:"client-id"`
 	ClientJWK             string   `json:"client-jwk"`
+	ClientSecret          string   `json:"client-secret"`
 	PostLogoutRedirectURI string   `json:"post-logout-redirect-uri"`
 	Provider              Provider `json:"provider"`
 	ResourceIndicator     string   `json:"resource-indicator"`
@@ -43,6 +44,7 @@ const (
 	OpenIDAudiences             = "openid.audiences"
 	OpenIDClientID              = "openid.client-id"
 	OpenIDClientJWK             = "openid.client-jwk"
+	OpenIDClientSecret          = "openid.client-secret"
 	OpenIDPostLogoutRedirectURI = "openid.post-logout-redirect-uri"
 	OpenIDProvider              = "openid.provider"
 	OpenIDResourceIndicator     = "openid.resource-indicator"
@@ -55,7 +57,8 @@ func openidFlags() {
 	flag.String(OpenIDACRValues, "", "Space separated string that configures the default security level (acr_values) parameter for authorization requests.")
 	flag.StringSlice(OpenIDAudiences, []string{}, "List of additional trusted audiences (other than the client_id) for OpenID Connect id_token validation.")
 	flag.String(OpenIDClientID, "", "Client ID for the OpenID client.")
-	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format.")
+	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format. If configured, this takes precedence over 'openid.client-secret'.")
+	flag.String(OpenIDClientSecret, "", "Client secret for the OpenID client. Overridden by 'openid.client-jwk', if configured.")
 	flag.String(OpenIDPostLogoutRedirectURI, "", "URI for redirecting the user after successful logout at the Identity Provider.")
 	flag.String(OpenIDProvider, string(ProviderOpenID), "Provider configuration to load and use, either 'openid', 'azure', 'idporten'.")
 	flag.String(OpenIDResourceIndicator, "", "OAuth2 resource indicator to include in authorization request for acquiring audience-restricted tokens.")

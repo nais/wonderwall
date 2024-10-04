@@ -119,6 +119,7 @@ func Initialize() (*Config, error) {
 	masked := *cfg
 	masked.EncryptionKey = redacted
 	masked.OpenID.ClientJWK = redacted
+	masked.OpenID.ClientSecret = redacted
 	masked.Redis.Password = redacted
 	logger.Infof("config: %+v", masked)
 

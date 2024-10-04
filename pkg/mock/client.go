@@ -2,9 +2,9 @@ package mock
 
 import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
-
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
+	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
 )
 
@@ -22,12 +22,20 @@ func (c *TestClientConfiguration) Audiences() map[string]bool {
 	return c.trustedAudiences
 }
 
+func (c *TestClientConfiguration) AuthMethod() openidconfig.AuthMethod {
+	return openidconfig.AuthMethodPrivateKeyJWT
+}
+
 func (c *TestClientConfiguration) ClientID() string {
 	return c.Config.OpenID.ClientID
 }
 
 func (c *TestClientConfiguration) ClientJWK() jwk.Key {
 	return c.clientJwk
+}
+
+func (c *TestClientConfiguration) ClientSecret() string {
+	return c.Config.OpenID.ClientSecret
 }
 
 func (c *TestClientConfiguration) SetPostLogoutRedirectURI(uri string) {

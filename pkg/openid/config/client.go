@@ -4,16 +4,26 @@ import (
 	"fmt"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
 )
 
+type AuthMethod string
+
+const (
+	AuthMethodPrivateKeyJWT AuthMethod = "private_key_jwt"
+	AuthMethodClientSecret  AuthMethod = "client_secret"
+)
+
 type Client interface {
 	ACRValues() string
 	Audiences() map[string]bool
+	AuthMethod() AuthMethod
 	ClientID() string
 	ClientJWK() jwk.Key
+	ClientSecret() string
 	PostLogoutRedirectURI() string
 	ResourceIndicator() string
 	Scopes() scopes.Scopes
@@ -23,6 +33,7 @@ type Client interface {
 
 type client struct {
 	config.OpenID
+	authMethod       AuthMethod
 	clientJwk        jwk.Key
 	trustedAudiences map[string]bool
 }
@@ -35,12 +46,20 @@ func (in *client) Audiences() map[string]bool {
 	return in.trustedAudiences
 }
 
+func (in *client) AuthMethod() AuthMethod {
+	return in.authMethod
+}
+
 func (in *client) ClientID() string {
 	return in.OpenID.ClientID
 }
 
 func (in *client) ClientJWK() jwk.Key {
 	return in.clientJwk
+}
+
+func (in *client) ClientSecret() string {
+	return in.OpenID.ClientSecret
 }
 
 func (in *client) PostLogoutRedirectURI() string {
@@ -64,20 +83,31 @@ func (in *client) WellKnownURL() string {
 }
 
 func NewClientConfig(cfg *config.Config) (Client, error) {
-	clientJwkString := cfg.OpenID.ClientJWK
-	if len(clientJwkString) == 0 {
-		return nil, fmt.Errorf("missing required config %s", config.OpenIDClientJWK)
-	}
-
-	clientJwk, err := jwk.ParseKey([]byte(clientJwkString))
-	if err != nil {
-		return nil, fmt.Errorf("parsing client JWK: %w", err)
-	}
-
 	c := &client{
 		OpenID:           cfg.OpenID,
-		clientJwk:        clientJwk,
 		trustedAudiences: cfg.OpenID.TrustedAudiences(),
+	}
+
+	if len(cfg.OpenID.ClientJWK) == 0 && len(cfg.OpenID.ClientSecret) == 0 {
+		return nil, fmt.Errorf("missing required config: at least one of %q or %q must be set", config.OpenIDClientJWK, config.OpenIDClientSecret)
+	}
+
+	if len(cfg.OpenID.ClientSecret) > 0 {
+		c.authMethod = AuthMethodClientSecret
+	}
+
+	if len(cfg.OpenID.ClientJWK) > 0 {
+		if c.authMethod == AuthMethodClientSecret {
+			log.WithField("logger", "wonderwall.config").Info("both client JWK and client secret were set; using client JWK...")
+		}
+
+		clientJwk, err := jwk.ParseKey([]byte(cfg.OpenID.ClientJWK))
+		if err != nil {
+			return nil, fmt.Errorf("parsing client JWK: %w", err)
+		}
+
+		c.clientJwk = clientJwk
+		c.authMethod = AuthMethodPrivateKeyJWT
 	}
 
 	var clientConfig Client
@@ -87,17 +117,17 @@ func NewClientConfig(cfg *config.Config) (Client, error) {
 	case config.ProviderAzure:
 		clientConfig = c.Azure()
 	case "":
-		return nil, fmt.Errorf("missing required config %s", config.OpenIDProvider)
+		return nil, fmt.Errorf("missing required config %q", config.OpenIDProvider)
 	default:
 		clientConfig = c
 	}
 
 	if len(clientConfig.ClientID()) == 0 {
-		return nil, fmt.Errorf("missing required config %s", config.OpenIDClientID)
+		return nil, fmt.Errorf("missing required config %q", config.OpenIDClientID)
 	}
 
 	if len(clientConfig.WellKnownURL()) == 0 {
-		return nil, fmt.Errorf("missing required config %s", config.OpenIDWellKnownURL)
+		return nil, fmt.Errorf("missing required config %q", config.OpenIDWellKnownURL)
 	}
 
 	return clientConfig, nil
