@@ -11,22 +11,17 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/handler/templates"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/router/paths"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
+	"github.com/nais/wonderwall/templates"
 )
 
 const (
 	// MaxAutoRetryAttempts is the maximum number of times to automatically redirect the user to retry their original request.
 	MaxAutoRetryAttempts = 3
 )
-
-type Page struct {
-	CorrelationID string
-	RetryURI      string
-}
 
 func (s *Standalone) InternalError(w http.ResponseWriter, r *http.Request, cause error) {
 	s.respondError(w, r, http.StatusInternalServerError, cause, log.ErrorLevel)
@@ -108,11 +103,17 @@ func (s *Standalone) defaultErrorResponse(w http.ResponseWriter, r *http.Request
 		loginCookie = nil
 	}
 
-	errorPage := Page{
-		CorrelationID: middleware.GetReqID(r.Context()),
-		RetryURI:      s.Retry(r, loginCookie),
+	defaultRedirect := s.Ingresses.Single().String()
+	if s.Config.SSO.IsServer() {
+		defaultRedirect = s.Config.SSO.ServerDefaultRedirectURL
 	}
-	err = templates.ErrorTemplate.Execute(w, errorPage)
+
+	err = templates.ExecError(w, templates.ErrorVariables{
+		CorrelationID:      middleware.GetReqID(r.Context()),
+		CSS:                templates.CSS,
+		DefaultRedirectURI: defaultRedirect,
+		RetryURI:           s.Retry(r, loginCookie),
+	})
 	if err != nil {
 		mw.LogEntryFrom(r).Errorf("errorhandler: executing error template: %+v", err)
 	}

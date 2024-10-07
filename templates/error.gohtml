@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        {{ .CSS }}
+    </style>
+    <title>Innloggingsfeil</title>
+</head>
+<body>
+<section class="bg-white">
+    <div class="py-8 px-6 mx-auto max-w-screen-xl lg:py-26 lg:px-12">
+        <div class="mx-auto max-w-screen-md text-left">
+            <h1 class="h-[4rem] mb-2 sm:mb-8 text-4xl tracking-tight font-extrabold sm:text-5xl bg-gradient-to-r from-indigo-700 via-primary-300 to-primary-500 inline-block text-transparent bg-clip-text">
+                Beklager, noe gikk galt.
+            </h1>
+            <p class="mb-2 text-xl tracking-tight font-bold text-gray-900 sm:text-2xl">
+                Vi kunne ikke logge deg på.
+            </p>
+            <p class="mb-8 text-base tracking-tight font-normal text-gray-900">
+                En teknisk feil gjør at siden er utilgjengelig. Dette skyldes ikke noe du gjorde.<br />
+                Vent litt og prøv igjen.
+            </p>
+            <div class="flex flex-col gap-3 mt-8 sm:flex-row sm:items-center sm:gap-3">
+                <a href="{{.RetryURI}}" class="inline-flex items-center justify-center min-w-44 p-4 text-base font-normal text-white rounded-md bg-action-500 hover:bg-action-600">
+                    <span class="w-full text-center">Prøv igjen</span>
+                </a>
+                <a href="{{.DefaultRedirectURI}}" class="inline-flex items-center justify-center min-w-44 p-4 text-base font-normal rounded-md border-2 border-action-500 text-action-500 hover:bg-action-100">
+                    <span class="w-full text-center">Gå til forsiden</span>
+                </a>
+            </div>
+            <p class="mt-8 font-light text-sm text-gray-500">
+                ID: {{.CorrelationID}}
+            </p>
+        </div>
+    </div>
+</section>
+</body>
+</html>
