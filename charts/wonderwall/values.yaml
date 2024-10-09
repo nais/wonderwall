@@ -11,7 +11,7 @@ aiven:
   prometheusEndpointId:
   redisPlan:
 azure:
-  enabled: true
+  enabled: false
   redisSecretName: wonderwall-azure-redis-rw
   sessionMaxLifetime: 10h
   sessionRefresh: true
@@ -29,7 +29,7 @@ azure:
     ssoServerSecretName: wonderwall-azure-sso-server
     groupIds: [] # ["<group-id>"] - additional group IDs to grant access to
 idporten:
-  enabled: true
+  enabled: false
   clientAccessTokenLifetime: 3600
   clientSessionLifetime: 21600
   clientSecretName: idporten-sso-server
