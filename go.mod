@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	github.com/alicebob/miniredis/v2 v2.33.0
-	github.com/bmatcuk/doublestar/v4 v4.6.1
+	github.com/bmatcuk/doublestar/v4 v4.7.1
 	github.com/bsm/redislock v0.9.4
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/google/uuid v1.6.0
