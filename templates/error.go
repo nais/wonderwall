@@ -16,6 +16,7 @@ type ErrorVariables struct {
 	CorrelationID      string
 	CSS                template.CSS
 	DefaultRedirectURI string
+	HttpStatusCode     int
 	RetryURI           string
 }
 

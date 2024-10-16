@@ -112,6 +112,7 @@ func (s *Standalone) defaultErrorResponse(w http.ResponseWriter, r *http.Request
 		CorrelationID:      middleware.GetReqID(r.Context()),
 		CSS:                templates.CSS,
 		DefaultRedirectURI: defaultRedirect,
+		HttpStatusCode:     statusCode,
 		RetryURI:           s.Retry(r, loginCookie),
 	})
 	if err != nil {
