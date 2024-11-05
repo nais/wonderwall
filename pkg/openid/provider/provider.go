@@ -63,7 +63,7 @@ func NewJwksProvider(ctx context.Context, openidCfg openidconfig.Config) (*JwksP
 	uri := providerCfg.JwksURI()
 	cache := jwk.NewCache(ctx)
 
-	err := cache.Register(uri)
+	err := cache.Register(uri, jwk.WithPostFetcher(keySetMutator(providerCfg)))
 	if err != nil {
 		return nil, fmt.Errorf("registering jwks provider uri to cache: %w", err)
 	}
@@ -79,4 +79,23 @@ func NewJwksProvider(ctx context.Context, openidCfg openidconfig.Config) (*JwksP
 		jwksCache: cache,
 		jwksLock:  &jwksLock{},
 	}, nil
+}
+
+func keySetMutator(cfg openidconfig.Provider) jwk.PostFetcher {
+	return jwk.PostFetchFunc(func(uri string, set jwk.Set) (jwk.Set, error) {
+		for i := 0; i < set.Len(); i++ {
+			key, _ := set.Key(i)
+			if key.Algorithm().String() != "" {
+				continue
+			}
+
+			// if no "alg" is set on the key, set it to the expected algorithm
+			err := key.Set(jwk.AlgorithmKey, cfg.IDTokenSigningAlg())
+			if err != nil {
+				return nil, fmt.Errorf("setting key algorithm: %w", err)
+			}
+		}
+
+		return set, nil
+	})
 }

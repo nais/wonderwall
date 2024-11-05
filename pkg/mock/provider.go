@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	log "github.com/sirupsen/logrus"
 
@@ -51,6 +52,10 @@ func (t *TestProviderConfiguration) AuthorizationEndpoint() string {
 func (t *TestProviderConfiguration) EndSessionEndpointURL() url.URL {
 	u, _ := url.Parse(t.Metadata.EndSessionEndpoint)
 	return *u
+}
+
+func (t *TestProviderConfiguration) IDTokenSigningAlg() jwa.KeyAlgorithm {
+	return jwa.RS256
 }
 
 func (t *TestProviderConfiguration) Issuer() string {

@@ -25,6 +25,7 @@ The following flags are available:
 | `openid.client-id`                | string   | Client ID for the OpenID client.                                                                                                                                                                                                                                                   |                      |
 | `openid.client-jwk`               | string   | JWK containing the private key for the OpenID client in string format. If configured, this takes precedence over 'openid.client-secret'.                                                                                                                                           |                      |
 | `openid.client-secret`            | string   | Client secret for the OpenID client. Overridden by 'openid.client-jwk', if configured.                                                                                                                                                                                             |                      |
+| `openid.id-token-signing-alg`     | string   | Expected JWA value (as defined in RFC 7518) of public keys for validating id_token signatures. This only applies where the key's 'alg' header is not set.                                                                                                                          | `RS256`              |
 | `openid.post-logout-redirect-uri` | string   | URI for redirecting the user after successful logout at the Identity Provider.                                                                                                                                                                                                     |                      |
 | `openid.provider`                 | string   | Provider configuration to load and use, either `openid`, `azure`, `idporten`.                                                                                                                                                                                                      | `openid`             |
 | `openid.resource-indicator`       | string   | OAuth2 resource indicator to include in authorization request for acquiring audience-restricted tokens.                                                                                                                                                                            |                      |
@@ -63,13 +64,16 @@ Duration flags support [Go duration strings](https://pkg.go.dev/time#ParseDurati
 ## Production Use
 
 The `bind-address` configuration should be set to listen to a public interface, e.g. `0.0.0.0:3000`.
-The default value only listens to the loopback interface, i.e. localhost - which makes it unavailable for services outside the Kubernetes Pod.
+The default value only listens to the loopback interface, i.e. localhost - which makes it unavailable for services
+outside the Kubernetes Pod.
 
 The `encryption-key` configuration should be set.
-Otherwise, a random key will be generated and used - which will not persist between restarts. Sessions will also be rendered invalid as they're unable to be decrypted.
+Otherwise, a random key will be generated and used - which will not persist between restarts. Sessions will also be
+rendered invalid as they're unable to be decrypted.
 
 The `redis.address` configuration should be set. Otherwise, an in-memory store is used.
-This is especially important if you're running multiple replicas of your application that should share the same sessions.
+This is especially important if you're running multiple replicas of your application that should share the same
+sessions.
 
 ## Modes
 
@@ -91,11 +95,13 @@ At minimum, the following configuration must be provided when in standalone mode
 
 When the `sso.enabled` flag is enabled, Wonderwall will start in [_SSO mode_](architecture.md#single-sign-on-sso-mode).
 
-There are two possible modes when in SSO mode. This is controlled with the `sso.mode` flag; the default value is `server`.
+There are two possible modes when in SSO mode. This is controlled with the `sso.mode` flag; the default value is
+`server`.
 
 #### SSO Server
 
-When the `sso.enabled` flag is enabled and the `sso.mode` flag is set to `server`, Wonderwall will start in [SSO server mode](architecture.md#sso-server).
+When the `sso.enabled` flag is enabled and the `sso.mode` flag is set to `server`, Wonderwall will start
+in [SSO server mode](architecture.md#sso-server).
 
 At minimum, the following configuration must be provided when in SSO server mode:
 
@@ -114,7 +120,8 @@ You should also explicitly configure the cookie encryption key:
 
 ### SSO Proxy
 
-When the `sso.enabled` flag is enabled and the `sso.mode` flag is set to `proxy`, Wonderwall will start in [SSO proxy mode](architecture.md#sso-proxy).
+When the `sso.enabled` flag is enabled and the `sso.mode` flag is set to `proxy`, Wonderwall will start
+in [SSO proxy mode](architecture.md#sso-proxy).
 
 At minimum, the following configuration must be provided when in SSO proxy mode:
 
@@ -203,7 +210,8 @@ The paths must be absolute paths. The match patterns use glob-style matching.
 
 #### ID-porten
 
-When the `openid.provider` flag is set to `idporten`, the following environment variables are bound to the required `openid`
+When the `openid.provider` flag is set to `idporten`, the following environment variables are bound to the required
+`openid`
 flags described previously:
 
 - `IDPORTEN_CLIENT_ID`  

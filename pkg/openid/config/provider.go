@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/lestrrat-go/jwx/v2/jwa"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -15,6 +16,7 @@ import (
 type Provider interface {
 	AuthorizationEndpoint() string
 	EndSessionEndpointURL() url.URL
+	IDTokenSigningAlg() jwa.KeyAlgorithm
 	Issuer() string
 	JwksURI() string
 	TokenEndpoint() string
@@ -28,6 +30,7 @@ type Provider interface {
 
 type provider struct {
 	endSessionEndpointURL *url.URL
+	idTokenSigningAlg     jwa.KeyAlgorithm
 	metadata              *ProviderMetadata
 }
 
@@ -41,6 +44,10 @@ func (p *provider) EndSessionEndpointURL() url.URL {
 
 func (p *provider) TokenEndpoint() string {
 	return p.metadata.TokenEndpoint
+}
+
+func (p *provider) IDTokenSigningAlg() jwa.KeyAlgorithm {
+	return p.idTokenSigningAlg
 }
 
 func (p *provider) Issuer() string {
@@ -93,6 +100,7 @@ func NewProviderConfig(cfg *config.Config) (Provider, error) {
 
 	return &provider{
 		endSessionEndpointURL: endSessionEndpointURL,
+		idTokenSigningAlg:     jwa.SignatureAlgorithm(cfg.OpenID.IDTokenSigningAlg),
 		metadata:              providerCfg,
 	}, nil
 }
@@ -140,6 +148,11 @@ func (c *ProviderMetadata) Validate(cfg config.OpenID) error {
 		return err
 	}
 
+	err = c.validateIDTokenSigningAlg(cfg.IDTokenSigningAlg)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -162,6 +175,16 @@ func (c *ProviderMetadata) validateLocaleValues(locale string) error {
 	}
 
 	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", config.OpenIDUILocales, locale, c.UILocalesSupported)
+}
+
+func (c *ProviderMetadata) validateIDTokenSigningAlg(algorithm string) error {
+	for _, alg := range c.IDTokenSigningAlgValuesSupported {
+		if alg == algorithm {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", config.OpenIDIDTokenSigningAlg, algorithm, c.IDTokenSigningAlgValuesSupported)
 }
 
 type Supported []string

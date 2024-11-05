@@ -135,6 +135,10 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	if err := c.OpenID.Validate(); err != nil {
+		return err
+	}
+
 	if err := c.Session.Validate(); err != nil {
 		return err
 	}
