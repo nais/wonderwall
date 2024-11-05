@@ -62,7 +62,7 @@ func openidFlags() {
 	flag.String(OpenIDPostLogoutRedirectURI, "", "URI for redirecting the user after successful logout at the Identity Provider.")
 	flag.String(OpenIDProvider, string(ProviderOpenID), "Provider configuration to load and use, either 'openid', 'azure', 'idporten'.")
 	flag.String(OpenIDResourceIndicator, "", "OAuth2 resource indicator to include in authorization request for acquiring audience-restricted tokens.")
-	flag.StringSlice(OpenIDScopes, []string{}, "List of additional scopes (other than 'openid') that should be used during the login flow.")
+	flag.StringSlice(OpenIDScopes, []string{}, "Comma separated list of additional scopes (other than 'openid') that should be used during the login flow.")
 	flag.String(OpenIDUILocales, "", "Space-separated string that configures the default UI locale (ui_locales) parameter for OAuth2 consent screen.")
 	flag.String(OpenIDWellKnownURL, "", "URI to the well-known OpenID Configuration metadata document.")
 }
