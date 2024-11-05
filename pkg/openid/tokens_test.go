@@ -338,8 +338,7 @@ func TestIDToken_Validate(t *testing.T) {
 			idToken, err := makeIDToken(c)
 			require.NoError(t, err)
 
-			err = idToken.Validate(openidcfg, cookie)
-
+			err = idToken.Validate(openidcfg, cookie, &jwks.Public)
 			if tt.expectErr != "" {
 				assert.ErrorContains(t, err, tt.expectErr)
 			} else {
@@ -408,5 +407,5 @@ func makeIDToken(claims *claims) (*openid.IDToken, error) {
 		return nil, fmt.Errorf("signing token: %w", err)
 	}
 
-	return openid.ParseIDToken(string(jws), jwks.Public)
+	return openid.ParseIDToken(string(jws))
 }

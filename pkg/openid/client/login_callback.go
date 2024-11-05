@@ -76,16 +76,11 @@ func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, erro
 		return nil, fmt.Errorf("getting jwks: %w", err)
 	}
 
-	tokens, err := openid.NewTokens(rawTokens, *jwkSet)
+	tokens, err := openid.NewTokens(rawTokens, jwkSet, in.cfg, in.cookie)
 	if err != nil {
-		// JWKS might not be up-to-date, so we'll want to force a refresh for the next attempt
+		// JWKS might not be up to date, so we'll want to force a refresh for the next attempt
 		_, _ = in.jwksProvider.RefreshPublicJwkSet(ctx)
 		return nil, fmt.Errorf("parsing tokens: %w", err)
-	}
-
-	err = tokens.IDToken.Validate(in.cfg, in.cookie)
-	if err != nil {
-		return nil, fmt.Errorf("validating id_token: %w", err)
 	}
 
 	return tokens, nil

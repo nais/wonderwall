@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	jwtlib "github.com/lestrrat-go/jwx/v2/jwt"
 	"golang.org/x/oauth2"
 
@@ -22,10 +23,19 @@ type Tokens struct {
 	TokenType    string
 }
 
-func NewTokens(src *oauth2.Token, jwks jwk.Set) (*Tokens, error) {
-	idToken, err := ParseIDTokenFrom(src, jwks)
+func NewTokens(src *oauth2.Token, jwks *jwk.Set, cfg openidconfig.Config, cookie *LoginCookie) (*Tokens, error) {
+	rawIdToken, ok := src.Extra("id_token").(string)
+	if !ok {
+		return nil, fmt.Errorf("missing id_token in token response")
+	}
+
+	idToken, err := ParseIDToken(rawIdToken)
 	if err != nil {
 		return nil, fmt.Errorf("parsing id_token: %w", err)
+	}
+
+	if err := idToken.Validate(cfg, cookie, jwks); err != nil {
+		return nil, fmt.Errorf("validating id_token: %w", err)
 	}
 
 	return &Tokens{
@@ -70,9 +80,14 @@ func (in *IDToken) GetSidClaim() (string, error) {
 	return in.GetStringClaim(jwt.SidClaim)
 }
 
-func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie) error {
+func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie, jwks *jwk.Set) error {
 	openIDconfig := cfg.Provider()
 	clientConfig := cfg.Client()
+
+	_, err := jws.Verify([]byte(in.GetSerialized()), jws.WithKeySet(*jwks))
+	if err != nil {
+		return fmt.Errorf("verifying signature: %w", err)
+	}
 
 	opts := []jwtlib.ValidateOption{
 		// OpenID Connect Core, section 2 - required claims.
@@ -91,7 +106,8 @@ func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie) error 
 		// OpenID Connect Core section 3.1.3.7, step 11.
 		//  If a nonce value was sent in the Authentication Request, a `nonce` Claim MUST be present and its value checked to verify that it is the same value as the one that was sent in the Authentication Request.
 		jwtlib.WithClaimValue("nonce", cookie.Nonce),
-		jwtlib.WithAcceptableSkew(jwt.AcceptableClockSkew),
+		// Skew tolerance for time-based claims (exp, iat, nbf)
+		jwtlib.WithAcceptableSkew(5 * time.Second),
 	}
 
 	if openIDconfig.SidClaimRequired() {
@@ -114,8 +130,7 @@ func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie) error 
 		}
 	}
 
-	err := jwtlib.Validate(in.GetToken(), opts...)
-	if err != nil {
+	if err := jwtlib.Validate(in.GetToken(), opts...); err != nil {
 		return err
 	}
 
@@ -147,20 +162,17 @@ func NewIDToken(raw string, jwtToken jwtlib.Token) *IDToken {
 	}
 }
 
-func ParseIDToken(raw string, jwks jwk.Set) (*IDToken, error) {
-	idToken, err := jwt.Parse(raw, jwks)
+// ParseIDToken parses a raw ID token string into an IDToken struct.
+// It does not validate the token nor verify the signature.
+func ParseIDToken(raw string) (*IDToken, error) {
+	opts := []jwtlib.ParseOption{
+		jwtlib.WithValidate(false), // JWT validation is done in IDToken.Validate
+		jwtlib.WithVerify(false),   // Signature verification is done in IDToken.Validate
+	}
+	idToken, err := jwtlib.ParseString(raw, opts...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing jwt: %w", err)
 	}
 
 	return NewIDToken(raw, idToken), nil
-}
-
-func ParseIDTokenFrom(tokens *oauth2.Token, jwks jwk.Set) (*IDToken, error) {
-	idToken, ok := tokens.Extra("id_token").(string)
-	if !ok {
-		return nil, fmt.Errorf("missing id_token in token response")
-	}
-
-	return ParseIDToken(idToken, jwks)
 }
