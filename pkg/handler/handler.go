@@ -234,24 +234,24 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		"sid":         sess.ExternalSessionID(),
 	}
 
-	if acr := tokens.IDToken.GetAcrClaim(); acr != "" {
+	if acr := tokens.IDToken.Acr(); acr != "" {
 		fields["acr"] = acr
 	}
 
-	amr := tokens.IDToken.GetAmrClaim()
+	amr := tokens.IDToken.Amr()
 	if amr != "" {
 		fields["amr"] = amr
 	}
 
-	if authTime := tokens.IDToken.GetAuthTimeClaim(); !authTime.IsZero() {
+	if authTime := tokens.IDToken.AuthTime(); !authTime.IsZero() {
 		fields["auth_time"] = authTime.Format(time.RFC3339)
 	}
 
-	if locale := tokens.IDToken.GetLocaleClaim(); locale != "" {
+	if locale := tokens.IDToken.Locale(); locale != "" {
 		fields["locale"] = locale
 	}
 
-	if oid := tokens.IDToken.GetOidClaim(); oid != "" {
+	if oid := tokens.IDToken.Oid(); oid != "" {
 		fields["oid"] = oid
 	}
 

@@ -45,13 +45,13 @@ func TestParseIDToken(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, sub, parsed.GetToken().Subject())
-	assert.Equal(t, "some-issuer", parsed.GetToken().Issuer())
-	assert.Equal(t, []string{"some-client-id"}, parsed.GetToken().Audience())
-	assert.Equal(t, "some-nonce", parsed.GetStringClaimOrEmpty("nonce"))
-	assert.Equal(t, iat, parsed.GetToken().IssuedAt())
-	assert.Equal(t, exp, parsed.GetToken().Expiration())
-	assert.NotEmpty(t, parsed.GetToken().JwtID())
+	assert.Equal(t, sub, parsed.Subject())
+	assert.Equal(t, "some-issuer", parsed.Issuer())
+	assert.Equal(t, []string{"some-client-id"}, parsed.Audience())
+	assert.Equal(t, "some-nonce", parsed.StringClaimOrEmpty("nonce"))
+	assert.Equal(t, iat, parsed.IssuedAt())
+	assert.Equal(t, exp, parsed.Expiration())
+	assert.NotEmpty(t, parsed.JwtID())
 }
 
 func TestIDToken_GetAcrClaim(t *testing.T) {
@@ -62,7 +62,7 @@ func TestIDToken_GetAcrClaim(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, "some-acr", idToken.GetAcrClaim())
+	assert.Equal(t, "some-acr", idToken.Acr())
 }
 
 func TestIDToken_GetAmrClaim(t *testing.T) {
@@ -95,7 +95,7 @@ func TestIDToken_GetAmrClaim(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expected, idToken.GetAmrClaim())
+			assert.Equal(t, tt.expected, idToken.Amr())
 		})
 	}
 }
@@ -107,7 +107,7 @@ func TestIDToken_GetAuthTimeClaim(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.NotZero(t, idToken.GetAuthTimeClaim())
+	assert.NotZero(t, idToken.AuthTime())
 }
 
 func TestIDToken_GetLocaleClaim(t *testing.T) {
@@ -117,7 +117,7 @@ func TestIDToken_GetLocaleClaim(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "some-locale", idToken.GetLocaleClaim())
+	assert.Equal(t, "some-locale", idToken.Locale())
 }
 
 func TestIDToken_GetOidClaim(t *testing.T) {
@@ -127,7 +127,7 @@ func TestIDToken_GetOidClaim(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "some-oid", idToken.GetOidClaim())
+	assert.Equal(t, "some-oid", idToken.Oid())
 }
 
 func TestIDToken_GetSidClaim(t *testing.T) {
@@ -138,7 +138,7 @@ func TestIDToken_GetSidClaim(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	sid, err := idToken.GetSidClaim()
+	sid, err := idToken.Sid()
 	assert.NoError(t, err)
 	assert.Equal(t, "some-sid", sid)
 }

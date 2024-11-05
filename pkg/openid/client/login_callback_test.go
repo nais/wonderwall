@@ -57,7 +57,7 @@ func TestLoginCallback_RedeemTokens(t *testing.T) {
 
 		assert.NotEmpty(t, tokens.AccessToken)
 		assert.NotEmpty(t, tokens.RefreshToken)
-		assert.NotEmpty(t, tokens.IDToken.GetSerialized())
+		assert.NotEmpty(t, tokens.IDToken.Serialized())
 		assert.NotEmpty(t, tokens.TokenType)
 		assert.NotEmpty(t, tokens.Expiry)
 

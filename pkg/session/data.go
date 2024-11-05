@@ -61,9 +61,9 @@ func NewData(externalSessionID string, tokens *openid.Tokens, metadata *Metadata
 	data := &Data{
 		ExternalSessionID: externalSessionID,
 		AccessToken:       tokens.AccessToken,
-		IDToken:           tokens.IDToken.GetSerialized(),
+		IDToken:           tokens.IDToken.Serialized(),
 		RefreshToken:      tokens.RefreshToken,
-		Acr:               tokens.IDToken.GetAcrClaim(),
+		Acr:               tokens.IDToken.Acr(),
 	}
 
 	if metadata != nil {

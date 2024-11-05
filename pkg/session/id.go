@@ -13,7 +13,7 @@ import (
 // If none are present, a generated ID is returned.
 func ExternalID(r *http.Request, cfg openidconfig.Provider, idToken *openid.IDToken) (string, error) {
 	// 1. check for 'sid' claim in id_token
-	sessionID, err := idToken.GetSidClaim()
+	sessionID, err := idToken.Sid()
 	if err == nil {
 		return sessionID, nil
 	}
