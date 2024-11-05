@@ -14,8 +14,8 @@ import (
 
 type LoginCallback struct {
 	*Client
-	cookie        *openid.LoginCookie
-	requestParams url.Values
+	cookie *openid.LoginCookie
+	query  url.Values
 }
 
 func NewLoginCallback(c *Client, r *http.Request, cookie *openid.LoginCookie) (*LoginCallback, error) {
@@ -34,16 +34,16 @@ func NewLoginCallback(c *Client, r *http.Request, cookie *openid.LoginCookie) (*
 	}
 
 	return &LoginCallback{
-		Client:        c,
-		cookie:        cookie,
-		requestParams: r.URL.Query(),
+		Client: c,
+		cookie: cookie,
+		query:  r.URL.Query(),
 	}, nil
 }
 
 func (in *LoginCallback) IdentityProviderError() error {
-	if in.requestParams.Get("error") != "" {
-		oauthError := in.requestParams.Get("error")
-		oauthErrorDescription := in.requestParams.Get("error_description")
+	if in.query.Get("error") != "" {
+		oauthError := in.query.Get("error")
+		oauthErrorDescription := in.query.Get("error_description")
 		return fmt.Errorf("error from identity provider: %s: %s", oauthError, oauthErrorDescription)
 	}
 
@@ -51,7 +51,7 @@ func (in *LoginCallback) IdentityProviderError() error {
 }
 
 func (in *LoginCallback) StateMismatchError() error {
-	return openid.StateMismatchError(in.requestParams, in.cookie.State)
+	return openid.StateMismatchError(in.query, in.cookie.State)
 }
 
 func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
@@ -60,13 +60,10 @@ func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, erro
 		return nil, err
 	}
 
-	opts := params.AuthCodeOptions([]oauth2.AuthCodeOption{
+	rawTokens, err := in.AuthCodeGrant(ctx, in.query.Get("code"), params.AuthCodeOptions([]oauth2.AuthCodeOption{
 		openid.RedirectURIOption(in.cookie.RedirectURI),
 		oauth2.VerifierOption(in.cookie.CodeVerifier),
-	})
-
-	code := in.requestParams.Get("code")
-	rawTokens, err := in.AuthCodeGrant(ctx, code, opts)
+	}))
 	if err != nil {
 		return nil, fmt.Errorf("exchanging authorization code for token: %w", err)
 	}
