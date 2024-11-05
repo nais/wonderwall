@@ -26,6 +26,7 @@ type Config struct {
 
 	AutoLogin            bool     `json:"auto-login"`
 	AutoLoginIgnorePaths []string `json:"auto-login-ignore-paths"`
+	Cookie               Cookie   `json:"cookie"`
 	CookiePrefix         string   `json:"cookie-prefix"`
 	CookieSameSite       SameSite `json:"cookie-same-site"`
 	EncryptionKey        string   `json:"encryption-key"`
@@ -131,6 +132,11 @@ func Initialize() (*Config, error) {
 }
 
 func (c *Config) Validate() error {
+	if err := c.Cookie.Validate(c); err != nil {
+		return err
+	}
+
+	// TODO: move this into Cookie
 	if err := c.CookieSameSite.Validate(); err != nil {
 		return err
 	}

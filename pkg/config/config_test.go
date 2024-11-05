@@ -15,15 +15,14 @@ func TestConfig_Validate(t *testing.T) {
 	}
 
 	run := func(name string, base *config.Config, errorCases []test) {
-		cfg := *base
-
 		t.Run(name, func(t *testing.T) {
 			t.Run("happy path", func(t *testing.T) {
-				assert.NoError(t, cfg.Validate())
+				assert.NoError(t, base.Validate())
 			})
 
 			for _, tt := range errorCases {
 				t.Run(tt.name, func(t *testing.T) {
+					cfg := *base
 					tt.mutate(&cfg)
 					assert.Error(t, cfg.Validate())
 				})
@@ -88,6 +87,20 @@ func TestConfig_Validate(t *testing.T) {
 			func(cfg *config.Config) {
 				cfg.ShutdownGracefulPeriod = 1
 				cfg.ShutdownWaitBeforePeriod = 1
+			},
+		},
+		{
+			"secure cookies cannot be disabled for non-localhost ingress",
+			func(cfg *config.Config) {
+				cfg.Cookie.Secure = false
+				cfg.Ingresses = []string{"http://not-localhost.example"}
+			},
+		},
+		{
+			"secure cookies cannot be disabled for non-secure ingress",
+			func(cfg *config.Config) {
+				cfg.Cookie.Secure = false
+				cfg.Ingresses = []string{"https://localhost:3000"}
 			},
 		},
 	})

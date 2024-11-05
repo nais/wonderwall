@@ -52,7 +52,8 @@ func NewStandalone(
 		return nil, err
 	}
 
-	cookieOpts := cookie.DefaultOptions()
+	cookieOpts := cookie.DefaultOptions().
+		WithSecure(cfg.Cookie.Secure)
 
 	openidClient := openidclient.NewClient(openidConfig, jwksProvider)
 
