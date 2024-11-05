@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,7 +21,6 @@ import (
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
-	"github.com/nais/wonderwall/pkg/retry"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/url"
@@ -203,13 +201,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokens, err := retry.DoValue(r.Context(), func(ctx context.Context) (*openid.Tokens, error) {
-		tokens, err := loginCallback.RedeemTokens(ctx)
-		if err != nil {
-			return nil, retry.RetryableError(err)
-		}
-		return tokens, nil
-	})
+	tokens, err := loginCallback.RedeemTokens(r.Context())
 	if err != nil {
 		s.InternalError(w, r, fmt.Errorf("callback: redeeming tokens: %w", err))
 		return
