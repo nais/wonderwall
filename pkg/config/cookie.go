@@ -29,18 +29,16 @@ func (s SameSite) ToHttp() http.SameSite {
 }
 
 func (s SameSite) Validate() error {
-	if slices.Contains(sameSiteAll(), s) {
-		return nil
-	}
-	return fmt.Errorf("%q must be one of %q (was %q)", CookieSameSite, sameSiteAll(), s)
-}
-
-func sameSiteAll() []SameSite {
-	return []SameSite{
+	all := []SameSite{
 		SameSiteLax,
 		SameSiteNone,
 		SameSiteStrict,
 	}
+
+	if slices.Contains(all, s) {
+		return nil
+	}
+	return fmt.Errorf("%q must be one of %q (was %q)", CookieSameSite, all, s)
 }
 
 const (
