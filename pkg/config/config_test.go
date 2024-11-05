@@ -35,9 +35,9 @@ func TestConfig_Validate(t *testing.T) {
 
 	run("default", base, []test{
 		{
-			"invalid value for cookie-same-site",
+			"invalid value for cookie.same-site",
 			func(cfg *config.Config) {
-				cfg.CookieSameSite = "invalid"
+				cfg.Cookie.SameSite = "invalid"
 			},
 		},
 		{

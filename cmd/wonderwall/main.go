@@ -42,8 +42,8 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if cfg.CookiePrefix != cookie.DefaultPrefix {
-		cookie.ConfigureCookieNamesWithPrefix(cfg.CookiePrefix)
+	if cfg.Cookie.Prefix != cookie.DefaultPrefix {
+		cookie.ConfigureCookieNamesWithPrefix(cfg.Cookie.Prefix)
 	}
 
 	if cfg.SSO.Enabled {

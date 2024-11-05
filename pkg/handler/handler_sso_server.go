@@ -25,7 +25,7 @@ func NewSSOServer(cfg *config.Config, handler *Standalone) (*SSOServer, error) {
 	handler.CookieOptions = cookie.DefaultOptions().
 		WithPath("/").
 		WithDomain(cfg.SSO.Domain).
-		WithSameSite(cfg.CookieSameSite.ToHttp()).
+		WithSameSite(cfg.Cookie.SameSite.ToHttp()).
 		WithSecure(cfg.Cookie.Secure)
 
 	return &SSOServer{Standalone: handler}, nil

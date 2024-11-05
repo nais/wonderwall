@@ -11,10 +11,16 @@ import (
 )
 
 type Cookie struct {
-	Secure bool `json:"secure"`
+	Prefix   string   `json:"prefix"`
+	SameSite SameSite `json:"same-site"`
+	Secure   bool     `json:"secure"`
 }
 
 func (c *Cookie) Validate(cfg *Config) error {
+	if err := c.SameSite.Validate(); err != nil {
+		return err
+	}
+
 	if c.Secure {
 		return nil
 	}
@@ -72,8 +78,8 @@ func (s SameSite) Validate() error {
 }
 
 const (
-	CookiePrefix   = "cookie-prefix"
-	CookieSameSite = "cookie-same-site"
+	CookiePrefix   = "cookie.prefix"
+	CookieSameSite = "cookie.same-site"
 	CookieSecure   = "cookie.secure"
 	EncryptionKey  = "encryption-key"
 	LegacyCookie   = "legacy-cookie"

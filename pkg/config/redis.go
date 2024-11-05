@@ -66,8 +66,8 @@ const (
 )
 
 func redisFlags() {
-	flag.String(RedisURI, "", "Redis URI string. Prefer using this. An empty value will fall back to 'redis-address'.")
-	flag.String(RedisAddress, "", "Address of the Redis instance (host:port). An empty value will use in-memory session storage. Does not override address set by 'redis.uri'.")
+	flag.String(RedisURI, "", "Redis URI string. An empty value will fall back to 'redis-address'.")
+	flag.String(RedisAddress, "", "Deprecated: prefer using 'redis.uri'. Address of the Redis instance (host:port). An empty value will use in-memory session storage. Does not override address set by 'redis.uri'.")
 	flag.String(RedisPassword, "", "Password for Redis. Overrides password set by 'redis.uri'.")
 	flag.Bool(RedisTLS, true, "Whether or not to use TLS for connecting to Redis. Does not override TLS config set by 'redis.uri'.")
 	flag.String(RedisUsername, "", "Username for Redis. Overrides username set by 'redis.uri'.")
