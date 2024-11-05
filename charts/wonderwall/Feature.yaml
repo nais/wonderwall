@@ -22,11 +22,12 @@ values:
     computed:
       template: '"{{ .Env.aiven_prometheus_endpoint_id }}"'
   azure.enabled:
-    description: Enable Azure AD.
+    description: Enable Azure AD. Requires Azurerator to be enabled.
+    required: true
     config:
       type: bool
   azure.forwardAuth.enabled:
-    description: Enables forward auth server
+    description: Enables forward auth server. Requires Azurerator and loadbalancer-fa to be enabled.
     config:
       type: bool
   azure.forwardAuth.groupIds:
@@ -47,7 +48,8 @@ values:
     config:
       type: string
   idporten.enabled:
-    description: Enable ID-porten.
+    description: Enable ID-porten. Requires Digdirator to be enabled.
+    required: true
     config:
       type: bool
   idporten.legacyCookie:
@@ -100,6 +102,7 @@ values:
       type: string
   openid.enabled:
     description: Enable OpenID config.
+    required: true
     config:
       type: bool
     ignoreKind:
