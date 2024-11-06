@@ -97,7 +97,7 @@ func TestConfig_Validate(t *testing.T) {
 			},
 		},
 		{
-			"secure cookies cannot be disabled for non-secure ingress",
+			"secure cookies cannot be disabled for secure ingress",
 			func(cfg *config.Config) {
 				cfg.Cookie.Secure = false
 				cfg.Ingresses = []string{"https://localhost:3000"}
