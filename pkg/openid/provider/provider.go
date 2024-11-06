@@ -84,8 +84,8 @@ func NewJwksProvider(ctx context.Context, openidCfg openidconfig.Config) (*JwksP
 func keySetMutator(cfg openidconfig.Provider) jwk.PostFetcher {
 	return jwk.PostFetchFunc(func(uri string, set jwk.Set) (jwk.Set, error) {
 		for i := 0; i < set.Len(); i++ {
-			key, _ := set.Key(i)
-			if key.Algorithm().String() != "" {
+			key, ok := set.Key(i)
+			if !ok || key.Algorithm().String() != "" {
 				continue
 			}
 
