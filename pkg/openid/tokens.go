@@ -21,6 +21,8 @@ const (
 	LocaleClaim   = "locale"
 	SidClaim      = "sid"
 	OidClaim      = "oid"
+
+	AcceptableSkew = 5 * time.Second
 )
 
 type Tokens struct {
@@ -109,7 +111,7 @@ func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie, jwks *
 		//  If a nonce value was sent in the Authentication Request, a `nonce` Claim MUST be present and its value checked to verify that it is the same value as the one that was sent in the Authentication Request.
 		jwt.WithClaimValue("nonce", cookie.Nonce),
 		// Skew tolerance for time-based claims (exp, iat, nbf)
-		jwt.WithAcceptableSkew(5 * time.Second),
+		jwt.WithAcceptableSkew(AcceptableSkew),
 	}
 
 	if openIDconfig.SidClaimRequired() {

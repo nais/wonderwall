@@ -215,6 +215,33 @@ func TestIDToken_Validate(t *testing.T) {
 			expectErr: `"iss" not satisfied: required claim not found`,
 		},
 		{
+			name: "iat is in the future",
+			claims: &claims{
+				set: map[string]any{
+					"iat": time.Now().Add(openid.AcceptableSkew + 5*time.Second).Unix(),
+				},
+			},
+			expectErr: `"iat" not satisfied`,
+		},
+		{
+			name: "exp is in the past",
+			claims: &claims{
+				set: map[string]any{
+					"exp": time.Now().Add(-openid.AcceptableSkew - 5*time.Second).Unix(),
+				},
+			},
+			expectErr: `"exp" not satisfied`,
+		},
+		{
+			name: "nbf is in the future",
+			claims: &claims{
+				set: map[string]any{
+					"nbf": time.Now().Add(openid.AcceptableSkew + 5*time.Second).Unix(),
+				},
+			},
+			expectErr: `"nbf" not satisfied`,
+		},
+		{
 			name: "issuer mismatch",
 			claims: &claims{
 				set: map[string]any{
