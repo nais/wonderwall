@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/nais/liberator/pkg/keygen"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/chacha20poly1305"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -44,6 +45,7 @@ func EncryptionKeyOrGenerate(cfg *config.Config) ([]byte, error) {
 	}
 
 	if len(key) == 0 {
+		log.Warn("no encryption key was provided, generating a random ephemeral key; sessions will not be able to be decrypted after restart")
 		key, err = keygen.Keygen(KeySize)
 		if err != nil {
 			return nil, fmt.Errorf("generate random encryption key: %w", err)
