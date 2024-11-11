@@ -26,7 +26,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.32.0
 	go.uber.org/automaxprocs v1.6.0
 	golang.org/x/crypto v0.28.0
-	golang.org/x/oauth2 v0.23.0
+	golang.org/x/oauth2 v0.24.0
 	golang.org/x/vuln v1.1.3
 	honnef.co/go/tools v0.5.1
 	mvdan.cc/gofumpt v0.7.0
