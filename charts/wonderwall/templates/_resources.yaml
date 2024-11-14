@@ -65,7 +65,7 @@ Expects a dict as input with the following keys:
 {{- $provider := .provider }}
 {{- $access := .access }}
 {{- $secretName := .secretName -}}
-{{- $instance := include "aiven.instanceName" $provider }}
+{{- $instance := include "aiven.instanceName" (dict "provider" $provider "root" $root) }}
 ---
 apiVersion: aiven.nais.io/v1
 kind: AivenApplication

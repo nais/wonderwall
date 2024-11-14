@@ -121,7 +121,13 @@ Aiven instance name.
 The last part of the fully qualified name (e.g. <instance> in `redis-<namespace>-<instance>`)
 */}}
 {{- define "aiven.instanceName" -}}
-{{- printf "wonderwall-%s" . }}
+{{- $root := .root }}
+{{- $provider := .provider }}
+{{- if $root.Values.resourceSuffix }}
+{{- printf "wonderwall-%s-%s" $provider $root.Values.resourceSuffix }}
+{{- else }}
+{{- printf "wonderwall-%s" $provider }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -134,7 +140,7 @@ Expects a dict with the following keys:
 {{- define "aiven.redisName" -}}
 {{- $root := .root }}
 {{- $provider := .provider }}
-{{- printf "redis-%s-%s" $root.Release.Namespace (include "aiven.instanceName" $provider) }}
+{{- printf "redis-%s-%s" $root.Release.Namespace (include "aiven.instanceName" (dict "provider" $provider "root" $root)) }}
 {{- end }}
 
 {{/*
@@ -147,5 +153,5 @@ Expects a dict with the following keys:
 {{- define "aiven.serviceintegrationName" -}}
 {{- $root := .root }}
 {{- $provider := .provider }}
-{{- printf "serviceintegration-%s-%s" $root.Release.Namespace (include "aiven.instanceName" $provider) }}
+{{- printf "serviceintegration-%s-%s" $root.Release.Namespace (include "aiven.instanceName" (dict "provider" $provider "root" $root)) }}
 {{- end }}

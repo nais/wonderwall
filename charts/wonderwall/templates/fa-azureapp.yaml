@@ -3,7 +3,11 @@
 apiVersion: nais.io/v1
 kind: AzureAdApplication
 metadata:
+  {{- if .Values.resourceSuffix }}
+  name: {{ include "wonderwall.fullname" . }}-fa-{{ .Values.resourceSuffix }}
+  {{- else }}
   name: {{ include "wonderwall.fullname" . }}-fa
+  {{- end }}
   labels:
     {{- include "wonderwall.labelsForwardAuth" . | nindent 4 }}
 spec:

@@ -110,3 +110,7 @@ values:
       type: string
     ignoreKind:
       - legacy
+  resourceSuffix:
+    description: Suffix for resources that may conflict in parallel environments.
+    config:
+      type: string

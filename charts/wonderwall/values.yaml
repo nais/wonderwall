@@ -70,6 +70,7 @@ resources:
   requests:
     cpu: 100m
     memory: 64Mi
+resourceSuffix: ""
 podDisruptionBudget:
   maxUnavailable: 1
 otel:
