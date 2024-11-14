@@ -47,7 +47,7 @@ Detailed documentation can be found in the [documentation](docs) directory:
 
 ## Development
 
-Requires Go 1.22
+Requires Go 1.23
 
 ```shell
 docker-compose up -d
