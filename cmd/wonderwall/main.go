@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	_ "github.com/KimMachineGun/automemlimit"
 	log "github.com/sirupsen/logrus"
 	_ "go.uber.org/automaxprocs"
 
