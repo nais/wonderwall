@@ -17,12 +17,11 @@ spec:
             summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
             consequence: This probably means that end-users are having trouble with authentication.
             action: |
-              * Check the logs for errors: <https://logs.adeo.no/app/discover#/view/e57e8c70-dd0e-11ed-8b42-0b0644af4500?_g=(filters%3A!()%2CrefreshInterval%3A(pause%3A!t%2Cvalue%3A60000)%2Ctime%3A(from%3Anow-12h%2Cto%3Anow))>
+              * Check the logs for errors: <https://logs.adeo.no/app/r/s/tcZC2>
               * Check DigDir status: <https://status.digdir.no> / <https://testmiljo.status.digdir.no/>
               * Check Aiven Redis (session store) and verify Aiven network connectivity
               * Check with DigDir in [#nav-digdir](https://nav-it.slack.com/archives/C013RTT99G9)
-
-              Instrumentation: <https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=idporten>
+            dashboard_url: "https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=idporten"
           labels:
             severity: critical
             namespace: {{ .Release.Namespace }}
@@ -33,12 +32,11 @@ spec:
             summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
             consequence: This probably means that end-users are having trouble with authentication.
             action: |
-              * Check the logs for errors: <https://logs.adeo.no/app/discover#/view/34ab4180-dd0f-11ed-8b42-0b0644af4500?_g=(filters%3A!()%2CrefreshInterval%3A(pause%3A!t%2Cvalue%3A60000)%2Ctime%3A(from%3Anow-12h%2Cto%3Anow))>
+              * Check the logs for errors: <https://logs.adeo.no/app/r/s/rGZsy>
               * Check DigDir status: <https://status.digdir.no> / <https://testmiljo.status.digdir.no/>
               * Check Aiven Redis (session store) and verify Aiven network connectivity
               * Check with DigDir in [#nav-digdir](https://nav-it.slack.com/archives/C013RTT99G9)
-
-              Instrumentation: <https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=idporten&var-namespace=nais-system>
+            dashboard_url: "https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=idporten&var-namespace=nais-system"
           labels:
             severity: critical
             namespace: {{ .Release.Namespace }}
@@ -62,12 +60,27 @@ spec:
             summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
             consequence: This probably means that end-users are having trouble with authentication.
             action: |
-              * Check the logs for errors: <https://logs.adeo.no/app/discover#/view/9b3473a0-dd0e-11ed-8b42-0b0644af4500?_g=(filters%3A!()%2CrefreshInterval%3A(pause%3A!t%2Cvalue%3A60000)%2Ctime%3A(from%3Anow-12h%2Cto%3Anow))>
+              * Check the logs for errors: <https://logs.adeo.no/app/r/s/EQy2f>
               * Check Azure status: https://status.azure.com/nb-no/status
               * Check Aiven Redis (session store) and verify Aiven network connectivity
-
-              Instrumentation: <https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=azure>
+            dashboard_url: "https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=azure"
           labels:
             severity: critical
             namespace: {{ .Release.Namespace }}
+        {{- if .Values.azure.forwardAuth.enabled }}
+        - alert: Wonderwall-fa (forward-auth / ansatt) for Azure AD reports a high amount of internal errors
+          expr: sum(increase(requests_total{app="wonderwall-fa", namespace="{{ .Release.Namespace }}", code="500"}[5m])) > 30
+          for: 5m
+          annotations:
+            summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
+            consequence: This probably means that end-users are having trouble with authentication.
+            action: |
+              * Check the logs for errors: <https://logs.adeo.no/app/r/s/fhBqB>
+              * Check Azure status: https://status.azure.com/nb-no/status
+              * Check Aiven Redis (session store) and verify Aiven network connectivity
+            dashboard_url: "https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=azure&var-namespace=nais-system"
+          labels:
+            severity: critical
+            namespace: {{ .Release.Namespace }}
+        {{- end }}
 {{ end }}
