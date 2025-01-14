@@ -212,6 +212,9 @@ func TestSessionRefresh(t *testing.T) {
 	defer idp.Close()
 
 	rpClient := idp.RelyingPartyClient()
+	noSessionResp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusUnauthorized, noSessionResp.StatusCode)
+
 	login(t, rpClient, idp)
 
 	// get initial session info
@@ -382,6 +385,9 @@ func TestSession(t *testing.T) {
 	defer idp.Close()
 
 	rpClient := idp.RelyingPartyClient()
+	noSessionResp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusUnauthorized, noSessionResp.StatusCode)
+
 	login(t, rpClient, idp)
 
 	resp := sessionInfo(t, idp, rpClient)
