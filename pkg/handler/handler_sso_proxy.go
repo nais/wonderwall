@@ -190,6 +190,12 @@ func (s *SSOProxy) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
+func (s *SSOProxy) SessionForwardAuth(w http.ResponseWriter, r *http.Request) {
+	r.URL.Path = paths.OAuth2 + paths.Session + paths.ForwardAuth
+	removeMiddlewareHeaders(w)
+	s.SSOServerReverseProxy.ServeHTTP(w, r)
+}
+
 // Wildcard proxies all requests to an upstream server.
 func (s *SSOProxy) Wildcard(w http.ResponseWriter, r *http.Request) {
 	s.UpstreamProxy.Handler(s, w, r)

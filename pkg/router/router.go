@@ -36,8 +36,11 @@ type Handlers interface {
 	LogoutLocal(http.ResponseWriter, *http.Request)
 	// Session returns metadata for the current user's session.
 	Session(http.ResponseWriter, *http.Request)
-	// SessionRefresh refreshes current user's session and returns the associated updated metadata.
+	// SessionRefresh forces a refresh of the current user's session and returns the associated updated metadata.
 	SessionRefresh(http.ResponseWriter, *http.Request)
+	// SessionForwardAuth checks the current user's session and refreshes it, if necessary.
+	// For use in forward authentication scenarios.
+	SessionForwardAuth(w http.ResponseWriter, r *http.Request)
 	// Wildcard handles all requests not matching the other handlers.
 	Wildcard(http.ResponseWriter, *http.Request)
 }
@@ -107,6 +110,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 					r.Get("/", src.Session)
 					r.Get(paths.Refresh, src.SessionRefresh)
 					r.Post(paths.Refresh, src.SessionRefresh)
+					r.Get(paths.ForwardAuth, src.SessionForwardAuth)
 				})
 			})
 		}

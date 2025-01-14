@@ -521,6 +521,33 @@ func TestSession_WithRefreshAuto(t *testing.T) {
 	assert.Greater(t, data.Tokens.NextAutoRefreshInSeconds, int64(1))
 }
 
+func TestSessionForwardAuth(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.ForwardAuth = true
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	noSessionResp := sessionForwardAuth(t, idp, rpClient)
+	assert.Equal(t, http.StatusUnauthorized, noSessionResp.StatusCode)
+
+	login(t, rpClient, idp)
+
+	resp := sessionForwardAuth(t, idp, rpClient)
+	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
+}
+
+func TestSessionForwardAuth_Disabled(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.ForwardAuth = false
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	noSessionResp := sessionForwardAuth(t, idp, rpClient)
+	assert.Equal(t, http.StatusNotFound, noSessionResp.StatusCode)
+}
+
 func TestPing(t *testing.T) {
 	cfg := mock.Config()
 	idp := mock.NewIdentityProvider(cfg)
@@ -691,6 +718,13 @@ func sessionRefresh(t *testing.T, idp *mock.IdentityProvider, rpClient *http.Cli
 	assert.NoError(t, err)
 
 	return post(t, rpClient, sessionRefreshURL.String())
+}
+
+func sessionForwardAuth(t *testing.T, idp *mock.IdentityProvider, rpClient *http.Client) response {
+	sessionForwardAuthURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/session/forwardauth")
+	assert.NoError(t, err)
+
+	return get(t, rpClient, sessionForwardAuthURL.String())
 }
 
 func waitForRefreshCooldownTimer(t *testing.T, idp *mock.IdentityProvider, rpClient *http.Client) {

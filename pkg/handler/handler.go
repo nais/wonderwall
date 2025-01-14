@@ -440,6 +440,29 @@ func (s *Standalone) sessionWriteMetadataResponse(w http.ResponseWriter, r *http
 	return json.NewEncoder(w).Encode(metadata)
 }
 
+func (s *Standalone) SessionForwardAuth(w http.ResponseWriter, r *http.Request) {
+	if !s.Config.Session.ForwardAuth {
+		http.NotFound(w, r)
+		return
+	}
+
+	_, err := s.SessionManager.GetOrRefresh(r)
+	if err != nil {
+		logger := mw.LogEntryFrom(r)
+		if errors.Is(err, session.ErrInvalidExternal) || errors.Is(err, session.ErrInvalid) || errors.Is(err, session.ErrNotFound) {
+			logger.Infof("session/forwardauth: %+v", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		logger.Warnf("session/forwardauth: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // Wildcard proxies all requests to an upstream server.
 func (s *Standalone) Wildcard(w http.ResponseWriter, r *http.Request) {
 	s.UpstreamProxy.Handler(s, w, r)

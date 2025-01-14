@@ -6,13 +6,14 @@ Wonderwall exposes and owns these endpoints (which means they will never be prox
 
 Endpoints that are available for use by applications:
 
-| Path                           | Description                                                          | Notes                                             |
-|--------------------------------|----------------------------------------------------------------------|---------------------------------------------------|
-| `GET /oauth2/login`            | Initiates the OpenID Connect Authorization Code flow                 |                                                   |
-| `GET /oauth2/logout`           | Performs local logout and redirects the user to global/single-logout |                                                   |
-| `GET /oauth2/logout/local`     | Performs local logout only                                           | Disabled when `openid.provider` is `idporten`.    |
-| `GET /oauth2/session`          | Returns the current user's session metadata                          |                                                   |
-| `POST /oauth2/session/refresh` | Refreshes the tokens for the user's session.                         | Requires the `session.refresh` flag to be enabled |
+| Path                              | Description                                                          | Notes                                             |
+|-----------------------------------|----------------------------------------------------------------------|---------------------------------------------------|
+| `GET /oauth2/login`               | Initiates the OpenID Connect Authorization Code flow                 |                                                   |
+| `GET /oauth2/logout`              | Performs local logout and redirects the user to global/single-logout |                                                   |
+| `GET /oauth2/logout/local`        | Performs local logout only                                           | Disabled when `openid.provider` is `idporten`.    |
+| `GET /oauth2/session`             | Returns the current user's session metadata                          |                                                   |
+| `POST /oauth2/session/refresh`    | Refreshes the tokens for the user's session.                         | Requires the `session.refresh` flag to be enabled |
+| `GET /oauth2/session/forwardauth` | Checks the user's session and refreshes it, if necessary.            |                                                   |
 
 ## Endpoints for Identity Providers
 
@@ -232,3 +233,28 @@ of the tokens returned by the identity provider.
 The cooldown period exists to limit the amount of refresh token requests that we send to the identity provider.
 
 A refresh is only triggered if `tokens.refresh_cooldown` is `false`. Requests to the endpoint are idempotent while the cooldown is active.
+
+---
+
+### `/oauth2/session/forwardauth`
+
+This endpoint only exists if the `session.forward-auth` flag is enabled.
+
+The endpoint is intended for use in forward authentication scenarios, where a reverse proxy delegates authentication checks to Wonderwall.
+The user's session is checked and refreshed, if necessary.
+
+#### Request:
+
+```
+GET /oauth2/session/forwardauth
+```
+
+#### Response:
+
+```
+HTTP/2 204 No Content
+```
+
+The endpoint responds with a `HTTP 204 No Content` if the session is valid.
+
+If the session is invalid (i.e. expired, inactive, or not found), the response is an `HTTP 401 Unauthorized`.

@@ -11,4 +11,5 @@ const (
 	Ping               = "/ping"
 	Refresh            = "/refresh"
 	Session            = "/session"
+	ForwardAuth        = "/forwardauth"
 )
