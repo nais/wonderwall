@@ -31,14 +31,12 @@ This is indicated by the `tokens.expire_at` and `tokens.expire_in_seconds` field
 
 If you've configured a session lifetime that is longer than the token expiry, you'll probably want to _refresh_ the tokens to avoid redirecting end-users to the `/oauth2/login` endpoint whenever the access tokens have expired.
 
-The ability to refresh tokens requires the `session.refresh` flag to be enabled.
-
 ### Automatic vs Manual Refresh
 
 The behaviour for refreshing depends on the [runtime mode](configuration.md#modes) for Wonderwall.
 
-In standalone mode, tokens can automatically be refreshed by enabling the `session.refresh-auto` flag. 
-If enabled, token will at the _earliest_ automatically be renewed 5 minutes before they expire.
+In standalone mode, tokens are automatically refreshed. 
+Tokens will at the _earliest_ automatically be renewed 5 minutes before they expire.
 If the token already _has_ expired, a refresh attempt is still automatically triggered as long as the session itself not has ended or is marked as inactive.
 
 Automatic refreshes happens whenever the end-user visits or requests any path that is proxied to the upstream application.
@@ -53,7 +51,7 @@ This happens if the time since the last _refresh_ exceeds the given _inactivity 
 An _inactive_ session _cannot_ be refreshed; a new session must be acquired by redirecting the user to the `/oauth2/login` endpoint.
 This is useful if you want to ensure that an end-user can re-authenticate with the identity provider if they've been gone from an authenticated session for some time.
 
-Inactivity support is enabled with the `session.inactivity` option, which also requires `session.refresh`.
+Inactivity support is enabled with the `session.inactivity` option.
 
 The activity state of the session is indicated by the `session.active` field in the session metadata.
 

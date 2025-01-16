@@ -104,7 +104,7 @@ func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
 		return nil, fmt.Errorf("getting session: %w", err)
 	}
 
-	if !in.cfg.Session.RefreshAuto || !sess.shouldRefresh() {
+	if !sess.shouldRefresh() {
 		return sess, nil
 	}
 
@@ -125,7 +125,7 @@ func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
 }
 
 func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
-	if !in.cfg.Session.Refresh || !sess.canRefresh() {
+	if !sess.canRefresh() {
 		return sess, nil
 	}
 

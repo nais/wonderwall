@@ -112,6 +112,9 @@ func (s *Standalone) GetPath(r *http.Request) string {
 }
 
 func (s *Standalone) GetSession(r *http.Request) (*session.Session, error) {
+	if s.Config.AutoRefreshDisabled() {
+		return s.SessionManager.Get(r)
+	}
 	return s.SessionManager.GetOrRefresh(r)
 }
 
@@ -389,11 +392,6 @@ func (s *Standalone) Session(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) SessionRefresh(w http.ResponseWriter, r *http.Request) {
-	if !s.Config.Session.Refresh {
-		http.NotFound(w, r)
-		return
-	}
-
 	logger := mw.LogEntryFrom(r)
 
 	sess, err := s.SessionManager.Get(r)
@@ -428,12 +426,8 @@ func (s *Standalone) SessionRefresh(w http.ResponseWriter, r *http.Request) {
 func (s *Standalone) sessionWriteMetadataResponse(w http.ResponseWriter, r *http.Request, sess *session.Session) error {
 	w.Header().Set("Content-Type", "application/json")
 
-	if !s.Config.Session.Refresh {
-		return json.NewEncoder(w).Encode(sess.MetadataVerbose())
-	}
-
-	metadata := sess.MetadataVerboseRefresh()
-	if !s.Config.Session.RefreshAuto {
+	metadata := sess.MetadataVerbose()
+	if s.Config.AutoRefreshDisabled() {
 		metadata.Tokens.NextAutoRefreshInSeconds = int64(-1)
 	}
 
@@ -446,7 +440,7 @@ func (s *Standalone) SessionForwardAuth(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	_, err := s.SessionManager.GetOrRefresh(r)
+	_, err := s.GetSession(r)
 	if err != nil {
 		logger := mw.LogEntryFrom(r)
 		if errors.Is(err, session.ErrInvalidExternal) || errors.Is(err, session.ErrInvalid) || errors.Is(err, session.ErrNotFound) {

@@ -41,20 +41,6 @@ func TestConfig_Validate(t *testing.T) {
 			},
 		},
 		{
-			"session inactivity without session refresh",
-			func(cfg *config.Config) {
-				cfg.Session.Inactivity = true
-				cfg.Session.Refresh = false
-			},
-		},
-		{
-			"session auto refresh without session refresh",
-			func(cfg *config.Config) {
-				cfg.Session.RefreshAuto = true
-				cfg.Session.Refresh = false
-			},
-		},
-		{
 			"upstream ip must be set if port is set",
 			func(cfg *config.Config) {
 				cfg.UpstreamIP = ""
@@ -111,7 +97,6 @@ func TestConfig_Validate(t *testing.T) {
 	server.SSO.Domain = "example.com"
 	server.SSO.SessionCookieName = "some-cookie"
 	server.SSO.ServerDefaultRedirectURL = "https://default.local"
-	server.Session.RefreshAuto = false
 	server.Redis.Address = "localhost:6379"
 
 	run("sso server", &server, []test{
@@ -125,12 +110,6 @@ func TestConfig_Validate(t *testing.T) {
 			"missing cookie name",
 			func(cfg *config.Config) {
 				cfg.SSO.SessionCookieName = ""
-			},
-		},
-		{
-			"with session auto refresh",
-			func(cfg *config.Config) {
-				cfg.Session.RefreshAuto = true
 			},
 		},
 		{
@@ -164,7 +143,6 @@ func TestConfig_Validate(t *testing.T) {
 	proxy.SSO.Mode = config.SSOModeProxy
 	proxy.SSO.ServerURL = "https://sso-server.local"
 	proxy.SSO.SessionCookieName = "some-cookie"
-	proxy.Session.RefreshAuto = false
 	proxy.Redis.Address = "localhost:6379"
 
 	run("sso proxy", &proxy, []test{
@@ -178,12 +156,6 @@ func TestConfig_Validate(t *testing.T) {
 			"missing cookie name",
 			func(cfg *config.Config) {
 				cfg.SSO.SessionCookieName = ""
-			},
-		},
-		{
-			"with session auto refresh",
-			func(cfg *config.Config) {
-				cfg.Session.RefreshAuto = true
 			},
 		},
 		{

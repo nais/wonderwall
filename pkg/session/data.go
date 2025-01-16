@@ -234,51 +234,33 @@ func (in *Metadata) Verbose() MetadataVerbose {
 	endTime := in.Session.EndsAt
 	timeoutTime := in.Session.TimeoutAt
 
-	mv := MetadataVerbose{
-		Session: MetadataSessionVerbose{
-			MetadataSession:  in.Session,
-			EndsInSeconds:    toSeconds(endTime.Sub(now)),
-			Active:           !in.IsTimedOut(),
-			TimeoutInSeconds: toSeconds(timeoutTime.Sub(now)),
-		},
-		Tokens: MetadataTokensVerbose{
-			MetadataTokens:  in.Tokens,
-			ExpireInSeconds: toSeconds(expireTime.Sub(now)),
-		},
+	session := MetadataSessionVerbose{
+		MetadataSession:  in.Session,
+		EndsInSeconds:    toSeconds(endTime.Sub(now)),
+		Active:           !in.IsTimedOut(),
+		TimeoutInSeconds: toSeconds(timeoutTime.Sub(now)),
 	}
-
 	if timeoutTime.IsZero() {
-		mv.Session.TimeoutInSeconds = int64(-1)
+		session.TimeoutInSeconds = int64(-1)
 	}
 
-	return mv
-}
+	tokens := MetadataTokensVerbose{
+		MetadataTokens:           in.Tokens,
+		ExpireInSeconds:          toSeconds(expireTime.Sub(now)),
+		NextAutoRefreshInSeconds: toSeconds(in.NextRefresh().Sub(now)),
+		RefreshCooldown:          in.IsRefreshOnCooldown(),
+		RefreshCooldownSeconds:   toSeconds(in.RefreshCooldown().Sub(now)),
+	}
 
-func (in *Metadata) VerboseWithRefresh() MetadataVerboseWithRefresh {
-	now := time.Now()
-
-	verbose := in.Verbose()
-	nextRefreshTime := in.NextRefresh()
-
-	return MetadataVerboseWithRefresh{
-		Session: verbose.Session,
-		Tokens: MetadataTokensVerboseWithRefresh{
-			MetadataTokensVerbose:    verbose.Tokens,
-			NextAutoRefreshInSeconds: toSeconds(nextRefreshTime.Sub(now)),
-			RefreshCooldown:          in.IsRefreshOnCooldown(),
-			RefreshCooldownSeconds:   toSeconds(in.RefreshCooldown().Sub(now)),
-		},
+	return MetadataVerbose{
+		Session: session,
+		Tokens:  tokens,
 	}
 }
 
 type MetadataVerbose struct {
 	Session MetadataSessionVerbose `json:"session"`
 	Tokens  MetadataTokensVerbose  `json:"tokens"`
-}
-
-type MetadataVerboseWithRefresh struct {
-	Session MetadataSessionVerbose           `json:"session"`
-	Tokens  MetadataTokensVerboseWithRefresh `json:"tokens"`
 }
 
 type MetadataSessionVerbose struct {
@@ -290,11 +272,7 @@ type MetadataSessionVerbose struct {
 
 type MetadataTokensVerbose struct {
 	MetadataTokens
-	ExpireInSeconds int64 `json:"expire_in_seconds"`
-}
-
-type MetadataTokensVerboseWithRefresh struct {
-	MetadataTokensVerbose
+	ExpireInSeconds          int64 `json:"expire_in_seconds"`
 	NextAutoRefreshInSeconds int64 `json:"next_auto_refresh_in_seconds"`
 	RefreshCooldown          bool  `json:"refresh_cooldown"`
 	RefreshCooldownSeconds   int64 `json:"refresh_cooldown_seconds"`

@@ -36,10 +36,6 @@ func (s SSO) Validate(c *Config) error {
 		return fmt.Errorf("at least one of %q or %q must be set when %s is set", RedisAddress, RedisURI, SSOEnabled)
 	}
 
-	if c.Session.RefreshAuto {
-		return fmt.Errorf("%q cannot be enabled when %q is enabled", SessionRefreshAuto, SSOEnabled)
-	}
-
 	if len(s.SessionCookieName) == 0 {
 		return fmt.Errorf("%q must not be empty when %s is set", SSOSessionCookieName, SSOEnabled)
 	}

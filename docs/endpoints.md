@@ -6,14 +6,14 @@ Wonderwall exposes and owns these endpoints (which means they will never be prox
 
 Endpoints that are available for use by applications:
 
-| Path                              | Description                                                          | Notes                                             |
-|-----------------------------------|----------------------------------------------------------------------|---------------------------------------------------|
-| `GET /oauth2/login`               | Initiates the OpenID Connect Authorization Code flow                 |                                                   |
-| `GET /oauth2/logout`              | Performs local logout and redirects the user to global/single-logout |                                                   |
-| `GET /oauth2/logout/local`        | Performs local logout only                                           | Disabled when `openid.provider` is `idporten`.    |
-| `GET /oauth2/session`             | Returns the current user's session metadata                          |                                                   |
-| `POST /oauth2/session/refresh`    | Refreshes the tokens for the user's session.                         | Requires the `session.refresh` flag to be enabled |
-| `GET /oauth2/session/forwardauth` | Checks the user's session and refreshes it, if necessary.            |                                                   |
+| Path                              | Description                                                          | Notes                                          |
+|-----------------------------------|----------------------------------------------------------------------|------------------------------------------------|
+| `GET /oauth2/login`               | Initiates the OpenID Connect Authorization Code flow                 |                                                |
+| `GET /oauth2/logout`              | Performs local logout and redirects the user to global/single-logout |                                                |
+| `GET /oauth2/logout/local`        | Performs local logout only                                           | Disabled when `openid.provider` is `idporten`. |
+| `GET /oauth2/session`             | Returns the current user's session metadata                          |                                                |
+| `POST /oauth2/session/refresh`    | Refreshes the tokens for the user's session.                         |                                                |
+| `GET /oauth2/session/forwardauth` | Checks the user's session and refreshes it, if necessary.            |                                                |
 
 ## Endpoints for Identity Providers
 
@@ -129,7 +129,10 @@ Content-Type: application/json
   "tokens": {
     "expire_at": "2022-08-31T14:03:47.318251953Z",
     "refreshed_at": "2022-08-31T12:53:58.318251953Z",
-    "expire_in_seconds": 4166
+    "expire_in_seconds": 4166, 
+    "next_auto_refresh_in_seconds": -1,
+    "refresh_cooldown": false,
+    "refresh_cooldown_seconds": 0
   }
 }
 ```
@@ -145,40 +148,6 @@ Content-Type: application/json
 | `tokens.expire_at`                    | The timestamp that denotes when the tokens within the session will expire.                                                                                    |
 | `tokens.expire_in_seconds`            | The number of seconds until `tokens.expire_at`.                                                                                                               |
 | `tokens.refreshed_at`                 | The timestamp that denotes when the tokens within the session was last refreshed.                                                                             |
-
-If the `session.refresh` flag is enabled, the metadata response will contain a few additional fields:
-
-#### Request:
-
-```
-GET /oauth2/session
-```
-
-#### Response:
-
-```
-HTTP/2 200 OK
-Content-Type: application/json
-```
-
-```json
-{
-  "session": {
-    ...
-  },
-  "tokens": {
-    ...
-    "next_auto_refresh_in_seconds": -1,
-    "refresh_cooldown": false,
-    "refresh_cooldown_seconds": 0
-  }
-}
-```
-
-(fields shown earlier are omitted from this example for brevity)
-
-| Field                                 | Description                                                                                                                                                   |
-|---------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `tokens.next_auto_refresh_in_seconds` | The number of seconds until the earliest time where the tokens will automatically be refreshed. A value of -1 means that automatic refreshing is not enabled. |
 | `tokens.refresh_cooldown`             | A boolean indicating whether or not the refresh operation is on cooldown or not.                                                                              |
 | `tokens.refresh_cooldown_seconds`     | The number of seconds until the refresh operation is no longer on cooldown.                                                                                   |
@@ -186,8 +155,6 @@ Content-Type: application/json
 ---
 
 ### `/oauth2/session/refresh`
-
-This endpoint only exists if the `session.refresh` flag is enabled.
 
 Perform a `POST` request from the user agent to this endpoint to manually refresh the tokens for the user's session.
 

@@ -138,10 +138,6 @@ func (c *Config) Validate() error {
 		return err
 	}
 
-	if err := c.Session.Validate(); err != nil {
-		return err
-	}
-
 	if err := c.SSO.Validate(c); err != nil {
 		return err
 	}
@@ -155,6 +151,10 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *Config) AutoRefreshDisabled() bool {
+	return c.SSO.Enabled && !c.Session.ForwardAuth
 }
 
 func (c *Config) validateUpstream() error {

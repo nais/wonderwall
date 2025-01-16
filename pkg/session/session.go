@@ -84,10 +84,6 @@ func (in *Session) MetadataVerbose() MetadataVerbose {
 	return in.data.Metadata.Verbose()
 }
 
-func (in *Session) MetadataVerboseRefresh() MetadataVerboseWithRefresh {
-	return in.data.Metadata.VerboseWithRefresh()
-}
-
 func (in *Session) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter) error {
 	return in.ticket.SetCookie(w, opts, crypter)
 }

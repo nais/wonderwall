@@ -15,6 +15,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/session"
@@ -203,240 +204,24 @@ func TestFrontChannelLogout(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func TestSessionRefresh(t *testing.T) {
-	cfg := mock.Config()
-	cfg.Session.Refresh = true
-
-	idp := mock.NewIdentityProvider(cfg)
-	idp.ProviderHandler.TokenDuration = 5 * time.Second
-	defer idp.Close()
-
-	rpClient := idp.RelyingPartyClient()
-	noSessionResp := sessionInfo(t, idp, rpClient)
-	assert.Equal(t, http.StatusUnauthorized, noSessionResp.StatusCode)
-
-	login(t, rpClient, idp)
-
-	// get initial session info
-	resp := sessionInfo(t, idp, rpClient)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var data session.MetadataVerboseWithRefresh
-	err := json.Unmarshal([]byte(resp.Body), &data)
-	assert.NoError(t, err)
-
-	// wait until refresh cooldown has reached zero before refresh
-	waitForRefreshCooldownTimer(t, idp, rpClient)
-
-	resp = sessionRefresh(t, idp, rpClient)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var refreshedData session.MetadataVerboseWithRefresh
-	err = json.Unmarshal([]byte(resp.Body), &refreshedData)
-	assert.NoError(t, err)
-
-	// session create and end times should be unchanged
-	assert.WithinDuration(t, data.Session.CreatedAt, refreshedData.Session.CreatedAt, 0)
-	assert.WithinDuration(t, data.Session.EndsAt, refreshedData.Session.EndsAt, 0)
-
-	// token expiration and refresh times should be later than before
-	assert.True(t, refreshedData.Tokens.ExpireAt.After(data.Tokens.ExpireAt))
-	assert.True(t, refreshedData.Tokens.RefreshedAt.After(data.Tokens.RefreshedAt))
-
-	allowedSkew := 5 * time.Second
-	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), refreshedData.Tokens.ExpireAt, allowedSkew)
-	assert.WithinDuration(t, time.Now(), refreshedData.Tokens.RefreshedAt, allowedSkew)
-
-	sessionEndDuration := time.Duration(refreshedData.Session.EndsInSeconds) * time.Second
-	// 1 second < time until session ends <= configured max session lifetime
-	assert.LessOrEqual(t, sessionEndDuration, cfg.Session.MaxLifetime)
-	assert.Greater(t, sessionEndDuration, time.Second)
-
-	tokenExpiryDuration := time.Duration(refreshedData.Tokens.ExpireInSeconds) * time.Second
-	// 1 second < time until token expires <= max duration for tokens from IDP
-	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
-	assert.Greater(t, tokenExpiryDuration, time.Second)
-
-	// auto refresh is not enabled
-	assert.Less(t, refreshedData.Tokens.NextAutoRefreshInSeconds, refreshedData.Tokens.ExpireInSeconds)
-	assert.Equal(t, refreshedData.Tokens.NextAutoRefreshInSeconds, int64(-1))
-
-	assert.True(t, refreshedData.Tokens.RefreshCooldown)
-	// 1 second < refresh cooldown <= minimum refresh interval
-	assert.LessOrEqual(t, refreshedData.Tokens.RefreshCooldownSeconds, session.RefreshMinInterval)
-	assert.Greater(t, refreshedData.Tokens.RefreshCooldownSeconds, int64(1))
-
-	assert.True(t, data.Session.Active)
-	assert.True(t, refreshedData.Session.Active)
-
-	assert.True(t, data.Session.TimeoutAt.IsZero())
-	assert.True(t, refreshedData.Session.TimeoutAt.IsZero())
-
-	assert.Equal(t, int64(-1), data.Session.TimeoutInSeconds)
-	assert.Equal(t, int64(-1), refreshedData.Session.TimeoutInSeconds)
-}
-
-func TestSessionRefresh_Disabled(t *testing.T) {
-	cfg := mock.Config()
-	cfg.Session.Refresh = false
-
-	idp := mock.NewIdentityProvider(cfg)
-	idp.ProviderHandler.TokenDuration = 5 * time.Second
-	defer idp.Close()
-
-	rpClient := idp.RelyingPartyClient()
-	login(t, rpClient, idp)
-
-	resp := sessionRefresh(t, idp, rpClient)
-	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-}
-
-func TestSessionRefresh_WithInactivity(t *testing.T) {
-	cfg := mock.Config()
-	cfg.Session.Refresh = true
-	cfg.Session.Inactivity = true
-	cfg.Session.InactivityTimeout = 10 * time.Minute
-
-	idp := mock.NewIdentityProvider(cfg)
-	idp.ProviderHandler.TokenDuration = 5 * time.Second
-	defer idp.Close()
-
-	rpClient := idp.RelyingPartyClient()
-	login(t, rpClient, idp)
-
-	// get initial session info
-	resp := sessionInfo(t, idp, rpClient)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var data session.MetadataVerboseWithRefresh
-	err := json.Unmarshal([]byte(resp.Body), &data)
-	assert.NoError(t, err)
-
-	// wait until refresh cooldown has reached zero before refresh
-	waitForRefreshCooldownTimer(t, idp, rpClient)
-
-	resp = sessionRefresh(t, idp, rpClient)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var refreshedData session.MetadataVerboseWithRefresh
-	err = json.Unmarshal([]byte(resp.Body), &refreshedData)
-	assert.NoError(t, err)
-
-	maxDelta := 5 * time.Second
-
-	assert.True(t, data.Session.Active)
-	assert.True(t, refreshedData.Session.Active)
-
-	assert.False(t, data.Session.TimeoutAt.IsZero())
-	assert.False(t, refreshedData.Session.TimeoutAt.IsZero())
-
-	expectedTimeoutAt := time.Now().Add(cfg.Session.InactivityTimeout)
-	assert.WithinDuration(t, expectedTimeoutAt, data.Session.TimeoutAt, maxDelta)
-	assert.WithinDuration(t, expectedTimeoutAt, refreshedData.Session.TimeoutAt, maxDelta)
-
-	assert.True(t, refreshedData.Session.TimeoutAt.After(data.Session.TimeoutAt))
-
-	previousTimeoutDuration := time.Duration(data.Session.TimeoutInSeconds) * time.Second
-	assert.WithinDuration(t, expectedTimeoutAt, time.Now().Add(previousTimeoutDuration), maxDelta)
-
-	refreshedTimeoutDuration := time.Duration(refreshedData.Session.TimeoutInSeconds) * time.Second
-	assert.WithinDuration(t, expectedTimeoutAt, time.Now().Add(refreshedTimeoutDuration), maxDelta)
-}
-
-func TestSessionRefresh_WithRefreshAuto(t *testing.T) {
-	cfg := mock.Config()
-	cfg.Session.Refresh = true
-	cfg.Session.RefreshAuto = true
-
-	idp := mock.NewIdentityProvider(cfg)
-	idp.ProviderHandler.TokenDuration = 5 * time.Second
-	defer idp.Close()
-
-	rpClient := idp.RelyingPartyClient()
-	login(t, rpClient, idp)
-
-	// get initial session info
-	resp := sessionInfo(t, idp, rpClient)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var data session.MetadataVerboseWithRefresh
-	err := json.Unmarshal([]byte(resp.Body), &data)
-	assert.NoError(t, err)
-
-	// wait until refresh cooldown has reached zero before refresh
-	waitForRefreshCooldownTimer(t, idp, rpClient)
-
-	resp = sessionRefresh(t, idp, rpClient)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var refreshedData session.MetadataVerboseWithRefresh
-	err = json.Unmarshal([]byte(resp.Body), &refreshedData)
-	assert.NoError(t, err)
-
-	// 1 second < next token refresh <= seconds until token expires
-	assert.LessOrEqual(t, refreshedData.Tokens.NextAutoRefreshInSeconds, refreshedData.Tokens.ExpireInSeconds)
-	assert.Greater(t, refreshedData.Tokens.NextAutoRefreshInSeconds, int64(1))
-}
-
 func TestSession(t *testing.T) {
 	cfg := mock.Config()
 	idp := mock.NewIdentityProvider(cfg)
-	idp.ProviderHandler.TokenDuration = 5 * time.Minute
 	defer idp.Close()
 
-	rpClient := idp.RelyingPartyClient()
-	noSessionResp := sessionInfo(t, idp, rpClient)
-	assert.Equal(t, http.StatusUnauthorized, noSessionResp.StatusCode)
-
-	login(t, rpClient, idp)
-
-	resp := sessionInfo(t, idp, rpClient)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var data session.MetadataVerbose
-	err := json.Unmarshal([]byte(resp.Body), &data)
-	assert.NoError(t, err)
-
-	allowedSkew := 5 * time.Second
-	assert.WithinDuration(t, time.Now(), data.Session.CreatedAt, allowedSkew)
-	assert.WithinDuration(t, time.Now().Add(cfg.Session.MaxLifetime), data.Session.EndsAt, allowedSkew)
-	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), data.Tokens.ExpireAt, allowedSkew)
-	assert.WithinDuration(t, time.Now(), data.Tokens.RefreshedAt, allowedSkew)
-
-	sessionEndDuration := time.Duration(data.Session.EndsInSeconds) * time.Second
-	// 1 second < time until session ends <= configured max session lifetime
-	assert.LessOrEqual(t, sessionEndDuration, cfg.Session.MaxLifetime)
-	assert.Greater(t, sessionEndDuration, time.Second)
-
-	tokenExpiryDuration := time.Duration(data.Tokens.ExpireInSeconds) * time.Second
-	// 1 second < time until token expires <= max duration for tokens from IDP
-	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
-	assert.Greater(t, tokenExpiryDuration, time.Second)
-
-	assert.True(t, data.Session.Active)
-	assert.True(t, data.Session.TimeoutAt.IsZero())
-	assert.Equal(t, int64(-1), data.Session.TimeoutInSeconds)
+	data := assertSessionInfo(t, idp, cfg)
+	assertAutoRefreshEnabled(t, data)
 }
 
 func TestSession_WithInactivity(t *testing.T) {
 	cfg := mock.Config()
-	cfg.Session.Refresh = true
 	cfg.Session.Inactivity = true
 	cfg.Session.InactivityTimeout = 10 * time.Minute
 
 	idp := mock.NewIdentityProvider(cfg)
 	defer idp.Close()
 
-	rpClient := idp.RelyingPartyClient()
-	login(t, rpClient, idp)
-
-	resp := sessionInfo(t, idp, rpClient)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var data session.MetadataVerbose
-	err := json.Unmarshal([]byte(resp.Body), &data)
-	assert.NoError(t, err)
-
+	data := assertSessionInfo(t, idp, cfg)
 	maxDelta := 5 * time.Second
 
 	assert.True(t, data.Session.Active)
@@ -449,76 +234,92 @@ func TestSession_WithInactivity(t *testing.T) {
 	assert.WithinDuration(t, expectedTimeoutAt, time.Now().Add(actualTimeoutDuration), maxDelta)
 }
 
-func TestSession_WithRefresh(t *testing.T) {
+func TestSession_WithSSO(t *testing.T) {
 	cfg := mock.Config()
-	cfg.Session.Refresh = true
+	cfg.SSO.Enabled = true
 
 	idp := mock.NewIdentityProvider(cfg)
-	idp.ProviderHandler.TokenDuration = 5 * time.Minute
 	defer idp.Close()
 
-	rpClient := idp.RelyingPartyClient()
-	login(t, rpClient, idp)
-
-	resp := sessionInfo(t, idp, rpClient)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var data session.MetadataVerboseWithRefresh
-	err := json.Unmarshal([]byte(resp.Body), &data)
-	assert.NoError(t, err)
-
-	allowedSkew := 5 * time.Second
-	assert.WithinDuration(t, time.Now(), data.Session.CreatedAt, allowedSkew)
-	assert.WithinDuration(t, time.Now().Add(cfg.Session.MaxLifetime), data.Session.EndsAt, allowedSkew)
-	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), data.Tokens.ExpireAt, allowedSkew)
-	assert.WithinDuration(t, time.Now(), data.Tokens.RefreshedAt, allowedSkew)
-
-	sessionEndDuration := time.Duration(data.Session.EndsInSeconds) * time.Second
-	// 1 second < time until session ends <= configured max session lifetime
-	assert.LessOrEqual(t, sessionEndDuration, cfg.Session.MaxLifetime)
-	assert.Greater(t, sessionEndDuration, time.Second)
-
-	tokenExpiryDuration := time.Duration(data.Tokens.ExpireInSeconds) * time.Second
-	// 1 second < time until token expires <= max duration for tokens from IDP
-	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
-	assert.Greater(t, tokenExpiryDuration, time.Second)
-
-	// auto refresh is not enabled
-	assert.Less(t, data.Tokens.NextAutoRefreshInSeconds, data.Tokens.ExpireInSeconds)
-	assert.Equal(t, data.Tokens.NextAutoRefreshInSeconds, int64(-1))
-
-	assert.True(t, data.Tokens.RefreshCooldown)
-	// 1 second < refresh cooldown <= minimum refresh interval
-	assert.LessOrEqual(t, data.Tokens.RefreshCooldownSeconds, session.RefreshMinInterval)
-	assert.Greater(t, data.Tokens.RefreshCooldownSeconds, int64(1))
-
-	assert.True(t, data.Session.Active)
-	assert.True(t, data.Session.TimeoutAt.IsZero())
-	assert.Equal(t, int64(-1), data.Session.TimeoutInSeconds)
+	data := assertSessionInfo(t, idp, cfg)
+	assertAutoRefreshDisabled(t, data)
 }
 
-func TestSession_WithRefreshAuto(t *testing.T) {
+func TestSession_WithForwardAuth(t *testing.T) {
 	cfg := mock.Config()
-	cfg.Session.Refresh = true
-	cfg.Session.RefreshAuto = true
+	cfg.SSO.Enabled = true
+	cfg.Session.ForwardAuth = true
 
 	idp := mock.NewIdentityProvider(cfg)
-	idp.ProviderHandler.TokenDuration = 5 * time.Minute
 	defer idp.Close()
 
-	rpClient := idp.RelyingPartyClient()
-	login(t, rpClient, idp)
+	data := assertSessionInfo(t, idp, cfg)
+	assertAutoRefreshEnabled(t, data)
+}
 
-	resp := sessionInfo(t, idp, rpClient)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+func TestSessionRefresh(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
 
-	var data session.MetadataVerboseWithRefresh
-	err := json.Unmarshal([]byte(resp.Body), &data)
-	assert.NoError(t, err)
+	sess := assertSessionRefresh(t, idp, cfg)
+	assertAutoRefreshEnabled(t, sess.initial)
+	assertAutoRefreshEnabled(t, sess.refreshed)
+}
 
-	// 1 second < next token refresh <= seconds until token expires
-	assert.LessOrEqual(t, data.Tokens.NextAutoRefreshInSeconds, data.Tokens.ExpireInSeconds)
-	assert.Greater(t, data.Tokens.NextAutoRefreshInSeconds, int64(1))
+func TestSessionRefresh_WithInactivity(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.Inactivity = true
+	cfg.Session.InactivityTimeout = 10 * time.Minute
+
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	sess := assertSessionRefresh(t, idp, cfg)
+	assertAutoRefreshEnabled(t, sess.initial)
+	assertAutoRefreshEnabled(t, sess.refreshed)
+
+	maxDelta := 5 * time.Second
+
+	assert.False(t, sess.initial.Session.TimeoutAt.IsZero())
+	assert.False(t, sess.refreshed.Session.TimeoutAt.IsZero())
+
+	expectedTimeoutAt := time.Now().Add(cfg.Session.InactivityTimeout)
+	assert.WithinDuration(t, expectedTimeoutAt, sess.initial.Session.TimeoutAt, maxDelta)
+	assert.WithinDuration(t, expectedTimeoutAt, sess.refreshed.Session.TimeoutAt, maxDelta)
+
+	assert.True(t, sess.refreshed.Session.TimeoutAt.After(sess.initial.Session.TimeoutAt))
+
+	previousTimeoutDuration := time.Duration(sess.initial.Session.TimeoutInSeconds) * time.Second
+	assert.WithinDuration(t, expectedTimeoutAt, time.Now().Add(previousTimeoutDuration), maxDelta)
+
+	refreshedTimeoutDuration := time.Duration(sess.refreshed.Session.TimeoutInSeconds) * time.Second
+	assert.WithinDuration(t, expectedTimeoutAt, time.Now().Add(refreshedTimeoutDuration), maxDelta)
+}
+
+func TestSessionRefresh_WithSSO(t *testing.T) {
+	cfg := mock.Config()
+	cfg.SSO.Enabled = true
+
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	sess := assertSessionRefresh(t, idp, cfg)
+	assertAutoRefreshDisabled(t, sess.initial)
+	assertAutoRefreshDisabled(t, sess.refreshed)
+}
+
+func TestSessionRefresh_WithForwardAuth(t *testing.T) {
+	cfg := mock.Config()
+	cfg.SSO.Enabled = true
+	cfg.Session.ForwardAuth = true
+
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	sess := assertSessionRefresh(t, idp, cfg)
+	assertAutoRefreshEnabled(t, sess.initial)
+	assertAutoRefreshEnabled(t, sess.refreshed)
 }
 
 func TestSessionForwardAuth(t *testing.T) {
@@ -738,7 +539,7 @@ func waitForRefreshCooldownTimer(t *testing.T, idp *mock.IdentityProvider, rpCli
 			resp := sessionInfo(t, idp, rpClient)
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-			var temp session.MetadataVerboseWithRefresh
+			var temp session.MetadataVerbose
 			err := json.Unmarshal([]byte(resp.Body), &temp)
 			assert.NoError(t, err)
 
@@ -881,4 +682,136 @@ func getCookieFromJar(name string, cookies []*http.Cookie) *http.Cookie {
 	}
 
 	return nil
+}
+
+func assertAutoRefreshEnabled(t *testing.T, data session.MetadataVerbose) {
+	assert.LessOrEqual(t, data.Tokens.NextAutoRefreshInSeconds, data.Tokens.ExpireInSeconds)
+	assert.Greater(t, data.Tokens.NextAutoRefreshInSeconds, int64(1))
+}
+
+func assertAutoRefreshDisabled(t *testing.T, data session.MetadataVerbose) {
+	assert.Less(t, data.Tokens.NextAutoRefreshInSeconds, data.Tokens.ExpireInSeconds)
+	assert.Equal(t, int64(-1), data.Tokens.NextAutoRefreshInSeconds)
+}
+
+func assertSessionInfo(t *testing.T, idp *mock.IdentityProvider, cfg *config.Config) session.MetadataVerbose {
+	rpClient := idp.RelyingPartyClient()
+	noSessionResp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusUnauthorized, noSessionResp.StatusCode)
+
+	login(t, rpClient, idp)
+
+	resp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var data session.MetadataVerbose
+	err := json.Unmarshal([]byte(resp.Body), &data)
+	assert.NoError(t, err)
+
+	allowedSkew := 5 * time.Second
+	assert.WithinDuration(t, time.Now(), data.Session.CreatedAt, allowedSkew)
+	assert.WithinDuration(t, time.Now().Add(cfg.Session.MaxLifetime), data.Session.EndsAt, allowedSkew)
+	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), data.Tokens.ExpireAt, allowedSkew)
+	assert.WithinDuration(t, time.Now(), data.Tokens.RefreshedAt, allowedSkew)
+
+	sessionEndDuration := time.Duration(data.Session.EndsInSeconds) * time.Second
+	// 1 second < time until session ends <= configured max session lifetime
+	assert.LessOrEqual(t, sessionEndDuration, cfg.Session.MaxLifetime)
+	assert.Greater(t, sessionEndDuration, time.Second)
+
+	tokenExpiryDuration := time.Duration(data.Tokens.ExpireInSeconds) * time.Second
+	// 1 second < time until token expires <= max duration for tokens from IDP
+	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
+	assert.Greater(t, tokenExpiryDuration, time.Second)
+
+	assert.True(t, data.Tokens.RefreshCooldown)
+	// 1 second < refresh cooldown <= minimum refresh interval
+	assert.LessOrEqual(t, data.Tokens.RefreshCooldownSeconds, session.RefreshMinInterval)
+	assert.Greater(t, data.Tokens.RefreshCooldownSeconds, int64(1))
+
+	assert.True(t, data.Session.Active)
+
+	if !cfg.Session.Inactivity {
+		assert.True(t, data.Session.TimeoutAt.IsZero())
+		assert.Equal(t, int64(-1), data.Session.TimeoutInSeconds)
+	}
+
+	return data
+}
+
+type sessionRefreshLifecycle struct {
+	initial   session.MetadataVerbose
+	refreshed session.MetadataVerbose
+}
+
+func assertSessionRefresh(t *testing.T, idp *mock.IdentityProvider, cfg *config.Config) sessionRefreshLifecycle {
+	idp.ProviderHandler.TokenDuration = 5 * time.Second
+
+	rpClient := idp.RelyingPartyClient()
+	noSessionResp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusUnauthorized, noSessionResp.StatusCode)
+
+	login(t, rpClient, idp)
+
+	// get initial session info
+	resp := sessionInfo(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var initial session.MetadataVerbose
+	err := json.Unmarshal([]byte(resp.Body), &initial)
+	assert.NoError(t, err)
+
+	// wait until refresh cooldown has reached zero before attempting refresh
+	waitForRefreshCooldownTimer(t, idp, rpClient)
+
+	// do the refresh
+	resp = sessionRefresh(t, idp, rpClient)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var refreshed session.MetadataVerbose
+	err = json.Unmarshal([]byte(resp.Body), &refreshed)
+	assert.NoError(t, err)
+
+	// session create and end times should be unchanged
+	assert.WithinDuration(t, initial.Session.CreatedAt, refreshed.Session.CreatedAt, 0)
+	assert.WithinDuration(t, initial.Session.EndsAt, refreshed.Session.EndsAt, 0)
+
+	// token expiration and refresh times should be later than initial
+	assert.True(t, refreshed.Tokens.ExpireAt.After(initial.Tokens.ExpireAt))
+	assert.True(t, refreshed.Tokens.RefreshedAt.After(initial.Tokens.RefreshedAt))
+
+	allowedSkew := 5 * time.Second
+	assert.WithinDuration(t, time.Now().Add(idp.ProviderHandler.TokenDuration), refreshed.Tokens.ExpireAt, allowedSkew)
+	assert.WithinDuration(t, time.Now(), refreshed.Tokens.RefreshedAt, allowedSkew)
+
+	sessionEndDuration := time.Duration(refreshed.Session.EndsInSeconds) * time.Second
+	// 1 second < time until session ends <= configured max session lifetime
+	assert.LessOrEqual(t, sessionEndDuration, cfg.Session.MaxLifetime)
+	assert.Greater(t, sessionEndDuration, time.Second)
+
+	tokenExpiryDuration := time.Duration(refreshed.Tokens.ExpireInSeconds) * time.Second
+	// 1 second < time until token expires <= max duration for tokens from IDP
+	assert.LessOrEqual(t, tokenExpiryDuration, idp.ProviderHandler.TokenDuration)
+	assert.Greater(t, tokenExpiryDuration, time.Second)
+
+	assert.True(t, refreshed.Tokens.RefreshCooldown)
+	// 1 second < refresh cooldown <= minimum refresh interval
+	assert.LessOrEqual(t, refreshed.Tokens.RefreshCooldownSeconds, session.RefreshMinInterval)
+	assert.Greater(t, refreshed.Tokens.RefreshCooldownSeconds, int64(1))
+
+	assert.True(t, initial.Session.Active)
+	assert.True(t, refreshed.Session.Active)
+
+	if !cfg.Session.Inactivity {
+		assert.True(t, initial.Session.TimeoutAt.IsZero())
+		assert.True(t, refreshed.Session.TimeoutAt.IsZero())
+
+		assert.Equal(t, int64(-1), initial.Session.TimeoutInSeconds)
+		assert.Equal(t, int64(-1), refreshed.Session.TimeoutInSeconds)
+	}
+
+	return sessionRefreshLifecycle{
+		initial:   initial,
+		refreshed: refreshed,
+	}
 }
