@@ -31,8 +31,6 @@ spec:
           WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_AZURE ]]"
           WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_AZURE ]]"
           WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_AZURE ]]"
-          WONDERWALL_SESSION_REFRESH: "{{ .Values.azure.sessionRefresh }}"
-          WONDERWALL_SESSION_REFRESH_AUTO: "{{ .Values.azure.sessionRefresh }}"
           WONDERWALL_SESSION_MAX_LIFETIME: "{{ .Values.azure.sessionMaxLifetime }}"
 {{- end }}
 {{- if .Values.idporten.enabled }}
@@ -71,7 +69,6 @@ spec:
           WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_IDPORTEN ]]"
           WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_IDPORTEN ]]"
           WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_IDPORTEN ]]"
-          WONDERWALL_SESSION_REFRESH_AUTO: "false"
           WONDERWALL_SSO_ENABLED: "true"
           WONDERWALL_SSO_MODE: "proxy"
           WONDERWALL_SSO_SESSION_COOKIE_NAME: "{{ .Values.idporten.sessionCookieName | required ".Values.idporten.sessionCookieName is required." }}"

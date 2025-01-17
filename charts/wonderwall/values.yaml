@@ -14,7 +14,6 @@ azure:
   enabled: false
   redisSecretName: wonderwall-azure-redis-rw
   sessionMaxLifetime: 10h
-  sessionRefresh: true
   forwardAuth:
     enabled: false
     replicasMin: 2
@@ -49,7 +48,6 @@ idporten:
   sessionCookieEncryptionKey:
   sessionInactivity: true
   sessionInactivityTimeout: 1h
-  sessionRefresh: true
   sessionMaxLifetime: 6h
   ssoServerHost:
   # secret for configuring Wonderwall server itself
