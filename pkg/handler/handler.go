@@ -42,10 +42,10 @@ type Standalone struct {
 }
 
 func NewStandalone(
-		cfg *config.Config,
-		jwksProvider openidclient.JwksProvider,
-		openidConfig openidconfig.Config,
-		crypter crypto.Crypter,
+	cfg *config.Config,
+	jwksProvider openidclient.JwksProvider,
+	openidConfig openidconfig.Config,
+	crypter crypto.Crypter,
 ) (*Standalone, error) {
 	autoLogin, err := autologin.New(cfg)
 	if err != nil {
