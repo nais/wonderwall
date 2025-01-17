@@ -42,10 +42,10 @@ type Standalone struct {
 }
 
 func NewStandalone(
-	cfg *config.Config,
-	jwksProvider openidclient.JwksProvider,
-	openidConfig openidconfig.Config,
-	crypter crypto.Crypter,
+		cfg *config.Config,
+		jwksProvider openidclient.JwksProvider,
+		openidConfig openidconfig.Config,
+		crypter crypto.Crypter,
 ) (*Standalone, error) {
 	autoLogin, err := autologin.New(cfg)
 	if err != nil {
@@ -443,8 +443,14 @@ func (s *Standalone) SessionForwardAuth(w http.ResponseWriter, r *http.Request) 
 	_, err := s.GetSession(r)
 	if err != nil {
 		logger := mw.LogEntryFrom(r)
-		if errors.Is(err, session.ErrInvalidExternal) || errors.Is(err, session.ErrInvalid) || errors.Is(err, session.ErrNotFound) {
+		if errors.Is(err, session.ErrInvalidExternal) || errors.Is(err, session.ErrInvalid) {
 			logger.Infof("session/forwardauth: %+v", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		if errors.Is(err, session.ErrNotFound) {
+			logger.Debugf("session/forwardauth: %+v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
