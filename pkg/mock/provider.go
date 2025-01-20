@@ -49,6 +49,10 @@ func (t *TestProviderConfiguration) AuthorizationEndpoint() string {
 	return t.Metadata.AuthorizationEndpoint
 }
 
+func (t *TestProviderConfiguration) AuthorizationResponseIssParameterSupported() bool {
+	return t.Metadata.AuthorizationResponseIssParameterSupported
+}
+
 func (t *TestProviderConfiguration) EndSessionEndpointURL() url.URL {
 	u, _ := url.Parse(t.Metadata.EndSessionEndpoint)
 	return *u
@@ -129,6 +133,10 @@ func (t *TestProviderConfiguration) WithFrontChannelLogoutSupport() {
 
 func (t *TestProviderConfiguration) WithCheckSessionIFrameSupport(url string) {
 	t.SetCheckSessionIframe(url)
+}
+
+func (t *TestProviderConfiguration) WithAuthorizationResponseIssParameterSupported() {
+	t.Metadata.AuthorizationResponseIssParameterSupported = true
 }
 
 func providerConfiguration(cfg *config.Config) *TestProviderConfiguration {

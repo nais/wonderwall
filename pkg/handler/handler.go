@@ -191,17 +191,17 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 
 	loginCallback, err := s.Client.LoginCallback(r, loginCookie)
 	if err != nil {
+		if errors.Is(err, openidclient.ErrCallbackInvalidState) || errors.Is(err, openidclient.ErrCallbackInvalidIssuer) {
+			s.Unauthorized(w, r, err)
+			return
+		}
+
+		if errors.Is(err, openidclient.ErrCallbackIdentityProvider) {
+			s.InternalError(w, r, err)
+			return
+		}
+
 		s.InternalError(w, r, err)
-		return
-	}
-
-	if err := loginCallback.IdentityProviderError(); err != nil {
-		s.InternalError(w, r, fmt.Errorf("callback: %w", err))
-		return
-	}
-
-	if err := loginCallback.StateMismatchError(); err != nil {
-		s.Unauthorized(w, r, fmt.Errorf("callback: %w", err))
 		return
 	}
 

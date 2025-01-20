@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,6 +11,12 @@ import (
 
 	"github.com/nais/wonderwall/pkg/openid"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
+)
+
+var (
+	ErrCallbackIdentityProvider = errors.New("identity provider error")
+	ErrCallbackInvalidState     = errors.New("invalid state")
+	ErrCallbackInvalidIssuer    = errors.New("invalid issuer")
 )
 
 type LoginCallback struct {
@@ -33,25 +40,35 @@ func NewLoginCallback(c *Client, r *http.Request, cookie *openid.LoginCookie) (*
 		cookie.RedirectURI = callbackURL
 	}
 
+	query := r.URL.Query()
+	if query.Get("error") != "" {
+		oauthError := query.Get("error")
+		oauthErrorDescription := query.Get("error_description")
+		return nil, fmt.Errorf("%w: %s: %s", ErrCallbackIdentityProvider, oauthError, oauthErrorDescription)
+	}
+
+	if err := openid.StateMismatchError(query, cookie.State); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrCallbackInvalidState, err)
+	}
+
+	if c.cfg.Provider().AuthorizationResponseIssParameterSupported() {
+		iss := query.Get("iss")
+		expectedIss := c.cfg.Provider().Issuer()
+
+		if len(iss) == 0 {
+			return nil, fmt.Errorf("%w: missing issuer parameter", ErrCallbackInvalidIssuer)
+		}
+
+		if iss != expectedIss {
+			return nil, fmt.Errorf("%w: issuer mismatch: expected %s, got %s", ErrCallbackInvalidIssuer, expectedIss, iss)
+		}
+	}
+
 	return &LoginCallback{
 		Client: c,
 		cookie: cookie,
-		query:  r.URL.Query(),
+		query:  query,
 	}, nil
-}
-
-func (in *LoginCallback) IdentityProviderError() error {
-	if in.query.Get("error") != "" {
-		oauthError := in.query.Get("error")
-		oauthErrorDescription := in.query.Get("error_description")
-		return fmt.Errorf("error from identity provider: %s: %s", oauthError, oauthErrorDescription)
-	}
-
-	return nil
-}
-
-func (in *LoginCallback) StateMismatchError() error {
-	return openid.StateMismatchError(in.query, in.cookie.State)
 }
 
 func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
