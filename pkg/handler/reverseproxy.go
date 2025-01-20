@@ -29,11 +29,13 @@ type ReverseProxySource interface {
 type ReverseProxy struct {
 	*httputil.ReverseProxy
 	EnableAccessLogs bool
+	IncludeIdToken   bool
 }
 
-func NewUpstreamProxy(upstream *urllib.URL, enableAccessLogs bool) *ReverseProxy {
+func NewUpstreamProxy(upstream *urllib.URL, enableAccessLogs bool, includeIdToken bool) *ReverseProxy {
 	rp := NewReverseProxy(upstream, true)
 	rp.EnableAccessLogs = enableAccessLogs
+	rp.IncludeIdToken = includeIdToken
 	return rp
 }
 
@@ -67,6 +69,11 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 			accessToken, ok := mw.AccessTokenFrom(r.In.Context())
 			if ok {
 				r.Out.Header.Set("authorization", "Bearer "+accessToken)
+			}
+
+			idToken, ok := mw.IdTokenFrom(r.In.Context())
+			if ok {
+				r.Out.Header.Set("X-Wonderwall-Id-Token", idToken)
 			}
 		},
 		Transport: server.DefaultTransport(),
@@ -117,6 +124,10 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
+		if rp.IncludeIdToken {
+			idToken := sess.IDToken()
+			ctx = mw.WithIdToken(ctx, idToken)
+		}
 
 		if rp.EnableAccessLogs && isRelevantAccessLog(r) {
 			logger.Info("default: authenticated request")

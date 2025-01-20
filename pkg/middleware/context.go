@@ -11,6 +11,7 @@ type contextKey string
 
 const (
 	ctxAccessToken = contextKey("AccessToken")
+	ctxIdToken     = contextKey("IdToken")
 	ctxIngress     = contextKey("Ingress")
 	ctxPath        = contextKey("Path")
 )
@@ -22,6 +23,15 @@ func AccessTokenFrom(ctx context.Context) (string, bool) {
 
 func WithAccessToken(ctx context.Context, accessToken string) context.Context {
 	return context.WithValue(ctx, ctxAccessToken, accessToken)
+}
+
+func IdTokenFrom(ctx context.Context) (string, bool) {
+	idToken, ok := ctx.Value(ctxIdToken).(string)
+	return idToken, ok
+}
+
+func WithIdToken(ctx context.Context, idToken string) context.Context {
+	return context.WithValue(ctx, ctxIdToken, idToken)
 }
 
 func IngressFrom(ctx context.Context) (ingress.Ingress, bool) {

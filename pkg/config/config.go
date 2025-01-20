@@ -24,16 +24,17 @@ type Config struct {
 	ShutdownWaitBeforePeriod time.Duration `json:"shutdown-wait-before-period"`
 	Version                  string        `json:"version"`
 
-	AutoLogin            bool     `json:"auto-login"`
-	AutoLoginIgnorePaths []string `json:"auto-login-ignore-paths"`
-	Cookie               Cookie   `json:"cookie"`
-	EncryptionKey        string   `json:"encryption-key"`
-	Ingresses            []string `json:"ingress"`
-	LegacyCookie         bool     `json:"legacy-cookie"`
-	UpstreamAccessLogs   bool     `json:"upstream-access-logs"`
-	UpstreamHost         string   `json:"upstream-host"`
-	UpstreamIP           string   `json:"upstream-ip"`
-	UpstreamPort         int      `json:"upstream-port"`
+	AutoLogin              bool     `json:"auto-login"`
+	AutoLoginIgnorePaths   []string `json:"auto-login-ignore-paths"`
+	Cookie                 Cookie   `json:"cookie"`
+	EncryptionKey          string   `json:"encryption-key"`
+	Ingresses              []string `json:"ingress"`
+	LegacyCookie           bool     `json:"legacy-cookie"`
+	UpstreamAccessLogs     bool     `json:"upstream-access-logs"`
+	UpstreamHost           string   `json:"upstream-host"`
+	UpstreamIP             string   `json:"upstream-ip"`
+	UpstreamPort           int      `json:"upstream-port"`
+	UpstreamIncludeIdToken bool     `json:"upstream-include-id-token"`
 
 	OpenTelemetry OpenTelemetry `json:"otel"`
 	OpenID        OpenID        `json:"openid"`
@@ -50,13 +51,14 @@ const (
 	ShutdownGracefulPeriod   = "shutdown-graceful-period"
 	ShutdownWaitBeforePeriod = "shutdown-wait-before-period"
 
-	AutoLogin            = "auto-login"
-	AutoLoginIgnorePaths = "auto-login-ignore-paths"
-	Ingress              = "ingress"
-	UpstreamAccessLogs   = "upstream-access-logs"
-	UpstreamHost         = "upstream-host"
-	UpstreamIP           = "upstream-ip"
-	UpstreamPort         = "upstream-port"
+	AutoLogin              = "auto-login"
+	AutoLoginIgnorePaths   = "auto-login-ignore-paths"
+	Ingress                = "ingress"
+	UpstreamAccessLogs     = "upstream-access-logs"
+	UpstreamHost           = "upstream-host"
+	UpstreamIP             = "upstream-ip"
+	UpstreamPort           = "upstream-port"
+	UpstreamIncludeIdToken = "upstream-include-id-token"
 )
 
 var logger = log.WithField("logger", "wonderwall.config")
@@ -78,6 +80,7 @@ func Initialize() (*Config, error) {
 	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
 	flag.String(UpstreamIP, "", "IP of upstream host. Overrides 'upstream-host' if set.")
 	flag.Int(UpstreamPort, 0, "Port of upstream host. Overrides 'upstream-host' if set.")
+	flag.Bool(UpstreamIncludeIdToken, false, "Include ID token in upstream requests in 'X-Wonderwall-Id-Token' header.")
 
 	cookieFlags()
 	openidFlags()
