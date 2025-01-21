@@ -86,6 +86,10 @@ func (t *TestProviderConfiguration) Name() string {
 	return string(t.Cfg.OpenID.Provider)
 }
 
+func (t *TestProviderConfiguration) PushedAuthorizationRequestEndpoint() string {
+	return t.Metadata.PushedAuthorizationRequestEndpoint
+}
+
 func (t *TestProviderConfiguration) SessionStateRequired() bool {
 	return len(t.Metadata.CheckSessionIframe) > 0
 }
@@ -120,6 +124,10 @@ func (t *TestProviderConfiguration) SetIssuer(url string) {
 
 func (t *TestProviderConfiguration) SetJwksURI(url string) {
 	t.Metadata.JwksURI = url
+}
+
+func (t *TestProviderConfiguration) SetPushedAuthorizationRequestEndpoint(url string) {
+	t.Metadata.PushedAuthorizationRequestEndpoint = url
 }
 
 func (t *TestProviderConfiguration) SetTokenEndpoint(url string) {

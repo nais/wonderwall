@@ -21,6 +21,7 @@ type Provider interface {
 	IDTokenSigningAlg() jwa.KeyAlgorithm
 	Issuer() string
 	JwksURI() string
+	PushedAuthorizationRequestEndpoint() string
 	SessionStateRequired() bool
 	SidClaimRequired() bool
 	TokenEndpoint() string
@@ -69,6 +70,10 @@ func (p *provider) UILocalesSupported() Supported {
 	return p.metadata.UILocalesSupported
 }
 
+func (p *provider) PushedAuthorizationRequestEndpoint() string {
+	return p.metadata.PushedAuthorizationRequestEndpoint
+}
+
 func (p *provider) SessionStateRequired() bool {
 	return len(p.metadata.CheckSessionIframe) > 0
 }
@@ -109,31 +114,31 @@ func NewProviderConfig(cfg *config.Config) (Provider, error) {
 }
 
 type ProviderMetadata struct {
-	Issuer                                     string    `json:"issuer"`
-	AuthorizationEndpoint                      string    `json:"authorization_endpoint"`
-	PushedAuthorizationRequestEndpoint         string    `json:"pushed_authorization_request_endpoint"`
-	TokenEndpoint                              string    `json:"token_endpoint"`
-	EndSessionEndpoint                         string    `json:"end_session_endpoint"`
-	RevocationEndpoint                         string    `json:"revocation_endpoint"`
-	JwksURI                                    string    `json:"jwks_uri"`
-	ResponseTypesSupported                     []string  `json:"response_types_supported"`
-	ResponseModesSupported                     []string  `json:"response_modes_supported"`
-	SubjectTypesSupported                      []string  `json:"subject_types_supported"`
-	IDTokenSigningAlgValuesSupported           []string  `json:"id_token_signing_alg_values_supported"`
-	CodeChallengeMethodsSupported              []string  `json:"code_challenge_methods_supported"`
-	UserInfoEndpoint                           string    `json:"userinfo_endpoint"`
-	ScopesSupported                            []string  `json:"scopes_supported"`
-	UILocalesSupported                         Supported `json:"ui_locales_supported"`
 	ACRValuesSupported                         Supported `json:"acr_values_supported"`
+	AuthorizationEndpoint                      string    `json:"authorization_endpoint"`
 	AuthorizationResponseIssParameterSupported bool      `json:"authorization_response_iss_parameter_supported"`
-	FrontchannelLogoutSupported                bool      `json:"frontchannel_logout_supported"`
+	CheckSessionIframe                         string    `json:"check_session_iframe"`
+	CodeChallengeMethodsSupported              []string  `json:"code_challenge_methods_supported"`
+	EndSessionEndpoint                         string    `json:"end_session_endpoint"`
 	FrontchannelLogoutSessionSupported         bool      `json:"frontchannel_logout_session_supported"`
+	FrontchannelLogoutSupported                bool      `json:"frontchannel_logout_supported"`
+	IDTokenSigningAlgValuesSupported           []string  `json:"id_token_signing_alg_values_supported"`
 	IntrospectionEndpoint                      string    `json:"introspection_endpoint"`
-	TokenEndpointAuthMethodsSupported          []string  `json:"token_endpoint_auth_methods_supported"`
+	Issuer                                     string    `json:"issuer"`
+	JwksURI                                    string    `json:"jwks_uri"`
+	PushedAuthorizationRequestEndpoint         string    `json:"pushed_authorization_request_endpoint"`
+	RequestObjectSigningAlgValuesSupported     []string  `json:"request_object_signing_alg_values_supported"`
 	RequestParameterSupported                  bool      `json:"request_parameter_supported"`
 	RequestURIParameterSupported               bool      `json:"request_uri_parameter_supported"`
-	RequestObjectSigningAlgValuesSupported     []string  `json:"request_object_signing_alg_values_supported"`
-	CheckSessionIframe                         string    `json:"check_session_iframe"`
+	ResponseModesSupported                     []string  `json:"response_modes_supported"`
+	ResponseTypesSupported                     []string  `json:"response_types_supported"`
+	RevocationEndpoint                         string    `json:"revocation_endpoint"`
+	ScopesSupported                            []string  `json:"scopes_supported"`
+	SubjectTypesSupported                      []string  `json:"subject_types_supported"`
+	TokenEndpoint                              string    `json:"token_endpoint"`
+	TokenEndpointAuthMethodsSupported          []string  `json:"token_endpoint_auth_methods_supported"`
+	UILocalesSupported                         Supported `json:"ui_locales_supported"`
+	UserInfoEndpoint                           string    `json:"userinfo_endpoint"`
 }
 
 func (c *ProviderMetadata) Print() {

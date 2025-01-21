@@ -115,29 +115,37 @@ func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 func identityProviderRouter(ip *IdentityProviderHandler) chi.Router {
 	r := chi.NewRouter()
 	r.Get("/authorize", ip.Authorize)
-	r.Post("/token", ip.Token)
-	r.Get("/jwks", ip.Jwks)
 	r.Get("/endsession", ip.EndSession)
+	r.Get("/jwks", ip.Jwks)
+	r.Post("/par", ip.PushedAuthorizationRequest)
+	r.Post("/token", ip.Token)
 	return r
 }
 
+type (
+	Code                       = string
+	PushedAuthorizationRequest = string
+)
+
 type IdentityProviderHandler struct {
-	Codes         map[string]*AuthorizeRequest
-	Config        openidconfig.Config
-	Provider      *TestProvider
-	Sessions      map[string]string
-	RefreshTokens map[string]*RefreshTokenData
-	TokenDuration time.Duration
+	Codes                           map[Code]*AuthorizeRequest
+	Config                          openidconfig.Config
+	Provider                        *TestProvider
+	PushedAuthorizationRequestCodes map[PushedAuthorizationRequest]Code
+	Sessions                        map[string]string
+	RefreshTokens                   map[string]*RefreshTokenData
+	TokenDuration                   time.Duration
 }
 
 func newIdentityProviderHandler(provider *TestProvider, cfg openidconfig.Config) *IdentityProviderHandler {
 	return &IdentityProviderHandler{
-		Codes:         make(map[string]*AuthorizeRequest),
-		Config:        cfg,
-		Provider:      provider,
-		Sessions:      make(map[string]string),
-		RefreshTokens: make(map[string]*RefreshTokenData),
-		TokenDuration: time.Minute,
+		Codes:                           make(map[Code]*AuthorizeRequest),
+		Config:                          cfg,
+		Provider:                        provider,
+		Sessions:                        make(map[string]string),
+		PushedAuthorizationRequestCodes: make(map[PushedAuthorizationRequest]Code),
+		RefreshTokens:                   make(map[string]*RefreshTokenData),
+		TokenDuration:                   time.Minute,
 	}
 }
 
@@ -149,6 +157,7 @@ type AuthorizeRequest struct {
 	Nonce         string
 	RedirectUri   string
 	SessionID     string
+	State         string
 }
 
 type RefreshTokenData struct {
@@ -184,6 +193,71 @@ func (ip *IdentityProviderHandler) signToken(token jwt.Token) (string, error) {
 func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
+	var authorizeRequest *AuthorizeRequest
+	var code Code
+	var err error
+
+	if ip.Config.Provider().PushedAuthorizationRequestEndpoint() == "" {
+		// normal authorization request
+		authorizeRequest, err = ip.parseAuthorizationRequest(query)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		code = uuid.New().String()
+		ip.Codes[code] = authorizeRequest
+	} else {
+		// PAR request
+		clientId := query.Get("client_id")
+		if len(clientId) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("missing client_id"))
+			return
+		}
+
+		requestUri := query.Get("request_uri")
+		if len(requestUri) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("missing request_uri"))
+			return
+		}
+
+		var ok bool
+		code, ok = ip.PushedAuthorizationRequestCodes[requestUri]
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(fmt.Sprintf("no matching request_uri for %q", requestUri)))
+			return
+		}
+
+		authorizeRequest, ok = ip.Codes[code]
+		if !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf("no matching code for %q", code)))
+			return
+		}
+	}
+
+	u, err := url.Parse(authorizeRequest.RedirectUri)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("couldn't parse redirect uri"))
+		return
+	}
+	v := url.Values{}
+	v.Set("code", code)
+	v.Set("state", authorizeRequest.State)
+	if ip.Config.Provider().SessionStateRequired() {
+		v.Set("session_state", authorizeRequest.SessionID)
+	}
+
+	u.RawQuery = v.Encode()
+	http.Redirect(w, r, u.String(), http.StatusFound)
+}
+
+func (ip *IdentityProviderHandler) parseAuthorizationRequest(query url.Values) (*AuthorizeRequest, error) {
 	state := query.Get("state")
 	redirect := query.Get("redirect_uri")
 	nonce := query.Get("nonce")
@@ -214,15 +288,8 @@ func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 
 	for param, value := range required {
 		if len(value) <= 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(fmt.Sprintf("missing required field '%s'", param)))
-			return
+			return nil, fmt.Errorf("missing required field %q", param)
 		}
-	}
-
-	invalidParamResponse := func(w http.ResponseWriter, param, actual string, expected []string) {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprintf("'%s' is an invalid value for '%s', must be '%s'", actual, param, expected)))
 	}
 
 	allowedParamValues := map[string][]string{
@@ -245,8 +312,7 @@ func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 		}
 
 		if !found {
-			invalidParamResponse(w, param, paramValue, allowed)
-			return
+			return nil, fmt.Errorf("%q is an invalid value for %q, must be %q", paramValue, param, allowed)
 		}
 	}
 
@@ -260,16 +326,13 @@ func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	}
 
 	if !found {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprintf("'scope' parameter must contain '%s', was '%s'", scopespkg.OpenID, scope)))
-		return
+		return nil, fmt.Errorf("'scope' parameter must contain %q, was %q", scopespkg.OpenID, scope)
 	}
 
 	sessionID := uuid.New().String()
 	ip.Sessions[sessionID] = clientId
 
-	code := uuid.New().String()
-	ip.Codes[code] = &AuthorizeRequest{
+	return &AuthorizeRequest{
 		AcrLevel:      acrLevel,
 		ClientID:      clientId,
 		CodeChallenge: codeChallenge,
@@ -277,29 +340,57 @@ func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 		Nonce:         nonce,
 		RedirectUri:   redirect,
 		SessionID:     sessionID,
-	}
-
-	u, err := url.Parse(redirect)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("couldn't parse redirect uri"))
-		return
-	}
-	v := url.Values{}
-	v.Set("code", code)
-	v.Set("state", state)
-	if ip.Config.Provider().SessionStateRequired() {
-		v.Set("session_state", sessionID)
-	}
-
-	u.RawQuery = v.Encode()
-
-	http.Redirect(w, r, u.String(), http.StatusFound)
+		State:         state,
+	}, nil
 }
 
 func (ip *IdentityProviderHandler) Jwks(w http.ResponseWriter, r *http.Request) {
 	jwks, _ := ip.Provider.GetPublicJwkSet(r.Context())
 	json.NewEncoder(w).Encode(jwks)
+}
+
+func (ip *IdentityProviderHandler) PushedAuthorizationRequest(w http.ResponseWriter, r *http.Request) {
+	if ip.Config.Provider().PushedAuthorizationRequestEndpoint() == "" {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("PAR endpoint not supported"))
+		return
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("malformed payload?"))
+		return
+	}
+
+	if r.PostForm.Get("request_uri") != "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("request_uri should not be provided to PAR endpoint"))
+		return
+	}
+
+	authorizeRequest, err := ip.parseAuthorizationRequest(r.PostForm)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	err = ip.validateClientAuthentication(w, r, r.PostForm.Get("client_id"))
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	requestUri := "urn:ietf:params:oauth:request_uri:" + uuid.New().String()
+	code := uuid.New().String()
+
+	ip.PushedAuthorizationRequestCodes[requestUri] = code
+	ip.Codes[code] = authorizeRequest
+
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"request_uri": requestUri, "expires_in": "60"})
 }
 
 func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request) {
