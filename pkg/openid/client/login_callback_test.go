@@ -1,7 +1,6 @@
 package client_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -16,99 +15,11 @@ import (
 )
 
 func TestLoginCallback(t *testing.T) {
-	t.Run("invalid state", func(t *testing.T) {
-		url := mock.Ingress + "/oauth2/callback?state=some-other-state"
-		idp := mock.NewIdentityProvider(mock.Config())
-		defer idp.Close()
-
-		lc, err := newLoginCallback(t, idp, url)
-		assert.Nil(t, lc)
-		assert.ErrorIs(t, err, client.ErrCallbackInvalidState)
-	})
-
-	t.Run("missing state", func(t *testing.T) {
-		url := mock.Ingress + "/oauth2/callback"
-		idp := mock.NewIdentityProvider(mock.Config())
-		defer idp.Close()
-
-		lc, err := newLoginCallback(t, idp, url)
-		assert.Nil(t, lc)
-		assert.ErrorIs(t, err, client.ErrCallbackInvalidState)
-	})
-
-	t.Run("identity provider error", func(t *testing.T) {
-		url := mock.Ingress + "/oauth2/callback?error=invalid_client&error_description=client%20authenticaion%20failed"
-
-		idp := mock.NewIdentityProvider(mock.Config())
-		defer idp.Close()
-
-		lc, err := newLoginCallback(t, idp, url)
-		assert.Nil(t, lc)
-		assert.ErrorIs(t, err, client.ErrCallbackIdentityProvider)
-	})
-
-	t.Run("supports authorization response with iss parameter", func(t *testing.T) {
-		idp := mock.NewIdentityProvider(mock.Config())
-		idp.OpenIDConfig.TestProvider.WithAuthorizationResponseIssParameterSupported()
-
-		for _, tt := range []struct {
-			name       string
-			iss        string
-			assertions func(t *testing.T, lc *client.LoginCallback, err error)
-		}{
-			{
-				name: "happy path",
-				iss:  idp.OpenIDConfig.TestProvider.Issuer(),
-				assertions: func(t *testing.T, lc *client.LoginCallback, err error) {
-					assert.NotNil(t, lc)
-					assert.NoError(t, err)
-				},
-			},
-			{
-				name: "missing issuer",
-				iss:  "",
-				assertions: func(t *testing.T, lc *client.LoginCallback, err error) {
-					assert.Nil(t, lc)
-					assert.ErrorIs(t, err, client.ErrCallbackInvalidIssuer)
-				},
-			},
-			{
-				name: "wrong issuer",
-				iss:  "https://wrong-issuer",
-				assertions: func(t *testing.T, lc *client.LoginCallback, err error) {
-					assert.Nil(t, lc)
-					assert.ErrorIs(t, err, client.ErrCallbackInvalidIssuer)
-				},
-			},
-		} {
-			t.Run(tt.name, func(t *testing.T) {
-				url := mock.Ingress + "/oauth2/callback?state=some-state"
-				if tt.iss != "" {
-					url += "&iss=" + tt.iss
-				}
-				defer idp.Close()
-
-				lc, err := newLoginCallback(t, idp, url)
-				tt.assertions(t, lc, err)
-			})
-		}
-	})
-}
-
-func TestLoginCallback_RedeemTokens(t *testing.T) {
-	url := mock.Ingress + "/oauth2/callback?code=some-code&state=some-state"
-
 	t.Run("happy path", func(t *testing.T) {
-		idp := mock.NewIdentityProvider(mock.Config())
-		defer idp.Close()
-
-		lc, err := newLoginCallback(t, idp, url)
+		url := mock.Ingress + "/oauth2/callback?code=some-code&state=some-state"
+		tokens, err := newLoginCallback(t, url, nil)
 		require.NoError(t, err)
-		require.NotNil(t, lc)
-
-		tokens, err := lc.RedeemTokens(context.Background())
-		assert.NoError(t, err)
-		assert.NotNil(t, tokens)
+		require.NotNil(t, tokens)
 
 		assert.NotEmpty(t, tokens.AccessToken)
 		assert.NotEmpty(t, tokens.RefreshToken)
@@ -122,82 +33,111 @@ func TestLoginCallback_RedeemTokens(t *testing.T) {
 		assert.True(t, tokens.Expiry.Before(time.Now().Add(time.Hour)))
 	})
 
-	t.Run("invalid code", func(t *testing.T) {
+	t.Run("invalid state", func(t *testing.T) {
+		url := mock.Ingress + "/oauth2/callback?state=some-other-state"
+		_, err := newLoginCallback(t, url, nil)
+		assert.ErrorIs(t, err, client.ErrCallbackInvalidState)
+	})
+
+	t.Run("missing state", func(t *testing.T) {
+		url := mock.Ingress + "/oauth2/callback"
+		_, err := newLoginCallback(t, url, nil)
+		assert.ErrorIs(t, err, client.ErrCallbackInvalidState)
+	})
+
+	t.Run("identity provider error", func(t *testing.T) {
+		url := mock.Ingress + "/oauth2/callback?error=invalid_client&error_description=client%20authenticaion%20failed"
 		idp := mock.NewIdentityProvider(mock.Config())
 		defer idp.Close()
 
-		lc, err := newLoginCallback(t, idp, url)
-		require.NoError(t, err)
-		require.NotNil(t, lc)
-		idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
-			"some-other-code": {},
-			"another-code":    {},
-		}
+		_, err := newLoginCallback(t, url, nil)
+		assert.ErrorIs(t, err, client.ErrCallbackIdentityProvider)
+	})
 
-		tokens, err := lc.RedeemTokens(context.Background())
-		assert.Error(t, err)
+	t.Run("supports authorization response with iss parameter", func(t *testing.T) {
+		url := mock.Ingress + "/oauth2/callback?code=some-code&state=some-state&iss=https://some-issuer"
+		_, err := newLoginCallback(t, url, func(idp *mock.IdentityProvider) {
+			idp.OpenIDConfig.TestProvider.SetIssuer("https://some-issuer")
+			idp.OpenIDConfig.TestProvider.WithAuthorizationResponseIssParameterSupported()
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("missing issuer", func(t *testing.T) {
+		url := mock.Ingress + "/oauth2/callback?code=some-code&state=some-state"
+		_, err := newLoginCallback(t, url, func(idp *mock.IdentityProvider) {
+			idp.OpenIDConfig.TestProvider.WithAuthorizationResponseIssParameterSupported()
+		})
+		assert.ErrorIs(t, err, client.ErrCallbackInvalidIssuer)
+		assert.ErrorContains(t, err, "missing issuer parameter")
+	})
+
+	t.Run("invalid issuer", func(t *testing.T) {
+		url := mock.Ingress + "/oauth2/callback?code=some-code&state=some-state&iss=https://wrong-issuer"
+		_, err := newLoginCallback(t, url, func(idp *mock.IdentityProvider) {
+			idp.OpenIDConfig.TestProvider.SetIssuer("https://some-issuer")
+			idp.OpenIDConfig.TestProvider.WithAuthorizationResponseIssParameterSupported()
+		})
+		assert.ErrorIs(t, err, client.ErrCallbackInvalidIssuer)
+		assert.ErrorContains(t, err, "issuer mismatch: expected \"https://some-issuer\", got \"https://wrong-issuer\"")
+	})
+
+	t.Run("invalid code", func(t *testing.T) {
+		url := mock.Ingress + "/oauth2/callback?code=some-code&state=some-state"
+		tokens, err := newLoginCallback(t, url, func(idp *mock.IdentityProvider) {
+			idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
+				"some-other-code": {},
+				"another-code":    {},
+			}
+		})
+
+		assert.ErrorIs(t, err, client.ErrCallbackRedeemTokens)
 		assert.Nil(t, tokens)
 	})
 
 	t.Run("nonce mismatch", func(t *testing.T) {
-		idp := mock.NewIdentityProvider(mock.Config())
-		defer idp.Close()
-
-		lc, err := newLoginCallback(t, idp, url)
-		require.NoError(t, err)
-		require.NotNil(t, lc)
-		idp.ProviderHandler.Codes["some-code"].Nonce = "some-other-nonce"
-
-		tokens, err := lc.RedeemTokens(context.Background())
-		assert.Error(t, err)
+		url := mock.Ingress + "/oauth2/callback?code=some-code&state=some-state"
+		tokens, err := newLoginCallback(t, url, func(idp *mock.IdentityProvider) {
+			idp.ProviderHandler.Codes["some-code"].Nonce = "some-other-nonce"
+		})
+		assert.ErrorIs(t, err, client.ErrCallbackRedeemTokens)
 		assert.Nil(t, tokens)
 	})
 
 	t.Run("redirect_uri mismatch", func(t *testing.T) {
-		idp := mock.NewIdentityProvider(mock.Config())
-		defer idp.Close()
-
-		lc, err := newLoginCallback(t, idp, url)
-		require.NoError(t, err)
-		require.NotNil(t, lc)
-		idp.ProviderHandler.Codes["some-code"].RedirectUri = "http://not-wonderwall/oauth2/callback"
-
-		tokens, err := lc.RedeemTokens(context.Background())
-		assert.Error(t, err)
+		url := mock.Ingress + "/oauth2/callback?code=some-code&state=some-state"
+		tokens, err := newLoginCallback(t, url, func(idp *mock.IdentityProvider) {
+			idp.ProviderHandler.Codes["some-code"].RedirectUri = "http://not-wonderwall/oauth2/callback"
+		})
+		assert.ErrorIs(t, err, client.ErrCallbackRedeemTokens)
 		assert.Nil(t, tokens)
 	})
 
 	t.Run("unexpected audience", func(t *testing.T) {
-		idp := mock.NewIdentityProvider(mock.Config())
-		defer idp.Close()
-
-		lc, err := newLoginCallback(t, idp, url)
-		require.NoError(t, err)
-		require.NotNil(t, lc)
-		idp.Cfg.OpenID.ClientID = "new-client-id"
-
-		tokens, err := lc.RedeemTokens(context.Background())
-		assert.Error(t, err)
+		url := mock.Ingress + "/oauth2/callback?code=some-code&state=some-state"
+		tokens, err := newLoginCallback(t, url, func(idp *mock.IdentityProvider) {
+			idp.Cfg.OpenID.ClientID = "new-client-id"
+		})
+		assert.ErrorIs(t, err, client.ErrCallbackRedeemTokens)
 		assert.Nil(t, tokens)
 	})
 
 	t.Run("invalid acr", func(t *testing.T) {
-		idp := mock.NewIdentityProvider(mock.Config())
-		defer idp.Close()
-
-		lc, err := newLoginCallback(t, idp, url)
-		require.NoError(t, err)
-		require.NotNil(t, lc)
-		idp.ProviderHandler.Codes["some-code"].AcrLevel = "some-invalid-acr"
-
-		tokens, err := lc.RedeemTokens(context.Background())
-		assert.Error(t, err)
+		url := mock.Ingress + "/oauth2/callback?code=some-code&state=some-state"
+		tokens, err := newLoginCallback(t, url, func(idp *mock.IdentityProvider) {
+			idp.ProviderHandler.Codes["some-code"].AcrLevel = "some-invalid-acr"
+		})
+		assert.ErrorIs(t, err, client.ErrCallbackRedeemTokens)
 		assert.ErrorContains(t, err, "invalid acr: got \"some-invalid-acr\", expected \"some-acr\"")
 		assert.Nil(t, tokens)
 	})
 }
 
-func newLoginCallback(t *testing.T, idp *mock.IdentityProvider, url string) (*client.LoginCallback, error) {
+func newLoginCallback(t *testing.T, url string, mutateFn func(*mock.IdentityProvider)) (*openid.Tokens, error) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
 	req := idp.GetRequest(url)
 	redirect, err := urlpkg.LoginCallback(req)
 	assert.NoError(t, err)
@@ -210,6 +150,10 @@ func newLoginCallback(t *testing.T, idp *mock.IdentityProvider, url string) (*cl
 			Nonce:         "some-nonce",
 			RedirectUri:   redirect,
 		},
+	}
+
+	if mutateFn != nil {
+		mutateFn(idp)
 	}
 
 	cookie := &openid.LoginCookie{

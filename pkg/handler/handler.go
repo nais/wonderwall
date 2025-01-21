@@ -189,25 +189,14 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loginCallback, err := s.Client.LoginCallback(r, loginCookie)
+	tokens, err := s.Client.LoginCallback(r, loginCookie)
 	if err != nil {
 		if errors.Is(err, openidclient.ErrCallbackInvalidState) || errors.Is(err, openidclient.ErrCallbackInvalidIssuer) {
 			s.Unauthorized(w, r, err)
 			return
 		}
 
-		if errors.Is(err, openidclient.ErrCallbackIdentityProvider) {
-			s.InternalError(w, r, err)
-			return
-		}
-
 		s.InternalError(w, r, err)
-		return
-	}
-
-	tokens, err := loginCallback.RedeemTokens(r.Context())
-	if err != nil {
-		s.InternalError(w, r, fmt.Errorf("callback: redeeming tokens: %w", err))
 		return
 	}
 

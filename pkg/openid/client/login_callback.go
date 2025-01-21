@@ -5,44 +5,28 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/openid"
-	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
 var (
-	ErrCallbackIdentityProvider = errors.New("identity provider error")
-	ErrCallbackInvalidState     = errors.New("invalid state")
-	ErrCallbackInvalidIssuer    = errors.New("invalid issuer")
+	ErrCallbackIdentityProvider = errors.New("callback: identity provider error")
+	ErrCallbackInvalidCookie    = errors.New("callback: invalid cookie")
+	ErrCallbackInvalidState     = errors.New("callback: invalid state")
+	ErrCallbackInvalidIssuer    = errors.New("callback: invalid issuer")
+	ErrCallbackRedeemTokens     = errors.New("callback: redeeming tokens")
 )
 
-type LoginCallback struct {
-	*Client
-	cookie *openid.LoginCookie
-	query  url.Values
-}
-
-func NewLoginCallback(c *Client, r *http.Request, cookie *openid.LoginCookie) (*LoginCallback, error) {
+func (c *Client) LoginCallback(r *http.Request, cookie *openid.LoginCookie) (*openid.Tokens, error) {
 	if cookie == nil {
-		return nil, fmt.Errorf("cookie is nil")
-	}
-
-	// redirect_uri not set in cookie (e.g. login initiated at instance running older version, callback handled at newer version)
-	if len(cookie.RedirectURI) == 0 {
-		callbackURL, err := urlpkg.LoginCallback(r)
-		if err != nil {
-			return nil, fmt.Errorf("generating callback url: %w", err)
-		}
-
-		cookie.RedirectURI = callbackURL
+		return nil, fmt.Errorf("%w: %s", ErrCallbackInvalidCookie, "cookie is nil")
 	}
 
 	query := r.URL.Query()
-	if query.Get("error") != "" {
-		oauthError := query.Get("error")
+
+	if oauthError := query.Get("error"); len(oauthError) > 0 {
 		oauthErrorDescription := query.Get("error_description")
 		return nil, fmt.Errorf("%w: %s: %s", ErrCallbackIdentityProvider, oauthError, oauthErrorDescription)
 	}
@@ -51,49 +35,59 @@ func NewLoginCallback(c *Client, r *http.Request, cookie *openid.LoginCookie) (*
 		return nil, fmt.Errorf("%w: %s", ErrCallbackInvalidState, err)
 	}
 
-	if c.cfg.Provider().AuthorizationResponseIssParameterSupported() {
-		iss := query.Get("iss")
-		expectedIss := c.cfg.Provider().Issuer()
-
-		if len(iss) == 0 {
-			return nil, fmt.Errorf("%w: missing issuer parameter", ErrCallbackInvalidIssuer)
-		}
-
-		if iss != expectedIss {
-			return nil, fmt.Errorf("%w: issuer mismatch: expected %s, got %s", ErrCallbackInvalidIssuer, expectedIss, iss)
-		}
+	if err := c.authorizationServerIssuerIdentification(query.Get("iss")); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrCallbackInvalidIssuer, err)
 	}
 
-	return &LoginCallback{
-		Client: c,
-		cookie: cookie,
-		query:  query,
-	}, nil
+	tokens, err := c.redeemTokens(r.Context(), query.Get("code"), cookie)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrCallbackRedeemTokens, err)
+	}
+
+	return tokens, nil
 }
 
-func (in *LoginCallback) RedeemTokens(ctx context.Context) (*openid.Tokens, error) {
-	params, err := in.AuthParams()
+// Verify iss parameter if provider supports RFC 9207 - OAuth 2.0 Authorization Server Issuer Identification
+func (c *Client) authorizationServerIssuerIdentification(iss string) error {
+	if !c.cfg.Provider().AuthorizationResponseIssParameterSupported() {
+		return nil
+	}
+
+	if len(iss) == 0 {
+		return fmt.Errorf("missing issuer parameter")
+	}
+
+	expectedIss := c.cfg.Provider().Issuer()
+	if iss != expectedIss {
+		return fmt.Errorf("issuer mismatch: expected %q, got %q", expectedIss, iss)
+	}
+
+	return nil
+}
+
+func (c *Client) redeemTokens(ctx context.Context, code string, cookie *openid.LoginCookie) (*openid.Tokens, error) {
+	params, err := c.AuthParams()
 	if err != nil {
 		return nil, err
 	}
 
-	rawTokens, err := in.AuthCodeGrant(ctx, in.query.Get("code"), params.AuthCodeOptions([]oauth2.AuthCodeOption{
-		openid.RedirectURIOption(in.cookie.RedirectURI),
-		oauth2.VerifierOption(in.cookie.CodeVerifier),
+	rawTokens, err := c.AuthCodeGrant(ctx, code, params.AuthCodeOptions([]oauth2.AuthCodeOption{
+		openid.RedirectURIOption(cookie.RedirectURI),
+		oauth2.VerifierOption(cookie.CodeVerifier),
 	}))
 	if err != nil {
 		return nil, fmt.Errorf("exchanging authorization code for token: %w", err)
 	}
 
-	jwkSet, err := in.jwksProvider.GetPublicJwkSet(ctx)
+	jwkSet, err := c.jwksProvider.GetPublicJwkSet(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting jwks: %w", err)
 	}
 
-	tokens, err := openid.NewTokens(rawTokens, jwkSet, in.cfg, in.cookie)
+	tokens, err := openid.NewTokens(rawTokens, jwkSet, c.cfg, cookie)
 	if err != nil {
 		// JWKS might not be up to date, so we'll want to force a refresh for the next attempt
-		_, _ = in.jwksProvider.RefreshPublicJwkSet(ctx)
+		_, _ = c.jwksProvider.RefreshPublicJwkSet(ctx)
 		return nil, fmt.Errorf("parsing tokens: %w", err)
 	}
 

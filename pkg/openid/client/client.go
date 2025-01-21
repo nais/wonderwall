@@ -75,15 +75,6 @@ func (c *Client) Login(r *http.Request) (*Login, error) {
 	return login, nil
 }
 
-func (c *Client) LoginCallback(r *http.Request, cookie *openid.LoginCookie) (*LoginCallback, error) {
-	loginCallback, err := NewLoginCallback(c, r, cookie)
-	if err != nil {
-		return nil, fmt.Errorf("callback: %w", err)
-	}
-
-	return loginCallback, nil
-}
-
 func (c *Client) Logout(r *http.Request) (*Logout, error) {
 	logout, err := NewLogout(c, r)
 	if err != nil {
