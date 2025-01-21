@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,7 +40,52 @@ var (
 	PromptAllowedValues = []string{"login", "select_account"}
 )
 
+type Login struct {
+	AuthCodeURL string
+	Acr         string
+	Locale      string
+	Prompt      string
+	*openid.LoginCookie
+}
+
+type authorizationRequest struct {
+	acr          string
+	callbackURL  string
+	codeVerifier string
+	locale       string
+	nonce        string
+	prompt       string
+	state        string
+}
+
+// TODO: remove indirection layer
 func NewLogin(c *Client, r *http.Request) (*Login, error) {
+	request, err := c.newAuthorizationRequest(r)
+	if err != nil {
+		return nil, err
+	}
+
+	authCodeURL, err := c.authCodeURL(r.Context(), request)
+	if err != nil {
+		return nil, fmt.Errorf("generating auth code url: %w", err)
+	}
+
+	return &Login{
+		AuthCodeURL: authCodeURL,
+		Acr:         request.acr,
+		Locale:      request.locale,
+		Prompt:      request.prompt,
+		LoginCookie: &openid.LoginCookie{
+			Acr:          request.acr,
+			CodeVerifier: request.codeVerifier,
+			State:        request.state,
+			Nonce:        request.nonce,
+			RedirectURI:  request.callbackURL,
+		},
+	}, nil
+}
+
+func (c *Client) newAuthorizationRequest(r *http.Request) (*authorizationRequest, error) {
 	callbackURL, err := url.LoginCallback(r)
 	if err != nil {
 		return nil, fmt.Errorf("generating callback url: %w", err)
@@ -72,51 +118,59 @@ func NewLogin(c *Client, r *http.Request) (*Login, error) {
 
 	codeVerifier := oauth2.GenerateVerifier()
 
-	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("nonce", nonce),
-		oauth2.SetAuthURLParam("response_mode", "query"),
-		oauth2.S256ChallengeOption(codeVerifier),
-		openid.RedirectURIOption(callbackURL),
-	}
-
-	if resource := c.cfg.Client().ResourceIndicator(); resource != "" {
-		opts = append(opts, oauth2.SetAuthURLParam("resource", resource))
-	}
-
-	if len(acr) > 0 {
-		opts = append(opts, oauth2.SetAuthURLParam(LoginParameterMapping[SecurityLevelURLParameter], acr))
-	}
-
-	if len(locale) > 0 {
-		opts = append(opts, oauth2.SetAuthURLParam(LoginParameterMapping[LocaleURLParameter], locale))
-	}
-
-	if len(prompt) > 0 {
-		opts = append(opts, oauth2.SetAuthURLParam(PromptURLParameter, prompt))
-		opts = append(opts, oauth2.SetAuthURLParam(MaxAgeURLParameter, "0"))
-	}
-
-	return &Login{
-		AuthCodeURL: c.oauth2Config.AuthCodeURL(state, opts...),
-		Acr:         acr,
-		Locale:      locale,
-		Prompt:      prompt,
-		LoginCookie: &openid.LoginCookie{
-			Acr:          acr,
-			CodeVerifier: codeVerifier,
-			State:        state,
-			Nonce:        nonce,
-			RedirectURI:  callbackURL,
-		},
+	return &authorizationRequest{
+		acr:          acr,
+		callbackURL:  callbackURL,
+		codeVerifier: codeVerifier,
+		locale:       locale,
+		nonce:        nonce,
+		prompt:       prompt,
+		state:        state,
 	}, nil
 }
 
-type Login struct {
-	AuthCodeURL string
-	Acr         string
-	Locale      string
-	Prompt      string
-	*openid.LoginCookie
+func (c *Client) authCodeURL(ctx context.Context, request *authorizationRequest) (string, error) {
+	var authCodeURL string
+
+	if c.cfg.Provider().PushedAuthorizationRequestEndpoint() == "" {
+		opts := []oauth2.AuthCodeOption{
+			oauth2.SetAuthURLParam("nonce", request.nonce),
+			oauth2.SetAuthURLParam("response_mode", "query"),
+			oauth2.S256ChallengeOption(request.codeVerifier),
+			openid.RedirectURIOption(request.callbackURL),
+		}
+
+		if resource := c.cfg.Client().ResourceIndicator(); resource != "" {
+			opts = append(opts, oauth2.SetAuthURLParam("resource", resource))
+		}
+
+		if len(request.acr) > 0 {
+			opts = append(opts, oauth2.SetAuthURLParam(LoginParameterMapping[SecurityLevelURLParameter], request.acr))
+		}
+
+		if len(request.locale) > 0 {
+			opts = append(opts, oauth2.SetAuthURLParam(LoginParameterMapping[LocaleURLParameter], request.locale))
+		}
+
+		if len(request.prompt) > 0 {
+			opts = append(opts, oauth2.SetAuthURLParam(PromptURLParameter, request.prompt))
+			opts = append(opts, oauth2.SetAuthURLParam(MaxAgeURLParameter, "0"))
+		}
+
+		authCodeURL = c.oauth2Config.AuthCodeURL(request.state, opts...)
+	} else {
+		// TODO: implement PAR
+		//  generate PAR request
+		//  set all request parameters from authorizationRequest
+		//  set client authentication parameters
+
+		//  perform POST to PAR endpoint
+		//  extract request_uri from response
+		//  generate auth code URL with request_uri and client_id
+		//  set authCodeURL
+	}
+
+	return authCodeURL, nil
 }
 
 func (l *Login) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter, canonicalRedirect string) error {
