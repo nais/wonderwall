@@ -132,19 +132,6 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.applyLoginRateLimit(w, r)
-	if err != nil {
-		s.TooManyRequests(w, r, err)
-		return
-	}
-
-	opts := s.GetCookieOptions(r).WithSameSite(http.SameSiteLaxMode)
-	err = login.SetCookie(w, opts, s.Crypter, canonicalRedirect)
-	if err != nil {
-		s.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
-		return
-	}
-
 	logger := mw.LogEntryFrom(r)
 	fields := log.Fields{
 		"redirect_after_login": canonicalRedirect,
@@ -178,7 +165,21 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 		cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
 	}
 
-	logger.WithFields(fields).Info("login: redirecting to identity provider")
+	logger = logger.WithFields(fields)
+	err = s.applyLoginRateLimit(w, r, logger)
+	if err != nil {
+		s.TooManyRequests(w, r, err)
+		return
+	}
+
+	opts := s.GetCookieOptions(r).WithSameSite(http.SameSiteLaxMode)
+	err = login.SetCookie(w, opts, s.Crypter, canonicalRedirect)
+	if err != nil {
+		s.InternalError(w, r, fmt.Errorf("login: setting cookie: %w", err))
+		return
+	}
+
+	logger.Info("login: redirecting to identity provider")
 	http.Redirect(w, r, login.AuthCodeURL, http.StatusFound)
 }
 
@@ -191,7 +192,7 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 // A time window is considered when counting consecutive attempts towards the maximum permitted attempts.
 // Each attempt within the window will increment the attempt counter and reset the window.
 // If the window expires with no additional attempts, the counter is discarded.
-func (s *Standalone) applyLoginRateLimit(w http.ResponseWriter, r *http.Request) error {
+func (s *Standalone) applyLoginRateLimit(w http.ResponseWriter, r *http.Request, logger *log.Entry) error {
 	if !s.Config.RateLimit.Enabled {
 		return nil
 	}
@@ -214,19 +215,16 @@ func (s *Standalone) applyLoginRateLimit(w http.ResponseWriter, r *http.Request)
 	}
 
 	maxAttempts := s.Config.RateLimit.Logins
+	window := s.Config.RateLimit.Window
+
 	if attempts >= maxAttempts {
-		return fmt.Errorf("login: rate limiting due to exceeding %d recent attempts", maxAttempts)
+		logger.Infof("login/ratelimit: reached %d recent attempts; applying timeout with expiry after %s", maxAttempts, window)
+		return fmt.Errorf("login/ratelimit: exceeded %d recent attempts", maxAttempts)
 	}
 
 	attempts += 1
-	window := s.Config.RateLimit.Window
 	c = cookie.Make(cookie.LoginCount, strconv.Itoa(attempts), opts)
 	c.MaxAge = int(window.Seconds())
-
-	if attempts >= maxAttempts {
-		mw.LogEntryFrom(r).Warnf("login: reached %d recent attempts; applying rate limit with timeout after %s", maxAttempts, window)
-	}
-
 	cookie.Set(w, c)
 	return nil
 }
