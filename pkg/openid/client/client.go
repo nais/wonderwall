@@ -66,15 +66,6 @@ func NewClient(cfg openidconfig.Config, jwksProvider JwksProvider) *Client {
 	}
 }
 
-func (c *Client) Login(r *http.Request) (*Login, error) {
-	login, err := NewLogin(c, r)
-	if err != nil {
-		return nil, fmt.Errorf("login: %w", err)
-	}
-
-	return login, nil
-}
-
 func (c *Client) Logout(r *http.Request) (*Logout, error) {
 	logout, err := NewLogout(c, r)
 	if err != nil {
