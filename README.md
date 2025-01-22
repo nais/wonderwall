@@ -54,7 +54,7 @@ docker-compose up -d
 make local
 ```
 
-## Docker Compose
+## Quickstart
 
 See [docker-compose.example.yml](docker-compose.example.yml) for an example setup:
 
@@ -79,7 +79,16 @@ Try it out:
 3. Visit <http://localhost:3000/oauth2/logout>
     1. The `authorization` header should no longer be set in the upstream response.
 
-## Verifying the Wonderwall image and its contents
+## Docker Images
+
+Wonderwall is available on both GitHub Container Registry and Google Artifact Registry:
+
+- `ghcr.io/nais/wonderwall`
+- `europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall`
+
+For available tags, see [the versions overview on GitHub](https://github.com/nais/wonderwall/pkgs/container/wonderwall/versions).
+
+### Verifying the Wonderwall image and its contents
 
 The image is signed "keylessly" using [Sigstore cosign](https://github.com/sigstore/cosign).
 To verify its authenticity run
