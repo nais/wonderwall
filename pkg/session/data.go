@@ -168,6 +168,18 @@ func (in *Metadata) NextRefresh() time.Time {
 	// subtract the leeway to ensure that we refresh before expiry
 	next := in.Tokens.ExpireAt.Add(-RefreshLeeway)
 
+	// if inactivity is enabled...
+	timeout := in.Session.TimeoutAt
+	if !timeout.IsZero() {
+		// ...refresh at the half-life between the last refresh and the timeout
+		lastRefresh := in.Tokens.RefreshedAt
+		halfLife := lastRefresh.Add(timeout.Sub(lastRefresh) / 2)
+
+		if halfLife.Before(next) {
+			next = halfLife
+		}
+	}
+
 	// try to refresh at the first opportunity if the next refresh is in the past
 	if next.Before(time.Now()) {
 		return in.RefreshCooldown()

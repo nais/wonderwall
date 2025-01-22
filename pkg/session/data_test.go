@@ -122,30 +122,6 @@ func TestMetadata_IsRefreshOnCooldown(t *testing.T) {
 	})
 }
 
-func TestMetadata_NextRefresh(t *testing.T) {
-	t.Run("delta to last refresh below minimum interval", func(t *testing.T) {
-		metadata := session.Metadata{
-			Tokens: session.MetadataTokens{
-				RefreshedAt: time.Now(),
-				ExpireAt:    time.Now().Add(time.Minute),
-			},
-		}
-
-		assert.True(t, metadata.IsRefreshOnCooldown())
-	})
-
-	t.Run("delta to last refresh above minimum interval", func(t *testing.T) {
-		metadata := session.Metadata{
-			Tokens: session.MetadataTokens{
-				RefreshedAt: time.Now().Add(-2 * time.Minute),
-				ExpireAt:    time.Now().Add(time.Minute),
-			},
-		}
-
-		assert.False(t, metadata.IsRefreshOnCooldown())
-	})
-}
-
 func TestMetadata_Refresh(t *testing.T) {
 	metadata := session.Metadata{
 		Tokens: session.MetadataTokens{
@@ -242,6 +218,62 @@ func TestMetadata_ShouldRefresh(t *testing.T) {
 			Tokens: session.MetadataTokens{
 				RefreshedAt: time.Now(),
 				ExpireAt:    time.Now().Add(-5 * time.Minute),
+			},
+		}
+
+		assert.True(t, metadata.ShouldRefresh())
+	})
+
+	t.Run("time between last refresh and timeout has passed half-life", func(t *testing.T) {
+		metadata := session.Metadata{
+			Session: session.MetadataSession{
+				TimeoutAt: time.Now().Add(10 * time.Minute),
+			},
+			Tokens: session.MetadataTokens{
+				RefreshedAt: time.Now().Add(-15 * time.Minute),
+				ExpireAt:    time.Now().Add(time.Hour),
+			},
+		}
+
+		assert.True(t, metadata.ShouldRefresh())
+	})
+
+	t.Run("time between last refresh and timeout has not passed half-life", func(t *testing.T) {
+		metadata := session.Metadata{
+			Session: session.MetadataSession{
+				TimeoutAt: time.Now().Add(10 * time.Minute),
+			},
+			Tokens: session.MetadataTokens{
+				RefreshedAt: time.Now().Add(-5 * time.Minute),
+				ExpireAt:    time.Now().Add(time.Hour),
+			},
+		}
+
+		assert.False(t, metadata.ShouldRefresh())
+	})
+
+	t.Run("token expiry occurs before inactivity, token is not within expiry range", func(t *testing.T) {
+		metadata := session.Metadata{
+			Session: session.MetadataSession{
+				TimeoutAt: time.Now().Add(2 * time.Hour),
+			},
+			Tokens: session.MetadataTokens{
+				RefreshedAt: time.Now().Add(-5 * time.Minute),
+				ExpireAt:    time.Now().Add(time.Hour),
+			},
+		}
+
+		assert.False(t, metadata.ShouldRefresh())
+	})
+
+	t.Run("token expiry occurs before inactivity, token is about to expire", func(t *testing.T) {
+		metadata := session.Metadata{
+			Session: session.MetadataSession{
+				TimeoutAt: time.Now().Add(time.Hour),
+			},
+			Tokens: session.MetadataTokens{
+				RefreshedAt: time.Now().Add(-5 * time.Minute),
+				ExpireAt:    time.Now().Add(time.Minute),
 			},
 		}
 
