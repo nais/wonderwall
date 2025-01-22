@@ -38,6 +38,7 @@ type Config struct {
 
 	OpenTelemetry OpenTelemetry `json:"otel"`
 	OpenID        OpenID        `json:"openid"`
+	RateLimit     RateLimit     `json:"ratelimit"`
 	Redis         Redis         `json:"redis"`
 	Session       Session       `json:"session"`
 	SSO           SSO           `json:"sso"`
@@ -85,6 +86,7 @@ func Initialize() (*Config, error) {
 	cookieFlags()
 	openidFlags()
 	otelFlags()
+	rateLimitFlags()
 	redisFlags()
 	sessionFlags()
 	ssoFlags()

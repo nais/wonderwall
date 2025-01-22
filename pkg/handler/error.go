@@ -35,6 +35,10 @@ func (s *Standalone) Unauthorized(w http.ResponseWriter, r *http.Request, cause 
 	s.respondError(w, r, http.StatusUnauthorized, cause, log.WarnLevel)
 }
 
+func (s *Standalone) TooManyRequests(w http.ResponseWriter, r *http.Request, cause error) {
+	s.respondError(w, r, http.StatusTooManyRequests, cause, log.WarnLevel)
+}
+
 // Retry returns a URI that should retry the desired route that failed.
 // It only handles the routes exposed by Wonderwall, i.e. `/oauth2/*`. As these routes
 // are related to the authentication flow, we default to redirecting back to the handled
@@ -71,7 +75,7 @@ func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, status
 	incrementRetryAttempt(w, r, s.GetCookieOptions(r))
 
 	attempts, ok := getRetryAttempts(r)
-	if !ok || attempts < MaxAutoRetryAttempts {
+	if (!ok || attempts < MaxAutoRetryAttempts) && (statusCode != http.StatusTooManyRequests) {
 		loginCookie, err := openid.GetLoginCookie(r, s.Crypter)
 		if err != nil {
 			loginCookie = nil

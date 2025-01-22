@@ -17,6 +17,7 @@ const (
 
 var (
 	Login           = login(DefaultPrefix)
+	LoginCount      = loginCount(DefaultPrefix)
 	Logout          = logout(DefaultPrefix)
 	Retry           = retry(DefaultPrefix)
 	Session         = session(DefaultPrefix)
@@ -159,6 +160,10 @@ func withPrefix(prefix, s string) string {
 
 func login(prefix string) string {
 	return withPrefix(prefix, "callback")
+}
+
+func loginCount(prefix string) string {
+	return withPrefix(prefix, "logincount")
 }
 
 func logout(prefix string) string {
