@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nais/wonderwall/pkg/openid"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -352,33 +354,33 @@ func (ip *IdentityProviderHandler) Jwks(w http.ResponseWriter, r *http.Request) 
 func (ip *IdentityProviderHandler) PushedAuthorizationRequest(w http.ResponseWriter, r *http.Request) {
 	if ip.Config.Provider().PushedAuthorizationRequestEndpoint() == "" {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("PAR endpoint not supported"))
+		oauthError(w, fmt.Errorf("PAR endpoint not supported"))
 		return
 	}
 
 	err := r.ParseForm()
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("malformed payload?"))
+		oauthError(w, fmt.Errorf("malformed payload"))
 		return
 	}
 
 	if r.PostForm.Get("request_uri") != "" {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("request_uri should not be provided to PAR endpoint"))
+		oauthError(w, fmt.Errorf("request_uri should not be provided to PAR endpoint"))
 		return
 	}
 
 	authorizeRequest, err := ip.parseAuthorizationRequest(r.PostForm)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		oauthError(w, err)
 		return
 	}
 
 	err = ip.validateClientAuthentication(w, r, r.PostForm.Get("client_id"))
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		oauthError(w, err)
 		return
 	}
 
@@ -390,7 +392,18 @@ func (ip *IdentityProviderHandler) PushedAuthorizationRequest(w http.ResponseWri
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"request_uri": requestUri, "expires_in": "60"})
+	json.NewEncoder(w).Encode(openid.PushedAuthorizationResponse{
+		RequestUri: requestUri,
+		ExpiresIn:  60,
+	})
+}
+
+func oauthError(w http.ResponseWriter, err error) {
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(openid.TokenErrorResponse{
+		Error:            "invalid_request",
+		ErrorDescription: err.Error(),
+	})
 }
 
 func (ip *IdentityProviderHandler) Token(w http.ResponseWriter, r *http.Request) {

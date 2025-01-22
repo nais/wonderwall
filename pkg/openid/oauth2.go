@@ -15,6 +15,12 @@ type TokenResponse struct {
 	TokenType    string `json:"token_type"`
 }
 
+// PushedAuthorizationResponse is the struct representing the HTTP response from authorization servers as defined in RFC 9126, section 2.2.
+type PushedAuthorizationResponse struct {
+	RequestUri string `json:"request_uri"`
+	ExpiresIn  int64  `json:"expires_in"`
+}
+
 // TokenErrorResponse is the struct representing the HTTP error response returned from authorization servers as defined in RFC 6749, section 5.2.
 type TokenErrorResponse struct {
 	Error            string `json:"error"`

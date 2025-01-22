@@ -1,12 +1,16 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	urllib "net/url"
 	"slices"
+	stringslib "strings"
 
 	"golang.org/x/oauth2"
 
@@ -159,15 +163,89 @@ func (c *Client) authCodeURL(ctx context.Context, request *authorizationRequest)
 
 		authCodeURL = c.oauth2Config.AuthCodeURL(request.state, opts...)
 	} else {
-		// TODO: implement PAR
-		//  generate PAR request
-		//  set all request parameters from authorizationRequest
-		//  set client authentication parameters
+		params := map[string]string{
+			"client_id":             c.oauth2Config.ClientID,
+			"code_challenge":        oauth2.S256ChallengeFromVerifier(request.codeVerifier),
+			"code_challenge_method": "S256",
+			"nonce":                 request.nonce,
+			"redirect_uri":          request.callbackURL,
+			"response_mode":         "query",
+			"response_type":         "code",
+			"scope":                 stringslib.Join(c.oauth2Config.Scopes, " "),
+			"state":                 request.state,
+		}
 
-		//  perform POST to PAR endpoint
-		//  extract request_uri from response
-		//  generate auth code URL with request_uri and client_id
-		//  set authCodeURL
+		if resource := c.cfg.Client().ResourceIndicator(); resource != "" {
+			params["resource"] = resource
+		}
+
+		if len(request.acr) > 0 {
+			params[LoginParameterMapping[SecurityLevelURLParameter]] = request.acr
+		}
+
+		if len(request.locale) > 0 {
+			params[LoginParameterMapping[LocaleURLParameter]] = request.locale
+		}
+
+		if len(request.prompt) > 0 {
+			params[PromptURLParameter] = request.prompt
+			params[MaxAgeURLParameter] = "0"
+		}
+
+		authParams, err := c.AuthParams()
+		if err != nil {
+			return "", fmt.Errorf("generating client authentication parameters: %w", err)
+		}
+
+		urlValues := authParams.URLValues(params)
+
+		requestBody := stringslib.NewReader(urlValues.Encode())
+
+		r, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.Provider().PushedAuthorizationRequestEndpoint(), requestBody)
+		if err != nil {
+			return "", fmt.Errorf("creating request: %w", err)
+		}
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		resp, err := c.httpClient.Do(r)
+		if err != nil {
+			return "", fmt.Errorf("performing request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return "", fmt.Errorf("reading server response: %w", err)
+		}
+
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			var errorResponse openid.TokenErrorResponse
+			if err := json.Unmarshal(body, &errorResponse); err != nil {
+				return "", fmt.Errorf("%w: HTTP %d: unmarshalling error response: %+v", ErrOpenIDClient, resp.StatusCode, err)
+			}
+			return "", fmt.Errorf("%w: HTTP %d: %s: %s", ErrOpenIDClient, resp.StatusCode, errorResponse.Error, errorResponse.ErrorDescription)
+		} else if resp.StatusCode >= 500 {
+			return "", fmt.Errorf("%w: HTTP %d: %s", ErrOpenIDServer, resp.StatusCode, body)
+		}
+
+		var pushedAuthorizationResponse openid.PushedAuthorizationResponse
+		if err := json.Unmarshal(body, &pushedAuthorizationResponse); err != nil {
+			return "", fmt.Errorf("unmarshalling token response: %w", err)
+		}
+
+		v := urllib.Values{
+			"client_id":   {c.oauth2Config.ClientID},
+			"request_uri": {pushedAuthorizationResponse.RequestUri},
+		}
+		var buf bytes.Buffer
+		buf.WriteString(c.oauth2Config.Endpoint.AuthURL)
+		if stringslib.Contains(c.oauth2Config.Endpoint.AuthURL, "?") {
+			buf.WriteByte('&')
+		} else {
+			buf.WriteByte('?')
+		}
+		buf.WriteString(v.Encode())
+		authCodeURL = buf.String()
 	}
 
 	return authCodeURL, nil

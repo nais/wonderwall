@@ -14,6 +14,28 @@ import (
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
+func TestLogin_PushAuthorizationURL(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	idp.OpenIDConfig.TestProvider.SetPushedAuthorizationRequestEndpoint(idp.ProviderServer.URL + "/par")
+	defer idp.Close()
+	req := idp.GetRequest(mock.Ingress + "/oauth2/login")
+
+	result, err := idp.RelyingPartyHandler.Client.Login(req)
+	require.NoError(t, err)
+
+	parsed, err := url.Parse(result.AuthCodeURL)
+	assert.NoError(t, err)
+
+	query := parsed.Query()
+	assert.Contains(t, query, "request_uri")
+	assert.Contains(t, query, "client_id")
+
+	assert.NotEmpty(t, query["request_uri"])
+	assert.Contains(t, query["request_uri"][0], "urn:ietf:params:oauth:request_uri")
+	assert.ElementsMatch(t, query["client_id"], []string{idp.OpenIDConfig.Client().ClientID()})
+}
+
 func TestLogin_URL(t *testing.T) {
 	type loginURLTest struct {
 		name       string
