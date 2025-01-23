@@ -235,7 +235,7 @@ flags described previously:
 - `IDPORTEN_CLIENT_JWK`  
   Private key belonging to the client in JWK format.
 - `IDPORTEN_WELL_KNOWN_URL`  
-  Well-known OpenID Configuration endpoint for ID-porten: <https://docs.digdir.no/oidc_func_wellknown.html>.
+  Well-known OpenID Configuration endpoint for ID-porten: <https://docs.digdir.no/docs/idporten/oidc/oidc_func_wellknown.html>.
 
 The default values for the following flags are also changed:
 
