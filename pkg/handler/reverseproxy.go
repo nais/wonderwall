@@ -124,7 +124,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
-		if rp.IncludeIdToken {
+		if rp.IncludeIdToken && sess != nil {
 			idToken := sess.IDToken()
 			ctx = mw.WithIdToken(ctx, idToken)
 		}
