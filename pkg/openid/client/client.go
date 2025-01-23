@@ -94,37 +94,16 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid
 		return nil, err
 	}
 
-	requestBody := strings.NewReader(params.URLValues(map[string]string{
+	payload := params.URLValues(map[string]string{
 		"grant_type":    "refresh_token",
 		"refresh_token": refreshToken,
 		"client_id":     c.cfg.Client().ClientID(),
-	}).Encode())
+	}).Encode()
 
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.Provider().TokenEndpoint(), requestBody)
+	endpoint := c.cfg.Provider().TokenEndpoint()
+	body, err := c.oauthPostRequest(ctx, endpoint, payload)
 	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := c.httpClient.Do(r)
-	if err != nil {
-		return nil, fmt.Errorf("performing request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading server response: %w", err)
-	}
-
-	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-		var errorResponse openid.TokenErrorResponse
-		if err := json.Unmarshal(body, &errorResponse); err != nil {
-			return nil, fmt.Errorf("%w: HTTP %d: unmarshalling error response: %+v", ErrOpenIDClient, resp.StatusCode, err)
-		}
-		return nil, fmt.Errorf("%w: HTTP %d: %s: %s", ErrOpenIDClient, resp.StatusCode, errorResponse.Error, errorResponse.ErrorDescription)
-	} else if resp.StatusCode >= 500 {
-		return nil, fmt.Errorf("%w: HTTP %d: %s", ErrOpenIDServer, resp.StatusCode, body)
+		return nil, err
 	}
 
 	var tokenResponse openid.TokenResponse
@@ -182,4 +161,35 @@ func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
 	}
 
 	return string(encoded), nil
+}
+
+func (c *Client) oauthPostRequest(ctx context.Context, endpoint, payload string) ([]byte, error) {
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(payload))
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := c.httpClient.Do(r)
+	if err != nil {
+		return nil, fmt.Errorf("performing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading server response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+		var errorResponse openid.TokenErrorResponse
+		if err := json.Unmarshal(body, &errorResponse); err != nil {
+			return nil, fmt.Errorf("%w: HTTP %d: unmarshalling error response: %+v", ErrOpenIDClient, resp.StatusCode, err)
+		}
+		return nil, fmt.Errorf("%w: HTTP %d: %s: %s", ErrOpenIDClient, resp.StatusCode, errorResponse.Error, errorResponse.ErrorDescription)
+	} else if resp.StatusCode >= 500 {
+		return nil, fmt.Errorf("%w: HTTP %d: %s", ErrOpenIDServer, resp.StatusCode, payload)
+	}
+
+	return body, nil
 }
