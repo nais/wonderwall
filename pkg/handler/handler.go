@@ -137,11 +137,11 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 		"redirect_after_login": canonicalRedirect,
 	}
 
-	if acr := login.Acr; acr != "" {
-		fields["acr"] = acr
+	if acrValues := login.AcrValues; acrValues != "" {
+		fields["acr"] = acrValues
 	}
 
-	if locale := login.Locale; locale != "" {
+	if locale := login.UILocales; locale != "" {
 		fields["locale"] = locale
 	}
 

@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"golang.org/x/oauth2"
-
 	"github.com/nais/wonderwall/pkg/openid"
 )
 
@@ -66,15 +64,15 @@ func (c *Client) authorizationServerIssuerIdentification(iss string) error {
 }
 
 func (c *Client) redeemTokens(ctx context.Context, code string, cookie *openid.LoginCookie) (*openid.Tokens, error) {
-	params, err := c.AuthParams()
+	params, err := c.ClientAuthenticationParams()
 	if err != nil {
 		return nil, err
 	}
 
-	rawTokens, err := c.AuthCodeGrant(ctx, code, params.AuthCodeOptions([]oauth2.AuthCodeOption{
-		openid.RedirectURIOption(cookie.RedirectURI),
-		oauth2.VerifierOption(cookie.CodeVerifier),
-	}))
+	rawTokens, err := c.AuthCodeGrant(ctx, code, params.Merge(openid.AuthParams{
+		"redirect_uri":  cookie.RedirectURI,
+		"code_verifier": cookie.CodeVerifier,
+	}).AuthCodeOptions())
 	if err != nil {
 		return nil, fmt.Errorf("exchanging authorization code for token: %w", err)
 	}

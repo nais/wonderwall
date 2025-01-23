@@ -89,16 +89,16 @@ func (c *Client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.A
 }
 
 func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error) {
-	params, err := c.AuthParams()
+	params, err := c.ClientAuthenticationParams()
 	if err != nil {
 		return nil, err
 	}
 
-	payload := params.URLValues(map[string]string{
+	payload := params.Merge(openid.AuthParams{
 		"grant_type":    "refresh_token",
 		"refresh_token": refreshToken,
 		"client_id":     c.cfg.Client().ClientID(),
-	}).Encode()
+	}).URLValues().Encode()
 
 	endpoint := c.cfg.Provider().TokenEndpoint()
 	body, err := c.oauthPostRequest(ctx, endpoint, payload)
@@ -114,7 +114,7 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid
 	return &tokenResponse, nil
 }
 
-func (c *Client) AuthParams() (openid.AuthParams, error) {
+func (c *Client) ClientAuthenticationParams() (openid.AuthParams, error) {
 	switch c.cfg.Client().AuthMethod() {
 	case openidconfig.AuthMethodPrivateKeyJWT:
 		assertion, err := c.MakeAssertion(DefaultClientAssertionLifetime)
@@ -122,10 +122,10 @@ func (c *Client) AuthParams() (openid.AuthParams, error) {
 			return nil, fmt.Errorf("creating client assertion: %w", err)
 		}
 
-		return openid.AuthParamsJwtBearer(assertion), nil
+		return openid.ClientAuthParamsJwtBearer(assertion), nil
 
 	case openidconfig.AuthMethodClientSecret:
-		return openid.AuthParamsClientSecret(c.cfg.Client().ClientSecret()), nil
+		return openid.ClientAuthParamsSecret(c.cfg.Client().ClientSecret()), nil
 	}
 
 	return nil, fmt.Errorf("unsupported client authentication method: %q", c.cfg.Client().AuthMethod())

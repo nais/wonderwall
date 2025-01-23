@@ -3,6 +3,7 @@ package openid
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"golang.org/x/oauth2"
 )
@@ -27,10 +28,71 @@ type TokenErrorResponse struct {
 	ErrorDescription string `json:"error_description"`
 }
 
+// AuthorizationCodeParams represents the (variable) parameters for the authorization code flow.
+type AuthorizationCodeParams struct {
+	AcrValues    string
+	ClientID     string
+	CodeVerifier string
+	Nonce        string
+	Prompt       string
+	RedirectURI  string
+	Resource     string
+	Scope        []string
+	State        string
+	UILocales    string
+}
+
+// AuthParams converts AuthorizationCodeParams the actual parameters to be sent to the authorization server as part of the authorization code flow.
+func (a AuthorizationCodeParams) AuthParams() AuthParams {
+	params := AuthParams{
+		"client_id":             a.ClientID,
+		"code_challenge":        oauth2.S256ChallengeFromVerifier(a.CodeVerifier),
+		"code_challenge_method": "S256",
+		"nonce":                 a.Nonce,
+		"prompt":                a.Prompt,
+		"redirect_uri":          a.RedirectURI,
+		"response_mode":         "query",
+		"response_type":         "code",
+		"scope":                 strings.Join(a.Scope, " "),
+		"state":                 a.State,
+	}
+
+	if len(a.AcrValues) > 0 {
+		params["acr_values"] = a.AcrValues
+	}
+
+	if len(a.UILocales) > 0 {
+		params["ui_locales"] = a.UILocales
+	}
+
+	if len(a.Prompt) > 0 {
+		params["max_age"] = "0"
+	}
+
+	if len(a.Resource) > 0 {
+		params["resource"] = a.Resource
+	}
+
+	return params
+}
+
+// Cookie creates a LoginCookie for storing client-side state as part of the authorization code flow.
+func (a AuthorizationCodeParams) Cookie() LoginCookie {
+	return LoginCookie{
+		Acr:          a.AcrValues,
+		CodeVerifier: a.CodeVerifier,
+		Nonce:        a.Nonce,
+		State:        a.State,
+		RedirectURI:  a.RedirectURI,
+	}
+}
+
 type AuthParams map[string]string
 
-// AuthCodeOptions adds AuthParams to the given [oauth2.AuthCodeOption] slice and returns the updated slice.
-func (a AuthParams) AuthCodeOptions(opts []oauth2.AuthCodeOption) []oauth2.AuthCodeOption {
+// AuthCodeOptions converts AuthParams to a slice of [oauth2.AuthCodeOption].
+func (a AuthParams) AuthCodeOptions() []oauth2.AuthCodeOption {
+	opts := make([]oauth2.AuthCodeOption, 0, len(a))
+
 	for key, val := range a {
 		opts = append(opts, oauth2.SetAuthURLParam(key, val))
 	}
@@ -38,13 +100,9 @@ func (a AuthParams) AuthCodeOptions(opts []oauth2.AuthCodeOption) []oauth2.AuthC
 	return opts
 }
 
-// URLValues adds AuthParams to the given map of parameters and returns a [url.Values].
-func (a AuthParams) URLValues(params map[string]string) url.Values {
+// URLValues converts AuthParams to a [url.Values].
+func (a AuthParams) URLValues() url.Values {
 	v := url.Values{}
-
-	for key, val := range params {
-		v.Set(key, val)
-	}
 
 	for key, val := range a {
 		v.Set(key, val)
@@ -53,25 +111,31 @@ func (a AuthParams) URLValues(params map[string]string) url.Values {
 	return v
 }
 
-// AuthParamsClientSecret returns a map of parameters to be sent to the authorization server when using a client secret for client authentication in RFC 6749, section 2.3.1.
+// Merge merges two AuthParams into one.
+// Conflicting keys are overridden by the given AuthParams.
+func (a AuthParams) Merge(other AuthParams) AuthParams {
+	for key, val := range other {
+		a[key] = val
+	}
+
+	return a
+}
+
+// ClientAuthParamsSecret returns a map of parameters to be sent to the authorization server when using a client secret for client authentication in RFC 6749, section 2.3.1.
 // The target authorization server must support the "client_secret_post" client authentication method.
-func AuthParamsClientSecret(clientSecret string) AuthParams {
-	return map[string]string{
+func ClientAuthParamsSecret(clientSecret string) AuthParams {
+	return AuthParams{
 		"client_secret": clientSecret,
 	}
 }
 
-// AuthParamsJwtBearer returns a map of parameters to be sent to the authorization server when using a JWT for client authentication in RFC 7523, section 2.2.
+// ClientAuthParamsJwtBearer returns a map of parameters to be sent to the authorization server when using a JWT for client authentication in RFC 7523, section 2.2.
 // The target authorization server must support the "private_key_jwt" client authentication method.
-func AuthParamsJwtBearer(clientAssertion string) AuthParams {
-	return map[string]string{
+func ClientAuthParamsJwtBearer(clientAssertion string) AuthParams {
+	return AuthParams{
 		"client_assertion":      clientAssertion,
 		"client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
 	}
-}
-
-func RedirectURIOption(redirectUri string) oauth2.AuthCodeOption {
-	return oauth2.SetAuthURLParam("redirect_uri", redirectUri)
 }
 
 func StateMismatchError(queryParams url.Values, expectedState string) error {
