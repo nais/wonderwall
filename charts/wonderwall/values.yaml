@@ -57,7 +57,7 @@ idporten:
   ssoDefaultRedirectURL:
   ssoDomain:
 openid:
-  enabled: false
+  enabled: true
   redisSecretName: wonderwall-openid-redis-rw
   # https://<identity-provider.tld/issuer>/.well-known/openid-configuration
   wellKnownUrl:

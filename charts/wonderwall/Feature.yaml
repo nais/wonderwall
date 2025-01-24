@@ -98,14 +98,8 @@ values:
   image.tag:
     config:
       type: string
-  openid.enabled:
-    description: Enable OpenID config.
-    config:
-      type: bool
-    ignoreKind:
-      - legacy
   openid.wellKnownUrl:
-    description: Well-known URL to the identity provider.
+    description: Well-known URL to generic identity provider. Optional. Only needed if a default global provider is desired.
     config:
       type: string
     ignoreKind:
