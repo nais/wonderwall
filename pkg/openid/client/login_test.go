@@ -176,6 +176,8 @@ func TestLogin_URL(t *testing.T) {
 					assert.Contains(t, query, "ui_locales")
 					assert.ElementsMatch(t, query["acr_values"], []string{openidConfig.Client().ACRValues()})
 					assert.ElementsMatch(t, query["ui_locales"], []string{openidConfig.Client().UILocales()})
+					assert.NotContains(t, query, "prompt")
+					assert.NotContains(t, query, "max_age")
 				}
 			}
 		})

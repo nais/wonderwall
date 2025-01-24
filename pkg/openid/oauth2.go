@@ -3,7 +3,8 @@ package openid
 import (
 	"fmt"
 	"net/url"
-	"strings"
+
+	"github.com/nais/wonderwall/pkg/openid/scopes"
 
 	"golang.org/x/oauth2"
 )
@@ -49,7 +50,6 @@ func (a AuthorizationCodeParams) AuthParams() AuthParams {
 		"code_challenge":        oauth2.S256ChallengeFromVerifier(a.CodeVerifier),
 		"code_challenge_method": "S256",
 		"nonce":                 a.Nonce,
-		"prompt":                a.Prompt,
 		"redirect_uri":          a.RedirectURI,
 		"response_mode":         "query",
 		"response_type":         "code",
@@ -66,6 +66,7 @@ func (a AuthorizationCodeParams) AuthParams() AuthParams {
 	}
 
 	if len(a.Prompt) > 0 {
+		params["prompt"] = a.Prompt
 		params["max_age"] = "0"
 	}
 
