@@ -110,25 +110,16 @@ func (c *Client) newAuthorizationCodeParams(r *http.Request) (openid.Authorizati
 	}, nil
 }
 
-func (c *Client) authCodeURL(ctx context.Context, request openid.AuthorizationCodeParams) (string, error) {
-	var authCodeURL string
-
-	if c.cfg.Provider().PushedAuthorizationRequestEndpoint() == "" {
-		opts := request.AuthParams().AuthCodeOptions()
-
-		// TODO: replace with separate function
-		authCodeURL = c.oauth2Config.AuthCodeURL(request.State, opts...)
-	} else {
-		clientAuthParams, err := c.ClientAuthenticationParams()
+func (c *Client) authCodeURL(ctx context.Context, authCodeParams openid.AuthorizationCodeParams) (string, error) {
+	usePushedAuthorization := len(c.cfg.Provider().PushedAuthorizationRequestEndpoint()) > 0
+	if usePushedAuthorization {
+		clientAuth, err := c.ClientAuthenticationParams()
 		if err != nil {
 			return "", fmt.Errorf("generating client authentication parameters: %w", err)
 		}
 
 		endpoint := c.cfg.Provider().PushedAuthorizationRequestEndpoint()
-		body, err := c.oauthPostRequest(ctx, endpoint, request.AuthParams().
-			Merge(clientAuthParams).
-			URLValues().
-			Encode())
+		body, err := c.oauthPostRequest(ctx, endpoint, authCodeParams.RequestParams().With(clientAuth))
 		if err != nil {
 			return "", err
 		}
@@ -138,7 +129,7 @@ func (c *Client) authCodeURL(ctx context.Context, request openid.AuthorizationCo
 			return "", fmt.Errorf("unmarshalling token response: %w", err)
 		}
 
-		// TODO: this can a separate function to replace oauth2config.AuthCodeURL
+		// TODO: this can be a separate function to replace oauth2config.AuthCodeURL
 		v := urllib.Values{
 			"client_id":   {c.oauth2Config.ClientID},
 			"request_uri": {pushedAuthorizationResponse.RequestUri},
@@ -151,10 +142,12 @@ func (c *Client) authCodeURL(ctx context.Context, request openid.AuthorizationCo
 			buf.WriteByte('?')
 		}
 		buf.WriteString(v.Encode())
-		authCodeURL = buf.String()
+		return buf.String(), nil
 	}
 
-	return authCodeURL, nil
+	opts := authCodeParams.RequestParams().AuthCodeOptions()
+	// TODO: replace with separate function
+	return c.oauth2Config.AuthCodeURL(authCodeParams.State, opts...), nil
 }
 
 func (l *Login) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter, canonicalRedirect string) error {

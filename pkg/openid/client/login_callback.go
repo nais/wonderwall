@@ -64,15 +64,19 @@ func (c *Client) authorizationServerIssuerIdentification(iss string) error {
 }
 
 func (c *Client) redeemTokens(ctx context.Context, code string, cookie *openid.LoginCookie) (*openid.Tokens, error) {
-	params, err := c.ClientAuthenticationParams()
+	clientAuth, err := c.ClientAuthenticationParams()
 	if err != nil {
 		return nil, err
 	}
 
-	rawTokens, err := c.AuthCodeGrant(ctx, code, params.Merge(openid.AuthParams{
-		"redirect_uri":  cookie.RedirectURI,
-		"code_verifier": cookie.CodeVerifier,
-	}).AuthCodeOptions())
+	payload := openid.ExchangeAuthorizationCodeParams(
+		c.cfg.Client().ClientID(),
+		code,
+		cookie.CodeVerifier,
+		cookie.RedirectURI,
+	).With(clientAuth).AuthCodeOptions()
+
+	rawTokens, err := c.AuthCodeGrant(ctx, code, payload)
 	if err != nil {
 		return nil, fmt.Errorf("exchanging authorization code for token: %w", err)
 	}

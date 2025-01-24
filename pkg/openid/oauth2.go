@@ -38,14 +38,15 @@ type AuthorizationCodeParams struct {
 	Prompt       string
 	RedirectURI  string
 	Resource     string
-	Scope        []string
+	Scope        scopes.Scopes
 	State        string
 	UILocales    string
 }
 
-// AuthParams converts AuthorizationCodeParams the actual parameters to be sent to the authorization server as part of the authorization code flow.
-func (a AuthorizationCodeParams) AuthParams() AuthParams {
-	params := AuthParams{
+// RequestParams converts AuthorizationCodeParams the actual parameters to be sent to the authorization server as part of the authorization code flow.
+// This mandates required use of PKCE (RFC 7636), state and nonce.
+func (a AuthorizationCodeParams) RequestParams() RequestParams {
+	params := RequestParams{
 		"client_id":             a.ClientID,
 		"code_challenge":        oauth2.S256ChallengeFromVerifier(a.CodeVerifier),
 		"code_challenge_method": "S256",
@@ -53,7 +54,7 @@ func (a AuthorizationCodeParams) AuthParams() AuthParams {
 		"redirect_uri":          a.RedirectURI,
 		"response_mode":         "query",
 		"response_type":         "code",
-		"scope":                 strings.Join(a.Scope, " "),
+		"scope":                 a.Scope.String(),
 		"state":                 a.State,
 	}
 
@@ -88,10 +89,10 @@ func (a AuthorizationCodeParams) Cookie() LoginCookie {
 	}
 }
 
-type AuthParams map[string]string
+type RequestParams map[string]string
 
-// AuthCodeOptions converts AuthParams to a slice of [oauth2.AuthCodeOption].
-func (a AuthParams) AuthCodeOptions() []oauth2.AuthCodeOption {
+// AuthCodeOptions converts RequestParams to a slice of [oauth2.AuthCodeOption].
+func (a RequestParams) AuthCodeOptions() []oauth2.AuthCodeOption {
 	opts := make([]oauth2.AuthCodeOption, 0, len(a))
 
 	for key, val := range a {
@@ -101,8 +102,8 @@ func (a AuthParams) AuthCodeOptions() []oauth2.AuthCodeOption {
 	return opts
 }
 
-// URLValues converts AuthParams to a [url.Values].
-func (a AuthParams) URLValues() url.Values {
+// URLValues converts RequestParams to a [url.Values].
+func (a RequestParams) URLValues() url.Values {
 	v := url.Values{}
 
 	for key, val := range a {
@@ -112,9 +113,9 @@ func (a AuthParams) URLValues() url.Values {
 	return v
 }
 
-// Merge merges two AuthParams into one.
-// Conflicting keys are overridden by the given AuthParams.
-func (a AuthParams) Merge(other AuthParams) AuthParams {
+// With returns a new RequestParams with the given RequestParams added.
+// Conflicting keys are overridden by the given RequestParams.
+func (a RequestParams) With(other RequestParams) RequestParams {
 	for key, val := range other {
 		a[key] = val
 	}
@@ -122,20 +123,44 @@ func (a AuthParams) Merge(other AuthParams) AuthParams {
 	return a
 }
 
-// ClientAuthParamsSecret returns a map of parameters to be sent to the authorization server when using a client secret for client authentication in RFC 6749, section 2.3.1.
+// ClientAuthSecretParams returns a map of parameters to be sent to the authorization server when using a client secret for client authentication in RFC 6749, section 2.3.1.
 // The target authorization server must support the "client_secret_post" client authentication method.
-func ClientAuthParamsSecret(clientSecret string) AuthParams {
-	return AuthParams{
+func ClientAuthSecretParams(clientSecret string) RequestParams {
+	return RequestParams{
 		"client_secret": clientSecret,
 	}
 }
 
-// ClientAuthParamsJwtBearer returns a map of parameters to be sent to the authorization server when using a JWT for client authentication in RFC 7523, section 2.2.
+// ClientAuthJwtBearerParams returns a map of parameters to be sent to the authorization server when using a JWT for client authentication in RFC 7523, section 2.2.
 // The target authorization server must support the "private_key_jwt" client authentication method.
-func ClientAuthParamsJwtBearer(clientAssertion string) AuthParams {
-	return AuthParams{
+func ClientAuthJwtBearerParams(clientAssertion string) RequestParams {
+	return RequestParams{
 		"client_assertion":      clientAssertion,
 		"client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+	}
+}
+
+// ExchangeAuthorizationCodeParams returns a map of parameters to be sent to the authorization server when exchanging
+// an authorization code for token request as defined in RFC 6749, section 4.1.3.
+//
+// Additionally, PKCE (RFC 7636) is required for this request.
+func ExchangeAuthorizationCodeParams(clientID, code, codeVerifier, redirectURI string) RequestParams {
+	return RequestParams{
+		"client_id":     clientID,
+		"code":          code,
+		"code_verifier": codeVerifier,
+		"grant_type":    "authorization_code",
+		"redirect_uri":  redirectURI,
+	}
+}
+
+// RefreshGrantParams returns a map of parameters to be sent to the authorization server when performing the refresh
+// token grant as defined in RFC 6749, section 6.
+func RefreshGrantParams(clientID, refreshToken string) RequestParams {
+	return RequestParams{
+		"client_id":     clientID,
+		"grant_type":    "refresh_token",
+		"refresh_token": refreshToken,
 	}
 }
 

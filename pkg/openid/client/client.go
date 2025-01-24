@@ -89,18 +89,15 @@ func (c *Client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.A
 }
 
 func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error) {
-	params, err := c.ClientAuthenticationParams()
+	clientAuth, err := c.ClientAuthenticationParams()
 	if err != nil {
 		return nil, err
 	}
 
-	payload := params.Merge(openid.AuthParams{
-		"grant_type":    "refresh_token",
-		"refresh_token": refreshToken,
-		"client_id":     c.cfg.Client().ClientID(),
-	}).URLValues().Encode()
-
 	endpoint := c.cfg.Provider().TokenEndpoint()
+	payload := openid.RefreshGrantParams(c.cfg.Client().ClientID(), refreshToken).
+		With(clientAuth)
+
 	body, err := c.oauthPostRequest(ctx, endpoint, payload)
 	if err != nil {
 		return nil, err
@@ -114,7 +111,7 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid
 	return &tokenResponse, nil
 }
 
-func (c *Client) ClientAuthenticationParams() (openid.AuthParams, error) {
+func (c *Client) ClientAuthenticationParams() (openid.RequestParams, error) {
 	switch c.cfg.Client().AuthMethod() {
 	case openidconfig.AuthMethodPrivateKeyJWT:
 		assertion, err := c.MakeAssertion(DefaultClientAssertionLifetime)
@@ -122,10 +119,10 @@ func (c *Client) ClientAuthenticationParams() (openid.AuthParams, error) {
 			return nil, fmt.Errorf("creating client assertion: %w", err)
 		}
 
-		return openid.ClientAuthParamsJwtBearer(assertion), nil
+		return openid.ClientAuthJwtBearerParams(assertion), nil
 
 	case openidconfig.AuthMethodClientSecret:
-		return openid.ClientAuthParamsSecret(c.cfg.Client().ClientSecret()), nil
+		return openid.ClientAuthSecretParams(c.cfg.Client().ClientSecret()), nil
 	}
 
 	return nil, fmt.Errorf("unsupported client authentication method: %q", c.cfg.Client().AuthMethod())
@@ -163,8 +160,8 @@ func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
 	return string(encoded), nil
 }
 
-func (c *Client) oauthPostRequest(ctx context.Context, endpoint, payload string) ([]byte, error) {
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(payload))
+func (c *Client) oauthPostRequest(ctx context.Context, endpoint string, payload openid.RequestParams) ([]byte, error) {
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(payload.URLValues().Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
