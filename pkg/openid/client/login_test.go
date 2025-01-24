@@ -14,13 +14,13 @@ import (
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
-func TestLogin_PushAuthorizationURL(t *testing.T) {
+func TestLogin_PushedAuthorizationRequest(t *testing.T) {
 	cfg := mock.Config()
 	idp := mock.NewIdentityProvider(cfg)
-	idp.OpenIDConfig.TestProvider.SetPushedAuthorizationRequestEndpoint(idp.ProviderServer.URL + "/par")
+	idp.WithPushedAuthorizationRequestEndpoint()
 	defer idp.Close()
-	req := idp.GetRequest(mock.Ingress + "/oauth2/login")
 
+	req := idp.GetRequest(mock.Ingress + "/oauth2/login")
 	result, err := idp.RelyingPartyHandler.Client.Login(req)
 	require.NoError(t, err)
 
@@ -30,6 +30,7 @@ func TestLogin_PushAuthorizationURL(t *testing.T) {
 	query := parsed.Query()
 	assert.Contains(t, query, "request_uri")
 	assert.Contains(t, query, "client_id")
+	assert.Len(t, query, 2)
 
 	assert.NotEmpty(t, query["request_uri"])
 	assert.Contains(t, query["request_uri"][0], "urn:ietf:params:oauth:request_uri")
@@ -146,7 +147,11 @@ func TestLogin_URL(t *testing.T) {
 				assert.Contains(t, query, "response_mode")
 				assert.Contains(t, query, "code_challenge")
 				assert.Contains(t, query, "code_challenge_method")
+
 				assert.NotContains(t, query, "resource")
+				assert.NotContains(t, query, "client_secret")
+				assert.NotContains(t, query, "client_assertion")
+				assert.NotContains(t, query, "client_assertion_type")
 
 				callbackURL, err := urlpkg.LoginCallback(req)
 				assert.NoError(t, err)

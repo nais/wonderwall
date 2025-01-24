@@ -64,6 +64,10 @@ func (in *IdentityProvider) GetRequest(target string) *http.Request {
 	return NewGetRequest(target, in.RelyingPartyHandler.GetIngresses())
 }
 
+func (in *IdentityProvider) WithPushedAuthorizationRequestEndpoint() {
+	in.OpenIDConfig.TestProvider.SetPushedAuthorizationRequestEndpoint(in.ProviderServer.URL + "/par")
+}
+
 func NewIdentityProvider(cfg *config.Config) *IdentityProvider {
 	rpServer := newRelyingPartyServer()
 	cfg.Ingresses = append(cfg.Ingresses, rpServer.GetURL())
