@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
+	httpinternal "github.com/nais/wonderwall/internal/http"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/cookie"
@@ -60,27 +61,21 @@ type requestLogger struct {
 }
 
 func (l *requestLogger) NewLogEntry(r *http.Request) *requestLoggerEntry {
-	referer := r.Referer()
-	refererUrl, err := url.Parse(referer)
-	if err == nil {
-		refererUrl.RawQuery = ""
-		refererUrl.RawFragment = ""
-		referer = refererUrl.String()
-	}
-
 	entry := &requestLoggerEntry{}
-	correlationID := middleware.GetReqID(r.Context())
-
 	fields := log.Fields{
-		"correlation_id":     correlationID,
-		"provider":           l.Provider,
-		"request_cookies":    nonEmptyRequestCookies(r),
-		"request_host":       r.Host,
-		"request_method":     r.Method,
-		"request_path":       r.URL.Path,
-		"request_protocol":   r.Proto,
-		"request_referer":    referer,
-		"request_user_agent": r.UserAgent(),
+		"correlation_id":          middleware.GetReqID(r.Context()),
+		"provider":                l.Provider,
+		"request_cookies":         nonEmptyRequestCookies(r),
+		"request_host":            r.Host,
+		"request_is_navigational": httpinternal.IsNavigationRequest(r),
+		"request_method":          r.Method,
+		"request_path":            r.URL.Path,
+		"request_protocol":        r.Proto,
+		"request_referer":         refererStripped(r),
+		"request_sec_fetch_dest":  r.Header.Get("Sec-Fetch-Dest"),
+		"request_sec_fetch_mode":  r.Header.Get("Sec-Fetch-Mode"),
+		"request_sec_fetch_site":  r.Header.Get("Sec-Fetch-Site"),
+		"request_user_agent":      r.UserAgent(),
 	}
 
 	entry.Logger = l.Logger.WithFields(fields)
@@ -152,4 +147,16 @@ func isRelevantCookie(name string) bool {
 	}
 
 	return false
+}
+
+func refererStripped(r *http.Request) string {
+	referer := r.Referer()
+	refererUrl, err := url.Parse(referer)
+	if err == nil {
+		refererUrl.RawQuery = ""
+		refererUrl.RawFragment = ""
+		referer = refererUrl.String()
+	}
+
+	return referer
 }

@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"net/http/httputil"
 	urllib "net/url"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 
+	httpinternal "github.com/nais/wonderwall/internal/http"
 	"github.com/nais/wonderwall/pkg/handler/acr"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	mw "github.com/nais/wonderwall/pkg/middleware"
@@ -166,7 +166,7 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 		return loginURL
 	}
 
-	if isNavigationRequest(r) {
+	if httpinternal.IsNavigationRequest(r) {
 		target := r.URL.String()
 		location := loginURL(target, "navigation request detected; redirecting to login...")
 		http.Redirect(w, r, location, http.StatusFound)
@@ -183,7 +183,7 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Location", location)
 	w.WriteHeader(http.StatusUnauthorized)
 
-	if accepts(r, "*/*", "application/json") {
+	if httpinternal.Accepts(r, "*/*", "application/json") {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"error": "unauthenticated, please log in"}`))
 	} else {
@@ -194,48 +194,11 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 func isRelevantAccessLog(r *http.Request) bool {
 	if r.Method == http.MethodGet {
 		// only log GET requests that are navigation requests
-		return isNavigationRequest(r)
+		return httpinternal.IsNavigationRequest(r)
 	}
 
 	// all other methods are relevant
 	return true
-}
-
-func isNavigationRequest(r *http.Request) bool {
-	// we assume that navigation requests are always GET requests
-	if r.Method != http.MethodGet {
-		return false
-	}
-
-	// check for top-level navigation requests
-	mode := r.Header.Get("Sec-Fetch-Mode")
-	dest := r.Header.Get("Sec-Fetch-Dest")
-	if mode != "" && dest != "" {
-		return mode == "navigate" && dest == "document"
-	}
-
-	// fallback if browser doesn't support fetch metadata
-	return accepts(r, "text/html")
-}
-
-func accepts(r *http.Request, accepted ...string) bool {
-	// iterate over all Accept headers
-	for _, header := range r.Header.Values("Accept") {
-		// iterate over all comma-separated values in a single Accept header
-		for _, v := range strings.Split(header, ",") {
-			v = strings.ToLower(v)
-			v = strings.TrimSpace(v)
-			v = strings.Split(v, ";")[0]
-
-			for _, accept := range accepted {
-				if v == accept {
-					return true
-				}
-			}
-		}
-	}
-
-	return false
 }
 
 type logrusErrorWriter struct{}
