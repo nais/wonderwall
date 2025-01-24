@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	urllib "net/url"
 	"slices"
 	stringslib "strings"
 
@@ -129,25 +128,25 @@ func (c *Client) authCodeURL(ctx context.Context, authCodeParams openid.Authoriz
 			return "", fmt.Errorf("unmarshalling token response: %w", err)
 		}
 
-		// TODO: this can be a separate function to replace oauth2config.AuthCodeURL
-		v := urllib.Values{
-			"client_id":   {c.oauth2Config.ClientID},
-			"request_uri": {pushedAuthorizationResponse.RequestUri},
-		}
-		var buf bytes.Buffer
-		buf.WriteString(c.oauth2Config.Endpoint.AuthURL)
-		if stringslib.Contains(c.oauth2Config.Endpoint.AuthURL, "?") {
-			buf.WriteByte('&')
-		} else {
-			buf.WriteByte('?')
-		}
-		buf.WriteString(v.Encode())
-		return buf.String(), nil
+		return c.makeAuthCodeURL(openid.ParAuthorizationRequestParams(
+			c.oauth2Config.ClientID,
+			pushedAuthorizationResponse.RequestUri,
+		)), nil
 	}
 
-	opts := authCodeParams.RequestParams().AuthCodeOptions()
-	// TODO: replace with separate function
-	return c.oauth2Config.AuthCodeURL(authCodeParams.State, opts...), nil
+	return c.makeAuthCodeURL(authCodeParams.RequestParams()), nil
+}
+
+func (c *Client) makeAuthCodeURL(params openid.RequestParams) string {
+	var buf bytes.Buffer
+	buf.WriteString(c.oauth2Config.Endpoint.AuthURL)
+	if stringslib.Contains(c.oauth2Config.Endpoint.AuthURL, "?") {
+		buf.WriteByte('&')
+	} else {
+		buf.WriteByte('?')
+	}
+	buf.WriteString(params.URLValues().Encode())
+	return buf.String()
 }
 
 func (l *Login) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter, canonicalRedirect string) error {

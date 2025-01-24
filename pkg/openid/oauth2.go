@@ -164,6 +164,15 @@ func RefreshGrantParams(clientID, refreshToken string) RequestParams {
 	}
 }
 
+// ParAuthorizationRequestParams returns a map of parameters to be sent to the authorization server when using the
+// authorization endpoint after performing a Pushed Authorization Request (PAR) as defined in RFC 9126, section 4.
+func ParAuthorizationRequestParams(clientID, requestUri string) RequestParams {
+	return RequestParams{
+		"client_id":   clientID,
+		"request_uri": requestUri,
+	}
+}
+
 func StateMismatchError(queryParams url.Values, expectedState string) error {
 	actualState := queryParams.Get("state")
 
