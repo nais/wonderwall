@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"slices"
 	stringslib "strings"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
+	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/acr"
 	"github.com/nais/wonderwall/pkg/strings"
@@ -21,19 +22,12 @@ import (
 )
 
 const (
-	LocaleURLParameter        = "locale"
-	SecurityLevelURLParameter = "level"
-	PromptURLParameter        = "prompt"
+	QueryParamLocale        = "locale"
+	QueryParamSecurityLevel = "level"
+	QueryParamPrompt        = "prompt"
 )
 
-var (
-	ErrInvalidSecurityLevel  = errors.New("InvalidSecurityLevel")
-	ErrInvalidLocale         = errors.New("InvalidLocale")
-	ErrInvalidPrompt         = errors.New("InvalidPrompt")
-	ErrInvalidLoginParameter = errors.New("InvalidLoginParameter")
-
-	PromptAllowedValues = []string{"login", "select_account"}
-)
+var QueryParamPromptAllowedValues = []string{"login", "select_account"}
 
 type Login struct {
 	openid.AuthorizationCodeParams
@@ -67,21 +61,6 @@ func (c *Client) newAuthorizationCodeParams(r *http.Request) (openid.Authorizati
 		return req, fmt.Errorf("generating callback url: %w", err)
 	}
 
-	acrParam, err := getAcrParam(c, r)
-	if err != nil {
-		return req, fmt.Errorf("%w: %w", ErrInvalidSecurityLevel, err)
-	}
-
-	locale, err := getLocaleParam(c, r)
-	if err != nil {
-		return req, fmt.Errorf("%w: %w", ErrInvalidLocale, err)
-	}
-
-	prompt, err := getPromptParam(r)
-	if err != nil {
-		return req, fmt.Errorf("%w: %w", ErrInvalidPrompt, err)
-	}
-
 	nonce, err := strings.GenerateBase64(32)
 	if err != nil {
 		return req, fmt.Errorf("creating nonce: %w", err)
@@ -92,20 +71,17 @@ func (c *Client) newAuthorizationCodeParams(r *http.Request) (openid.Authorizati
 		return req, fmt.Errorf("creating state: %w", err)
 	}
 
-	resource := c.cfg.Client().ResourceIndicator()
-	codeVerifier := oauth2.GenerateVerifier()
-
 	return openid.AuthorizationCodeParams{
-		AcrValues:    acrParam,
+		AcrValues:    getAcrParam(c, r),
 		ClientID:     c.oauth2Config.ClientID,
-		CodeVerifier: codeVerifier,
+		CodeVerifier: oauth2.GenerateVerifier(),
 		Nonce:        nonce,
-		Prompt:       prompt,
+		Prompt:       getPromptParam(r),
 		RedirectURI:  callbackURL,
-		Resource:     resource,
+		Resource:     c.cfg.Client().ResourceIndicator(),
 		Scope:        c.oauth2Config.Scopes,
 		State:        state,
-		UILocales:    locale,
+		UILocales:    getLocaleParam(c, r),
 	}, nil
 }
 
@@ -162,58 +138,78 @@ func (l *Login) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter cr
 	return cookie.EncryptAndSet(w, cookie.Login, value, opts, crypter)
 }
 
-func getAcrParam(c *Client, r *http.Request) (string, error) {
-	defaultValue := c.cfg.Client().ACRValues()
-	if len(defaultValue) == 0 {
-		return "", nil
+func (l *Login) LogFields(fields log.Fields) log.Fields {
+	if acrValues := l.AcrValues; acrValues != "" {
+		fields["acr"] = acrValues
 	}
 
-	paramValue := r.URL.Query().Get(SecurityLevelURLParameter)
+	if locale := l.UILocales; locale != "" {
+		fields["locale"] = locale
+	}
+
+	if prompt := l.Prompt; prompt != "" {
+		fields["prompt"] = prompt
+	}
+
+	return fields
+}
+
+func getAcrParam(c *Client, r *http.Request) string {
+	defaultValue := c.cfg.Client().ACRValues()
+	if len(defaultValue) == 0 {
+		return ""
+	}
+
+	paramValue := r.URL.Query().Get(QueryParamSecurityLevel)
 	if len(paramValue) == 0 {
 		paramValue = defaultValue
 	}
 
 	supported := c.cfg.Provider().ACRValuesSupported()
 	if supported.Contains(paramValue) {
-		return paramValue, nil
+		return paramValue
 	}
 
 	translatedAcr, ok := acr.IDPortenLegacyMapping[paramValue]
 	if ok && supported.Contains(translatedAcr) {
-		return translatedAcr, nil
+		return translatedAcr
 	}
 
-	return "", fmt.Errorf("%w: invalid value for %s=%s (must be one of '%s')", ErrInvalidLoginParameter, SecurityLevelURLParameter, paramValue, supported)
+	mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamSecurityLevel, paramValue, supported, defaultValue)
+	return defaultValue
 }
 
-func getLocaleParam(c *Client, r *http.Request) (string, error) {
+func getLocaleParam(c *Client, r *http.Request) string {
 	defaultValue := c.cfg.Client().UILocales()
 	if len(defaultValue) == 0 {
-		return "", nil
+		return ""
 	}
 
-	paramValue := r.URL.Query().Get(LocaleURLParameter)
+	paramValue := r.URL.Query().Get(QueryParamLocale)
 	if len(paramValue) == 0 {
 		paramValue = defaultValue
 	}
 
 	supported := c.cfg.Provider().UILocalesSupported()
 	if supported.Contains(paramValue) {
-		return paramValue, nil
+		return paramValue
 	}
 
-	return "", fmt.Errorf("%w: invalid value for %s=%s (must be one of '%s')", ErrInvalidLoginParameter, LocaleURLParameter, paramValue, supported)
+	mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamLocale, paramValue, supported, defaultValue)
+	return defaultValue
 }
 
-func getPromptParam(r *http.Request) (string, error) {
-	paramValue := r.URL.Query().Get(PromptURLParameter)
+func getPromptParam(r *http.Request) string {
+	paramValue := r.URL.Query().Get(QueryParamPrompt)
 	if len(paramValue) == 0 {
-		return "", nil
+		return ""
 	}
 
-	if slices.Contains(PromptAllowedValues, paramValue) {
-		return paramValue, nil
+	if slices.Contains(QueryParamPromptAllowedValues, paramValue) {
+		return paramValue
 	}
 
-	return "", fmt.Errorf("%w: invalid value for %s=%s (must be one of '%s')", ErrInvalidLoginParameter, PromptURLParameter, paramValue, PromptAllowedValues)
+	const defaultValue = "login"
+	mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamPrompt, paramValue, QueryParamPromptAllowedValues, defaultValue)
+	return defaultValue
 }

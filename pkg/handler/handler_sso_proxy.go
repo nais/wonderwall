@@ -106,22 +106,22 @@ func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 
 	// set default query parameters
 	if len(s.Config.OpenID.ACRValues) > 0 {
-		targetQuery.Set(openidclient.SecurityLevelURLParameter, s.Config.OpenID.ACRValues)
+		targetQuery.Set(openidclient.QueryParamSecurityLevel, s.Config.OpenID.ACRValues)
 	}
 	if len(s.Config.OpenID.UILocales) > 0 {
-		targetQuery.Set(openidclient.LocaleURLParameter, s.Config.OpenID.UILocales)
+		targetQuery.Set(openidclient.QueryParamLocale, s.Config.OpenID.UILocales)
 	}
 
 	// override default query parameters, if provided in request
 	reqQuery := r.URL.Query()
-	if reqQuery.Has(openidclient.SecurityLevelURLParameter) {
-		targetQuery.Set(openidclient.SecurityLevelURLParameter, reqQuery.Get(openidclient.SecurityLevelURLParameter))
+	if reqQuery.Has(openidclient.QueryParamSecurityLevel) {
+		targetQuery.Set(openidclient.QueryParamSecurityLevel, reqQuery.Get(openidclient.QueryParamSecurityLevel))
 	}
-	if reqQuery.Has(openidclient.LocaleURLParameter) {
-		targetQuery.Set(openidclient.LocaleURLParameter, reqQuery.Get(openidclient.LocaleURLParameter))
+	if reqQuery.Has(openidclient.QueryParamLocale) {
+		targetQuery.Set(openidclient.QueryParamLocale, reqQuery.Get(openidclient.QueryParamLocale))
 	}
-	if reqQuery.Has(openidclient.PromptURLParameter) {
-		targetQuery.Set(openidclient.PromptURLParameter, reqQuery.Get(openidclient.PromptURLParameter))
+	if reqQuery.Has(openidclient.QueryParamPrompt) {
+		targetQuery.Set(openidclient.QueryParamPrompt, reqQuery.Get(openidclient.QueryParamPrompt))
 	}
 
 	target.RawQuery = targetQuery.Encode()

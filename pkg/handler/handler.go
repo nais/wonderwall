@@ -123,36 +123,23 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 	canonicalRedirect := s.Redirect.Canonical(r)
 	login, err := s.Client.Login(r)
 	if err != nil {
-		if errors.Is(err, openidclient.ErrInvalidSecurityLevel) || errors.Is(err, openidclient.ErrInvalidLocale) {
-			s.BadRequest(w, r, err)
-		} else {
-			s.InternalError(w, r, err)
-		}
-
+		s.InternalError(w, r, err)
 		return
 	}
 
-	logger := mw.LogEntryFrom(r)
-	fields := log.Fields{
+	fields := login.LogFields(log.Fields{
 		"redirect_after_login": canonicalRedirect,
-	}
-
-	if acrValues := login.AcrValues; acrValues != "" {
-		fields["acr"] = acrValues
-	}
-
-	if locale := login.UILocales; locale != "" {
-		fields["locale"] = locale
-	}
+	})
+	logger := mw.LogEntryFrom(r).WithFields(fields)
 
 	if prompt := login.Prompt; prompt != "" {
-		fields["prompt"] = prompt
 		logger.Infof("login: prompt='%s'; clearing local session...", prompt)
 
 		sess, _ := s.SessionManager.Get(r)
 		if sess != nil {
 			if sid := sess.ExternalSessionID(); sid != "" {
 				fields["sid"] = sid
+				logger = logger.WithFields(fields)
 			}
 
 			err := s.SessionManager.Delete(r.Context(), sess)
@@ -165,7 +152,6 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 		cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
 	}
 
-	logger = logger.WithFields(fields)
 	err = s.applyLoginRateLimit(w, r, logger)
 	if err != nil {
 		s.TooManyRequests(w, r, err)

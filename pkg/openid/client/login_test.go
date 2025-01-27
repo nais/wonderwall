@@ -1,7 +1,6 @@
 package client_test
 
 import (
-	"errors"
 	"net/url"
 	"testing"
 
@@ -42,14 +41,12 @@ func TestLogin_URL(t *testing.T) {
 		name       string
 		url        string
 		wantParams map[string]string
-		error      error
 	}
 
 	tests := []loginURLTest{
 		{
-			name:  "happy path",
-			url:   mock.Ingress + "/oauth2/login",
-			error: nil,
+			name: "happy path",
+			url:  mock.Ingress + "/oauth2/login",
 		},
 		{
 			name: "happy path with level",
@@ -57,7 +54,6 @@ func TestLogin_URL(t *testing.T) {
 			wantParams: map[string]string{
 				"acr_values": "idporten-loa-substantial",
 			},
-			error: nil,
 		},
 		{
 			name: "happy path with locale",
@@ -65,7 +61,6 @@ func TestLogin_URL(t *testing.T) {
 			wantParams: map[string]string{
 				"ui_locales": "nb",
 			},
-			error: nil,
 		},
 		{
 			name: "happy path with prompt",
@@ -74,7 +69,6 @@ func TestLogin_URL(t *testing.T) {
 				"prompt":  "login",
 				"max_age": "0",
 			},
-			error: nil,
 		},
 		{
 			name: "happy path with both locale and level",
@@ -83,22 +77,27 @@ func TestLogin_URL(t *testing.T) {
 				"acr_values": "idporten-loa-substantial",
 				"ui_locales": "nb",
 			},
-			error: nil,
 		},
 		{
-			name:  "invalid level",
-			url:   mock.Ingress + "/oauth2/login?level=NoLevel",
-			error: client.ErrInvalidSecurityLevel,
+			name: "invalid level should use default as fallback",
+			url:  mock.Ingress + "/oauth2/login?level=NoLevel",
+			wantParams: map[string]string{
+				"acr_values": "idporten-loa-high",
+			},
 		},
 		{
-			name:  "invalid locale",
-			url:   mock.Ingress + "/oauth2/login?locale=es",
-			error: client.ErrInvalidLocale,
+			name: "invalid locale should use default as fallback",
+			url:  mock.Ingress + "/oauth2/login?locale=es",
+			wantParams: map[string]string{
+				"ui_locales": "nb",
+			},
 		},
 		{
-			name:  "invalid prompt",
-			url:   mock.Ingress + "/oauth2/login?prompt=invalid",
-			error: client.ErrInvalidPrompt,
+			name: "invalid prompt should use default as fallback",
+			url:  mock.Ingress + "/oauth2/login?prompt=invalid",
+			wantParams: map[string]string{
+				"prompt": "login",
+			},
 		},
 		{
 			name: "level=Level3 should translate to idporten-loa-substantial",
@@ -106,7 +105,6 @@ func TestLogin_URL(t *testing.T) {
 			wantParams: map[string]string{
 				"acr_values": "idporten-loa-substantial",
 			},
-			error: nil,
 		},
 		{
 			name: "level=Level4 should translate to idporten-loa-high",
@@ -114,7 +112,6 @@ func TestLogin_URL(t *testing.T) {
 			wantParams: map[string]string{
 				"acr_values": "idporten-loa-high",
 			},
-			error: nil,
 		},
 	}
 
@@ -129,56 +126,52 @@ func TestLogin_URL(t *testing.T) {
 			req := mock.NewGetRequest(test.url, ingresses)
 			result, err := c.Login(req)
 
-			if test.error != nil {
-				assert.True(t, errors.Is(err, test.error))
-			} else {
-				require.NoError(t, err)
+			require.NoError(t, err)
 
-				parsed, err := url.Parse(result.AuthCodeURL)
-				assert.NoError(t, err)
+			parsed, err := url.Parse(result.AuthCodeURL)
+			assert.NoError(t, err)
 
-				query := parsed.Query()
-				assert.Contains(t, query, "response_type")
-				assert.Contains(t, query, "client_id")
-				assert.Contains(t, query, "redirect_uri")
-				assert.Contains(t, query, "scope")
-				assert.Contains(t, query, "state")
-				assert.Contains(t, query, "nonce")
-				assert.Contains(t, query, "response_mode")
-				assert.Contains(t, query, "code_challenge")
-				assert.Contains(t, query, "code_challenge_method")
+			query := parsed.Query()
+			assert.Contains(t, query, "response_type")
+			assert.Contains(t, query, "client_id")
+			assert.Contains(t, query, "redirect_uri")
+			assert.Contains(t, query, "scope")
+			assert.Contains(t, query, "state")
+			assert.Contains(t, query, "nonce")
+			assert.Contains(t, query, "response_mode")
+			assert.Contains(t, query, "code_challenge")
+			assert.Contains(t, query, "code_challenge_method")
 
-				assert.NotContains(t, query, "resource")
-				assert.NotContains(t, query, "client_secret")
-				assert.NotContains(t, query, "client_assertion")
-				assert.NotContains(t, query, "client_assertion_type")
+			assert.NotContains(t, query, "resource")
+			assert.NotContains(t, query, "client_secret")
+			assert.NotContains(t, query, "client_assertion")
+			assert.NotContains(t, query, "client_assertion_type")
 
-				callbackURL, err := urlpkg.LoginCallback(req)
-				assert.NoError(t, err)
+			callbackURL, err := urlpkg.LoginCallback(req)
+			assert.NoError(t, err)
 
-				assert.ElementsMatch(t, query["response_type"], []string{"code"})
-				assert.ElementsMatch(t, query["client_id"], []string{openidConfig.Client().ClientID()})
-				assert.ElementsMatch(t, query["redirect_uri"], []string{callbackURL})
-				assert.ElementsMatch(t, query["scope"], []string{openidConfig.Client().Scopes().String()})
-				assert.ElementsMatch(t, query["state"], []string{result.State})
-				assert.ElementsMatch(t, query["nonce"], []string{result.Nonce})
-				assert.ElementsMatch(t, query["response_mode"], []string{"query"})
-				assert.ElementsMatch(t, query["code_challenge_method"], []string{"S256"})
-				assert.ElementsMatch(t, query["code_challenge"], []string{oauth2.S256ChallengeFromVerifier(result.CodeVerifier)})
+			assert.ElementsMatch(t, query["response_type"], []string{"code"})
+			assert.ElementsMatch(t, query["client_id"], []string{openidConfig.Client().ClientID()})
+			assert.ElementsMatch(t, query["redirect_uri"], []string{callbackURL})
+			assert.ElementsMatch(t, query["scope"], []string{openidConfig.Client().Scopes().String()})
+			assert.ElementsMatch(t, query["state"], []string{result.State})
+			assert.ElementsMatch(t, query["nonce"], []string{result.Nonce})
+			assert.ElementsMatch(t, query["response_mode"], []string{"query"})
+			assert.ElementsMatch(t, query["code_challenge_method"], []string{"S256"})
+			assert.ElementsMatch(t, query["code_challenge"], []string{oauth2.S256ChallengeFromVerifier(result.CodeVerifier)})
 
-				if test.wantParams != nil {
-					for key, value := range test.wantParams {
-						assert.Contains(t, query, key)
-						assert.ElementsMatch(t, query[key], []string{value})
-					}
-				} else {
-					assert.Contains(t, query, "acr_values")
-					assert.Contains(t, query, "ui_locales")
-					assert.ElementsMatch(t, query["acr_values"], []string{openidConfig.Client().ACRValues()})
-					assert.ElementsMatch(t, query["ui_locales"], []string{openidConfig.Client().UILocales()})
-					assert.NotContains(t, query, "prompt")
-					assert.NotContains(t, query, "max_age")
+			if test.wantParams != nil {
+				for key, value := range test.wantParams {
+					assert.Contains(t, query, key)
+					assert.ElementsMatch(t, query[key], []string{value})
 				}
+			} else {
+				assert.Contains(t, query, "acr_values")
+				assert.Contains(t, query, "ui_locales")
+				assert.ElementsMatch(t, query["acr_values"], []string{openidConfig.Client().ACRValues()})
+				assert.ElementsMatch(t, query["ui_locales"], []string{openidConfig.Client().UILocales()})
+				assert.NotContains(t, query, "prompt")
+				assert.NotContains(t, query, "max_age")
 			}
 		})
 	}
