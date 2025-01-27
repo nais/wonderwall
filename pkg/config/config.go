@@ -112,6 +112,7 @@ func Initialize() (*Config, error) {
 	resolveOpenIdProvider()
 	resolveUpstream()
 	resolveVersion()
+	resolveOtel()
 
 	cfg := new(Config)
 	if err := viper.UnmarshalExact(cfg, func(dc *mapstructure.DecoderConfig) {
