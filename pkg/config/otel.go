@@ -15,6 +15,7 @@ const (
 )
 
 func otelFlags() {
+	// TODO: automatically enable if OTEL_EXPORTER_OTLP_ENDPOINT env var is set
 	flag.Bool(OpenTelemetryEnabled, false, "Enable OpenTelemetry tracing.")
 	flag.String(OpenTelemetryServiceName, "wonderwall", "Service name to use for OpenTelemetry.")
 }

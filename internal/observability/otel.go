@@ -1,4 +1,4 @@
-package otel
+package observability
 
 import (
 	"context"
@@ -6,16 +6,17 @@ import (
 	"time"
 
 	"github.com/nais/wonderwall/pkg/config"
+	log "github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/semconv/v1.21.0"
+	"go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
-func Setup(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
+func OpenTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
 	var shutdownFuncs []func(context.Context) error
 
 	shutdown = func(ctx context.Context) error {
@@ -47,6 +48,7 @@ func Setup(ctx context.Context, cfg *config.Config) (shutdown func(context.Conte
 	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 	otel.SetTracerProvider(tracerProvider)
 
+	log.Infof("opentelemetry: initialized configuration")
 	return
 }
 

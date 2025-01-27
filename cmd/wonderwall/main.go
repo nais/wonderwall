@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	_ "github.com/KimMachineGun/automemlimit"
+	"github.com/nais/wonderwall/internal/observability"
 	log "github.com/sirupsen/logrus"
 	_ "go.uber.org/automaxprocs"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/nais/wonderwall/pkg/metrics"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/openid/provider"
-	"github.com/nais/wonderwall/pkg/otel"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/server"
 )
@@ -53,9 +53,9 @@ func run() error {
 	}
 
 	if cfg.OpenTelemetry.Enabled {
-		otelShutdown, err := otel.Setup(ctx, cfg)
+		otelShutdown, err := observability.OpenTelemetry(ctx, cfg)
 		if err != nil {
-			return err
+			return fmt.Errorf("initializing OpenTelemetry: %w", err)
 		}
 		defer func() {
 			log.Fatalf("fatal: otel shutdown error: %+v", otelShutdown(context.Background()))
