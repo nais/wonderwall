@@ -2,7 +2,7 @@ wonderwall:
 	go build -trimpath -ldflags "-s -w" -a -o bin/wonderwall ./cmd/wonderwall
 
 local: fmt
-	go run cmd/wonderwall/main.go \
+	OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 go run cmd/wonderwall/main.go \
 	  --openid.client-id=bogus \
 	  --openid.client-secret=not-so-secret \
 	  --openid.well-known-url=http://localhost:8888/default/.well-known/openid-configuration \
