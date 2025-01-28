@@ -21,6 +21,7 @@ var (
 	once             sync.Once
 )
 
+// TODO: use otel to propagate trace_id
 func DefaultTransport() *http.Transport {
 	once.Do(func() {
 		t := http.DefaultTransport.(*http.Transport).Clone()
