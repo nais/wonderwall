@@ -55,13 +55,14 @@ func New(src Source, cfg *config.Config) chi.Router {
 	logger := middleware.Logger(providerName)
 
 	r := chi.NewRouter()
+	r.Use(middleware.CorrelationIDHandler)
 	if cfg.OpenTelemetry.Enabled {
 		r.Use(otelchi.Middleware(cfg.OpenTelemetry.ServiceName,
 			otelchi.WithChiRoutes(r),
 			otelchi.WithRequestMethodInSpanName(true),
 		))
+		r.Use(middleware.Tracing)
 	}
-	r.Use(middleware.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)
 	r.Use(ingressMw.Handler)
 	r.Use(logger.Handler)

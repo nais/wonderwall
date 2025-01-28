@@ -3,17 +3,14 @@ package middleware
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
-	httpinternal "github.com/nais/wonderwall/internal/http"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/nais/wonderwall/pkg/cookie"
+	httpinternal "github.com/nais/wonderwall/internal/http"
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
@@ -39,7 +36,7 @@ func LogEntryFrom(r *http.Request) *log.Entry {
 	}
 
 	return log.NewEntry(log.StandardLogger()).
-		WithFields(requestFields(r)).
+		WithFields(httpinternal.Attributes(r)).
 		WithFields(traceFields(r))
 }
 
@@ -62,7 +59,7 @@ func (l *logger) Handler(next http.Handler) http.Handler {
 
 func (l *logger) newLogEntry(r *http.Request) *logEntryAdapter {
 	return &logEntryAdapter{
-		requestFields: requestFields(r),
+		requestFields: httpinternal.Attributes(r),
 		Logger: l.Logger.WithContext(r.Context()).
 			WithField("provider", l.Provider).
 			WithFields(traceFields(r)),
@@ -98,30 +95,6 @@ func (l *logEntryAdapter) Panic(v interface{}, _ []byte) {
 	l.Logger = l.Logger.WithFields(fields)
 }
 
-func requestFields(r *http.Request) log.Fields {
-	fields := log.Fields{
-		"request_cookies":         nonEmptyRequestCookies(r),
-		"request_host":            r.Host,
-		"request_is_navigational": httpinternal.IsNavigationRequest(r),
-		"request_method":          r.Method,
-		"request_path":            r.URL.Path,
-		"request_protocol":        r.Proto,
-		"request_referer":         refererStripped(r),
-		"request_sec_fetch_dest":  r.Header.Get("Sec-Fetch-Dest"),
-		"request_sec_fetch_mode":  r.Header.Get("Sec-Fetch-Mode"),
-		"request_sec_fetch_site":  r.Header.Get("Sec-Fetch-Site"),
-		"request_user_agent":      r.UserAgent(),
-	}
-
-	span := trace.SpanFromContext(r.Context())
-	for k, v := range fields {
-		attrKey := "wonderwall." + k
-		span.SetAttributes(attribute.String(attrKey, fmt.Sprint(v)))
-	}
-
-	return fields
-}
-
 func traceFields(r *http.Request) log.Fields {
 	fields := log.Fields{}
 	span := trace.SpanFromContext(r.Context())
@@ -132,41 +105,4 @@ func traceFields(r *http.Request) log.Fields {
 	}
 
 	return fields
-}
-
-func nonEmptyRequestCookies(r *http.Request) string {
-	result := make([]string, 0)
-
-	for _, c := range r.Cookies() {
-		if !isRelevantCookie(c.Name) || len(c.Value) <= 0 {
-			continue
-		}
-
-		result = append(result, c.Name)
-	}
-
-	return strings.Join(result, ", ")
-}
-
-func isRelevantCookie(name string) bool {
-	switch name {
-	case cookie.Session,
-		cookie.Login,
-		cookie.Logout:
-		return true
-	}
-
-	return false
-}
-
-func refererStripped(r *http.Request) string {
-	referer := r.Referer()
-	refererUrl, err := url.Parse(referer)
-	if err == nil {
-		refererUrl.RawQuery = ""
-		refererUrl.RawFragment = ""
-		referer = refererUrl.String()
-	}
-
-	return referer
 }

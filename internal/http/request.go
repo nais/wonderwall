@@ -2,7 +2,10 @@ package http
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
+
+	"github.com/nais/wonderwall/pkg/cookie"
 )
 
 func IsNavigationRequest(r *http.Request) bool {
@@ -40,4 +43,58 @@ func Accepts(r *http.Request, accepted ...string) bool {
 	}
 
 	return false
+}
+
+// Attributes returns a map of interesting properties for the request.
+func Attributes(r *http.Request) map[string]any {
+	return map[string]any{
+		"request_cookies":         nonEmptyRequestCookies(r),
+		"request_host":            r.Host,
+		"request_is_navigational": IsNavigationRequest(r),
+		"request_method":          r.Method,
+		"request_path":            r.URL.Path,
+		"request_protocol":        r.Proto,
+		"request_referer":         refererStripped(r),
+		"request_sec_fetch_dest":  r.Header.Get("Sec-Fetch-Dest"),
+		"request_sec_fetch_mode":  r.Header.Get("Sec-Fetch-Mode"),
+		"request_sec_fetch_site":  r.Header.Get("Sec-Fetch-Site"),
+		"request_user_agent":      r.UserAgent(),
+	}
+}
+
+func nonEmptyRequestCookies(r *http.Request) string {
+	result := make([]string, 0)
+
+	for _, c := range r.Cookies() {
+		if !isRelevantCookie(c.Name) || len(c.Value) <= 0 {
+			continue
+		}
+
+		result = append(result, c.Name)
+	}
+
+	return strings.Join(result, ", ")
+}
+
+func isRelevantCookie(name string) bool {
+	switch name {
+	case cookie.Session,
+		cookie.Login,
+		cookie.Logout:
+		return true
+	}
+
+	return false
+}
+
+func refererStripped(r *http.Request) string {
+	referer := r.Referer()
+	refererUrl, err := url.Parse(referer)
+	if err == nil {
+		refererUrl.RawQuery = ""
+		refererUrl.RawFragment = ""
+		referer = refererUrl.String()
+	}
+
+	return referer
 }
