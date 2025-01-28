@@ -10,28 +10,45 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	httpinternal "github.com/nais/wonderwall/internal/http"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/router/paths"
 )
 
-var logger *requestLogger
-
-type LogEntryMiddleware struct{}
-
-// LogEntry is copied verbatim from httplog package to replace with our own requestLogger implementation.
-func LogEntry(provider string) LogEntryMiddleware {
-	logger = &requestLogger{Logger: log.StandardLogger(), Provider: provider}
-	return LogEntryMiddleware{}
+type logger struct {
+	Logger   *log.Logger
+	Provider string
 }
 
-func (l *LogEntryMiddleware) Handler(next http.Handler) http.Handler {
+// Logger provides a middleware that logs requests and responses.
+func Logger(provider string) logger {
+	return logger{
+		Logger:   log.StandardLogger(),
+		Provider: provider,
+	}
+}
+
+// LogEntryFrom returns a log entry from the request context.
+func LogEntryFrom(r *http.Request) *log.Entry {
+	ctx := r.Context()
+	entry, ok := ctx.Value(middleware.LogEntryCtxKey).(*logEntryAdapter)
+	if ok {
+		return entry.Logger
+	}
+
+	return log.NewEntry(log.StandardLogger()).
+		WithFields(requestFields(r)).
+		WithFields(traceFields(r))
+}
+
+func (l *logger) Handler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		entry := logger.NewLogEntry(r)
+		entry := l.newLogEntry(r)
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
 		if !strings.HasSuffix(r.URL.Path, paths.Ping) {
-			entry.Logger.Debugf("request start: %s - %s", r.Method, r.URL.Path)
 			t1 := time.Now()
 			defer func() {
 				entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(t1), nil)
@@ -43,28 +60,46 @@ func (l *LogEntryMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func LogEntryFrom(r *http.Request) *log.Entry {
-	ctx := r.Context()
-	val := ctx.Value(middleware.LogEntryCtxKey)
-	entry, ok := val.(*requestLoggerEntry)
-	if ok {
-		return entry.Logger
+func (l *logger) newLogEntry(r *http.Request) *logEntryAdapter {
+	return &logEntryAdapter{
+		requestFields: requestFields(r),
+		Logger: l.Logger.WithContext(r.Context()).
+			WithField("provider", l.Provider).
+			WithFields(traceFields(r)),
+	}
+}
+
+// logEntryAdapter implements [middleware.LogEntry]
+type logEntryAdapter struct {
+	Logger        *log.Entry
+	requestFields log.Fields
+}
+
+func (l *logEntryAdapter) Write(status, bytes int, _ http.Header, elapsed time.Duration, _ any) {
+	responseFields := log.Fields{
+		"response_status":     status,
+		"response_bytes":      bytes,
+		"response_elapsed_ms": float64(elapsed.Nanoseconds()) / 1000000.0, // in milliseconds, with fractional
 	}
 
-	entry = logger.NewLogEntry(r)
-	return entry.Logger
+	l.Logger.WithFields(l.requestFields).
+		WithFields(responseFields).
+		Debugf("response: %d %s", status, http.StatusText(status))
 }
 
-type requestLogger struct {
-	Logger   *log.Logger
-	Provider string
-}
+func (l *logEntryAdapter) Panic(v interface{}, _ []byte) {
+	stacktrace := "#"
 
-func (l *requestLogger) NewLogEntry(r *http.Request) *requestLoggerEntry {
-	entry := &requestLoggerEntry{}
 	fields := log.Fields{
-		"correlation_id":          middleware.GetReqID(r.Context()),
-		"provider":                l.Provider,
+		"stacktrace": stacktrace,
+		"error":      fmt.Sprintf("%+v", v),
+	}
+
+	l.Logger = l.Logger.WithFields(fields)
+}
+
+func requestFields(r *http.Request) log.Fields {
+	fields := log.Fields{
 		"request_cookies":         nonEmptyRequestCookies(r),
 		"request_host":            r.Host,
 		"request_is_navigational": httpinternal.IsNavigationRequest(r),
@@ -78,52 +113,25 @@ func (l *requestLogger) NewLogEntry(r *http.Request) *requestLoggerEntry {
 		"request_user_agent":      r.UserAgent(),
 	}
 
-	entry.Logger = l.Logger.
-		WithContext(r.Context()).
-		WithFields(fields)
-	return entry
-}
-
-type requestLoggerEntry struct {
-	Logger *log.Entry
-}
-
-func (l *requestLoggerEntry) Write(status, bytes int, _ http.Header, elapsed time.Duration, _ any) {
-	msg := fmt.Sprintf("request end: HTTP %d (%s)", status, statusLabel(status))
-	fields := log.Fields{
-		"response_status":     status,
-		"response_bytes":      bytes,
-		"response_elapsed_ms": float64(elapsed.Nanoseconds()) / 1000000.0, // in milliseconds, with fractional
+	span := trace.SpanFromContext(r.Context())
+	for k, v := range fields {
+		attrKey := "wonderwall." + k
+		span.SetAttributes(attribute.String(attrKey, fmt.Sprint(v)))
 	}
 
-	entry := l.Logger.WithFields(fields)
-	entry.Debugf(msg)
+	return fields
 }
 
-func (l *requestLoggerEntry) Panic(v interface{}, _ []byte) {
-	stacktrace := "#"
-
-	fields := log.Fields{
-		"stacktrace": stacktrace,
-		"error":      fmt.Sprintf("%+v", v),
+func traceFields(r *http.Request) log.Fields {
+	fields := log.Fields{}
+	span := trace.SpanFromContext(r.Context())
+	if span.SpanContext().HasTraceID() {
+		fields["trace_id"] = span.SpanContext().TraceID().String()
+	} else {
+		fields["correlation_id"] = middleware.GetReqID(r.Context())
 	}
 
-	l.Logger = l.Logger.WithFields(fields)
-}
-
-func statusLabel(status int) string {
-	switch {
-	case status >= 100 && status < 300:
-		return "OK"
-	case status >= 300 && status < 400:
-		return "Redirect"
-	case status >= 400 && status < 500:
-		return "Client Error"
-	case status >= 500:
-		return "Server Error"
-	default:
-		return "Unknown"
-	}
+	return fields
 }
 
 func nonEmptyRequestCookies(r *http.Request) string {

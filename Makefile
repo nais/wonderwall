@@ -10,7 +10,7 @@ local: fmt
 	  --bind-address=127.0.0.1:3000 \
 	  --upstream-host=localhost:4000 \
 	  --redis.uri=redis://localhost:6379 \
-	  --log-level=debug \
+	  --log-level=info \
 	  --log-format=text
 
 test: fmt

@@ -52,7 +52,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 	providerName := string(cfg.OpenID.Provider)
 	ingressMw := middleware.Ingress(src)
 	prometheus := middleware.Prometheus(providerName)
-	logentry := middleware.LogEntry(providerName)
+	logger := middleware.Logger(providerName)
 
 	r := chi.NewRouter()
 	if cfg.OpenTelemetry.Enabled {
@@ -64,6 +64,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 	r.Use(middleware.CorrelationIDHandler)
 	r.Use(chi_middleware.Recoverer)
 	r.Use(ingressMw.Handler)
+	r.Use(logger.Handler)
 
 	prefixes := src.GetIngresses().Paths()
 
@@ -72,7 +73,6 @@ func New(src Source, cfg *config.Config) chi.Router {
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Use(logentry.Handler)
 		r.Use(prometheus.Handler)
 		r.Use(chi_middleware.NoCache)
 

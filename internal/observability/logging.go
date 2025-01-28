@@ -47,6 +47,7 @@ func SetupLogger(level, format string) error {
 		log.FatalLevel,
 		log.ErrorLevel,
 		log.WarnLevel,
+		log.InfoLevel,
 	)))
 
 	return nil
