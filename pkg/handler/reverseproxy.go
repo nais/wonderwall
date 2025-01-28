@@ -14,7 +14,6 @@ import (
 	"github.com/nais/wonderwall/pkg/handler/acr"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	mw "github.com/nais/wonderwall/pkg/middleware"
-	"github.com/nais/wonderwall/pkg/server"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/url"
 )
@@ -76,7 +75,7 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 				r.Out.Header.Set("X-Wonderwall-Id-Token", idToken)
 			}
 		},
-		Transport: server.DefaultTransport(),
+		Transport: httpinternal.Transport(),
 	}
 	return &ReverseProxy{
 		ReverseProxy: rp,

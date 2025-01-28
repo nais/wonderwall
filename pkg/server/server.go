@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -15,25 +14,6 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 )
-
-var (
-	defaultTransport *http.Transport
-	once             sync.Once
-)
-
-// TODO: use otel to propagate trace_id
-func DefaultTransport() *http.Transport {
-	once.Do(func() {
-		t := http.DefaultTransport.(*http.Transport).Clone()
-		t.MaxIdleConns = 200
-		t.MaxIdleConnsPerHost = 100
-		t.IdleConnTimeout = 5 * time.Second
-
-		defaultTransport = t
-	})
-
-	return defaultTransport
-}
 
 func Start(cfg *config.Config, r chi.Router) error {
 	server := http.Server{

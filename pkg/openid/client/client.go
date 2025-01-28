@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	httpinternal "github.com/nais/wonderwall/internal/http"
+
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -17,7 +19,6 @@ import (
 
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
-	"github.com/nais/wonderwall/pkg/server"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
@@ -55,7 +56,7 @@ func NewClient(cfg openidconfig.Config, jwksProvider JwksProvider) *Client {
 
 	httpClient := &http.Client{
 		Timeout:   time.Second * 10,
-		Transport: server.DefaultTransport(),
+		Transport: httpinternal.Transport(),
 	}
 
 	return &Client{
