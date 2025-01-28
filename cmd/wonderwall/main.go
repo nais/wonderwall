@@ -58,7 +58,9 @@ func run() error {
 			return fmt.Errorf("initializing OpenTelemetry: %w", err)
 		}
 		defer func() {
-			log.Fatalf("fatal: otel shutdown error: %+v", otelShutdown(context.Background()))
+			if err := otelShutdown(ctx); err != nil {
+				log.Fatalf("fatal: otel shutdown error: %+v", err)
+			}
 		}()
 	}
 

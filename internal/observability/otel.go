@@ -2,7 +2,6 @@ package observability
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -16,48 +15,42 @@ import (
 	"go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
-func OpenTelemetry(ctx context.Context, cfg *config.Config) (shutdown func(context.Context) error, err error) {
-	var shutdownFuncs []func(context.Context) error
+const (
+	// How long between each time OT sends something to the collector.
+	batchTimeout = 5 * time.Second
+)
 
-	shutdown = func(ctx context.Context) error {
-		var err error
-		for _, fn := range shutdownFuncs {
-			err = errors.Join(err, fn(ctx))
-		}
-		shutdownFuncs = nil
-		return err
-	}
-
-	handleErr := func(inErr error) {
-		err = errors.Join(inErr, shutdown(ctx))
-	}
+func OpenTelemetry(ctx context.Context, cfg *config.Config) (func(context.Context) error, error) {
+	prop := newPropagator()
+	otel.SetTextMapPropagator(prop)
 
 	res, err := newResource(cfg.OpenTelemetry.ServiceName, cfg.Version)
 	if err != nil {
-		handleErr(err)
-		return
+		return nil, err
 	}
-
-	otel.SetTextMapPropagator(newPropagator())
 
 	tracerProvider, err := newTraceProvider(ctx, res)
 	if err != nil {
-		handleErr(err)
-		return
+		return nil, err
 	}
-	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 	otel.SetTracerProvider(tracerProvider)
 
 	log.Infof("opentelemetry: initialized configuration")
-	return
+	shutdown := func(ctx context.Context) error {
+		return tracerProvider.Shutdown(ctx)
+	}
+	return shutdown, nil
 }
 
 func newResource(serviceName, serviceVersion string) (*resource.Resource, error) {
-	return resource.Merge(resource.Default(),
-		resource.NewWithAttributes(semconv.SchemaURL,
+	return resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
 			semconv.ServiceName(serviceName),
 			semconv.ServiceVersion(serviceVersion),
-		))
+		),
+	)
 }
 
 func newPropagator() propagation.TextMapPropagator {
@@ -74,8 +67,10 @@ func newTraceProvider(ctx context.Context, res *resource.Resource) (*trace.Trace
 	}
 
 	traceProvider := trace.NewTracerProvider(
-		trace.WithBatcher(traceExporter,
-			trace.WithBatchTimeout(5*time.Second)),
+		trace.WithBatcher(
+			traceExporter,
+			trace.WithBatchTimeout(batchTimeout),
+		),
 		trace.WithResource(res),
 	)
 	return traceProvider, nil
