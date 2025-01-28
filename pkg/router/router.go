@@ -3,10 +3,9 @@ package router
 import (
 	"net/http"
 
-	"github.com/riandyrn/otelchi"
-
 	"github.com/go-chi/chi/v5"
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/riandyrn/otelchi"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/ingress"
@@ -56,15 +55,15 @@ func New(src Source, cfg *config.Config) chi.Router {
 	logentry := middleware.LogEntry(providerName)
 
 	r := chi.NewRouter()
-	r.Use(middleware.CorrelationIDHandler)
-	r.Use(chi_middleware.Recoverer)
-	r.Use(ingressMw.Handler)
-
 	if cfg.OpenTelemetry.Enabled {
 		r.Use(otelchi.Middleware(cfg.OpenTelemetry.ServiceName,
 			otelchi.WithChiRoutes(r),
-			otelchi.WithRequestMethodInSpanName(true)))
+			otelchi.WithRequestMethodInSpanName(true),
+		))
 	}
+	r.Use(middleware.CorrelationIDHandler)
+	r.Use(chi_middleware.Recoverer)
+	r.Use(ingressMw.Handler)
 
 	prefixes := src.GetIngresses().Paths()
 

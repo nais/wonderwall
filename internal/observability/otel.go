@@ -6,6 +6,7 @@ import (
 
 	"github.com/nais/wonderwall/pkg/config"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -13,12 +14,19 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/semconv/v1.26.0"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 const (
 	// How long between each time OT sends something to the collector.
 	batchTimeout = 5 * time.Second
 )
+
+var tracer = noop.NewTracerProvider().Tracer("noop")
+
+func Tracer() oteltrace.Tracer {
+	return tracer
+}
 
 func OpenTelemetry(ctx context.Context, cfg *config.Config) (func(context.Context) error, error) {
 	prop := newPropagator()
@@ -34,6 +42,7 @@ func OpenTelemetry(ctx context.Context, cfg *config.Config) (func(context.Contex
 		return nil, err
 	}
 	otel.SetTracerProvider(tracerProvider)
+	tracer = tracerProvider.Tracer("wonderwall")
 
 	log.Infof("opentelemetry: initialized configuration")
 	shutdown := func(ctx context.Context) error {

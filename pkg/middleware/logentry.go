@@ -78,7 +78,9 @@ func (l *requestLogger) NewLogEntry(r *http.Request) *requestLoggerEntry {
 		"request_user_agent":      r.UserAgent(),
 	}
 
-	entry.Logger = l.Logger.WithFields(fields)
+	entry.Logger = l.Logger.
+		WithContext(r.Context()).
+		WithFields(fields)
 	return entry
 }
 

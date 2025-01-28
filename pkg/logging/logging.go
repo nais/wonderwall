@@ -5,6 +5,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
 )
 
 func TextFormatter() log.Formatter {
@@ -38,6 +39,15 @@ func Setup(level, format string) error {
 
 	log.SetLevel(logLevel)
 	log.Tracef("Trace logging enabled")
+
+	// Add OpenTelemetry logging hook.
+	// This attaches logs to the associated span in the given log context as events.
+	log.AddHook(otellogrus.NewHook(otellogrus.WithLevels(
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+		log.WarnLevel,
+	)))
 
 	return nil
 }
