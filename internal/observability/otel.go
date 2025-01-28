@@ -5,6 +5,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
 	"go.opentelemetry.io/otel/trace/noop"
 
 	"go.opentelemetry.io/otel"
@@ -47,6 +48,17 @@ func SetupOpenTelemetry(ctx context.Context, serviceName, version string) (func(
 	shutdown := func(ctx context.Context) error {
 		return tracerProvider.Shutdown(ctx)
 	}
+
+	// Add OpenTelemetry logging hook to logrus.
+	// This attaches logs to the associated span in the given log context as events.
+	log.AddHook(otellogrus.NewHook(otellogrus.WithLevels(
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+		log.WarnLevel,
+		log.InfoLevel,
+	)))
+
 	return shutdown, nil
 }
 
