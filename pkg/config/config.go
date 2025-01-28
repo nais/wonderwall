@@ -13,7 +13,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/nais/wonderwall/pkg/logging"
+	"github.com/nais/wonderwall/internal/observability"
 )
 
 type Config struct {
@@ -105,7 +105,7 @@ func Initialize() (*Config, error) {
 
 	level := viper.GetString(LogLevel)
 	format := viper.GetString(LogFormat)
-	if err := logging.Setup(level, format); err != nil {
+	if err := observability.SetupLogger(level, format); err != nil {
 		return nil, err
 	}
 

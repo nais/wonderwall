@@ -1,4 +1,4 @@
-package logging
+package observability
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
 )
 
-func TextFormatter() log.Formatter {
+func textFormatter() log.Formatter {
 	return &log.TextFormatter{
 		DisableTimestamp: false,
 		FullTimestamp:    true,
@@ -16,18 +16,18 @@ func TextFormatter() log.Formatter {
 	}
 }
 
-func JsonFormatter() log.Formatter {
+func jsonFormatter() log.Formatter {
 	return &log.JSONFormatter{
 		TimestampFormat: time.RFC3339Nano,
 	}
 }
 
-func Setup(level, format string) error {
+func SetupLogger(level, format string) error {
 	switch format {
 	case "json":
-		log.SetFormatter(JsonFormatter())
+		log.SetFormatter(jsonFormatter())
 	case "text":
-		log.SetFormatter(TextFormatter())
+		log.SetFormatter(textFormatter())
 	default:
 		return fmt.Errorf("log format '%s' is not recognized", format)
 	}

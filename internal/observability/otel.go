@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/nais/wonderwall/pkg/config"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace/noop"
 
@@ -28,11 +27,11 @@ func Tracer() oteltrace.Tracer {
 	return tracer
 }
 
-func OpenTelemetry(ctx context.Context, cfg *config.Config) (func(context.Context) error, error) {
+func SetupOpenTelemetry(ctx context.Context, serviceName, version string) (func(context.Context) error, error) {
 	prop := newPropagator()
 	otel.SetTextMapPropagator(prop)
 
-	res, err := newResource(cfg.OpenTelemetry.ServiceName, cfg.Version)
+	res, err := newResource(serviceName, version)
 	if err != nil {
 		return nil, err
 	}
