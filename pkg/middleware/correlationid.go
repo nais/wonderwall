@@ -6,6 +6,7 @@ import (
 
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func CorrelationIDHandler(next http.Handler) http.Handler {
@@ -16,6 +17,11 @@ func CorrelationIDHandler(next http.Handler) http.Handler {
 		}
 
 		ctx := r.Context()
+		span := trace.SpanFromContext(ctx)
+		if span.SpanContext().HasTraceID() {
+			id = span.SpanContext().TraceID().String()
+		}
+
 		ctx = context.WithValue(ctx, chi_middleware.RequestIDKey, id)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
