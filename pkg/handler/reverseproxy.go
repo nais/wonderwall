@@ -41,7 +41,7 @@ func NewUpstreamProxy(upstream *urllib.URL, enableAccessLogs bool, includeIdToke
 func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *ReverseProxy {
 	rp := &httputil.ReverseProxy{
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			logger := mw.LogEntryFrom(r)
+			logger := mw.LogEntryFrom(r).WithFields(httpinternal.Attributes(r))
 
 			if errors.Is(err, context.Canceled) {
 				w.WriteHeader(499)
@@ -83,7 +83,7 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 }
 
 func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r *http.Request) {
-	logger := mw.LogEntryFrom(r)
+	logger := mw.LogEntryFrom(r).WithFields(httpinternal.Attributes(r))
 	isAuthenticated := false
 
 	sess, accessToken, err := getSessionWithValidToken(src, r)

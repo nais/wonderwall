@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	log "github.com/sirupsen/logrus"
 
+	httpinternal "github.com/nais/wonderwall/internal/http"
 	"github.com/nais/wonderwall/pkg/cookie"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
@@ -69,7 +70,7 @@ func (s *Standalone) Retry(r *http.Request, loginCookie *openid.LoginCookie) str
 }
 
 func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level log.Level) {
-	logger := mw.LogEntryFrom(r)
+	logger := mw.LogEntryFrom(r).WithFields(httpinternal.Attributes(r))
 	msg := "error in route: %+v"
 
 	incrementRetryAttempt(w, r, s.GetCookieOptions(r))

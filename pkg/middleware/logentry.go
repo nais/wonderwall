@@ -36,6 +36,7 @@ func LogEntryFrom(r *http.Request) *log.Entry {
 	}
 
 	return log.NewEntry(log.StandardLogger()).
+		WithField("fallback_logger", true).
 		WithFields(httpinternal.Attributes(r)).
 		WithFields(traceFields(r))
 }
