@@ -131,15 +131,18 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	span.SetAttributes(attribute.Bool("session.authenticated", isAuthenticated))
 
 	if src.GetAutoLogin().NeedsLogin(r, isAuthenticated) {
+		span.SetAttributes(attribute.Bool("proxy.needs_autologin", true))
 		handleAutologin(src, w, r, logger)
 		return
 	}
 
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
+		span.SetAttributes(attribute.Bool("proxy.with_access_token", true))
 		if rp.IncludeIdToken && sess != nil {
 			idToken := sess.IDToken()
 			ctx = mw.WithIdToken(ctx, idToken)
+			span.SetAttributes(attribute.Bool("proxy.with_id_token", true))
 		}
 
 		if rp.EnableAccessLogs && isRelevantAccessLog(r) {
@@ -167,6 +170,8 @@ func getSessionWithValidToken(src ReverseProxySource, r *http.Request) (*session
 }
 
 func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Request, logger *logrus.Entry) {
+	r, span := otel.StartSpanFromRequest(r, "ReverseProxy.handleAutologin")
+	defer span.End()
 	path := src.GetPath(r)
 
 	loginURL := func(redirectTarget, message string) string {
@@ -177,6 +182,8 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 			"redirect_after_login": redirectTarget,
 			"login_url":            loginURL,
 		}).Infof("default: unauthenticated: autologin: %s", message)
+		span.SetAttributes(attribute.String("redirect_after_login", redirectTarget))
+		span.SetAttributes(attribute.String("login_url", loginURL))
 
 		return loginURL
 	}
