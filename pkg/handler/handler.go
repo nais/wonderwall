@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
@@ -120,6 +122,9 @@ func (s *Standalone) GetSession(r *http.Request) (*session.Session, error) {
 }
 
 func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
+	r, span := otel.StartSpanFromRequest(r, "Standalone.Login")
+	defer span.End()
+
 	canonicalRedirect := s.Redirect.Canonical(r)
 	login, err := s.Client.Login(r)
 	if err != nil {
@@ -131,6 +136,8 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 		"redirect_after_login": canonicalRedirect,
 	})
 	logger := mw.LogEntryFrom(r).WithFields(fields)
+	span.SetAttributes(attribute.String("login.redirect_after", canonicalRedirect))
+	span.SetAttributes(attribute.String("login.state", login.State))
 
 	if prompt := login.Prompt; prompt != "" {
 		logger.Infof("login: prompt='%s'; clearing local session...", prompt)
@@ -183,6 +190,10 @@ func (s *Standalone) applyLoginRateLimit(w http.ResponseWriter, r *http.Request,
 		return nil
 	}
 
+	r, span := otel.StartSpanFromRequest(r, "Standalone.applyLoginRateLimit")
+	defer span.End()
+	span.SetAttributes(attribute.Bool("login.rate_limited", false))
+
 	// skip user agents without existing sessions
 	sess, _ := s.SessionManager.Get(r)
 	if sess == nil {
@@ -202,8 +213,11 @@ func (s *Standalone) applyLoginRateLimit(w http.ResponseWriter, r *http.Request,
 
 	maxAttempts := s.Config.RateLimit.Logins
 	window := s.Config.RateLimit.Window
+	span.SetAttributes(attribute.Int("login.max_attempts", maxAttempts))
 
 	if attempts >= maxAttempts {
+		span.SetAttributes(attribute.Int("login.attempts", attempts))
+		span.SetAttributes(attribute.Bool("login.rate_limited", true))
 		logger.Infof("login/ratelimit: reached %d recent attempts; applying timeout with expiry after %s", maxAttempts, window)
 		return fmt.Errorf("login/ratelimit: exceeded %d recent attempts", maxAttempts)
 	}
@@ -212,10 +226,14 @@ func (s *Standalone) applyLoginRateLimit(w http.ResponseWriter, r *http.Request,
 	c = cookie.Make(cookie.LoginCount, strconv.Itoa(attempts), opts)
 	c.MaxAge = int(window.Seconds())
 	cookie.Set(w, c)
+	span.SetAttributes(attribute.Int("login.attempts", attempts))
 	return nil
 }
 
 func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
+	r, span := otel.StartSpanFromRequest(r, "Standalone.LoginCallback")
+	defer span.End()
+
 	opts := s.GetCookieOptions(r)
 	logger := mw.LogEntryFrom(r)
 
@@ -265,26 +283,34 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 		"redirect_to": redirect,
 		"sid":         sess.ExternalSessionID(),
 	}
+	span.SetAttributes(attribute.String("login.redirect_to", redirect))
+	span.SetAttributes(attribute.String("login.state", loginCookie.State))
 
 	if acr := tokens.IDToken.Acr(); acr != "" {
 		fields["acr"] = acr
+		span.SetAttributes(attribute.String("login.acr", acr))
 	}
 
 	amr := tokens.IDToken.Amr()
 	if amr != "" {
 		fields["amr"] = amr
+		span.SetAttributes(attribute.String("login.amr", amr))
 	}
 
 	if authTime := tokens.IDToken.AuthTime(); !authTime.IsZero() {
-		fields["auth_time"] = authTime.Format(time.RFC3339)
+		formatted := authTime.Format(time.RFC3339)
+		fields["auth_time"] = formatted
+		span.SetAttributes(attribute.String("login.auth_time", formatted))
 	}
 
 	if locale := tokens.IDToken.Locale(); locale != "" {
 		fields["locale"] = locale
+		span.SetAttributes(attribute.String("login.locale", locale))
 	}
 
 	if oid := tokens.IDToken.Oid(); oid != "" {
 		fields["oid"] = oid
+		span.SetAttributes(attribute.String("login.oid", oid))
 	}
 
 	logger.WithFields(fields).Info("callback: successful login")
@@ -294,6 +320,9 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) Logout(w http.ResponseWriter, r *http.Request) {
+	r, span := otel.StartSpanFromRequest(r, "Standalone.Logout")
+	defer span.End()
+
 	logger := mw.LogEntryFrom(r)
 	logout, err := s.Client.Logout(r)
 	if err != nil {
@@ -333,6 +362,7 @@ func (s *Standalone) Logout(w http.ResponseWriter, r *http.Request) {
 
 	logger.WithField("redirect_after_logout", canonicalRedirect).
 		Info("logout: redirecting to identity provider for global/single-logout")
+	span.SetAttributes(attribute.String("logout.redirect_after", canonicalRedirect))
 	metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
 	http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusFound)
 }
@@ -360,6 +390,8 @@ func (s *Standalone) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
+	r, span := otel.StartSpanFromRequest(r, "Standalone.LogoutCallback")
+	defer span.End()
 	logger := mw.LogEntryFrom(r)
 	cookie.Clear(w, cookie.Logout, s.CookieOptions)
 
@@ -373,10 +405,12 @@ func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	logger.Infof("logout/callback: redirecting to %q", redirect)
+	span.SetAttributes(attribute.String("logout.redirect_to", redirect))
 	http.Redirect(w, r, redirect, http.StatusFound)
 }
 
 func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
+	r, span := otel.StartSpanFromRequest(r, "Standalone.LogoutFrontChannel")
 	logger := mw.LogEntryFrom(r)
 
 	// Unconditionally destroy all local references to the session.
@@ -384,6 +418,7 @@ func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) 
 
 	lfc := s.Client.LogoutFrontchannel(r)
 	if lfc.MissingSidParameter() {
+		span.SetAttributes(attribute.Bool("logout.frontchannel.missing_sid_parameter", true))
 		logger.Debugf("front-channel logout: sid parameter not found in request; ignoring")
 		w.WriteHeader(http.StatusAccepted)
 		return
