@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redis/go-redis/v9"
-
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/metrics"
+	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type redisSessionStore struct {
@@ -24,11 +25,16 @@ func NewRedis(client redis.Cmdable) Store {
 }
 
 func (s *redisSessionStore) Read(ctx context.Context, key string) (*EncryptedData, error) {
+	ctx, span := otel.StartSpan(ctx, "RedisSessionStore.Read")
+	defer span.End()
+	span.SetAttributes(attribute.Bool("redis.key_exists", false))
+
 	encryptedData := &EncryptedData{}
 	err := metrics.ObserveRedisLatency(metrics.RedisOperationRead, func() error {
 		return s.client.Get(ctx, key).Scan(encryptedData)
 	})
 	if err == nil {
+		span.SetAttributes(attribute.Bool("redis.key_exists", true))
 		return encryptedData, nil
 	}
 
@@ -40,6 +46,10 @@ func (s *redisSessionStore) Read(ctx context.Context, key string) (*EncryptedDat
 }
 
 func (s *redisSessionStore) Write(ctx context.Context, key string, value *EncryptedData, expiration time.Duration) error {
+	ctx, span := otel.StartSpan(ctx, "RedisSessionStore.Write")
+	defer span.End()
+	span.SetAttributes(attribute.String("redis.key_expiry", expiration.String()))
+
 	err := metrics.ObserveRedisLatency(metrics.RedisOperationWrite, func() error {
 		return s.client.Set(ctx, key, value, expiration).Err()
 	})
@@ -51,6 +61,9 @@ func (s *redisSessionStore) Write(ctx context.Context, key string, value *Encryp
 }
 
 func (s *redisSessionStore) Delete(ctx context.Context, keys ...string) error {
+	ctx, span := otel.StartSpan(ctx, "RedisSessionStore.Delete")
+	defer span.End()
+
 	err := metrics.ObserveRedisLatency(metrics.RedisOperationDelete, func() error {
 		return s.client.Del(ctx, keys...).Err()
 	})
@@ -66,6 +79,9 @@ func (s *redisSessionStore) Delete(ctx context.Context, keys ...string) error {
 }
 
 func (s *redisSessionStore) Update(ctx context.Context, key string, value *EncryptedData) error {
+	ctx, span := otel.StartSpan(ctx, "RedisSessionStore.Update")
+	defer span.End()
+
 	_, err := s.Read(ctx, key)
 	if err != nil {
 		return err

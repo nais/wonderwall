@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/bsm/redislock"
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -37,6 +39,11 @@ func NewRedisLock(client redis.Cmdable, key string) *RedisLock {
 }
 
 func (r *RedisLock) Acquire(ctx context.Context, duration time.Duration) error {
+	ctx, span := otel.StartSpan(ctx, "RedisLock.Acquire")
+	defer span.End()
+	span.SetAttributes(attribute.String("redis.lock_duration", duration.String()))
+	span.SetAttributes(attribute.Bool("redis.lock_acquired", false))
+
 	lock, err := r.locker.Obtain(ctx, lockKey(r.key), duration, nil)
 	if errors.Is(err, redislock.ErrNotObtained) {
 		return ErrAcquireLock
@@ -46,10 +53,13 @@ func (r *RedisLock) Acquire(ctx context.Context, duration time.Duration) error {
 	}
 
 	r.lock = lock
+	span.SetAttributes(attribute.Bool("redis.lock_acquired", true))
 	return nil
 }
 
 func (r *RedisLock) Release(ctx context.Context) error {
+	ctx, span := otel.StartSpan(ctx, "RedisLock.Release")
+	defer span.End()
 	return r.lock.Release(ctx)
 }
 

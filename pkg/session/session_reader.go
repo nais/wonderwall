@@ -40,10 +40,8 @@ func (in *reader) Get(r *http.Request) (*Session, error) {
 
 	ticket, err := getTicket(r, in.cookieCrypter)
 	if err != nil {
-		span.SetAttributes(attribute.Bool("session.valid_ticket", false))
 		return nil, err
 	}
-	span.SetAttributes(attribute.Bool("session.valid_ticket", true))
 
 	return in.getForTicket(r.Context(), ticket)
 }
