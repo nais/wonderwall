@@ -3,19 +3,22 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	urllib "net/url"
 
-	"github.com/sirupsen/logrus"
-
 	httpinternal "github.com/nais/wonderwall/internal/http"
+	"github.com/nais/wonderwall/internal/observability"
 	"github.com/nais/wonderwall/pkg/handler/acr"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/url"
+	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type ReverseProxySource interface {
@@ -83,30 +86,41 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 }
 
 func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r *http.Request) {
-	logger := mw.LogEntryFrom(r).WithFields(httpinternal.Attributes(r))
-	isAuthenticated := false
+	ctx, span := observability.StartSpan(r.Context(), "ReverseProxy.Handler")
+	defer span.End()
 
+	r = r.WithContext(ctx)
+	logger := mw.LogEntryFrom(r).WithFields(httpinternal.Attributes(r))
+
+	recordUnauthenticatedEvent := func(level logrus.Level, errType string, err error) {
+		logger.WithError(err).Logf(level, "unauthenticated: %+v", err)
+		observability.AddErrorEvent(span, "unauthenticated", errType, err)
+	}
+
+	isAuthenticated := false
 	sess, accessToken, err := getSessionWithValidToken(src, r)
 	switch {
 	case err == nil:
 		// add authentication if session checks out
 		isAuthenticated = true
 	case errors.Is(err, context.Canceled):
-		logger.Debugf("default: unauthenticated: %+v (client disconnected before we could respond)", err)
+		recordUnauthenticatedEvent(logrus.DebugLevel, "context.Canceled", fmt.Errorf("client disconnected before we could respond: %w", err))
 	case errors.Is(err, session.ErrInvalidExternal):
-		logger.Warnf("default: unauthenticated: %+v", err)
+		recordUnauthenticatedEvent(logrus.WarnLevel, "session.ErrInvalidExternal", err)
 	case errors.Is(err, session.ErrNotFound):
-		logger.Debugf("default: unauthenticated: %+v", err)
+		recordUnauthenticatedEvent(logrus.DebugLevel, "session.ErrNotFound", err)
 	case errors.Is(err, session.ErrInvalid):
-		logger.Infof("default: unauthenticated: %+v", err)
+		recordUnauthenticatedEvent(logrus.InfoLevel, "session.ErrInvalid", err)
 	default:
-		logger.Errorf("default: unauthenticated: unexpected error: %+v", err)
+		recordUnauthenticatedEvent(logrus.ErrorLevel, "unexpected", fmt.Errorf("unexpected error: %w", err))
+		span.SetStatus(codes.Error, err.Error())
 	}
 
-	ctx := r.Context()
+	ctx = r.Context()
 	if sess != nil {
 		if sid := sess.ExternalSessionID(); sid != "" {
 			logger = logger.WithField("sid", sid)
+			span.SetAttributes(attribute.String("wonderwall.session.id", sid))
 		}
 	}
 
@@ -115,6 +129,8 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		isAuthenticated = false
 		logger.Infof("default: unauthenticated: acr: %+v; checking for autologin...", err)
 	}
+
+	span.SetAttributes(attribute.Bool("wonderwall.session.authenticated", isAuthenticated))
 
 	if src.GetAutoLogin().NeedsLogin(r, isAuthenticated) {
 		handleAutologin(src, w, r, logger)

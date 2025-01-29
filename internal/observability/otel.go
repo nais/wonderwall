@@ -25,10 +25,7 @@ const (
 
 var tracer = noop.NewTracerProvider().Tracer("noop")
 
-func Tracer() oteltrace.Tracer {
-	return tracer
-}
-
+// TODO: add test for this
 func SetupOpenTelemetry(ctx context.Context, attributes OtelResourceAttributes) (func(context.Context), error) {
 	prop := newPropagator()
 	otel.SetTextMapPropagator(prop)
@@ -62,6 +59,21 @@ func SetupOpenTelemetry(ctx context.Context, attributes OtelResourceAttributes) 
 	)))
 
 	return shutdown, nil
+}
+
+func StartSpan(ctx context.Context, spanName string) (context.Context, oteltrace.Span) {
+	return tracer.Start(ctx, spanName)
+}
+
+func AddEvent(span oteltrace.Span, eventName string, attrs ...attribute.KeyValue) {
+	span.AddEvent(eventName, oteltrace.WithAttributes(attrs...))
+}
+
+func AddErrorEvent(span oteltrace.Span, eventName, errType string, err error) {
+	AddEvent(span, eventName,
+		semconv.ExceptionTypeKey.String(errType),
+		semconv.ExceptionMessageKey.String(err.Error()),
+	)
 }
 
 type OtelResourceAttributes struct {
