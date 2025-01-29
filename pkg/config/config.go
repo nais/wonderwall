@@ -13,7 +13,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/nais/wonderwall/internal/observability"
+	"github.com/nais/wonderwall/internal/o11y/logging"
 )
 
 type Config struct {
@@ -105,7 +105,7 @@ func Initialize() (*Config, error) {
 
 	level := viper.GetString(LogLevel)
 	format := viper.GetString(LogFormat)
-	if err := observability.SetupLogger(level, format); err != nil {
+	if err := logging.Setup(level, format); err != nil {
 		return nil, err
 	}
 
@@ -182,18 +182,6 @@ func (c *Config) validateUpstream() error {
 	}
 
 	return nil
-}
-
-func (c *Config) OtelResourceAttributes() observability.OtelResourceAttributes {
-	return observability.OtelResourceAttributes{
-		ServiceName:         c.OpenTelemetry.ServiceName,
-		ServiceVersion:      c.Version,
-		IdentityProvider:    string(c.OpenID.Provider),
-		IdentityProviderURL: c.OpenID.WellKnownURL,
-		AutoLoginEnabled:    c.AutoLogin,
-		SSOEnabled:          c.SSO.Enabled,
-		SSOMode:             string(c.SSO.Mode),
-	}
 }
 
 func resolveUpstream() {

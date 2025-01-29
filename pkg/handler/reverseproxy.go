@@ -10,7 +10,7 @@ import (
 	urllib "net/url"
 
 	httpinternal "github.com/nais/wonderwall/internal/http"
-	"github.com/nais/wonderwall/internal/observability"
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/handler/acr"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	mw "github.com/nais/wonderwall/pkg/middleware"
@@ -86,15 +86,15 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 }
 
 func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r *http.Request) {
-	ctx, span := observability.StartSpan(r.Context(), "ReverseProxy.Handler")
+	ctx, span := otel.StartSpan(r.Context(), "ReverseProxy.Handler")
 	defer span.End()
 
 	r = r.WithContext(ctx)
 	logger := mw.LogEntryFrom(r).WithFields(httpinternal.Attributes(r))
 
-	recordUnauthenticatedEvent := func(level logrus.Level, errType string, err error) {
+	unauthenticatedEvent := func(level logrus.Level, errType string, err error) {
 		logger.WithError(err).Logf(level, "unauthenticated: %+v", err)
-		observability.AddErrorEvent(span, "unauthenticated", errType, err)
+		otel.AddErrorEvent(span, "unauthenticated", errType, err)
 	}
 
 	isAuthenticated := false
@@ -104,15 +104,15 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		// add authentication if session checks out
 		isAuthenticated = true
 	case errors.Is(err, context.Canceled):
-		recordUnauthenticatedEvent(logrus.DebugLevel, "context.Canceled", fmt.Errorf("client disconnected before we could respond: %w", err))
+		unauthenticatedEvent(logrus.DebugLevel, "context.Canceled", fmt.Errorf("client disconnected before we could respond: %w", err))
 	case errors.Is(err, session.ErrInvalidExternal):
-		recordUnauthenticatedEvent(logrus.WarnLevel, "session.ErrInvalidExternal", err)
+		unauthenticatedEvent(logrus.WarnLevel, "session.ErrInvalidExternal", err)
 	case errors.Is(err, session.ErrNotFound):
-		recordUnauthenticatedEvent(logrus.DebugLevel, "session.ErrNotFound", err)
+		unauthenticatedEvent(logrus.DebugLevel, "session.ErrNotFound", err)
 	case errors.Is(err, session.ErrInvalid):
-		recordUnauthenticatedEvent(logrus.InfoLevel, "session.ErrInvalid", err)
+		unauthenticatedEvent(logrus.InfoLevel, "session.ErrInvalid", err)
 	default:
-		recordUnauthenticatedEvent(logrus.ErrorLevel, "unexpected", fmt.Errorf("unexpected error: %w", err))
+		unauthenticatedEvent(logrus.ErrorLevel, "unexpected", fmt.Errorf("unexpected error: %w", err))
 		span.SetStatus(codes.Error, err.Error())
 	}
 

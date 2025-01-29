@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	_ "github.com/KimMachineGun/automemlimit"
-	"github.com/nais/wonderwall/internal/observability"
 	log "github.com/sirupsen/logrus"
 	_ "go.uber.org/automaxprocs"
 
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/crypto"
@@ -53,7 +53,7 @@ func run() error {
 	}
 
 	if cfg.OpenTelemetry.Enabled {
-		otelShutdown, err := observability.SetupOpenTelemetry(ctx, cfg.OtelResourceAttributes())
+		otelShutdown, err := otel.Setup(ctx, cfg)
 		if err != nil {
 			return fmt.Errorf("initializing OpenTelemetry: %w", err)
 		}

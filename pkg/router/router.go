@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/riandyrn/otelchi"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -61,7 +62,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 			otelchi.WithChiRoutes(r),
 			otelchi.WithRequestMethodInSpanName(true),
 		))
-		r.Use(middleware.Tracing)
+		r.Use(otel.Middleware)
 	}
 	r.Use(chi_middleware.Recoverer)
 	r.Use(ingressMw.Handler)

@@ -1,21 +1,21 @@
-package observability
+package otel
 
 import (
 	"context"
 	"time"
 
+	"github.com/nais/wonderwall/pkg/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace/noop"
-
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/sdk/trace"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/semconv/v1.26.0"
-	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 const (
@@ -25,12 +25,11 @@ const (
 
 var tracer = noop.NewTracerProvider().Tracer("noop")
 
-// TODO: add test for this
-func SetupOpenTelemetry(ctx context.Context, attributes OtelResourceAttributes) (func(context.Context), error) {
+func Setup(ctx context.Context, cfg *config.Config) (func(context.Context), error) {
 	prop := newPropagator()
 	otel.SetTextMapPropagator(prop)
 
-	res, err := newResource(attributes.KeyValues())
+	res, err := newResource(attributesFrom(cfg))
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +39,7 @@ func SetupOpenTelemetry(ctx context.Context, attributes OtelResourceAttributes) 
 		return nil, err
 	}
 	otel.SetTracerProvider(tracerProvider)
-	tracer = tracerProvider.Tracer(attributes.ServiceName)
+	tracer = tracerProvider.Tracer(cfg.OpenTelemetry.ServiceName)
 
 	log.Infof("opentelemetry: initialized configuration")
 	shutdown := func(ctx context.Context) {
@@ -61,42 +60,28 @@ func SetupOpenTelemetry(ctx context.Context, attributes OtelResourceAttributes) 
 	return shutdown, nil
 }
 
-func StartSpan(ctx context.Context, spanName string) (context.Context, oteltrace.Span) {
+func StartSpan(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	return tracer.Start(ctx, spanName)
 }
 
-func AddEvent(span oteltrace.Span, eventName string, attrs ...attribute.KeyValue) {
-	span.AddEvent(eventName, oteltrace.WithAttributes(attrs...))
-}
-
-func AddErrorEvent(span oteltrace.Span, eventName, errType string, err error) {
-	AddEvent(span, eventName,
+func AddErrorEvent(span trace.Span, eventName, errType string, err error) {
+	span.AddEvent(eventName, trace.WithAttributes(
 		semconv.ExceptionTypeKey.String(errType),
 		semconv.ExceptionMessageKey.String(err.Error()),
-	)
+	))
 }
 
-type OtelResourceAttributes struct {
-	ServiceName         string
-	ServiceVersion      string
-	IdentityProvider    string
-	IdentityProviderURL string
-	AutoLoginEnabled    bool
-	SSOEnabled          bool
-	SSOMode             string
-}
-
-func (a OtelResourceAttributes) KeyValues() []attribute.KeyValue {
+func attributesFrom(cfg *config.Config) []attribute.KeyValue {
 	attrs := []attribute.KeyValue{
-		semconv.ServiceName(a.ServiceName),
-		semconv.ServiceVersion(a.ServiceVersion),
-		attribute.String("wonderwall.identity_provider.name", a.IdentityProvider),
-		attribute.String("wonderwall.identity_provider.url", a.IdentityProviderURL),
-		attribute.Bool("wonderwall.autologin", a.AutoLoginEnabled),
-		attribute.Bool("wonderwall.sso", a.SSOEnabled),
+		semconv.ServiceName(cfg.OpenTelemetry.ServiceName),
+		semconv.ServiceVersion(cfg.Version),
+		attribute.String("wonderwall.identity_provider.name", string(cfg.OpenID.Provider)),
+		attribute.String("wonderwall.identity_provider.url", cfg.OpenID.WellKnownURL),
+		attribute.Bool("wonderwall.autologin", cfg.AutoLogin),
+		attribute.Bool("wonderwall.sso", cfg.SSO.Enabled),
 	}
-	if a.SSOEnabled {
-		attrs = append(attrs, attribute.String("wonderwall.sso.mode", a.SSOMode))
+	if cfg.SSO.Enabled {
+		attrs = append(attrs, attribute.String("wonderwall.sso.mode", string(cfg.SSO.Mode)))
 	}
 	return attrs
 }
@@ -118,18 +103,18 @@ func newPropagator() propagation.TextMapPropagator {
 	)
 }
 
-func newTraceProvider(ctx context.Context, res *resource.Resource) (*trace.TracerProvider, error) {
+func newTraceProvider(ctx context.Context, res *resource.Resource) (*tracesdk.TracerProvider, error) {
 	traceExporter, err := otlptracegrpc.New(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	traceProvider := trace.NewTracerProvider(
-		trace.WithBatcher(
+	traceProvider := tracesdk.NewTracerProvider(
+		tracesdk.WithBatcher(
 			traceExporter,
-			trace.WithBatchTimeout(batchTimeout),
+			tracesdk.WithBatchTimeout(batchTimeout),
 		),
-		trace.WithResource(res),
+		tracesdk.WithResource(res),
 	)
 	return traceProvider, nil
 }

@@ -1,4 +1,4 @@
-package middleware
+package otel
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func Tracing(next http.Handler) http.Handler {
+func Middleware(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		span := trace.SpanFromContext(ctx)
@@ -36,5 +36,6 @@ func Tracing(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		}
 	}
+
 	return http.HandlerFunc(fn)
 }

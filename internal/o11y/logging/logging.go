@@ -1,4 +1,4 @@
-package observability
+package logging
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ func jsonFormatter() log.Formatter {
 	}
 }
 
-func SetupLogger(level, format string) error {
+func Setup(level, format string) error {
 	switch format {
 	case "json":
 		log.SetFormatter(jsonFormatter())
