@@ -14,7 +14,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/semconv/v1.26.0"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -24,11 +23,11 @@ const (
 
 var tracer = noop.NewTracerProvider().Tracer("noop")
 
-func Tracer() oteltrace.Tracer {
-	return tracer
-}
+//func Tracer() oteltrace.Tracer {
+//	return tracer
+//}
 
-func SetupOpenTelemetry(ctx context.Context, serviceName, version string) (func(context.Context) error, error) {
+func SetupOpenTelemetry(ctx context.Context, serviceName, version string) (func(context.Context), error) {
 	prop := newPropagator()
 	otel.SetTextMapPropagator(prop)
 
@@ -45,8 +44,10 @@ func SetupOpenTelemetry(ctx context.Context, serviceName, version string) (func(
 	tracer = tracerProvider.Tracer("wonderwall")
 
 	log.Infof("opentelemetry: initialized configuration")
-	shutdown := func(ctx context.Context) error {
-		return tracerProvider.Shutdown(ctx)
+	shutdown := func(ctx context.Context) {
+		if err := tracerProvider.Shutdown(ctx); err != nil {
+			log.Fatalf("fatal: otel shutdown error: %+v", err)
+		}
 	}
 
 	// Add OpenTelemetry logging hook to logrus.
