@@ -18,12 +18,11 @@ func Middleware(next http.Handler) http.Handler {
 
 		attrs := httpinternal.Attributes(r)
 		for k, v := range attrs {
-			attrKey := "wonderwall." + k
 			switch v := v.(type) {
 			case bool:
-				span.SetAttributes(attribute.Bool(attrKey, v))
+				span.SetAttributes(attribute.Bool(k, v))
 			default:
-				span.SetAttributes(attribute.String(attrKey, fmt.Sprint(v)))
+				span.SetAttributes(attribute.String(k, fmt.Sprint(v)))
 			}
 		}
 

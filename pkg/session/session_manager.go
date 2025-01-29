@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
 	mw "github.com/nais/wonderwall/pkg/middleware"
@@ -14,6 +15,7 @@ import (
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/retry"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -54,6 +56,10 @@ func NewManager(cfg *config.Config, openidCfg openidconfig.Config, crypter crypt
 }
 
 func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime time.Duration) (*Session, error) {
+	r, span := otel.StartSpanFromRequest(r, "Session.Create")
+	defer span.End()
+	span.SetAttributes(attribute.Bool("session.created", false))
+
 	externalSessionID, err := ExternalID(r, in.openidCfg.Provider(), tokens.IDToken)
 	if err != nil {
 		return nil, fmt.Errorf("generating session ID: %w", err)
@@ -86,19 +92,32 @@ func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetim
 		return nil, fmt.Errorf("writing to store: %w", err)
 	}
 
-	return NewSession(data, ticket), nil
+	sess := NewSession(data, ticket)
+	span.SetAttributes(attribute.Bool("session.created", true))
+	span.SetAttributes(attribute.String("session.id", sess.ExternalSessionID()))
+	return sess, nil
 }
 
 func (in *manager) Delete(ctx context.Context, session *Session) error {
+	ctx, span := otel.StartSpan(ctx, "Session.Delete")
+	defer span.End()
+	span.SetAttributes(attribute.String("session.id", session.ExternalSessionID()))
 	return in.deleteForKey(ctx, session.key())
 }
 
 func (in *manager) DeleteForExternalID(ctx context.Context, id string) error {
+	ctx, span := otel.StartSpan(ctx, "Session.DeleteForExternalID")
+	defer span.End()
+	span.SetAttributes(attribute.String("session.id", id))
 	key := in.key(id)
 	return in.deleteForKey(ctx, key)
 }
 
 func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
+	r, span := otel.StartSpanFromRequest(r, "Session.GetOrRefresh")
+	defer span.End()
+	span.SetAttributes(attribute.Bool("session.refreshed", false))
+
 	sess, err := in.Get(r)
 	if err != nil {
 		return nil, fmt.Errorf("getting session: %w", err)
@@ -110,6 +129,7 @@ func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
 
 	refreshed, err := in.Refresh(r, sess)
 	if err == nil {
+		span.SetAttributes(attribute.Bool("session.refreshed", true))
 		return refreshed, nil
 	}
 
@@ -125,6 +145,11 @@ func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
 }
 
 func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
+	r, span := otel.StartSpanFromRequest(r, "Session.GetOrRefresh")
+	defer span.End()
+	span.SetAttributes(attribute.Bool("session.refreshed", false))
+	span.SetAttributes(attribute.String("session.id", sess.ExternalSessionID()))
+
 	if !sess.canRefresh() {
 		return sess, nil
 	}
@@ -214,10 +239,15 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 	}
 
 	logger.Info("session: successfully refreshed")
+	span.SetAttributes(attribute.Bool("session.refreshed", true))
 	return sess, nil
 }
 
 func (in *manager) deleteForKey(ctx context.Context, key string) error {
+	ctx, span := otel.StartSpan(ctx, "Session.deleteForKey")
+	defer span.End()
+	span.SetAttributes(attribute.Bool("session.deleted", false))
+
 	if err := retry.Do(ctx, func(ctx context.Context) error {
 		err := in.store.Delete(ctx, key)
 		if err == nil {
@@ -233,6 +263,7 @@ func (in *manager) deleteForKey(ctx context.Context, key string) error {
 		return fmt.Errorf("deleting from store: %w", err)
 	}
 
+	span.SetAttributes(attribute.Bool("session.deleted", true))
 	return nil
 }
 

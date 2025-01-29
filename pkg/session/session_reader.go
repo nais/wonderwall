@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/retry"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var _ Reader = &reader{}
@@ -33,15 +35,24 @@ func NewReader(cfg *config.Config, cookieCrypter crypto.Crypter) (Reader, error)
 }
 
 func (in *reader) Get(r *http.Request) (*Session, error) {
+	r, span := otel.StartSpanFromRequest(r, "Session.Get")
+	defer span.End()
+
 	ticket, err := getTicket(r, in.cookieCrypter)
 	if err != nil {
+		span.SetAttributes(attribute.Bool("session.valid_ticket", false))
 		return nil, err
 	}
+	span.SetAttributes(attribute.Bool("session.valid_ticket", true))
 
 	return in.getForTicket(r.Context(), ticket)
 }
 
 func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, error) {
+	ctx, span := otel.StartSpan(ctx, "Session.getForTicket")
+	defer span.End()
+	span.SetAttributes(attribute.Bool("session.valid_session", false))
+
 	encrypted, err := retry.DoValue(ctx, func(ctx context.Context) (*EncryptedData, error) {
 		encrypted, err := in.store.Read(ctx, ticket.Key())
 		if errors.Is(err, ErrNotFound) {
@@ -68,5 +79,7 @@ func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, e
 		return sess, err
 	}
 
+	span.SetAttributes(attribute.Bool("session.valid_session", true))
+	span.SetAttributes(attribute.String("session.id", sess.ExternalSessionID()))
 	return sess, nil
 }

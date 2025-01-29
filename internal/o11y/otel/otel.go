@@ -2,6 +2,7 @@ package otel
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -62,6 +63,13 @@ func Setup(ctx context.Context, cfg *config.Config) (func(context.Context), erro
 
 func StartSpan(ctx context.Context, spanName string) (context.Context, trace.Span) {
 	return tracer.Start(ctx, spanName)
+}
+
+// StartSpanFromRequest starts a span from an incoming HTTP request and returns th request with the updated context.
+func StartSpanFromRequest(r *http.Request, spanName string) (*http.Request, trace.Span) {
+	ctx := r.Context()
+	ctx, span := StartSpan(ctx, spanName)
+	return r.WithContext(ctx), span
 }
 
 func AddErrorEvent(span trace.Span, eventName, errType string, err error) {

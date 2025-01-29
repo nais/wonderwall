@@ -86,10 +86,9 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 }
 
 func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r *http.Request) {
-	ctx, span := otel.StartSpan(r.Context(), "ReverseProxy.Handler")
+	r, span := otel.StartSpanFromRequest(r, "ReverseProxy.Handler")
 	defer span.End()
 
-	r = r.WithContext(ctx)
 	logger := mw.LogEntryFrom(r).WithFields(httpinternal.Attributes(r))
 
 	unauthenticatedEvent := func(level logrus.Level, errType string, err error) {
@@ -116,11 +115,10 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		span.SetStatus(codes.Error, err.Error())
 	}
 
-	ctx = r.Context()
+	ctx := r.Context()
 	if sess != nil {
 		if sid := sess.ExternalSessionID(); sid != "" {
 			logger = logger.WithField("sid", sid)
-			span.SetAttributes(attribute.String("wonderwall.session.id", sid))
 		}
 	}
 
@@ -130,7 +128,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		logger.Infof("default: unauthenticated: acr: %+v; checking for autologin...", err)
 	}
 
-	span.SetAttributes(attribute.Bool("wonderwall.session.authenticated", isAuthenticated))
+	span.SetAttributes(attribute.Bool("session.authenticated", isAuthenticated))
 
 	if src.GetAutoLogin().NeedsLogin(r, isAuthenticated) {
 		handleAutologin(src, w, r, logger)
@@ -149,6 +147,8 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 		}
 	}
 
+	ctx, span = otel.StartSpan(ctx, "ReverseProxy.ServeHTTP")
+	defer span.End()
 	rp.ServeHTTP(w, r.WithContext(ctx))
 }
 
