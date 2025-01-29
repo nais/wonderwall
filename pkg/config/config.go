@@ -184,6 +184,18 @@ func (c *Config) validateUpstream() error {
 	return nil
 }
 
+func (c *Config) OtelResourceAttributes() observability.OtelResourceAttributes {
+	return observability.OtelResourceAttributes{
+		ServiceName:         c.OpenTelemetry.ServiceName,
+		ServiceVersion:      c.Version,
+		IdentityProvider:    string(c.OpenID.Provider),
+		IdentityProviderURL: c.OpenID.WellKnownURL,
+		AutoLoginEnabled:    c.AutoLogin,
+		SSOEnabled:          c.SSO.Enabled,
+		SSOMode:             string(c.SSO.Mode),
+	}
+}
+
 func resolveUpstream() {
 	ip := viper.GetString(UpstreamIP)
 	port := viper.GetInt(UpstreamPort)

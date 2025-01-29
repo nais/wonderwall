@@ -6,6 +6,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace/noop"
 
 	"go.opentelemetry.io/otel"
@@ -14,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/semconv/v1.26.0"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -23,15 +25,15 @@ const (
 
 var tracer = noop.NewTracerProvider().Tracer("noop")
 
-//func Tracer() oteltrace.Tracer {
-//	return tracer
-//}
+func Tracer() oteltrace.Tracer {
+	return tracer
+}
 
-func SetupOpenTelemetry(ctx context.Context, serviceName, version string) (func(context.Context), error) {
+func SetupOpenTelemetry(ctx context.Context, attributes OtelResourceAttributes) (func(context.Context), error) {
 	prop := newPropagator()
 	otel.SetTextMapPropagator(prop)
 
-	res, err := newResource(serviceName, version)
+	res, err := newResource(attributes.KeyValues())
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +43,7 @@ func SetupOpenTelemetry(ctx context.Context, serviceName, version string) (func(
 		return nil, err
 	}
 	otel.SetTracerProvider(tracerProvider)
-	tracer = tracerProvider.Tracer("wonderwall")
+	tracer = tracerProvider.Tracer(attributes.ServiceName)
 
 	log.Infof("opentelemetry: initialized configuration")
 	shutdown := func(ctx context.Context) {
@@ -57,19 +59,42 @@ func SetupOpenTelemetry(ctx context.Context, serviceName, version string) (func(
 		log.FatalLevel,
 		log.ErrorLevel,
 		log.WarnLevel,
-		log.InfoLevel,
 	)))
 
 	return shutdown, nil
 }
 
-func newResource(serviceName, serviceVersion string) (*resource.Resource, error) {
+type OtelResourceAttributes struct {
+	ServiceName         string
+	ServiceVersion      string
+	IdentityProvider    string
+	IdentityProviderURL string
+	AutoLoginEnabled    bool
+	SSOEnabled          bool
+	SSOMode             string
+}
+
+func (a OtelResourceAttributes) KeyValues() []attribute.KeyValue {
+	attrs := []attribute.KeyValue{
+		semconv.ServiceName(a.ServiceName),
+		semconv.ServiceVersion(a.ServiceVersion),
+		attribute.String("wonderwall.identity_provider.name", a.IdentityProvider),
+		attribute.String("wonderwall.identity_provider.url", a.IdentityProviderURL),
+		attribute.Bool("wonderwall.autologin", a.AutoLoginEnabled),
+		attribute.Bool("wonderwall.sso", a.SSOEnabled),
+	}
+	if a.SSOEnabled {
+		attrs = append(attrs, attribute.String("wonderwall.sso.mode", a.SSOMode))
+	}
+	return attrs
+}
+
+func newResource(attributes []attribute.KeyValue) (*resource.Resource, error) {
 	return resource.Merge(
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(serviceVersion),
+			attributes...,
 		),
 	)
 }

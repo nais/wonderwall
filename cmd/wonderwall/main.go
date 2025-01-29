@@ -53,7 +53,7 @@ func run() error {
 	}
 
 	if cfg.OpenTelemetry.Enabled {
-		otelShutdown, err := observability.SetupOpenTelemetry(ctx, cfg.OpenTelemetry.ServiceName, cfg.Version)
+		otelShutdown, err := observability.SetupOpenTelemetry(ctx, cfg.OtelResourceAttributes())
 		if err != nil {
 			return fmt.Errorf("initializing OpenTelemetry: %w", err)
 		}
