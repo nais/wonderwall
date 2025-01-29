@@ -19,7 +19,12 @@ func Tracing(next http.Handler) http.Handler {
 		attrs := httpinternal.Attributes(r)
 		for k, v := range attrs {
 			attrKey := "wonderwall." + k
-			span.SetAttributes(attribute.String(attrKey, fmt.Sprint(v)))
+			switch v := v.(type) {
+			case bool:
+				span.SetAttributes(attribute.Bool(attrKey, v))
+			default:
+				span.SetAttributes(attribute.String(attrKey, fmt.Sprint(v)))
+			}
 		}
 
 		// Override request ID with trace ID if available.
