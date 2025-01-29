@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
 )
 

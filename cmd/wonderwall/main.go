@@ -8,10 +8,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	_ "go.uber.org/automaxprocs"
 
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/metrics"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"

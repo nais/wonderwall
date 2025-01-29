@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/crypto"
 	"github.com/nais/wonderwall/pkg/retry"
 	"go.opentelemetry.io/otel/attribute"
 )

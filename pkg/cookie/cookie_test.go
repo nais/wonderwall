@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/crypto"
 )
 
 var encryptionKey = `G8Roe6AcoBpdr5GhO3cs9iORl4XIC8eq` // 256 bits key

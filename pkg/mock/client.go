@@ -2,8 +2,8 @@ package mock
 
 import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/crypto"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
 )

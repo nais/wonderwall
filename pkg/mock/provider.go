@@ -8,8 +8,8 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/crypto"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 )
 

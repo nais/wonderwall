@@ -8,8 +8,8 @@ import (
 
 	"github.com/nais/liberator/pkg/keygen"
 
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/crypto"
 )
 
 // Ticket contains the user agent's data required to access their associated session.

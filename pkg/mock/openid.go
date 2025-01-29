@@ -20,9 +20,9 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"golang.org/x/oauth2"
 
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
-	"github.com/nais/wonderwall/pkg/crypto"
 	handlerpkg "github.com/nais/wonderwall/pkg/handler"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	scopespkg "github.com/nais/wonderwall/pkg/openid/scopes"

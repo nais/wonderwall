@@ -9,7 +9,7 @@ import (
 	"github.com/nais/liberator/pkg/keygen"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nais/wonderwall/pkg/crypto"
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
 )
