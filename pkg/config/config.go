@@ -205,7 +205,6 @@ func resolveVersion() {
 
 	commit := "unknown"
 	commitDate := time.Now()
-	uncommittedChanges := true
 
 	for _, kv := range info.Settings {
 		switch kv.Key {
@@ -213,12 +212,6 @@ func resolveVersion() {
 			commit = kv.Value
 		case "vcs.time":
 			commitDate, _ = time.Parse(time.RFC3339, kv.Value)
-		case "vcs.modified":
-			if kv.Value == "true" {
-				uncommittedChanges = true
-			} else if kv.Value == "false" {
-				uncommittedChanges = false
-			}
 		}
 	}
 
@@ -227,10 +220,6 @@ func resolveVersion() {
 	}
 
 	version := fmt.Sprintf("%s-%s", commitDate.Format("2006-01-02-150405"), commit)
-	if uncommittedChanges {
-		version += "-dirty"
-	}
-
 	viper.Set("version", version)
 	logger.Infof("config: starting wonderwall version %q built with %q", version, runtime.Version())
 }
