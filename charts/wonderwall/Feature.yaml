@@ -104,6 +104,9 @@ values:
       type: string
     ignoreKind:
       - legacy
+  otel.enabled:
+    config:
+      type: bool
   resourceSuffix:
     description: Suffix for resources that may conflict in parallel environments.
     config:
