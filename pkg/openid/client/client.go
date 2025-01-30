@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nais/wonderwall/internal/o11y/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/nais/wonderwall/internal/o11y/otel"
+	"go.opentelemetry.io/otel/attribute"
 
 	httpinternal "github.com/nais/wonderwall/internal/http"
 

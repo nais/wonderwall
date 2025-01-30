@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"net/http"
 
 	"github.com/nais/wonderwall/pkg/openid"
 )

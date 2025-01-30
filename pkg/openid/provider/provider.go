@@ -3,10 +3,11 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/nais/wonderwall/internal/o11y/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"sync"
 	"time"
+
+	"github.com/nais/wonderwall/internal/o11y/otel"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
 

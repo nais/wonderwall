@@ -7,6 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/nais/wonderwall/internal/o11y/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/go-chi/chi/v5/middleware"
 	log "github.com/sirupsen/logrus"
 
@@ -25,18 +29,26 @@ const (
 )
 
 func (s *Standalone) InternalError(w http.ResponseWriter, r *http.Request, cause error) {
+	span := trace.SpanFromContext(r.Context())
+	otel.AddErrorEvent(span, "errorHandler", "InternalError", cause)
 	s.respondError(w, r, http.StatusInternalServerError, cause, log.ErrorLevel)
 }
 
 func (s *Standalone) BadRequest(w http.ResponseWriter, r *http.Request, cause error) {
+	span := trace.SpanFromContext(r.Context())
+	otel.AddErrorEvent(span, "errorHandler", "BadRequest", cause)
 	s.respondError(w, r, http.StatusBadRequest, cause, log.ErrorLevel)
 }
 
 func (s *Standalone) Unauthorized(w http.ResponseWriter, r *http.Request, cause error) {
+	span := trace.SpanFromContext(r.Context())
+	otel.AddErrorEvent(span, "errorHandler", "Unauthorized", cause)
 	s.respondError(w, r, http.StatusUnauthorized, cause, log.WarnLevel)
 }
 
 func (s *Standalone) TooManyRequests(w http.ResponseWriter, r *http.Request, cause error) {
+	span := trace.SpanFromContext(r.Context())
+	otel.AddErrorEvent(span, "errorHandler", "TooManyRequests", cause)
 	s.respondError(w, r, http.StatusTooManyRequests, cause, log.WarnLevel)
 }
 
@@ -70,13 +82,16 @@ func (s *Standalone) Retry(r *http.Request, loginCookie *openid.LoginCookie) str
 }
 
 func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, statusCode int, cause error, level log.Level) {
+	span := trace.SpanFromContext(r.Context())
 	logger := mw.LogEntryFrom(r).WithFields(httpinternal.Attributes(r))
 	msg := "error in route: %+v"
 
 	incrementRetryAttempt(w, r, s.GetCookieOptions(r))
 
 	attempts, ok := getRetryAttempts(r)
+	span.SetAttributes(attribute.Int("error.retry_count", attempts))
 	if (!ok || attempts < MaxAutoRetryAttempts) && (statusCode != http.StatusTooManyRequests) {
+		span.SetAttributes(attribute.Bool("error.retry", true))
 		loginCookie, err := openid.GetLoginCookie(r, s.Crypter)
 		if err != nil {
 			loginCookie = nil
@@ -97,6 +112,7 @@ func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, status
 	}
 
 	logger.Infof("errorhandler: maximum retry attempts exceeded; executing error template...")
+	span.SetAttributes(attribute.Bool("error.retries_exhausted", true))
 	s.defaultErrorResponse(w, r, statusCode)
 }
 
