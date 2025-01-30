@@ -74,6 +74,7 @@ resourceSuffix: ""
 podDisruptionBudget:
   maxUnavailable: 1
 otel:
+  enabled: false
   serviceName: wonderwall
   endpoint: http://tempo-distributor.nais-system:4317
-  resourceAttributes: service.name=wonderwall
+  resourceAttributes: service.name=wonderwall # TODO
