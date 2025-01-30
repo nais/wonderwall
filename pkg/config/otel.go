@@ -28,4 +28,10 @@ func resolveOtel() {
 		logger.Infof("config: OTLP endpoint set to %q, enabling OpenTelemetry", otelEndpoint)
 		viper.Set(OpenTelemetryEnabled, "true")
 	}
+
+	otelServiceName := os.Getenv("OTEL_SERVICE_NAME")
+	if otelServiceName != "" {
+		logger.Infof("config: OTEL_SERVICE_NAME set to %q; overriding %q flag", otelServiceName, OpenTelemetryServiceName)
+		viper.Set(OpenTelemetryServiceName, otelServiceName)
+	}
 }
