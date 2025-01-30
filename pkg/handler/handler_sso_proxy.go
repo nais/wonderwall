@@ -5,7 +5,9 @@ import (
 	"net/http"
 	urllib "net/url"
 
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
@@ -99,9 +101,12 @@ func (s *SSOProxy) GetSSOServerURL() *urllib.URL {
 }
 
 func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
+	r, span := otel.StartSpanFromRequest(r, "Login")
+	defer span.End()
 	logger := mw.LogEntryFrom(r)
 
 	target := s.GetSSOServerURL()
+	span.SetAttributes(attribute.String("login.redirect_to", target.String()))
 	targetQuery := target.Query()
 
 	// set default query parameters
@@ -116,12 +121,15 @@ func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 	reqQuery := r.URL.Query()
 	if reqQuery.Has(openidclient.QueryParamSecurityLevel) {
 		targetQuery.Set(openidclient.QueryParamSecurityLevel, reqQuery.Get(openidclient.QueryParamSecurityLevel))
+		span.SetAttributes(attribute.String("login.level", reqQuery.Get(openidclient.QueryParamSecurityLevel)))
 	}
 	if reqQuery.Has(openidclient.QueryParamLocale) {
 		targetQuery.Set(openidclient.QueryParamLocale, reqQuery.Get(openidclient.QueryParamLocale))
+		span.SetAttributes(attribute.String("login.locale", reqQuery.Get(openidclient.QueryParamLocale)))
 	}
 	if reqQuery.Has(openidclient.QueryParamPrompt) {
 		targetQuery.Set(openidclient.QueryParamPrompt, reqQuery.Get(openidclient.QueryParamPrompt))
+		span.SetAttributes(attribute.String("login.prompt", reqQuery.Get(openidclient.QueryParamPrompt)))
 	}
 
 	target.RawQuery = targetQuery.Encode()
@@ -133,6 +141,7 @@ func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 		"redirect_to":          ssoServerLoginURL,
 		"redirect_after_login": canonicalRedirect,
 	}).Info("login: redirecting to sso server")
+	span.SetAttributes(attribute.String("login.redirect_after", canonicalRedirect))
 
 	http.Redirect(w, r, ssoServerLoginURL, http.StatusFound)
 }
@@ -144,6 +153,8 @@ func (s *SSOProxy) LoginCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSOProxy) Logout(w http.ResponseWriter, r *http.Request) {
+	r, span := otel.StartSpanFromRequest(r, "Logout")
+	defer span.End()
 	target := s.GetSSOServerURL()
 
 	// only set a canonical redirect if it was provided in the request as a query parameter
@@ -157,6 +168,8 @@ func (s *SSOProxy) Logout(w http.ResponseWriter, r *http.Request) {
 		"redirect_to":           ssoServerLogoutURL,
 		"redirect_after_logout": canonicalRedirect,
 	}).Info("logout: redirecting to sso server")
+	span.SetAttributes(attribute.String("logout.redirect_to", target.String()))
+	span.SetAttributes(attribute.String("logout.redirect_after", canonicalRedirect))
 
 	http.Redirect(w, r, ssoServerLogoutURL, http.StatusFound)
 }

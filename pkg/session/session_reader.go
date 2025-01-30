@@ -11,6 +11,7 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/retry"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var _ Reader = &reader{}
@@ -47,8 +48,7 @@ func (in *reader) Get(r *http.Request) (*Session, error) {
 }
 
 func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, error) {
-	ctx, span := otel.StartSpan(ctx, "Session.getForTicket")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(attribute.Bool("session.valid_session", false))
 
 	encrypted, err := retry.DoValue(ctx, func(ctx context.Context) (*EncryptedData, error) {

@@ -12,6 +12,7 @@ import (
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
@@ -122,7 +123,7 @@ func (s *Standalone) GetSession(r *http.Request) (*session.Session, error) {
 }
 
 func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
-	r, span := otel.StartSpanFromRequest(r, "Standalone.Login")
+	r, span := otel.StartSpanFromRequest(r, "Login")
 	defer span.End()
 
 	canonicalRedirect := s.Redirect.Canonical(r)
@@ -137,13 +138,9 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 	})
 	logger := mw.LogEntryFrom(r).WithFields(fields)
 	span.SetAttributes(attribute.String("login.redirect_after", canonicalRedirect))
-	span.SetAttributes(attribute.String("login.state", login.State))
-	span.SetAttributes(attribute.String("login.locale", login.UILocales))
-	span.SetAttributes(attribute.String("login.level", login.AcrValues))
 
 	if prompt := login.Prompt; prompt != "" {
 		logger.Infof("login: prompt='%s'; clearing local session...", prompt)
-		span.SetAttributes(attribute.String("login.prompt", login.Prompt))
 
 		sess, _ := s.SessionManager.Get(r)
 		if sess != nil {
@@ -193,8 +190,7 @@ func (s *Standalone) applyLoginRateLimit(w http.ResponseWriter, r *http.Request,
 		return nil
 	}
 
-	r, span := otel.StartSpanFromRequest(r, "Standalone.applyLoginRateLimit")
-	defer span.End()
+	span := trace.SpanFromContext(r.Context())
 	span.SetAttributes(attribute.Bool("login.rate_limited", false))
 
 	// skip user agents without existing sessions
@@ -234,7 +230,7 @@ func (s *Standalone) applyLoginRateLimit(w http.ResponseWriter, r *http.Request,
 }
 
 func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
-	r, span := otel.StartSpanFromRequest(r, "Standalone.LoginCallback")
+	r, span := otel.StartSpanFromRequest(r, "LoginCallback")
 	defer span.End()
 
 	opts := s.GetCookieOptions(r)
@@ -323,7 +319,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) Logout(w http.ResponseWriter, r *http.Request) {
-	r, span := otel.StartSpanFromRequest(r, "Standalone.Logout")
+	r, span := otel.StartSpanFromRequest(r, "Logout")
 	defer span.End()
 
 	logger := mw.LogEntryFrom(r)
@@ -393,7 +389,7 @@ func (s *Standalone) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
-	r, span := otel.StartSpanFromRequest(r, "Standalone.LogoutCallback")
+	r, span := otel.StartSpanFromRequest(r, "LogoutCallback")
 	defer span.End()
 	logger := mw.LogEntryFrom(r)
 	cookie.Clear(w, cookie.Logout, s.CookieOptions)
@@ -413,7 +409,7 @@ func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
-	r, span := otel.StartSpanFromRequest(r, "Standalone.LogoutFrontChannel")
+	r, span := otel.StartSpanFromRequest(r, "LogoutFrontChannel")
 	defer span.End()
 	logger := mw.LogEntryFrom(r)
 

@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	"github.com/nais/liberator/pkg/keygen"
-	"github.com/nais/wonderwall/internal/o11y/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/cookie"
@@ -60,8 +60,7 @@ func (c *Ticket) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter c
 // getTicket returns a Ticket from the session cookie found in the http.Request, given a crypto.Crypter that
 // can decrypt the cookie is provided.
 func getTicket(r *http.Request, crypter crypto.Crypter) (*Ticket, error) {
-	r, span := otel.StartSpanFromRequest(r, "Session.getTicket")
-	defer span.End()
+	span := trace.SpanFromContext(r.Context())
 	span.SetAttributes(attribute.Bool("session.valid_ticket", false))
 
 	ticketJson, err := cookie.GetDecrypted(r, cookie.Session, crypter)

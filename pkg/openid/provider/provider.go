@@ -30,8 +30,6 @@ type jwksLock struct {
 }
 
 func (p *JwksProvider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
-	ctx, span := otel.StartSpan(ctx, "JwksProvider.GetPublicJwkSet")
-	defer span.End()
 	url := p.config.JwksURI()
 	set, err := p.jwksCache.Get(ctx, url)
 	if err != nil {

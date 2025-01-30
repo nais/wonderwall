@@ -7,9 +7,9 @@ import (
 	"net/http"
 
 	"github.com/nais/wonderwall/internal/o11y/otel"
-	"go.opentelemetry.io/otel/attribute"
-
 	"github.com/nais/wonderwall/pkg/openid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -21,8 +21,7 @@ var (
 )
 
 func (c *Client) LoginCallback(r *http.Request, cookie *openid.LoginCookie) (*openid.Tokens, error) {
-	r, span := otel.StartSpanFromRequest(r, "Client.LoginCallback")
-	defer span.End()
+	span := trace.SpanFromContext(r.Context())
 	if cookie == nil {
 		return nil, fmt.Errorf("%w: %s", ErrCallbackInvalidCookie, "cookie is nil")
 	}
@@ -72,7 +71,7 @@ func (c *Client) authorizationServerIssuerIdentification(iss string) error {
 }
 
 func (c *Client) redeemTokens(ctx context.Context, code string, cookie *openid.LoginCookie) (*openid.Tokens, error) {
-	ctx, span := otel.StartSpan(ctx, "Client.redeemTokens")
+	ctx, span := otel.StartSpan(ctx, "Client.RedeemTokens")
 	defer span.End()
 	clientAuth, err := c.ClientAuthenticationParams()
 	if err != nil {

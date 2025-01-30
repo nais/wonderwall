@@ -11,6 +11,7 @@ import (
 
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -42,6 +43,18 @@ func (c *Client) Login(r *http.Request) (*Login, error) {
 	request, err := c.newAuthorizationCodeParams(r)
 	if err != nil {
 		return nil, fmt.Errorf("login: %w", err)
+	}
+
+	span := trace.SpanFromContext(r.Context())
+	span.SetAttributes(attribute.String("login.state", request.State))
+	if request.UILocales != "" {
+		span.SetAttributes(attribute.String("login.locale", request.UILocales))
+	}
+	if request.AcrValues != "" {
+		span.SetAttributes(attribute.String("login.level", request.AcrValues))
+	}
+	if request.Prompt != "" {
+		span.SetAttributes(attribute.String("login.prompt", request.Prompt))
 	}
 
 	authCodeURL, err := c.authCodeURL(r.Context(), request)
@@ -90,11 +103,13 @@ func (c *Client) newAuthorizationCodeParams(r *http.Request) (openid.Authorizati
 
 func (c *Client) authCodeURL(ctx context.Context, authCodeParams openid.AuthorizationCodeParams) (string, error) {
 	usePushedAuthorization := len(c.cfg.Provider().PushedAuthorizationRequestEndpoint()) > 0
-	ctx, span := otel.StartSpan(ctx, "Client.authCodeURL")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(attribute.Bool("login.pushed_authorization_request", usePushedAuthorization))
 
 	if usePushedAuthorization {
+		ctx, span := otel.StartSpan(ctx, "Client.PushedAuthorizationRequest")
+		defer span.End()
+
 		clientAuth, err := c.ClientAuthenticationParams()
 		if err != nil {
 			return "", fmt.Errorf("generating client authentication parameters: %w", err)
@@ -182,8 +197,7 @@ func getAcrParam(c *Client, r *http.Request) string {
 		return translatedAcr
 	}
 
-	r, span := otel.StartSpanFromRequest(r, "getAcrParam")
-	defer span.End()
+	span := trace.SpanFromContext(r.Context())
 	span.SetAttributes(attribute.String("login.query.invalid_level", paramValue))
 	mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamSecurityLevel, paramValue, supported, defaultValue)
 	return defaultValue
@@ -205,8 +219,7 @@ func getLocaleParam(c *Client, r *http.Request) string {
 		return paramValue
 	}
 
-	r, span := otel.StartSpanFromRequest(r, "getLocaleParam")
-	defer span.End()
+	span := trace.SpanFromContext(r.Context())
 	span.SetAttributes(attribute.String("login.query.invalid_locale", paramValue))
 	mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamLocale, paramValue, supported, defaultValue)
 	return defaultValue
@@ -223,8 +236,7 @@ func getPromptParam(r *http.Request) string {
 	}
 
 	const defaultValue = "login"
-	r, span := otel.StartSpanFromRequest(r, "getPromptParam")
-	defer span.End()
+	span := trace.SpanFromContext(r.Context())
 	span.SetAttributes(attribute.String("login.query.invalid_prompt", paramValue))
 	mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamPrompt, paramValue, QueryParamPromptAllowedValues, defaultValue)
 	return defaultValue

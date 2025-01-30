@@ -16,6 +16,7 @@ import (
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/retry"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -145,7 +146,7 @@ func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
 }
 
 func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
-	r, span := otel.StartSpanFromRequest(r, "Session.GetOrRefresh")
+	r, span := otel.StartSpanFromRequest(r, "Session.Refresh")
 	defer span.End()
 	span.SetAttributes(attribute.Bool("session.refreshed", false))
 	span.SetAttributes(attribute.String("session.id", sess.ExternalSessionID()))
@@ -244,8 +245,7 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 }
 
 func (in *manager) deleteForKey(ctx context.Context, key string) error {
-	ctx, span := otel.StartSpan(ctx, "Session.deleteForKey")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(attribute.Bool("session.deleted", false))
 
 	if err := retry.Do(ctx, func(ctx context.Context) error {

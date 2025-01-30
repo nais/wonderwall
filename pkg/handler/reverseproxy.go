@@ -19,6 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ReverseProxySource interface {
@@ -86,7 +87,7 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 }
 
 func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r *http.Request) {
-	r, span := otel.StartSpanFromRequest(r, "ReverseProxy.Handler")
+	r, span := otel.StartSpanFromRequest(r, "ReverseProxy")
 	defer span.End()
 
 	logger := mw.LogEntryFrom(r).WithFields(httpinternal.Attributes(r))
@@ -170,8 +171,7 @@ func getSessionWithValidToken(src ReverseProxySource, r *http.Request) (*session
 }
 
 func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Request, logger *logrus.Entry) {
-	r, span := otel.StartSpanFromRequest(r, "ReverseProxy.handleAutologin")
-	defer span.End()
+	span := trace.SpanFromContext(r.Context())
 	path := src.GetPath(r)
 
 	loginURL := func(redirectTarget, message string) string {
@@ -182,8 +182,8 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 			"redirect_after_login": redirectTarget,
 			"login_url":            loginURL,
 		}).Infof("default: unauthenticated: autologin: %s", message)
-		span.SetAttributes(attribute.String("redirect_after_login", redirectTarget))
-		span.SetAttributes(attribute.String("login_url", loginURL))
+		span.SetAttributes(attribute.String("autologin.redirect_after", redirectTarget))
+		span.SetAttributes(attribute.String("autologin.login_url", loginURL))
 
 		return loginURL
 	}
