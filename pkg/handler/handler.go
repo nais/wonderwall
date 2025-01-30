@@ -138,9 +138,12 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 	logger := mw.LogEntryFrom(r).WithFields(fields)
 	span.SetAttributes(attribute.String("login.redirect_after", canonicalRedirect))
 	span.SetAttributes(attribute.String("login.state", login.State))
+	span.SetAttributes(attribute.String("login.locale", login.UILocales))
+	span.SetAttributes(attribute.String("login.level", login.AcrValues))
 
 	if prompt := login.Prompt; prompt != "" {
 		logger.Infof("login: prompt='%s'; clearing local session...", prompt)
+		span.SetAttributes(attribute.String("login.prompt", login.Prompt))
 
 		sess, _ := s.SessionManager.Get(r)
 		if sess != nil {
@@ -411,6 +414,7 @@ func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 
 func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
 	r, span := otel.StartSpanFromRequest(r, "Standalone.LogoutFrontChannel")
+	defer span.End()
 	logger := mw.LogEntryFrom(r)
 
 	// Unconditionally destroy all local references to the session.

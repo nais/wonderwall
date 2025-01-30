@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nais/wonderwall/internal/o11y/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"net/http"
 	"strings"
@@ -85,11 +87,15 @@ func (c *Client) LogoutFrontchannel(r *http.Request) *LogoutFrontchannel {
 }
 
 func (c *Client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error) {
+	ctx, span := otel.StartSpan(ctx, "Client.AuthCodeGrant")
+	defer span.End()
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, c.httpClient)
 	return c.oauth2Config.Exchange(ctx, code, opts...)
 }
 
 func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error) {
+	ctx, span := otel.StartSpan(ctx, "Client.RefreshGrant")
+	defer span.End()
 	clientAuth, err := c.ClientAuthenticationParams()
 	if err != nil {
 		return nil, err
@@ -162,6 +168,8 @@ func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
 }
 
 func (c *Client) oauthPostRequest(ctx context.Context, endpoint string, payload openid.RequestParams) ([]byte, error) {
+	ctx, span := otel.StartSpan(ctx, "Client.oauthPostRequest")
+	defer span.End()
 	r, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(payload.URLValues().Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
@@ -184,6 +192,7 @@ func (c *Client) oauthPostRequest(ctx context.Context, endpoint string, payload 
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
 			return nil, fmt.Errorf("%w: HTTP %d: unmarshalling error response: %+v", ErrOpenIDClient, resp.StatusCode, err)
 		}
+		span.SetAttributes(attribute.String("error", errorResponse.Error), attribute.String("error_description", errorResponse.ErrorDescription))
 		return nil, fmt.Errorf("%w: HTTP %d: %s: %s", ErrOpenIDClient, resp.StatusCode, errorResponse.Error, errorResponse.ErrorDescription)
 	} else if resp.StatusCode >= 500 {
 		return nil, fmt.Errorf("%w: HTTP %d: %s", ErrOpenIDServer, resp.StatusCode, payload)

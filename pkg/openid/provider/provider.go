@@ -3,6 +3,8 @@ package provider
 import (
 	"context"
 	"fmt"
+	"github.com/nais/wonderwall/internal/o11y/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"sync"
 	"time"
 
@@ -27,6 +29,8 @@ type jwksLock struct {
 }
 
 func (p *JwksProvider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
+	ctx, span := otel.StartSpan(ctx, "JwksProvider.GetPublicJwkSet")
+	defer span.End()
 	url := p.config.JwksURI()
 	set, err := p.jwksCache.Get(ctx, url)
 	if err != nil {
@@ -37,12 +41,15 @@ func (p *JwksProvider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 }
 
 func (p *JwksProvider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
+	ctx, span := otel.StartSpan(ctx, "JwksProvider.RefreshPublicJwkSet")
+	defer span.End()
 	p.jwksLock.Lock()
 	defer p.jwksLock.Unlock()
 
 	// redirect to cache if recently refreshed to avoid overwhelming provider
 	diff := time.Since(p.jwksLock.lastRefresh)
 	if diff < JwkMinimumRefreshInterval {
+		span.SetAttributes(attribute.Bool("jwks.cooldown", true))
 		return p.GetPublicJwkSet(ctx)
 	}
 
@@ -53,7 +60,7 @@ func (p *JwksProvider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error
 	if err != nil {
 		return nil, fmt.Errorf("provider: refreshing jwks: %w", err)
 	}
-
+	span.SetAttributes(attribute.Bool("jwks.refreshed", true))
 	return &set, nil
 }
 

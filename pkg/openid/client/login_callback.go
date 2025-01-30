@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nais/wonderwall/internal/o11y/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"net/http"
 
 	"github.com/nais/wonderwall/pkg/openid"
@@ -18,6 +20,8 @@ var (
 )
 
 func (c *Client) LoginCallback(r *http.Request, cookie *openid.LoginCookie) (*openid.Tokens, error) {
+	r, span := otel.StartSpanFromRequest(r, "Client.LoginCallback")
+	defer span.End()
 	if cookie == nil {
 		return nil, fmt.Errorf("%w: %s", ErrCallbackInvalidCookie, "cookie is nil")
 	}
@@ -26,14 +30,17 @@ func (c *Client) LoginCallback(r *http.Request, cookie *openid.LoginCookie) (*op
 
 	if oauthError := query.Get("error"); len(oauthError) > 0 {
 		oauthErrorDescription := query.Get("error_description")
+		span.SetAttributes(attribute.String("login.oauth_error", oauthError), attribute.String("login.oauth_error_description", oauthErrorDescription))
 		return nil, fmt.Errorf("%w: %s: %s", ErrCallbackIdentityProvider, oauthError, oauthErrorDescription)
 	}
 
 	if err := openid.StateMismatchError(query, cookie.State); err != nil {
+		span.SetAttributes(attribute.Bool("login.state_mismatch", true))
 		return nil, fmt.Errorf("%w: %s", ErrCallbackInvalidState, err)
 	}
 
 	if err := c.authorizationServerIssuerIdentification(query.Get("iss")); err != nil {
+		span.SetAttributes(attribute.Bool("login.issuer_mismatch", true))
 		return nil, fmt.Errorf("%w: %s", ErrCallbackInvalidIssuer, err)
 	}
 
@@ -64,6 +71,8 @@ func (c *Client) authorizationServerIssuerIdentification(iss string) error {
 }
 
 func (c *Client) redeemTokens(ctx context.Context, code string, cookie *openid.LoginCookie) (*openid.Tokens, error) {
+	ctx, span := otel.StartSpan(ctx, "Client.redeemTokens")
+	defer span.End()
 	clientAuth, err := c.ClientAuthenticationParams()
 	if err != nil {
 		return nil, err
