@@ -71,13 +71,14 @@ func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, e
 	}
 
 	sess := NewSession(data, ticket)
-
+	if sess != nil {
+		span.SetAttributes(attribute.String("session.id", sess.ExternalSessionID()))
+	}
 	err = data.Validate()
 	if err != nil {
 		return sess, err
 	}
 
 	span.SetAttributes(attribute.Bool("session.valid_session", true))
-	span.SetAttributes(attribute.String("session.id", sess.ExternalSessionID()))
 	return sess, nil
 }
