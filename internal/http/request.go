@@ -48,17 +48,17 @@ func Accepts(r *http.Request, accepted ...string) bool {
 // Attributes returns a map of interesting properties for the request.
 func Attributes(r *http.Request) map[string]any {
 	return map[string]any{
-		"request_cookies":         nonEmptyRequestCookies(r),
-		"request_host":            r.Host,
-		"request_is_navigational": IsNavigationRequest(r),
-		"request_method":          r.Method,
-		"request_path":            r.URL.Path,
-		"request_protocol":        r.Proto,
-		"request_referer":         refererStripped(r),
-		"request_sec_fetch_dest":  r.Header.Get("Sec-Fetch-Dest"),
-		"request_sec_fetch_mode":  r.Header.Get("Sec-Fetch-Mode"),
-		"request_sec_fetch_site":  r.Header.Get("Sec-Fetch-Site"),
-		"request_user_agent":      r.UserAgent(),
+		"request.cookies":         nonEmptyRequestCookies(r),
+		"request.host":            r.Host,
+		"request.is_navigational": IsNavigationRequest(r),
+		"request.method":          r.Method,
+		"request.path":            r.URL.Path,
+		"request.protocol":        r.Proto,
+		"request.referer":         refererStripped(r),
+		"request.sec_fetch_dest":  r.Header.Get("Sec-Fetch-Dest"),
+		"request.sec_fetch_mode":  r.Header.Get("Sec-Fetch-Mode"),
+		"request.sec_fetch_site":  r.Header.Get("Sec-Fetch-Site"),
+		"request.user_agent":      r.UserAgent(),
 	}
 }
 
