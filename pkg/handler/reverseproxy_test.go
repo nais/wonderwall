@@ -11,11 +11,6 @@ import (
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
-var navigateFetchHeaders = []header{
-	{"Sec-Fetch-Mode", "navigate"},
-	{"Sec-Fetch-Dest", "document"},
-}
-
 func TestReverseProxy(t *testing.T) {
 	up := newUpstream(t)
 	defer up.Server.Close()
@@ -86,11 +81,11 @@ func TestReverseProxy(t *testing.T) {
 		// initial request without session
 		target := idp.RelyingPartyServer.URL + "/"
 
-		resp := get(t, rpClient, target, navigateFetchHeaders...)
+		resp := getNavigational(t, rpClient, target)
 		assertAutoLoginRedirectResponse(t, idp, resp, "/")
 
 		// follow redirect to local login endpoint
-		resp = get(t, rpClient, resp.Location.String())
+		resp = getNavigational(t, rpClient, resp.Location.String())
 		assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 		// redirect should point to identity provider
@@ -114,7 +109,7 @@ func TestReverseProxy(t *testing.T) {
 		assert.Equal(t, expectedCallbackURL, callbackEndpoint.String())
 
 		// follow redirect back to relying party
-		resp = get(t, rpClient, callbackLocation.String())
+		resp = getNavigational(t, rpClient, callbackLocation.String())
 		assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 		// finally, follow redirect back to original target, now with a session
@@ -357,7 +352,7 @@ func TestReverseProxy(t *testing.T) {
 					for _, path := range tt.match {
 						t.Run(path, func(t *testing.T) {
 							target := idp.RelyingPartyServer.URL + path
-							resp := get(t, rpClient, target, navigateFetchHeaders...)
+							resp := getNavigational(t, rpClient, target)
 							assertUpstreamUnauthorizedResponse(t, resp)
 						})
 					}
@@ -367,7 +362,7 @@ func TestReverseProxy(t *testing.T) {
 					for _, path := range tt.nonMatch {
 						t.Run(path, func(t *testing.T) {
 							target := idp.RelyingPartyServer.URL + path
-							resp := get(t, rpClient, target, navigateFetchHeaders...)
+							resp := getNavigational(t, rpClient, target)
 							assertAutoLoginRedirectResponse(t, idp, resp, path)
 						})
 					}

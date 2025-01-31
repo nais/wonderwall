@@ -74,7 +74,7 @@ func TestLoginPrompt(t *testing.T) {
 	// trigger authorize with prompt=login
 	loginURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/login?prompt=login")
 	assert.NoError(t, err)
-	loginResp := get(t, rpClient, loginURL.String())
+	loginResp := getNavigational(t, rpClient, loginURL.String())
 	assert.Equal(t, http.StatusFound, loginResp.StatusCode)
 
 	cookies := rpClient.Jar.Cookies(loginURL)
@@ -360,12 +360,29 @@ func TestPing(t *testing.T) {
 	assert.Equal(t, "pong", resp.Body)
 }
 
+func TestNonNavigationalRequests(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	for _, path := range []string{
+		"/oauth2/login",
+		"/oauth2/callback",
+		"/oauth2/logout",
+		"/oauth2/logout/callback",
+	} {
+		rpClient := idp.RelyingPartyClient()
+		resp := get(t, rpClient, idp.RelyingPartyServer.URL+path)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	}
+}
+
 func localLogin(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider) response {
 	// First, run /oauth2/login to set cookies
 	loginURL, err := url.Parse(idp.RelyingPartyServer.URL + "/oauth2/login")
 	assert.NoError(t, err)
 
-	resp := get(t, rpClient, loginURL.String())
+	resp := getNavigational(t, rpClient, loginURL.String())
 	assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 	cookies := rpClient.Jar.Cookies(loginURL)
@@ -393,7 +410,7 @@ func callback(t *testing.T, rpClient *http.Client, authorizeResponse response) *
 	callbackURL := authorizeResponse.Location
 
 	// Follow redirect to callback
-	resp := get(t, rpClient, callbackURL.String())
+	resp := getNavigational(t, rpClient, callbackURL.String())
 	assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 	cookies := rpClient.Jar.Cookies(callbackURL)
@@ -422,7 +439,7 @@ func selfInitiatedLogout(t *testing.T, rpClient *http.Client, idp *mock.Identity
 		logoutURL.RawQuery = v.Encode()
 	}
 
-	resp := get(t, rpClient, logoutURL.String())
+	resp := getNavigational(t, rpClient, logoutURL.String())
 	assert.Equal(t, http.StatusFound, resp.StatusCode)
 
 	cookies := rpClient.Jar.Cookies(logoutURL)
@@ -475,7 +492,7 @@ func logout(t *testing.T, rpClient *http.Client, idp *mock.IdentityProvider, red
 	assert.Equal(t, "/oauth2/logout/callback", logoutCallbackURI.Path)
 
 	// Follow redirect back to logout callback
-	resp = get(t, rpClient, logoutCallbackURI.String())
+	resp = getNavigational(t, rpClient, logoutCallbackURI.String())
 
 	// Get post-logout redirect URI after redirect back to logout callback
 	assert.Equal(t, http.StatusFound, resp.StatusCode)
@@ -562,6 +579,14 @@ type header struct {
 
 func get(t *testing.T, client *http.Client, url string, headers ...header) response {
 	return request(t, client, http.MethodGet, url, headers...)
+}
+
+func getNavigational(t *testing.T, client *http.Client, url string) response {
+	navigateFetchHeaders := []header{
+		{"Sec-Fetch-Mode", "navigate"},
+		{"Sec-Fetch-Dest", "document"},
+	}
+	return get(t, client, url, navigateFetchHeaders...)
 }
 
 func post(t *testing.T, client *http.Client, url string) response {

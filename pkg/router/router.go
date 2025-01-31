@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
+	httpinternal "github.com/nais/wonderwall/internal/http"
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/riandyrn/otelchi"
 
@@ -80,14 +81,16 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 		for _, prefix := range prefixes {
 			r.Route(prefix+paths.OAuth2, func(r chi.Router) {
-				r.Get(paths.Login, src.Login)
-				r.Head(paths.Login, src.Login)
+				r.Group(func(r chi.Router) {
+					r.Use(httpinternal.PreventNonNavigationalRedirects)
+					r.Get(paths.Login, src.Login)
+					r.Head(paths.Login, src.Login)
+					r.Get(paths.Logout, src.Logout)
+					r.Head(paths.Logout, src.Logout)
+					r.Get(paths.LoginCallback, src.LoginCallback)
+					r.Get(paths.LogoutCallback, src.LogoutCallback)
+				})
 
-				r.Get(paths.Logout, src.Logout)
-				r.Head(paths.Logout, src.Logout)
-
-				r.Get(paths.LoginCallback, src.LoginCallback)
-				r.Get(paths.LogoutCallback, src.LogoutCallback)
 				r.Get(paths.LogoutFrontChannel, src.LogoutFrontChannel)
 
 				if cfg.OpenID.Provider != config.ProviderIDPorten {
