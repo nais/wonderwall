@@ -82,7 +82,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 		for _, prefix := range prefixes {
 			r.Route(prefix+paths.OAuth2, func(r chi.Router) {
 				r.Group(func(r chi.Router) {
-					r.Use(httpinternal.PreventNonNavigationalRedirects)
+					r.Use(httpinternal.DisallowNonNavigationalRequests)
 					r.Get(paths.Login, src.Login)
 					r.Head(paths.Login, src.Login)
 					r.Get(paths.Logout, src.Logout)
