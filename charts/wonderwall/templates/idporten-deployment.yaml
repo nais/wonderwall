@@ -51,7 +51,11 @@ spec:
           - name: WONDERWALL_REDIS_URI
             valueFrom:
               secretKeyRef:
+                {{- if .Values.resourceSuffix }}
+                key: "REDIS_URI_WONDERWALL_IDPORTEN_{{ .Values.resourceSuffix | upper }}"
+                {{- else }}
                 key: REDIS_URI_WONDERWALL_IDPORTEN
+                {{- end }}
                 name: {{ .Values.idporten.redisSecretNames.readwrite }}
           {{- if .Values.otel.enabled }}
           - name: OTEL_SERVICE_NAME
@@ -64,12 +68,20 @@ spec:
           - name: WONDERWALL_REDIS_USERNAME
             valueFrom:
               secretKeyRef:
+                {{- if .Values.resourceSuffix }}
+                key: "REDIS_USERNAME_WONDERWALL_IDPORTEN_{{ .Values.resourceSuffix | upper }}"
+                {{- else }}
                 key: REDIS_USERNAME_WONDERWALL_IDPORTEN
+                {{- end }}
                 name: {{ .Values.idporten.redisSecretNames.readwrite }}
           - name: WONDERWALL_REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
+                {{- if .Values.resourceSuffix }}
+                key: "REDIS_PASSWORD_WONDERWALL_IDPORTEN_{{ .Values.resourceSuffix | upper }}"
+                {{- else }}
                 key: REDIS_PASSWORD_WONDERWALL_IDPORTEN
+                {{- end }}
                 name: {{ .Values.idporten.redisSecretNames.readwrite }}
           envFrom:
             - secretRef:

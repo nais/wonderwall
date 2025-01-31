@@ -28,9 +28,15 @@ spec:
             reloader.stakater.com/match: "true"
         stringData:
           WONDERWALL_REDIS_CONNECTION_IDLE_TIMEOUT: "{{ .Values.redis.connectionIdleTimeout }}"
+          {{- if .Values.resourceSuffix }}
+          WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_AZURE_{{ .Values.resourceSuffix | upper }} ]]"
+          WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_AZURE_{{ .Values.resourceSuffix | upper }} ]]"
+          WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_AZURE_{{ .Values.resourceSuffix | upper }} ]]"
+          {{- else }}
           WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_AZURE ]]"
           WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_AZURE ]]"
           WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_AZURE ]]"
+          {{- end }}
           WONDERWALL_SESSION_MAX_LIFETIME: "{{ .Values.azure.sessionMaxLifetime }}"
 {{- end }}
 {{- if .Values.idporten.enabled }}
@@ -66,9 +72,15 @@ spec:
         stringData:
           WONDERWALL_ENCRYPTION_KEY: "{{ .Values.idporten.sessionCookieEncryptionKey | required ".Values.idporten.sessionCookieEncryptionKey is required." }}"
           WONDERWALL_REDIS_CONNECTION_IDLE_TIMEOUT: "{{ .Values.redis.connectionIdleTimeout }}"
+          {{- if .Values.resourceSuffix }}
+          WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_IDPORTEN_{{ .Values.resourceSuffix | upper }} ]]"
+          WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_IDPORTEN_{{ .Values.resourceSuffix | upper }} ]]"
+          WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_IDPORTEN_{{ .Values.resourceSuffix | upper }} ]]"
+          {{- else }}
           WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_IDPORTEN ]]"
           WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_IDPORTEN ]]"
           WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_IDPORTEN ]]"
+          {{- end }}
           WONDERWALL_SSO_ENABLED: "true"
           WONDERWALL_SSO_MODE: "proxy"
           WONDERWALL_SSO_SESSION_COOKIE_NAME: "{{ .Values.idporten.sessionCookieName | required ".Values.idporten.sessionCookieName is required." }}"
@@ -145,9 +157,15 @@ spec:
             reloader.stakater.com/match: "true"
         stringData:
           WONDERWALL_REDIS_CONNECTION_IDLE_TIMEOUT: "{{ .Values.redis.connectionIdleTimeout }}"
+          {{- if .Values.resourceSuffix }}
+          WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_OPENID_{{ .Values.resourceSuffix | upper }} ]]"
+          WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_OPENID_{{ .Values.resourceSuffix | upper }} ]]"
+          WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_OPENID_{{ .Values.resourceSuffix | upper }} ]]"
+          {{- else }}
           WONDERWALL_REDIS_URI: "[[ .Values.REDIS_URI_WONDERWALL_OPENID ]]"
           WONDERWALL_REDIS_USERNAME: "[[ .Values.REDIS_USERNAME_WONDERWALL_OPENID ]]"
           WONDERWALL_REDIS_PASSWORD: "[[ .Values.REDIS_PASSWORD_WONDERWALL_OPENID ]]"
+          {{- end }}
         {{- if .Values.openid.wellKnownUrl }}
           WONDERWALL_OPENID_WELL_KNOWN_URL: "{{ .Values.openid.wellKnownUrl }}"
         {{- end }}

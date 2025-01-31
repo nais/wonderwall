@@ -43,7 +43,11 @@ spec:
           - name: WONDERWALL_REDIS_URI
             valueFrom:
               secretKeyRef:
+                {{- if .Values.resourceSuffix }}
+                key: "REDIS_URI_WONDERWALL_AZURE_{{ .Values.resourceSuffix | upper }}"
+                {{- else }}
                 key: REDIS_URI_WONDERWALL_AZURE
+                {{- end }}
                 name: {{ .Values.azure.redisSecretName }}
           {{- if .Values.otel.enabled }}
           - name: OTEL_SERVICE_NAME
@@ -56,12 +60,20 @@ spec:
           - name: WONDERWALL_REDIS_USERNAME
             valueFrom:
               secretKeyRef:
+                {{- if .Values.resourceSuffix }}
+                key: "REDIS_USERNAME_WONDERWALL_AZURE_{{ .Values.resourceSuffix | upper }}"
+                {{- else }}
                 key: REDIS_USERNAME_WONDERWALL_AZURE
+                {{- end }}
                 name: {{ .Values.azure.redisSecretName }}
           - name: WONDERWALL_REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
+                {{- if .Values.resourceSuffix }}
+                key: "REDIS_PASSWORD_WONDERWALL_AZURE_{{ .Values.resourceSuffix | upper }}"
+                {{- else }}
                 key: REDIS_PASSWORD_WONDERWALL_AZURE
+                {{- end }}
                 name: {{ .Values.azure.redisSecretName }}
           envFrom:
             - secretRef:
