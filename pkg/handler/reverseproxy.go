@@ -203,12 +203,13 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 
 	location := loginURL(target, "non-navigation request detected; responding with 401 and Location header")
 	w.Header().Set("Location", location)
-	w.WriteHeader(http.StatusUnauthorized)
 
 	if httpinternal.Accepts(r, "*/*", "application/json") {
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"error": "unauthenticated, please log in"}`))
 	} else {
+		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte("unauthenticated, please log in"))
 	}
 }
