@@ -22,5 +22,7 @@ func Cors(cfg *config.Config, methods []string) func(http.Handler) http.Handler 
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   methods,
 		AllowCredentials: true,
+		// This reflects the request headers, essentially allowing all headers.
+		AllowedHeaders: []string{"*"},
 	}).Handler
 }
