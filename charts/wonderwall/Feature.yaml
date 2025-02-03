@@ -107,6 +107,9 @@ values:
   otel.enabled:
     config:
       type: bool
+  otel.endpoint:
+    computed:
+      template: '"{{ .Env.otel_otlp_endpoint }}"'
   resourceSuffix:
     description: Suffix for resources that may conflict in parallel environments.
     config:

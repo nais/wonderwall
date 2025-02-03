@@ -59,11 +59,9 @@ spec:
                 name: {{ .Values.idporten.redisSecretNames.readwrite }}
           {{- if .Values.otel.enabled }}
           - name: OTEL_SERVICE_NAME
-            value: {{ .Values.otel.serviceName }}
+            value: wonderwall-idporten
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: {{ .Values.otel.endpoint }}
-          - name: OTEL_RESOURCE_ATTRIBUTES
-            value: {{ .Values.otel.resourceAttributes }}
           {{- end }}
           - name: WONDERWALL_REDIS_USERNAME
             valueFrom:
