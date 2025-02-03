@@ -81,6 +81,15 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 		for _, prefix := range prefixes {
 			r.Route(prefix+paths.OAuth2, func(r chi.Router) {
+				if cfg.SSO.IsServer() {
+					r.Group(func(r chi.Router) {
+						r.Use(cors(http.MethodGet, http.MethodHead))
+						// Cors middleware is designed to be used as a top-level middleware on the chi router.
+						// Applying with within a r.Group() or using With() will not work without routes matching OPTIONS added.
+						r.Options(paths.Login, noopHandler)
+						r.Options(paths.Logout, noopHandler)
+					})
+				}
 				r.Group(func(r chi.Router) {
 					r.Use(httpinternal.DisallowNonNavigationalRequests)
 					r.Get(paths.Login, src.Login)
@@ -104,8 +113,10 @@ func New(src Source, cfg *config.Config) chi.Router {
 				})
 
 				r.Route(paths.Session, func(r chi.Router) {
-					if cfg.SSO.Enabled {
+					if cfg.SSO.IsServer() {
 						r.Use(cors(http.MethodGet, http.MethodPost))
+						// Cors middleware is designed to be used as a top-level middleware on the chi router.
+						// Applying with within a r.Group() or using With() will not work without routes matching OPTIONS added.
 
 						r.Options("/", noopHandler)
 						r.Options(paths.Refresh, noopHandler)
