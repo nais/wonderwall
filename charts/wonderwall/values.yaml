@@ -75,5 +75,4 @@ podDisruptionBudget:
   maxUnavailable: 1
 otel:
   enabled: false
-  # populated from fasit
-  endpoint:
+  endpoint: http://opentelemetry-collector.nais-system:4317
