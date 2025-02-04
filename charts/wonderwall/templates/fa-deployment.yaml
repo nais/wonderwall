@@ -49,12 +49,10 @@ spec:
                 key: REDIS_URI_WONDERWALL_AZURE
                 {{- end }}
                 name: {{ .Values.azure.redisSecretName }}
-          {{- if .Values.otel.enabled }}
           - name: OTEL_SERVICE_NAME
             value: wonderwall-fa
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: {{ .Values.otel.endpoint }}
-          {{- end }}
           - name: WONDERWALL_REDIS_USERNAME
             valueFrom:
               secretKeyRef:

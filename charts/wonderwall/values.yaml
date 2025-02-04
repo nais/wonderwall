@@ -74,5 +74,4 @@ resourceSuffix: ""
 podDisruptionBudget:
   maxUnavailable: 1
 otel:
-  enabled: false
   endpoint: http://opentelemetry-collector.nais-system:4317

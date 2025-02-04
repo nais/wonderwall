@@ -57,12 +57,10 @@ spec:
                 key: REDIS_URI_WONDERWALL_IDPORTEN
                 {{- end }}
                 name: {{ .Values.idporten.redisSecretNames.readwrite }}
-          {{- if .Values.otel.enabled }}
           - name: OTEL_SERVICE_NAME
             value: wonderwall-idporten
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: {{ .Values.otel.endpoint }}
-          {{- end }}
           - name: WONDERWALL_REDIS_USERNAME
             valueFrom:
               secretKeyRef:
