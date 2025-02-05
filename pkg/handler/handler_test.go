@@ -362,6 +362,8 @@ func TestPing(t *testing.T) {
 
 func TestNonNavigationalRequests(t *testing.T) {
 	cfg := mock.Config()
+	cfg.SSO.Enabled = true
+	cfg.Session.ForwardAuth = true
 	idp := mock.NewIdentityProvider(cfg)
 	defer idp.Close()
 
