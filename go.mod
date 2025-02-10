@@ -7,7 +7,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/bsm/redislock v0.9.4
-	github.com/go-chi/chi/v5 v5.2.0
+	github.com/go-chi/chi/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/lestrrat-go/jwx/v2 v2.1.3
 	github.com/mitchellh/mapstructure v1.5.0
