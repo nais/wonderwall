@@ -3,7 +3,7 @@ module github.com/nais/wonderwall
 go 1.23.6
 
 require (
-	github.com/KimMachineGun/automemlimit v0.7.0
+	github.com/KimMachineGun/automemlimit v0.7.1
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/bsm/redislock v0.9.4
