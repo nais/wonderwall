@@ -12,7 +12,7 @@ require (
 	github.com/lestrrat-go/jwx/v2 v2.1.3
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/nais/liberator v0.0.0-20241220102102-462db3a4a1dd
-	github.com/prometheus/client_golang v1.20.5
+	github.com/prometheus/client_golang v1.21.0
 	github.com/redis/go-redis/extra/redisotel/v9 v9.7.1
 	github.com/redis/go-redis/v9 v9.7.1
 	github.com/riandyrn/otelchi v0.12.1
@@ -53,7 +53,7 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/klauspost/compress v1.17.9 // indirect
+	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.2 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
@@ -65,7 +65,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.55.0 // indirect
+	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.7.1 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
