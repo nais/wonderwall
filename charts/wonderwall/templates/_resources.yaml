@@ -10,7 +10,7 @@ Expects a dict as input with the following keys:
 {{- $name := include "aiven.redisName" (dict "root" $root "provider" $provider) }}
 ---
 apiVersion: aiven.io/v1alpha1
-kind: Redis
+kind: Valkey
 metadata:
   name: {{ $name }}
   annotations:
@@ -25,7 +25,7 @@ spec:
   maintenanceWindowTime: "02:00:00"
   terminationProtection: true
   userConfig:
-    redis_maxmemory_policy: "allkeys-lru"
+    valkey_maxmemory_policy: "allkeys-lru"
 {{- end }}
 
 {{/*
@@ -77,7 +77,7 @@ metadata:
     {{- include "wonderwall.labels" $root | nindent 4 }}
     wonderwall.nais.io/provider: {{ $provider }}
 spec:
-  redis:
+  valkey:
     - access: {{ $access }}
       instance: {{ $instance }}
   secretName: {{ $secretName }}

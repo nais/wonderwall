@@ -118,7 +118,7 @@ ID-porten SSO server URL.
 
 {{/*
 Aiven instance name.
-The last part of the fully qualified name (e.g. <instance> in `redis-<namespace>-<instance>`)
+The last part of the fully qualified name (e.g. <instance> in `valkey-<namespace>-<instance>`)
 */}}
 {{- define "aiven.instanceName" -}}
 {{- $root := .root }}
@@ -140,7 +140,7 @@ Expects a dict with the following keys:
 {{- define "aiven.redisName" -}}
 {{- $root := .root }}
 {{- $provider := .provider }}
-{{- printf "redis-%s-%s" $root.Release.Namespace (include "aiven.instanceName" (dict "provider" $provider "root" $root)) }}
+{{- printf "valkey-%s-%s" $root.Release.Namespace (include "aiven.instanceName" (dict "provider" $provider "root" $root)) }}
 {{- end }}
 
 {{/*
