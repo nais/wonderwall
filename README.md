@@ -102,7 +102,7 @@ europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall@sha25:<shasum>
 
 ## Development
 
-Requires Go 1.23
+Requires Go 1.24
 
 ```shell
 docker-compose up -d
