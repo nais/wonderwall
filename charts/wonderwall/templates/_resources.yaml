@@ -13,6 +13,8 @@ apiVersion: aiven.io/v1alpha1
 kind: Redis
 metadata:
   name: {{ $name }}
+  annotations:
+    helm.sh/resource-policy: keep
   labels:
     {{- include "wonderwall.labels" $root | nindent 4 }}
     wonderwall.nais.io/provider: {{ $provider }}
