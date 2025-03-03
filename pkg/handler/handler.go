@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -534,6 +535,11 @@ func (s *Standalone) Wildcard(w http.ResponseWriter, r *http.Request) {
 
 func handleGetSessionError(route string, w http.ResponseWriter, r *http.Request, err error) {
 	logger := mw.LogEntryFrom(r)
+	if errors.Is(err, context.Canceled) {
+		logger.Infof("%s: getting session: %+v; responding with HTTP 499...", route, err)
+		w.WriteHeader(499)
+		return
+	}
 
 	if errors.Is(err, session.ErrNotFound) {
 		logger.Debugf("%s: getting session: %+v", route, err)
