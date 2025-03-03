@@ -2,6 +2,7 @@ dependencies:
   - allOf:
       - aiven-operator
       - aivenator
+      - mutilator
       - replicator
 environmentKinds:
   - tenant
