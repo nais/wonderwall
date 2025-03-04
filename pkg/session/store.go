@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/extra/redisotel/v9"
+	"github.com/redis/go-redis/extra/redisprometheus/v9"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -30,6 +32,9 @@ func NewStore(cfg *config.Config) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Redis Client: %w", err)
 	}
+
+	collector := redisprometheus.NewCollector("wonderwall", "", redisClient)
+	prometheus.Register(collector)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
