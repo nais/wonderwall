@@ -11,7 +11,7 @@ var RetryableError = retry.RetryableError
 
 const (
 	baseDuration = 50 * time.Millisecond
-	maxDuration  = 1 * time.Second
+	maxDuration  = 5 * time.Second
 )
 
 func fibonacci() retry.Backoff {
