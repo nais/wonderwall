@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
 	stringslib "strings"
 
 	"github.com/nais/wonderwall/internal/o11y/otel"
+	"github.com/nais/wonderwall/pkg/retry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -116,19 +118,29 @@ func (c *Client) authCodeURL(ctx context.Context, authCodeParams openid.Authoriz
 		}
 
 		endpoint := c.cfg.Provider().PushedAuthorizationRequestEndpoint()
-		body, err := c.oauthPostRequest(ctx, endpoint, authCodeParams.RequestParams().With(clientAuth))
-		if err != nil {
-			return "", err
-		}
+		resp, err := retry.DoValue(ctx, func(ctx context.Context) (*openid.PushedAuthorizationResponse, error) {
+			body, err := c.oauthPostRequest(ctx, endpoint, authCodeParams.RequestParams().With(clientAuth))
+			if err != nil {
+				if errors.Is(err, ErrOpenIDServer) {
+					return nil, retry.RetryableError(err)
+				}
+				return nil, err
+			}
 
-		var pushedAuthorizationResponse openid.PushedAuthorizationResponse
-		if err := json.Unmarshal(body, &pushedAuthorizationResponse); err != nil {
-			return "", fmt.Errorf("unmarshalling token response: %w", err)
+			var pushedAuthorizationResponse openid.PushedAuthorizationResponse
+			if err := json.Unmarshal(body, &pushedAuthorizationResponse); err != nil {
+				return nil, fmt.Errorf("unmarshalling token response: %w", err)
+			}
+
+			return &pushedAuthorizationResponse, nil
+		})
+		if err != nil {
+			return "", fmt.Errorf("requesting pushed authorization: %w", err)
 		}
 
 		return c.makeAuthCodeURL(openid.ParAuthorizationRequestParams(
 			c.oauth2Config.ClientID,
-			pushedAuthorizationResponse.RequestUri,
+			resp.RequestUri,
 		)), nil
 	}
 
