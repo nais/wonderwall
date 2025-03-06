@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -148,15 +147,15 @@ func (c *Client) authCodeURL(ctx context.Context, authCodeParams openid.Authoriz
 }
 
 func (c *Client) makeAuthCodeURL(params openid.RequestParams) string {
-	var buf bytes.Buffer
-	buf.WriteString(c.oauth2Config.Endpoint.AuthURL)
+	var sb stringslib.Builder
+	sb.WriteString(c.oauth2Config.Endpoint.AuthURL)
 	if stringslib.Contains(c.oauth2Config.Endpoint.AuthURL, "?") {
-		buf.WriteByte('&')
+		sb.WriteByte('&')
 	} else {
-		buf.WriteByte('?')
+		sb.WriteByte('?')
 	}
-	buf.WriteString(params.URLValues().Encode())
-	return buf.String()
+	sb.WriteString(params.URLValues().Encode())
+	return sb.String()
 }
 
 func (l *Login) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter, canonicalRedirect string) error {
