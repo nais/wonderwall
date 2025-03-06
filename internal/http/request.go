@@ -8,21 +8,26 @@ import (
 	"github.com/nais/wonderwall/pkg/cookie"
 )
 
+// IsNavigationRequest checks if the request is a navigation request by using Sec-Fetch headers.
+// This is used to separate between redirects for browser navigation and redirects for resource requests (e.g., Fetch or XHR).
+// We fall back to checking the Accept header if the browser doesn't support fetch metadata.
 func IsNavigationRequest(r *http.Request) bool {
 	// we assume that navigation requests are always GET requests
 	if r.Method != http.MethodGet {
 		return false
 	}
 
-	// check for top-level navigation requests
 	mode := r.Header.Get("Sec-Fetch-Mode")
 	dest := r.Header.Get("Sec-Fetch-Dest")
-	if mode != "" && dest != "" {
-		return mode == "navigate" && dest == "document"
+	if mode == "" && dest == "" {
+		return Accepts(r, "text/html")
 	}
 
-	// fallback if browser doesn't support fetch metadata
-	return Accepts(r, "text/html")
+	return mode == "navigate" && dest == "document"
+}
+
+func HasSecFetchMetadata(r *http.Request) bool {
+	return r.Header.Get("Sec-Fetch-Mode") != "" && r.Header.Get("Sec-Fetch-Dest") != ""
 }
 
 func Accepts(r *http.Request, accepted ...string) bool {

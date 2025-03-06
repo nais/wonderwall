@@ -362,8 +362,6 @@ func TestPing(t *testing.T) {
 
 func TestNonNavigationalRequests(t *testing.T) {
 	cfg := mock.Config()
-	cfg.SSO.Enabled = true
-	cfg.Session.ForwardAuth = true
 	idp := mock.NewIdentityProvider(cfg)
 	defer idp.Close()
 
@@ -373,9 +371,21 @@ func TestNonNavigationalRequests(t *testing.T) {
 		"/oauth2/logout",
 		"/oauth2/logout/callback",
 	} {
-		rpClient := idp.RelyingPartyClient()
-		resp := get(t, rpClient, idp.RelyingPartyServer.URL+path)
-		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		t.Run("with fetch metadata", func(t *testing.T) {
+			rpClient := idp.RelyingPartyClient()
+			resp := get(t, rpClient, idp.RelyingPartyServer.URL+path,
+				header{"Sec-Fetch-Mode", "cors"},
+				header{"Sec-Fetch-Dest", "empty"},
+			)
+			assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		})
+
+		t.Run("without fetch metadata", func(t *testing.T) {
+			rpClient := idp.RelyingPartyClient()
+			resp := get(t, rpClient, idp.RelyingPartyServer.URL+path)
+			assert.GreaterOrEqual(t, resp.StatusCode, http.StatusFound)
+			assert.LessOrEqual(t, resp.StatusCode, http.StatusPermanentRedirect)
+		})
 	}
 }
 

@@ -164,14 +164,25 @@ func TestReverseProxy(t *testing.T) {
 		up.SetIdentityProvider(idp)
 		rpClient := idp.RelyingPartyClient()
 
-		target := idp.RelyingPartyServer.URL + "/"
-		resp := get(t, rpClient, target)
-		assertAutoLoginUnauthorizedResponse(t, idp, resp, "")
+		t.Run("without fetch metadata", func(t *testing.T) {
+			target := idp.RelyingPartyServer.URL + "/"
+			resp := get(t, rpClient, target)
+			assertAutoLoginUnauthorizedResponse(t, idp, resp, "")
 
-		referer := idp.RelyingPartyServer.URL + "/some-path"
-		target = idp.RelyingPartyServer.URL + "/some-path/resource"
-		resp = get(t, rpClient, target, header{"Referer", referer})
-		assertAutoLoginUnauthorizedResponse(t, idp, resp, referer)
+			referer := idp.RelyingPartyServer.URL + "/some-path"
+			target = idp.RelyingPartyServer.URL + "/some-path/resource"
+			resp = get(t, rpClient, target, header{"Referer", referer})
+			assertAutoLoginUnauthorizedResponse(t, idp, resp, referer)
+		})
+
+		t.Run("with fetch metadata", func(t *testing.T) {
+			target := idp.RelyingPartyServer.URL + "/"
+			resp := get(t, rpClient, target,
+				header{"Sec-Fetch-Mode", "cors"},
+				header{"Sec-Fetch-Dest", "empty"},
+			)
+			assertAutoLoginUnauthorizedResponse(t, idp, resp, "")
+		})
 	})
 
 	t.Run("with auto-login for navigation request without fetch metadata returns 3xx redirect", func(t *testing.T) {
