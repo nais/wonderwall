@@ -18,7 +18,7 @@ require (
 	github.com/lestrrat-go/jwx/v2 v2.1.4
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/nais/liberator v0.0.0-20241220102102-462db3a4a1dd
-	github.com/prometheus/client_golang v1.21.0
+	github.com/prometheus/client_golang v1.21.1
 	github.com/redis/go-redis/extra/redisotel/v9 v9.7.1
 	github.com/redis/go-redis/extra/redisprometheus/v9 v9.7.1
 	github.com/redis/go-redis/v9 v9.7.1
