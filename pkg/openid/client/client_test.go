@@ -1,6 +1,9 @@
 package client_test
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,8 +23,10 @@ func TestMakeAssertion(t *testing.T) {
 	c := newTestClientWithConfig(openidConfig)
 
 	expiry := 30 * time.Second
-	assertionString, err := c.MakeAssertion(expiry)
+	jwtAssertion, err := c.MakeAssertion(expiry)
 	assert.NoError(t, err)
+
+	assertFlattenedAudience(t, jwtAssertion)
 
 	key := openidConfig.Client().ClientJWK()
 	publicKey, err := key.PublicKey()
@@ -32,8 +37,7 @@ func TestMakeAssertion(t *testing.T) {
 		jwt.WithRequiredClaim(jwt.ExpirationKey),
 		jwt.WithRequiredClaim(jwt.JwtIDKey),
 	}
-
-	assertion, err := jwt.Parse([]byte(assertionString), opts...)
+	assertion, err := jwt.ParseString(jwtAssertion, opts...)
 	assert.NoError(t, err)
 
 	assert.ElementsMatch(t, []string{"some-issuer"}, assertion.Audience())
@@ -43,6 +47,22 @@ func TestMakeAssertion(t *testing.T) {
 	assert.True(t, assertion.IssuedAt().Before(time.Now()))
 	assert.True(t, assertion.Expiration().After(time.Now()))
 	assert.True(t, assertion.Expiration().Before(time.Now().Add(expiry)))
+}
+
+// assertFlattenedAudience asserts that the raw JWT assertion has a flattened audience claim, i.e. aud is a string value.
+// We do this as the jwx library only exposes the audience as a slice of strings for parsed JWTs.
+func assertFlattenedAudience(t *testing.T, jwtAssertion string) {
+	parts := strings.Split(jwtAssertion, ".")
+	assert.Len(t, parts, 3)
+
+	rawClaims, err := base64.RawURLEncoding.DecodeString(parts[1])
+	assert.NoError(t, err)
+
+	claims := make(map[string]any)
+	err = json.Unmarshal(rawClaims, &claims)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "some-issuer", claims["aud"])
 }
 
 func newTestClientWithConfig(config *mock.TestConfiguration) *client.Client {

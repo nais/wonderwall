@@ -24,6 +24,10 @@ import (
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
+func init() {
+	jwt.Settings(jwt.WithFlattenAudience(true))
+}
+
 var (
 	ErrOpenIDClient = errors.New("client error")
 	ErrOpenIDServer = errors.New("server error")
@@ -141,20 +145,16 @@ func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
 	iat := time.Now().Add(-5 * time.Second).Truncate(time.Second)
 	exp := iat.Add(expiration)
 
-	errs := make([]error, 0)
-
-	tok := jwt.New()
-	errs = append(errs, tok.Set(jwt.IssuerKey, clientCfg.ClientID()))
-	errs = append(errs, tok.Set(jwt.SubjectKey, clientCfg.ClientID()))
-	errs = append(errs, tok.Set(jwt.AudienceKey, providerCfg.Issuer()))
-	errs = append(errs, tok.Set(jwt.IssuedAtKey, iat))
-	errs = append(errs, tok.Set(jwt.ExpirationKey, exp))
-	errs = append(errs, tok.Set(jwt.JwtIDKey, uuid.New().String()))
-
-	for _, err := range errs {
-		if err != nil {
-			return "", fmt.Errorf("setting claim for client assertion: %w", err)
-		}
+	tok, err := jwt.NewBuilder().
+		Issuer(clientCfg.ClientID()).
+		Subject(clientCfg.ClientID()).
+		Audience([]string{providerCfg.Issuer()}). // the aud claim is flattened to a single string value on serialization
+		IssuedAt(iat).
+		Expiration(exp).
+		JwtID(uuid.New().String()).
+		Build()
+	if err != nil {
+		return "", fmt.Errorf("building client assertion: %w", err)
 	}
 
 	encoded, err := jwt.Sign(tok, jwt.WithKey(key.Algorithm(), key))
