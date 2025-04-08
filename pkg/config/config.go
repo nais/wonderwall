@@ -7,7 +7,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/nais/liberator/pkg/conftools"
 	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
