@@ -32,13 +32,13 @@ type ReverseProxySource interface {
 type ReverseProxy struct {
 	*httputil.ReverseProxy
 	EnableAccessLogs bool
-	IncludeIdToken   bool
+	IncludeIDToken   bool
 }
 
-func NewUpstreamProxy(upstream *urllib.URL, enableAccessLogs bool, includeIdToken bool) *ReverseProxy {
+func NewUpstreamProxy(upstream *urllib.URL, enableAccessLogs bool, includeIDToken bool) *ReverseProxy {
 	rp := NewReverseProxy(upstream, true)
 	rp.EnableAccessLogs = enableAccessLogs
-	rp.IncludeIdToken = includeIdToken
+	rp.IncludeIDToken = includeIDToken
 	return rp
 }
 
@@ -74,9 +74,12 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 				r.Out.Header.Set("authorization", "Bearer "+accessToken)
 			}
 
-			idToken, ok := mw.IdTokenFrom(r.In.Context())
+			idToken, ok := mw.IDTokenFrom(r.In.Context())
 			if ok {
 				r.Out.Header.Set("X-Wonderwall-Id-Token", idToken)
+			} else {
+				// remove the header if it was set by the client
+				r.Out.Header.Del("X-Wonderwall-Id-Token")
 			}
 		},
 		Transport: httpinternal.Transport(),
@@ -140,9 +143,8 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
 		span.SetAttributes(attribute.Bool("proxy.with_access_token", true))
-		if rp.IncludeIdToken && sess != nil {
-			idToken := sess.IDToken()
-			ctx = mw.WithIdToken(ctx, idToken)
+		if rp.IncludeIDToken && sess != nil {
+			ctx = mw.WithIDToken(ctx, sess.IDToken())
 			span.SetAttributes(attribute.Bool("proxy.with_id_token", true))
 		}
 

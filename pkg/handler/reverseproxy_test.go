@@ -444,7 +444,7 @@ func TestReverseProxy(t *testing.T) {
 		assertUpstreamOKResponse(t, resp)
 	})
 
-	t.Run("request should not include idToken by default", func(t *testing.T) {
+	t.Run("request should not include id_token by default", func(t *testing.T) {
 		cfg := mock.Config()
 		cfg.UpstreamHost = up.URL.Host
 		idp := mock.NewIdentityProvider(cfg)
@@ -464,7 +464,7 @@ func TestReverseProxy(t *testing.T) {
 		assertUpstreamOKResponse(t, resp)
 	})
 
-	t.Run("request should include idToken", func(t *testing.T) {
+	t.Run("request should include id_token", func(t *testing.T) {
 		cfg := mock.Config()
 		cfg.UpstreamHost = up.URL.Host
 		cfg.UpstreamIncludeIdToken = true
@@ -483,5 +483,25 @@ func TestReverseProxy(t *testing.T) {
 
 		resp := get(t, rpClient, idp.RelyingPartyServer.URL)
 		assertUpstreamOKResponse(t, resp)
+	})
+
+	t.Run("request should strip incoming id_token if unauthenticated", func(t *testing.T) {
+		cfg := mock.Config()
+		cfg.UpstreamHost = up.URL.Host
+		cfg.UpstreamIncludeIdToken = true
+		idp := mock.NewIdentityProvider(cfg)
+		defer idp.Close()
+
+		up.SetIdentityProvider(idp)
+		rpClient := idp.RelyingPartyClient()
+
+		up.requestCallback = func(r *http.Request) {
+			assert.Empty(t, r.Header.Get("x-wonderwall-id-token"))
+		}
+
+		resp := get(t, rpClient, idp.RelyingPartyServer.URL, header{
+			"x-wonderwall-id-token", "some-id-token",
+		})
+		assertUpstreamUnauthorizedResponse(t, resp)
 	})
 }
