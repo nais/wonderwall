@@ -2,9 +2,12 @@ package handler_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/mock"
@@ -504,4 +507,78 @@ func TestReverseProxy(t *testing.T) {
 		})
 		assertUpstreamUnauthorizedResponse(t, resp)
 	})
+}
+
+type upstream struct {
+	Server          *httptest.Server
+	URL             *url.URL
+	idp             *mock.IdentityProvider
+	reverseProxyURL *url.URL
+	requestCallback func(r *http.Request)
+}
+
+func newUpstream(t *testing.T) *upstream {
+	u := new(upstream)
+	u.requestCallback = func(r *http.Request) {}
+
+	upstreamHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u.requestCallback(r)
+
+		// Host should match the original authority from the ingress used to reach Wonderwall
+		assert.Equal(t, u.reverseProxyURL.Host, r.Host)
+		assert.NotEqual(t, u.URL.Host, r.Host)
+
+		if u.hasValidToken(r) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte("not ok"))
+		}
+	})
+	server := httptest.NewServer(upstreamHandler)
+
+	upstreamURL, err := url.Parse(server.URL)
+	assert.NoError(t, err)
+
+	u.Server = server
+	u.URL = upstreamURL
+	return u
+}
+
+func (u *upstream) SetIdentityProvider(idp *mock.IdentityProvider) {
+	u.idp = idp
+	u.setReverseProxyUrl(idp.RelyingPartyServer.URL)
+}
+
+func (u *upstream) setReverseProxyUrl(raw string) {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		panic(err)
+	}
+
+	u.reverseProxyURL = parsed
+}
+
+func (u *upstream) hasValidToken(r *http.Request) bool {
+	authHeader := r.Header.Get("Authorization")
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if len(token) <= 0 {
+		return false
+	}
+
+	jwks, err := u.idp.ProviderHandler.Provider.GetPublicJwkSet(r.Context())
+	if err != nil {
+		panic(err)
+	}
+
+	opts := []jwt.ParseOption{
+		jwt.WithValidate(true),
+		jwt.WithKeySet(*jwks),
+		jwt.WithIssuer(u.idp.OpenIDConfig.Provider().Issuer()),
+		jwt.WithAudience(u.idp.OpenIDConfig.Client().ClientID()),
+	}
+
+	_, err = jwt.ParseString(token, opts...)
+	return err == nil
 }
