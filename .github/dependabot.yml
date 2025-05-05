@@ -11,6 +11,9 @@ updates:
       otel:
         patterns:
           - 'go.opentelemetry.io/*'
+      redis:
+        patters:
+          - 'github.com/redis/go-redis/*'
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
