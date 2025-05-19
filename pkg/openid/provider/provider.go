@@ -6,12 +6,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lestrrat-go/httprc/v3"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nais/wonderwall/internal/o11y/otel"
-	"go.opentelemetry.io/otel/attribute"
-
-	"github.com/lestrrat-go/jwx/v2/jwk"
-
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -31,9 +31,14 @@ type jwksLock struct {
 
 func (p *JwksProvider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 	url := p.config.JwksURI()
-	set, err := p.jwksCache.Get(ctx, url)
+	set, err := p.jwksCache.Lookup(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("provider: fetching jwks: %w", err)
+	}
+
+	set, err = ensureJwkSetWithAlg(set, p.config.IDTokenSigningAlg())
+	if err != nil {
+		return nil, fmt.Errorf("provider: mutating jwks: %w", err)
 	}
 
 	return &set, nil
@@ -59,6 +64,12 @@ func (p *JwksProvider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error
 	if err != nil {
 		return nil, fmt.Errorf("provider: refreshing jwks: %w", err)
 	}
+
+	set, err = ensureJwkSetWithAlg(set, p.config.IDTokenSigningAlg())
+	if err != nil {
+		return nil, fmt.Errorf("provider: mutating jwks: %w", err)
+	}
+
 	span.SetAttributes(attribute.Bool("jwks.refreshed", true))
 	return &set, nil
 }
@@ -67,17 +78,13 @@ func NewJwksProvider(ctx context.Context, openidCfg openidconfig.Config) (*JwksP
 	providerCfg := openidCfg.Provider()
 
 	uri := providerCfg.JwksURI()
-	cache := jwk.NewCache(ctx)
-
-	err := cache.Register(uri, jwk.WithPostFetcher(keySetMutator(providerCfg)))
+	cache, err := jwk.NewCache(ctx, httprc.NewClient())
 	if err != nil {
-		return nil, fmt.Errorf("registering jwks provider uri to cache: %w", err)
+		return nil, fmt.Errorf("creating jwks cache: %w", err)
 	}
 
-	// trigger initial fetch and cache of jwk set
-	_, err = cache.Refresh(ctx, uri)
-	if err != nil {
-		return nil, fmt.Errorf("initial fetch of jwks from provider: %w", err)
+	if err := cache.Register(ctx, uri); err != nil {
+		return nil, fmt.Errorf("registering jwks provider uri to cache: %w", err)
 	}
 
 	return &JwksProvider{
@@ -87,21 +94,31 @@ func NewJwksProvider(ctx context.Context, openidCfg openidconfig.Config) (*JwksP
 	}, nil
 }
 
-func keySetMutator(cfg openidconfig.Provider) jwk.PostFetcher {
-	return jwk.PostFetchFunc(func(uri string, set jwk.Set) (jwk.Set, error) {
-		for i := 0; i < set.Len(); i++ {
-			key, ok := set.Key(i)
-			if !ok || key.Algorithm().String() != "" {
-				continue
-			}
-
-			// if no "alg" is set on the key, set it to the expected algorithm
-			err := key.Set(jwk.AlgorithmKey, cfg.IDTokenSigningAlg())
-			if err != nil {
-				return nil, fmt.Errorf("setting key algorithm: %w", err)
-			}
+func ensureJwkSetWithAlg(set jwk.Set, expectedAlg jwa.KeyAlgorithm) (jwk.Set, error) {
+	for i := 0; i < set.Len(); i++ {
+		key, ok := set.Key(i)
+		if !ok {
+			continue
 		}
 
-		return set, nil
-	})
+		alg, ok := key.Algorithm()
+		if ok {
+			// drop keys with "alg=none"
+			if alg == jwa.NoSignature() {
+				if err := set.RemoveKey(key); err != nil {
+					return nil, fmt.Errorf("removing key: %w", err)
+				}
+			}
+
+			// don't mutate keys with a valid algorithm
+			continue
+		}
+
+		// set "alg" to expected algorithm for keys that don't have one set
+		if err := key.Set(jwk.AlgorithmKey, expectedAlg); err != nil {
+			return nil, fmt.Errorf("setting key algorithm: %w", err)
+		}
+	}
+
+	return set, nil
 }

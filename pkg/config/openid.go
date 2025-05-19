@@ -2,9 +2,8 @@ package config
 
 import (
 	"fmt"
-	"slices"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
@@ -45,9 +44,9 @@ func (in OpenID) TrustedAudiences() map[string]bool {
 }
 
 func (in OpenID) Validate() error {
-	valid := jwa.SignatureAlgorithms()
-	if !slices.Contains(valid, jwa.SignatureAlgorithm(in.IDTokenSigningAlg)) {
-		return fmt.Errorf("invalid id_token signing algorithm: %q, must be one of %s", in.IDTokenSigningAlg, valid)
+	_, ok := jwa.LookupSignatureAlgorithm(in.IDTokenSigningAlg)
+	if !ok {
+		return fmt.Errorf("invalid id_token signing algorithm: %q, must be one of %s", in.IDTokenSigningAlg, jwa.SignatureAlgorithms())
 	}
 
 	return nil
@@ -74,7 +73,7 @@ func openidFlags() {
 	flag.String(OpenIDClientID, "", "Client ID for the OpenID client.")
 	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format. If configured, this takes precedence over 'openid.client-secret'.")
 	flag.String(OpenIDClientSecret, "", "Client secret for the OpenID client. Overridden by 'openid.client-jwk', if configured.")
-	flag.String(OpenIDIDTokenSigningAlg, string(jwa.RS256), "Expected JWA value (as defined in RFC 7518) of public keys for validating id_token signatures. This only applies where the key's 'alg' header is not set.")
+	flag.String(OpenIDIDTokenSigningAlg, jwa.RS256().String(), "Expected JWA value (as defined in RFC 7518) of public keys for validating id_token signatures. This only applies where the key's 'alg' header is not set.")
 	flag.String(OpenIDPostLogoutRedirectURI, "", "URI for redirecting the user after successful logout at the Identity Provider.")
 	flag.String(OpenIDProvider, string(ProviderOpenID), "Provider configuration to load and use, either 'openid', 'azure', 'idporten'.")
 	flag.String(OpenIDResourceIndicator, "", "OAuth2 resource indicator to include in authorization request for acquiring audience-restricted tokens.")

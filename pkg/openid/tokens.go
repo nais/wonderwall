@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/openid/acr"
@@ -141,7 +141,10 @@ func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie, jwks *
 	// OpenID Connect Core 3.1.3.7, step 3.
 	//  The `aud` (audience) Claim MAY contain an array with more than one element.
 	//  The ID Token MUST be rejected if the ID Token [...] contains additional audiences not trusted by the Client.
-	audiences := in.Audience()
+	audiences, ok := in.Audience()
+	if !ok {
+		return fmt.Errorf("missing required 'aud' claim in id_token")
+	}
 	if len(audiences) > 1 {
 		trusted := clientConfig.Audiences()
 		untrusted := make([]string, 0)
@@ -198,9 +201,9 @@ func (in *IDToken) Claim(claim string) (any, error) {
 		return nil, fmt.Errorf("token is nil")
 	}
 
-	gotClaim, ok := in.Token.Get(claim)
-	if !ok {
-		return nil, fmt.Errorf("missing required '%s' claim in id_token", claim)
+	var gotClaim any
+	if err := in.Token.Get(claim, &gotClaim); err != nil {
+		return nil, fmt.Errorf("missing required '%s' claim in id_token: %w", claim, err)
 	}
 
 	return gotClaim, nil

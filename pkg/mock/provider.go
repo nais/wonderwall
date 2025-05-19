@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/internal/crypto"
@@ -59,7 +59,7 @@ func (t *TestProviderConfiguration) EndSessionEndpointURL() url.URL {
 }
 
 func (t *TestProviderConfiguration) IDTokenSigningAlg() jwa.KeyAlgorithm {
-	return jwa.RS256
+	return jwa.RS256()
 }
 
 func (t *TestProviderConfiguration) Issuer() string {

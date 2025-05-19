@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	jwtlib "github.com/lestrrat-go/jwx/v2/jwt"
+	jwtlib "github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/mock"

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,13 +45,31 @@ func TestParseIDToken(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, sub, parsed.Subject())
-	assert.Equal(t, "some-issuer", parsed.Issuer())
-	assert.Equal(t, []string{"some-client-id"}, parsed.Audience())
+	actualSub, ok := parsed.Subject()
+	assert.True(t, ok)
+	assert.Equal(t, sub, actualSub)
+
+	actualIss, ok := parsed.Issuer()
+	assert.True(t, ok)
+	assert.Equal(t, "some-issuer", actualIss)
+
+	actualAud, ok := parsed.Audience()
+	assert.True(t, ok)
+	assert.Equal(t, []string{"some-client-id"}, actualAud)
+
 	assert.Equal(t, "some-nonce", parsed.StringClaimOrEmpty("nonce"))
-	assert.Equal(t, iat, parsed.IssuedAt())
-	assert.Equal(t, exp, parsed.Expiration())
-	assert.NotEmpty(t, parsed.JwtID())
+
+	actualIat, ok := parsed.IssuedAt()
+	assert.True(t, ok)
+	assert.Equal(t, iat, actualIat)
+
+	actualExp, ok := parsed.Expiration()
+	assert.True(t, ok)
+	assert.Equal(t, exp, actualExp)
+
+	actualJti, ok := parsed.JwtID()
+	assert.True(t, ok)
+	assert.NotEmpty(t, actualJti)
 }
 
 func TestIDToken_GetAcrClaim(t *testing.T) {
@@ -191,28 +209,28 @@ func TestIDToken_Validate(t *testing.T) {
 			claims: &claims{
 				remove: []string{"sub"},
 			},
-			expectErr: `"sub" not satisfied: required claim not found`,
+			expectErr: `required claim "sub" is missing`,
 		},
 		{
 			name: "missing exp",
 			claims: &claims{
 				remove: []string{"exp"},
 			},
-			expectErr: `"exp" not satisfied: required claim not found`,
+			expectErr: `required claim "exp" is missing`,
 		},
 		{
 			name: "missing iat",
 			claims: &claims{
 				remove: []string{"iat"},
 			},
-			expectErr: `"iat" not satisfied: required claim not found`,
+			expectErr: `required claim "iat" is missing`,
 		},
 		{
 			name: "missing iss",
 			claims: &claims{
 				remove: []string{"iss"},
 			},
-			expectErr: `"iss" not satisfied: required claim not found`,
+			expectErr: `required claim "iss" is missing`,
 		},
 		{
 			name: "iat is in the future",
@@ -248,14 +266,14 @@ func TestIDToken_Validate(t *testing.T) {
 					"iss": "https://some-other-issuer",
 				},
 			},
-			expectErr: `"iss" not satisfied: values do not match`,
+			expectErr: `claim "iss" does not have the expected value`,
 		},
 		{
 			name: "missing aud",
 			claims: &claims{
 				remove: []string{"aud"},
 			},
-			expectErr: `"aud" not satisfied: required claim not found`,
+			expectErr: `required claim "aud" is missing`,
 		},
 		{
 			name: "audience mismatch",
@@ -297,7 +315,7 @@ func TestIDToken_Validate(t *testing.T) {
 			claims: &claims{
 				remove: []string{"nonce"},
 			},
-			expectErr: `"nonce" not satisfied: claim "nonce" does not exist`,
+			expectErr: `claim "nonce" does not exist`,
 		},
 		{
 			name: "nonce mismatch",
@@ -306,7 +324,7 @@ func TestIDToken_Validate(t *testing.T) {
 					"nonce": "invalid-nonce",
 				},
 			},
-			expectErr: `"nonce" not satisfied: values do not match`,
+			expectErr: `claim "nonce" does not have the expected value`,
 		},
 		{
 			name:       "sid required",
@@ -318,7 +336,7 @@ func TestIDToken_Validate(t *testing.T) {
 				remove: []string{"sid"},
 			},
 			requireSid: true,
-			expectErr:  `"sid" not satisfied: required claim not found`,
+			expectErr:  `required claim "sid" is missing`,
 		},
 		{
 			name:       "acr required",
@@ -429,7 +447,7 @@ func makeIDToken(claims *claims) (*openid.IDToken, error) {
 		return nil, fmt.Errorf("no private key found at index 0")
 	}
 
-	jws, err := jwt.Sign(idToken, jwt.WithKey(jwa.RS256, key))
+	jws, err := jwt.Sign(idToken, jwt.WithKey(jwa.RS256(), key))
 	if err != nil {
 		return nil, fmt.Errorf("signing token: %w", err)
 	}

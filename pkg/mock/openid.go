@@ -15,9 +15,9 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/internal/crypto"
@@ -188,7 +188,7 @@ func (ip *IdentityProviderHandler) signToken(token jwt.Token) (string, error) {
 		return "", fmt.Errorf("could not get signer")
 	}
 
-	signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, signer))
+	signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), signer))
 	if err != nil {
 		return "", err
 	}
@@ -567,7 +567,12 @@ func (ip *IdentityProviderHandler) RefreshTokenGrant(w http.ResponseWriter, r *h
 
 	iat := time.Now().Truncate(time.Second)
 	exp := iat.Add(ip.TokenDuration)
-	sub := data.OriginalIDToken.Subject()
+	sub, ok := data.OriginalIDToken.Subject()
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		oauthError(w, fmt.Errorf("could not get subject from original id token"))
+		return
+	}
 
 	accessToken := jwt.New()
 	accessToken.Set("sub", sub)

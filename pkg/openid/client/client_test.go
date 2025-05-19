@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nais/wonderwall/pkg/mock"
@@ -31,8 +31,12 @@ func TestMakeAssertion(t *testing.T) {
 	key := openidConfig.Client().ClientJWK()
 	publicKey, err := key.PublicKey()
 	assert.NoError(t, err)
+
+	alg, ok := publicKey.Algorithm()
+	assert.True(t, ok)
+
 	opts := []jwt.ParseOption{
-		jwt.WithKey(publicKey.Algorithm(), publicKey),
+		jwt.WithKey(alg, publicKey),
 		jwt.WithRequiredClaim(jwt.IssuedAtKey),
 		jwt.WithRequiredClaim(jwt.ExpirationKey),
 		jwt.WithRequiredClaim(jwt.JwtIDKey),
@@ -40,13 +44,26 @@ func TestMakeAssertion(t *testing.T) {
 	assertion, err := jwt.ParseString(jwtAssertion, opts...)
 	assert.NoError(t, err)
 
-	assert.ElementsMatch(t, []string{"some-issuer"}, assertion.Audience())
-	assert.Equal(t, "some-client-id", assertion.Issuer())
-	assert.Equal(t, "some-client-id", assertion.Subject())
+	aud, ok := assertion.Audience()
+	assert.True(t, ok)
+	assert.ElementsMatch(t, []string{"some-issuer"}, aud)
 
-	assert.True(t, assertion.IssuedAt().Before(time.Now()))
-	assert.True(t, assertion.Expiration().After(time.Now()))
-	assert.True(t, assertion.Expiration().Before(time.Now().Add(expiry)))
+	iss, ok := assertion.Issuer()
+	assert.True(t, ok)
+	assert.Equal(t, "some-client-id", iss)
+
+	sub, ok := assertion.Subject()
+	assert.True(t, ok)
+	assert.Equal(t, "some-client-id", sub)
+
+	iat, ok := assertion.IssuedAt()
+	assert.True(t, ok)
+	assert.True(t, iat.Before(time.Now()))
+
+	exp, ok := assertion.Expiration()
+	assert.True(t, ok)
+	assert.True(t, exp.After(time.Now()))
+	assert.True(t, exp.Before(time.Now().Add(expiry)))
 }
 
 // assertFlattenedAudience asserts that the raw JWT assertion has a flattened audience claim, i.e. aud is a string value.

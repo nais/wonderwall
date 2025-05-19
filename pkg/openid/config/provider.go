@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
@@ -106,9 +106,14 @@ func NewProviderConfig(cfg *config.Config) (Provider, error) {
 
 	providerCfg.Print()
 
+	signingAlg, ok := jwa.LookupSignatureAlgorithm(cfg.OpenID.IDTokenSigningAlg)
+	if !ok {
+		return nil, fmt.Errorf("invalid id_token signing algorithm: %q, must be one of %s", cfg.OpenID.IDTokenSigningAlg, jwa.SignatureAlgorithms())
+	}
+
 	return &provider{
 		endSessionEndpointURL: endSessionEndpointURL,
-		idTokenSigningAlg:     jwa.SignatureAlgorithm(cfg.OpenID.IDTokenSigningAlg),
+		idTokenSigningAlg:     signingAlg,
 		metadata:              providerCfg,
 	}, nil
 }

@@ -10,15 +10,14 @@ import (
 	"strings"
 	"time"
 
-	httpinternal "github.com/nais/wonderwall/internal/http"
-	"github.com/nais/wonderwall/internal/o11y/otel"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 
+	httpinternal "github.com/nais/wonderwall/internal/http"
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
@@ -157,7 +156,12 @@ func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
 		return "", fmt.Errorf("building client assertion: %w", err)
 	}
 
-	encoded, err := jwt.Sign(tok, jwt.WithKey(key.Algorithm(), key))
+	alg, ok := key.Algorithm()
+	if !ok {
+		return "", fmt.Errorf("missing algorithm on client key")
+	}
+
+	encoded, err := jwt.Sign(tok, jwt.WithKey(alg, key))
 	if err != nil {
 		return "", fmt.Errorf("signing client assertion: %w", err)
 	}
