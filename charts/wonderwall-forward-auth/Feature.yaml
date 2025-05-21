@@ -32,4 +32,4 @@ values:
     description: Default redirect URL for forward auth
     computed:
       template: |
-        {{ subdomain . "console" | quote }}
+        {{ printf "https://%s" (subdomain . "console") | quote }}
