@@ -1,0 +1,35 @@
+environmentKinds:
+  - management
+timeout: "1800s"
+values:
+  openid.clientID:
+    required: true
+    computed:
+      template: |
+        {{ .Env.wonderwall_forward_auth_zitadel_client_id | quote }}
+  openid.clientSecret:
+    required: true
+    computed:
+      template: |
+        {{ .Env.wonderwall_forward_auth_zitadel_client_secret | quote }}
+  replicas.min:
+    config:
+      type: int
+  replicas.max:
+    config:
+      type: int
+  session.cookieEncryptionKey:
+    description: Cookie encryption key, 256 bits (e.g. 32 ASCII characters) encoded with standard base64.
+    computed:
+      template: |
+        {{ .Env.wonderwall_forward_auth_encryption_key | quote }}
+  sso.domain:
+    description: Domain for forward auth
+    computed:
+      template: |
+        {{ .Tenant.Name }}.cloud.nais.io
+  sso.defaultRedirectURL:
+    description: Default redirect URL for forward auth
+    computed:
+      template: |
+        {{ subdomain . "console" | quote }}

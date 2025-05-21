@@ -1,0 +1,9 @@
+apiVersion: v2
+name: wonderwall-forward-auth
+description: Forward-auth service for loadbalancer-fa
+type: application
+version: 1.0.0
+dependencies:
+  - name: valkey
+    version: 3.0.7
+    repository: https://charts.bitnami.com/bitnami

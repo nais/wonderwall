@@ -1,0 +1,47 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall
+  tag: latest
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 64Mi
+replicas:
+  min: 2
+  max: 4
+podDisruptionBudget:
+  maxUnavailable: 1
+ingressClassName: nais-ingress-fa
+
+openid:
+  clientID:
+  clientSecret:
+  wellKnownURL: https://auth.nais.io/.well-known/openid-configuration
+session:
+  maxLifetime: 10h
+  # 256 bits key, in standard base64 encoding
+  cookieEncryptionKey:
+  cookieName: nais-io-forward-auth
+  inactivity: true
+  inactivityTimeout: 1h
+sso:
+  defaultRedirectURL:
+  domain:
+
+valkey:
+  fullnameOverride: "wonderwall-forward-auth-valkey"
+  architecture: "standalone"
+  primary:
+    resourcesPreset: "medium"
+    persistence:
+      enabled: false
+  networkPolicy:
+    enabled: true
+    allowExternal: false
+    allowExternalEgress: false

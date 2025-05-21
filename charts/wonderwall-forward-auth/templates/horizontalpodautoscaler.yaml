@@ -1,0 +1,21 @@
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  labels:
+    {{- include "wonderwall-forward-auth.labels" . | nindent 4 }}
+  name: {{ include "wonderwall-forward-auth.fullname" . }}
+spec:
+  minReplicas: {{ .Values.replicas.min }}
+  maxReplicas: {{ .Values.replicas.max }}
+  metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 75
+          type: Utilization
+      type: Resource
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "wonderwall-forward-auth.fullname" . }}

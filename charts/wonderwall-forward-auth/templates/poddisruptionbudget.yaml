@@ -1,0 +1,12 @@
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    {{- include "wonderwall-forward-auth.labels" . | nindent 4 }}
+  name: {{ include "wonderwall-forward-auth.fullname" . }}
+spec:
+  {{- toYaml .Values.podDisruptionBudget | nindent 2 }}
+  selector:
+    matchLabels:
+      {{- include "wonderwall-forward-auth.selectorLabels" . | nindent 6 }}

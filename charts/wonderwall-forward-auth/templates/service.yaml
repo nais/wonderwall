@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "wonderwall-forward-auth.labels" . | nindent 4 }}
+  name: {{ include "wonderwall-forward-auth.fullname" . }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    {{- include "wonderwall-forward-auth.selectorLabels" . | nindent 4 }}

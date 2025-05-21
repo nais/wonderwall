@@ -1,0 +1,23 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 16k
+    nginx.ingress.kubernetes.io/enable-global-auth: "false"
+  labels:
+    {{- include "wonderwall-forward-auth.labels" . | nindent 4 }}
+  name: {{ include "wonderwall-forward-auth.fullname" . }}
+spec:
+  ingressClassName: {{ .Values.ingressClassName }}
+  rules:
+    - host: {{ .Values.sso.domain }}
+      http:
+        paths:
+          - backend:
+              service:
+                name: {{ include "wonderwall-forward-auth.fullname" . }}
+                port:
+                  number: 80
+            path: /
+            pathType: ImplementationSpecific

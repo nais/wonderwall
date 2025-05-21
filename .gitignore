@@ -5,6 +5,7 @@ run.sh
 *.iml
 .env*
 *.out
+*.tgz
 
 # nix stuffs
 /.direnv

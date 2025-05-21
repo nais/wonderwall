@@ -33,7 +33,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
       - name: Install cosign
-        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # ratchet:sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@e9a05e6d32d7ed22b5656cd874ef31af58d05bfa # ratchet:sigstore/cosign-installer@main
         with:
           cosign-release: 'v2.2.3'
       - name: Verify runner image
@@ -48,6 +48,36 @@ jobs:
           push: true
           push_ghcr: true
           workload_identity_provider: ${{ secrets.NAIS_IO_WORKLOAD_IDENTITY_PROVIDER }}
+    outputs:
+      version: ${{ steps.build_push_sign.outputs.version }}
+  charts:
+    needs: build
+    name: Build and push chart
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        chart: ["wonderwall", "wonderwall-forward-auth"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
+      - id: "auth"
+        name: "Authenticate to Google Cloud"
+        uses: "google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f" # ratchet:google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.NAIS_IO_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: "gh-wonderwall@nais-io.iam.gserviceaccount.com"
+          token_format: "access_token"
+      - name: "Login to registry"
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # ratchet:docker/login-action@v3
+        with:
+          registry: "${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature"
+          username: "oauth2accesstoken"
+          password: "${{ steps.auth.outputs.access_token }}"
       - uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # ratchet:azure/setup-helm@v4
         name: 'Setup Helm'
         with:
@@ -55,16 +85,16 @@ jobs:
       - name: Package chart
         id: package_chart
         env:
-          CHART_PATH: ./charts/wonderwall
+          CHART_PATH: ./charts/${{ matrix.chart }}
         run: |
-          base_version="$(yq '.version' < "${{ env.CHART_PATH }}/Chart.yaml")"
-          chart_version="${base_version}-${{ steps.build_push_sign.outputs.version }}"
+          base_version="1.0.0"
+          chart_version="${base_version}-${{ needs.build.outputs.version }}"
 
           yq eval \
             '.version="'"$chart_version"'"' \
             "${{ env.CHART_PATH }}/Chart.yaml" --inplace
           yq eval \
-            '.image.tag="${{ steps.build_push_sign.outputs.version }}"' \
+            '.image.tag="${{ needs.build.outputs.version }}"' \
             "${{ env.CHART_PATH }}/values.yaml" --inplace
 
           # helm dependency update "${{ env.CHART_PATH }}"
@@ -79,10 +109,6 @@ jobs:
           chart="${{ steps.package_chart.outputs.archive }}"
           echo "Pushing: $chart"
           helm push "$chart" oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature
-    outputs:
-      chart_name: ${{ steps.package_chart.outputs.name }}
-      chart_version: ${{ steps.package_chart.outputs.version }}
-      chart_archive: ${{ steps.package_chart.outputs.archive }}
   rollout:
     name: Rollout
     if: github.actor != 'dependabot[bot]' && github.ref == 'refs/heads/master'
@@ -90,8 +116,12 @@ jobs:
     runs-on: fasit-deploy
     permissions:
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        chart: ["wonderwall", "wonderwall-forward-auth"]
     steps:
       - uses: nais/fasit-deploy@v2 # ratchet:exclude
         with:
-          chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/${{ needs.build.outputs.chart_name }}
-          version: ${{ needs.build.outputs.chart_version }}
+          chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/${{ matrix.chart }}
+          version: "1.0.0-${{ needs.build.outputs.chart_version }}"
