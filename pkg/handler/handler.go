@@ -505,7 +505,7 @@ func (s *Standalone) SessionForwardAuth(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	_, err := s.GetSession(r)
+	sess, err := s.GetSession(r)
 	if err != nil {
 		logger := mw.LogEntryFrom(r)
 		if errors.Is(err, session.ErrInvalidExternal) || errors.Is(err, session.ErrInvalid) {
@@ -525,6 +525,13 @@ func (s *Standalone) SessionForwardAuth(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	tok, err := sess.AccessToken()
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("X-Wonderwall-Forward-Auth-Token", tok)
 	w.WriteHeader(http.StatusNoContent)
 }
 

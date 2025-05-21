@@ -329,11 +329,13 @@ func TestSessionForwardAuth(t *testing.T) {
 	rpClient := idp.RelyingPartyClient()
 	noSessionResp := sessionForwardAuth(t, idp, rpClient)
 	assert.Equal(t, http.StatusUnauthorized, noSessionResp.StatusCode)
+	assert.Empty(t, noSessionResp.Headers.Get("X-Wonderwall-Forward-Auth-Token"))
 
 	login(t, rpClient, idp)
 
 	resp := sessionForwardAuth(t, idp, rpClient)
 	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
+	assert.NotEmpty(t, resp.Headers.Get("X-Wonderwall-Forward-Auth-Token"))
 }
 
 func TestSessionForwardAuth_Disabled(t *testing.T) {
@@ -345,6 +347,7 @@ func TestSessionForwardAuth_Disabled(t *testing.T) {
 	rpClient := idp.RelyingPartyClient()
 	noSessionResp := sessionForwardAuth(t, idp, rpClient)
 	assert.Equal(t, http.StatusNotFound, noSessionResp.StatusCode)
+	assert.Empty(t, noSessionResp.Headers.Get("X-Wonderwall-Forward-Auth-Token"))
 }
 
 func TestPing(t *testing.T) {
@@ -579,6 +582,7 @@ func waitForRefreshCooldownTimer(t *testing.T, idp *mock.IdentityProvider, rpCli
 
 type response struct {
 	Body       string
+	Headers    http.Header
 	Location   *url.URL
 	StatusCode int
 }
@@ -621,6 +625,7 @@ func request(t *testing.T, client *http.Client, method, url string, headers ...h
 
 	return response{
 		Body:       body(t, resp),
+		Headers:    resp.Header,
 		Location:   location,
 		StatusCode: resp.StatusCode,
 	}
