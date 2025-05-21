@@ -3,6 +3,8 @@ name: wonderwall-forward-auth
 description: Forward-auth service for loadbalancer-fa
 type: application
 version: 1.0.0
+sources:
+  - https://github.com/nais/wonderwall/tree/master/charts/wonderwall-forward-auth
 dependencies:
   - name: valkey
     version: 3.0.7
