@@ -17,6 +17,7 @@ spec:
       annotations:
         kubectl.kubernetes.io/default-container: {{ include "wonderwall-forward-auth.fullname" . }}
       labels:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- include "wonderwall-forward-auth.labels" . | nindent 8 }}
         {{ printf "%s-client" .Values.valkey.fullnameOverride }}: "true"
       name: {{ include "wonderwall-forward-auth.fullname" . }}
