@@ -7,6 +7,10 @@ values:
     computed:
       template: |
         {{ .Env.wonderwall_forward_auth_zitadel_client_id | quote }}
+  openid.extraAudience:
+    computed:
+      template: |
+        {{ .Env.wonderwall_forward_auth_zitadel_project_id | quote }}
   openid.clientSecret:
     required: true
     computed:
