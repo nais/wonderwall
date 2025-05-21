@@ -97,7 +97,7 @@ jobs:
             '.image.tag="${{ needs.build.outputs.version }}"' \
             "${{ env.CHART_PATH }}/values.yaml" --inplace
 
-          # helm dependency update "${{ env.CHART_PATH }}"
+          helm dependency update "${{ env.CHART_PATH }}"
           helm package "${{ env.CHART_PATH }}" --destination .
 
           name=$(yq '.name' < "${{ env.CHART_PATH }}/Chart.yaml")
@@ -112,7 +112,7 @@ jobs:
   rollout:
     name: Rollout
     if: github.actor != 'dependabot[bot]' && github.ref == 'refs/heads/master'
-    needs: build
+    needs: [build, charts]
     runs-on: fasit-deploy
     permissions:
       id-token: write
@@ -124,4 +124,4 @@ jobs:
       - uses: nais/fasit-deploy@v2 # ratchet:exclude
         with:
           chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/${{ matrix.chart }}
-          version: "1.0.0-${{ needs.build.outputs.chart_version }}"
+          version: "1.0.0-${{ needs.build.outputs.version }}"
