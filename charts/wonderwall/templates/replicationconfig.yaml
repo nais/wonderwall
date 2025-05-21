@@ -12,6 +12,8 @@ spec:
     matchExpressions:
       - key: team
         operator: Exists
+    matchLabels:
+      nais.io/type: workload
   templateValues:
     secrets:
       - name: "{{ .Values.azure.redisSecretName }}"
@@ -53,6 +55,8 @@ spec:
     matchExpressions:
       - key: team
         operator: Exists
+    matchLabels:
+      nais.io/type: workload
   templateValues:
     secrets:
       - name: "{{ .Values.idporten.clientSecretName }}"
@@ -141,6 +145,8 @@ spec:
     matchExpressions:
       - key: team
         operator: Exists
+    matchLabels:
+      nais.io/type: workload
   templateValues:
     secrets:
       - name: "{{ .Values.openid.redisSecretName }}"
