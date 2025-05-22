@@ -335,7 +335,7 @@ func TestSessionForwardAuth(t *testing.T) {
 
 	resp := sessionForwardAuth(t, idp, rpClient)
 	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
-	assert.NotEmpty(t, resp.Headers.Get("X-Wonderwall-Forward-Auth-Token"))
+	assert.Empty(t, resp.Headers.Get("X-Wonderwall-Forward-Auth-Token"))
 }
 
 func TestSessionForwardAuth_Disabled(t *testing.T) {
@@ -348,6 +348,25 @@ func TestSessionForwardAuth_Disabled(t *testing.T) {
 	noSessionResp := sessionForwardAuth(t, idp, rpClient)
 	assert.Equal(t, http.StatusNotFound, noSessionResp.StatusCode)
 	assert.Empty(t, noSessionResp.Headers.Get("X-Wonderwall-Forward-Auth-Token"))
+}
+
+func TestSessionForwardAuth_SetHeaders(t *testing.T) {
+	cfg := mock.Config()
+	cfg.Session.ForwardAuth = true
+	cfg.Session.ForwardAuthSetHeaders = true
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	noSessionResp := sessionForwardAuth(t, idp, rpClient)
+	assert.Equal(t, http.StatusUnauthorized, noSessionResp.StatusCode)
+	assert.Empty(t, noSessionResp.Headers.Get("X-Wonderwall-Forward-Auth-Token"))
+
+	login(t, rpClient, idp)
+
+	resp := sessionForwardAuth(t, idp, rpClient)
+	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
+	assert.NotEmpty(t, resp.Headers.Get("X-Wonderwall-Forward-Auth-Token"))
 }
 
 func TestPing(t *testing.T) {

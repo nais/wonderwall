@@ -149,6 +149,10 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	if err := c.Session.Validate(); err != nil {
+		return err
+	}
+
 	if err := c.validateUpstream(); err != nil {
 		return err
 	}

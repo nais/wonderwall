@@ -525,13 +525,15 @@ func (s *Standalone) SessionForwardAuth(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	tok, err := sess.AccessToken()
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+	if s.Config.Session.ForwardAuthSetHeaders {
+		tok, err := sess.AccessToken()
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
-	w.Header().Set("X-Wonderwall-Forward-Auth-Token", tok)
+		w.Header().Set("X-Wonderwall-Forward-Auth-Token", tok)
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
