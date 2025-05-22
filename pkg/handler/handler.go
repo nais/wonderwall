@@ -10,12 +10,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nais/wonderwall/internal/o11y/otel"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/nais/wonderwall/internal/crypto"
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/handler/acr"
@@ -526,13 +526,7 @@ func (s *Standalone) SessionForwardAuth(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if s.Config.Session.ForwardAuthSetHeaders {
-		tok, err := sess.AccessToken()
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		w.Header().Set("X-Wonderwall-Forward-Auth-Token", tok)
+		w.Header().Set("X-Wonderwall-Forward-Auth-Token", sess.IDToken())
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
