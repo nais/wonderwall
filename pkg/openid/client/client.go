@@ -12,7 +12,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/nais/wonderwall/pkg/retry"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 
@@ -94,7 +96,7 @@ func (c *Client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.A
 	return c.oauth2Config.Exchange(ctx, code, opts...)
 }
 
-func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid.TokenResponse, error) {
+func (c *Client) RefreshGrant(ctx context.Context, refreshToken, previousIDToken, expectedAcr string) (*openid.TokenResponse, error) {
 	ctx, span := otel.StartSpan(ctx, "Client.RefreshGrant")
 	defer span.End()
 	clientAuth, err := c.ClientAuthenticationParams()
@@ -114,6 +116,24 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken string) (*openid
 	var tokenResponse openid.TokenResponse
 	if err := json.Unmarshal(body, &tokenResponse); err != nil {
 		return nil, fmt.Errorf("unmarshalling token response: %w", err)
+	}
+
+	// id_tokens may not always be returned from a refresh grant (OpenID Connect Core 12.1)
+	if tokenResponse.IDToken != "" {
+		jwkSet, err := c.jwksProvider.GetPublicJwkSet(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting jwks: %w", err)
+		}
+
+		err = openid.ValidateRefreshedIDToken(c.cfg, previousIDToken, tokenResponse.IDToken, expectedAcr, jwkSet)
+		if err != nil {
+			if errors.Is(err, jws.VerificationError()) {
+				// JWKS might not be up to date, so we'll want to force a refresh for the next attempt
+				_, _ = c.jwksProvider.RefreshPublicJwkSet(ctx)
+				return nil, retry.RetryableError(err)
+			}
+			return nil, fmt.Errorf("validating refreshed id token: %w", err)
+		}
 	}
 
 	return &tokenResponse, nil

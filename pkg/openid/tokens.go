@@ -2,6 +2,7 @@ package openid
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -44,7 +45,9 @@ func NewTokens(src *oauth2.Token, jwks *jwk.Set, cfg openidconfig.Config, cookie
 		return nil, fmt.Errorf("parsing id_token: %w", err)
 	}
 
-	if err := idToken.Validate(cfg, cookie, jwks); err != nil {
+	expectedAcr := cookie.Acr
+	expectedNonce := cookie.Nonce
+	if err := idToken.Validate(cfg, expectedAcr, expectedNonce, jwks); err != nil {
 		return nil, fmt.Errorf("validating id_token: %w", err)
 	}
 
@@ -84,7 +87,7 @@ type IDToken struct {
 	jwt.Token
 }
 
-func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie, jwks *jwk.Set) error {
+func (in *IDToken) Validate(cfg openidconfig.Config, expectedAcr, expectedNonce string, jwks *jwk.Set) error {
 	openIDconfig := cfg.Provider()
 	clientConfig := cfg.Client()
 
@@ -107,11 +110,14 @@ func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie, jwks *
 		//  The Client MUST validate that the `aud` (audience) Claim contains its `client_id` value registered at the Issuer identified by the `iss` (issuer) Claim as an audience.
 		//  The ID Token MUST be rejected if the ID Token does not list the Client as a valid audience
 		jwt.WithAudience(clientConfig.ClientID()),
-		// OpenID Connect Core section 3.1.3.7, step 11.
-		//  If a nonce value was sent in the Authentication Request, a `nonce` Claim MUST be present and its value checked to verify that it is the same value as the one that was sent in the Authentication Request.
-		jwt.WithClaimValue("nonce", cookie.Nonce),
+
 		// Skew tolerance for time-based claims (exp, iat, nbf)
 		jwt.WithAcceptableSkew(AcceptableSkew),
+	}
+	if expectedNonce != "" {
+		// OpenID Connect Core section 3.1.3.7, step 11.
+		//  If a nonce value was sent in the Authentication Request, a `nonce` Claim MUST be present and its value checked to verify that it is the same value as the one that was sent in the Authentication Request.
+		opts = append(opts, jwt.WithClaimValue("nonce", expectedNonce))
 	}
 
 	if openIDconfig.SidClaimRequired() {
@@ -122,12 +128,8 @@ func (in *IDToken) Validate(cfg openidconfig.Config, cookie *LoginCookie, jwks *
 	//  If the `acr` Claim was requested, the Client SHOULD check that the asserted Claim Value is appropriate.
 	if len(clientConfig.ACRValues()) > 0 {
 		opts = append(opts, jwt.WithRequiredClaim(AcrClaim))
-
-		if len(cookie.Acr) > 0 {
-			actual := in.Acr()
-			expected := cookie.Acr
-
-			err := acr.Validate(expected, actual)
+		if expectedAcr != "" {
+			err := acr.Validate(expectedAcr, in.Acr())
 			if err != nil {
 				return err
 			}
@@ -279,4 +281,92 @@ func (in *IDToken) TimeClaim(claim string) time.Time {
 
 	// time claims are NumericDate, which is the number of seconds since Epoch.
 	return time.Unix(int64(claimTime), 0)
+}
+
+// ValidateRefreshedIDToken validates a refreshed id_token against the previous one, as per OpenID Connect Core, section 12.2
+func ValidateRefreshedIDToken(cfg openidconfig.Config, previous, refreshed, expectedAcr string, jwks *jwk.Set) error {
+	previousToken, err := ParseIDToken(previous)
+	if err != nil {
+		return fmt.Errorf("parsing previous id_token: %w", err)
+	}
+
+	refreshedToken, err := ParseIDToken(refreshed)
+	if err != nil {
+		return fmt.Errorf("parsing current id_token: %w", err)
+	}
+
+	// its iss Claim Value MUST be the same as in the ID Token issued when the original authentication occurred
+	previousIssuer, ok := previousToken.Issuer()
+	if !ok {
+		return fmt.Errorf("missing required 'iss' claim in previous id_token")
+	}
+	refreshedIssuer, ok := refreshedToken.Issuer()
+	if !ok {
+		return fmt.Errorf("missing required 'iss' claim in refreshed id_token")
+	}
+	if previousIssuer != refreshedIssuer {
+		return fmt.Errorf("'iss' claim mismatch, expected %q, got %q", previousIssuer, refreshedIssuer)
+	}
+
+	// its sub Claim Value MUST be the same as in the ID Token issued when the original authentication occurred
+	previousSubject, ok := previousToken.Subject()
+	if !ok {
+		return fmt.Errorf("missing required 'sub' claim in previous id_token")
+	}
+	refreshedSubject, ok := refreshedToken.Subject()
+	if !ok {
+		return fmt.Errorf("missing required 'sub' claim in refreshed id_token")
+	}
+	if previousSubject != refreshedSubject {
+		return fmt.Errorf("'sub' claim mismatch, expected %q, got %q", previousSubject, refreshedSubject)
+	}
+
+	// its iat Claim MUST represent the time that the new ID Token is issued
+	previousIat, ok := previousToken.IssuedAt()
+	if !ok {
+		return fmt.Errorf("missing required 'iat' claim in previous id_token")
+	}
+	refreshedIat, ok := refreshedToken.IssuedAt()
+	if !ok {
+		return fmt.Errorf("missing required 'iat' claim in refreshed id_token")
+	}
+	if refreshedIat.Equal(previousIat) || refreshedIat.Before(previousIat) {
+		return fmt.Errorf("'iat' claim in refreshed id_token must be greater than previous id_token, expected > %q, got %q", previousIat, refreshedIat)
+	}
+
+	// its aud Claim Value MUST be the same as in the ID Token issued when the original authentication occurred
+	previousAudience, ok := previousToken.Audience()
+	if !ok {
+		return fmt.Errorf("missing required 'aud' claim in previous id_token")
+	}
+	refreshedAudience, ok := refreshedToken.Audience()
+	if !ok {
+		return fmt.Errorf("missing required 'aud' claim in refreshed id_token")
+	}
+	slices.Sort(previousAudience)
+	slices.Sort(refreshedAudience)
+	if !slices.Equal(previousAudience, refreshedAudience) {
+		return fmt.Errorf("'aud' claim mismatch, expected %q, got %q", previousAudience, refreshedAudience)
+	}
+
+	// if the ID Token contains an auth_time Claim, its value MUST represent the time of the original authentication - not the time that the new ID token is issued
+	if refreshedAuthTime := refreshedToken.AuthTime(); !refreshedAuthTime.IsZero() {
+		previousAuthTime := previousToken.AuthTime()
+		if !refreshedAuthTime.Equal(previousAuthTime) {
+			return fmt.Errorf("'auth_time' claim mismatch, expected %q, got %q", previousAuthTime, refreshedAuthTime)
+		}
+	}
+
+	// it SHOULD NOT have a nonce Claim, even when the ID Token issued at the time of the original authentication contained nonce;
+	// however, if it is present, its value MUST be the same as in the ID Token issued at the time of the original authentication
+	refreshedNonce := refreshedToken.StringClaimOrEmpty("nonce")
+	if refreshedNonce != "" {
+		previousNonce := previousToken.StringClaimOrEmpty("nonce")
+		if previousNonce != refreshedNonce {
+			return fmt.Errorf("'nonce' claim mismatch, expected %q, got %q", previousNonce, refreshedNonce)
+		}
+	}
+
+	// otherwise, the same rules apply as apply when issuing an ID Token at the time of the original authentication
+	return refreshedToken.Validate(cfg, expectedAcr, refreshedNonce, jwks)
 }

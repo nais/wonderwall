@@ -188,12 +188,6 @@ func TestIDToken_Validate(t *testing.T) {
 		}
 	}
 
-	defaultCookie := func() *openid.LoginCookie {
-		return &openid.LoginCookie{
-			Nonce: "some-nonce",
-		}
-	}
-
 	for _, tt := range []struct {
 		name       string
 		claims     *claims
@@ -364,7 +358,8 @@ func TestIDToken_Validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := defaultConfig()
 			openidcfg := defaultOpenIdConfig(cfg)
-			cookie := defaultCookie()
+			expectedNonce := "some-nonce"
+			expectedAcr := ""
 
 			c := defaultClaims(openidcfg)
 			c.merge(tt.claims)
@@ -376,14 +371,184 @@ func TestIDToken_Validate(t *testing.T) {
 
 			if tt.requireAcr {
 				cfg.OpenID.ACRValues = "some-acr"
-				cookie.Acr = "some-acr"
+				expectedAcr = "some-acr"
 				c.setIfUnset("acr", "some-acr")
 			}
 
 			idToken, err := makeIDToken(c)
 			require.NoError(t, err)
 
-			err = idToken.Validate(openidcfg, cookie, &jwks.Public)
+			err = idToken.Validate(openidcfg, expectedAcr, expectedNonce, &jwks.Public)
+			if tt.expectErr != "" {
+				assert.ErrorContains(t, err, tt.expectErr)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateRefreshedIDToken(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		previous   *claims
+		refreshed  *claims
+		requireAcr bool
+		expectErr  string
+	}{
+		{
+			name: "happy path",
+		},
+		{
+			name: "issuer mismatch",
+			refreshed: &claims{
+				set: map[string]any{
+					"iss": "https://some-other-issuer",
+				},
+			},
+			expectErr: `'iss' claim mismatch`,
+		},
+		{
+			name: "subject mismatch",
+			refreshed: &claims{
+				set: map[string]any{
+					"sub": "some-other-sub",
+				},
+			},
+			expectErr: `'sub' claim mismatch`,
+		},
+		{
+			name: "iat unchanged",
+			previous: &claims{
+				set: map[string]any{
+					"iat": time.Now().Unix(),
+				},
+			},
+			refreshed: &claims{
+				set: map[string]any{
+					"iat": time.Now().Unix(),
+				},
+			},
+			expectErr: "'iat' claim in refreshed id_token must be greater than previous id_token",
+		},
+		{
+			name: "audience mismatch",
+			refreshed: &claims{
+				set: map[string]any{
+					"aud": []string{"some-client id", "trusted-id-1"},
+				},
+			},
+			expectErr: `'aud' claim mismatch`,
+		},
+		{
+			name: "auth_time mismatch",
+			previous: &claims{
+				set: map[string]any{
+					"auth_time": time.Now().Unix(),
+				},
+			},
+			refreshed: &claims{
+				set: map[string]any{
+					"auth_time": time.Now().Add(5 * time.Second).Unix(),
+				},
+			},
+			expectErr: "'auth_time' claim mismatch",
+		},
+		{
+			name: "nonce mismatch",
+			previous: &claims{
+				set: map[string]any{
+					"nonce": "some-nonce",
+				},
+			},
+			refreshed: &claims{
+				set: map[string]any{
+					"nonce": "some-other-nonce",
+				},
+			},
+			expectErr: "'nonce' claim mismatch",
+		},
+		{
+			name: "acr mismatch",
+			previous: &claims{
+				set: map[string]any{
+					"acr": "some-acr",
+				},
+			},
+			refreshed: &claims{
+				set: map[string]any{
+					"acr": "some-other-acr",
+				},
+			},
+			requireAcr: true,
+			expectErr:  `invalid acr: got "some-other-acr", expected "some-acr"`,
+		},
+		{
+			name: "iat is in the future",
+			refreshed: &claims{
+				set: map[string]any{
+					"iat": time.Now().Add(openid.AcceptableSkew + 5*time.Second).Unix(),
+				},
+			},
+			expectErr: `"iat" not satisfied`,
+		},
+		{
+			name: "exp is in the past",
+			refreshed: &claims{
+				set: map[string]any{
+					"exp": time.Now().Add(-openid.AcceptableSkew - 5*time.Second).Unix(),
+				},
+			},
+			expectErr: `"exp" not satisfied`,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := mock.Config()
+			cfg.OpenID.ACRValues = ""
+			cfg.OpenID.ClientID = "some-client-id"
+			cfg.OpenID.Audiences = []string{"trusted-id-1", "trusted-id-2"}
+
+			openidcfg := mock.NewTestConfiguration(cfg)
+			openidcfg.TestProvider.SetIssuer("https://some-issuer")
+
+			previous := &claims{
+				set: map[string]any{
+					"aud": openidcfg.Client().ClientID(),
+					"iss": openidcfg.Provider().Issuer(),
+					"sub": "some-sub",
+				},
+			}
+			previous.merge(tt.previous)
+			previousIDToken, err := makeIDToken(previous)
+			require.NoError(t, err)
+
+			previousIssuedAt, ok := previousIDToken.IssuedAt()
+			require.True(t, ok)
+			previousExpiry, ok := previousIDToken.Expiration()
+			require.True(t, ok)
+			refreshed := &claims{
+				set: map[string]any{
+					"aud": openidcfg.Client().ClientID(),
+					"iss": openidcfg.Provider().Issuer(),
+					"sub": "some-sub",
+					"iat": previousIssuedAt.Add(5 * time.Second).Unix(),
+					"exp": previousExpiry.Add(5 * time.Second).Unix(),
+				},
+			}
+			refreshed.merge(tt.refreshed)
+			refreshedIDToken, err := makeIDToken(refreshed)
+			require.NoError(t, err)
+
+			expectedAcr := ""
+			if tt.requireAcr {
+				cfg.OpenID.ACRValues = "some-acr"
+				expectedAcr = "some-acr"
+			}
+			err = openid.ValidateRefreshedIDToken(openidcfg,
+				previousIDToken.Serialized(),
+				refreshedIDToken.Serialized(),
+				expectedAcr,
+				&jwks.Public)
 			if tt.expectErr != "" {
 				assert.ErrorContains(t, err, tt.expectErr)
 			} else {

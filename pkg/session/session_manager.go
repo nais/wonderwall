@@ -210,7 +210,7 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 
 	logger.Debug("session: performing refresh grant...")
 	resp, err := retry.DoValue(ctx, func(ctx context.Context) (*openid.TokenResponse, error) {
-		resp, err := in.client.RefreshGrant(ctx, sess.data.RefreshToken)
+		resp, err := in.client.RefreshGrant(ctx, sess.data.RefreshToken, sess.data.IDToken, sess.data.Acr)
 		if errors.Is(err, openidclient.ErrOpenIDServer) {
 			return nil, retry.RetryableError(err)
 		}
@@ -226,6 +226,10 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 		return nil, fmt.Errorf("performing refresh: %w", err)
 	}
 
+	// id_tokens may not always be returned from a refresh grant (OpenID Connect 12.1)
+	if resp.IDToken != "" {
+		sess.data.IDToken = resp.IDToken
+	}
 	sess.data.AccessToken = resp.AccessToken
 	sess.data.RefreshToken = resp.RefreshToken
 	sess.data.Metadata.Refresh(resp.ExpiresIn)
