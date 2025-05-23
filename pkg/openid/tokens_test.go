@@ -6,17 +6,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/nais/wonderwall/internal/crypto"
-	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid"
-	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 )
 
 var jwks *crypto.JwkSet
@@ -36,12 +33,10 @@ func TestParseIDToken(t *testing.T) {
 	exp := iat.Add(5 * time.Second)
 	sub := uuid.New().String()
 
-	parsed, err := makeIDToken(&claims{
-		set: map[string]any{
-			"sub": sub,
-			"iat": iat.Unix(),
-			"exp": exp.Unix(),
-		},
+	parsed, err := makeIDToken(func(tok jwt.Token) {
+		_ = tok.Set("sub", sub)
+		_ = tok.Set("iat", iat.Unix())
+		_ = tok.Set("exp", exp.Unix())
 	})
 	require.NoError(t, err)
 
@@ -51,7 +46,7 @@ func TestParseIDToken(t *testing.T) {
 
 	actualIss, ok := parsed.Issuer()
 	assert.True(t, ok)
-	assert.Equal(t, "some-issuer", actualIss)
+	assert.Equal(t, "https://some-issuer", actualIss)
 
 	actualAud, ok := parsed.Audience()
 	assert.True(t, ok)
@@ -73,10 +68,8 @@ func TestParseIDToken(t *testing.T) {
 }
 
 func TestIDToken_GetAcrClaim(t *testing.T) {
-	idToken, err := makeIDToken(&claims{
-		set: map[string]any{
-			"acr": "some-acr",
-		},
+	idToken, err := makeIDToken(func(tok jwt.Token) {
+		_ = tok.Set("acr", "some-acr")
 	})
 	require.NoError(t, err)
 
@@ -106,10 +99,8 @@ func TestIDToken_GetAmrClaim(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			idToken, err := makeIDToken(&claims{
-				set: map[string]any{
-					"amr": tt.amr,
-				},
+			idToken, err := makeIDToken(func(tok jwt.Token) {
+				_ = tok.Set("amr", tt.amr)
 			})
 			require.NoError(t, err)
 
@@ -119,40 +110,32 @@ func TestIDToken_GetAmrClaim(t *testing.T) {
 }
 
 func TestIDToken_GetAuthTimeClaim(t *testing.T) {
-	idToken, err := makeIDToken(&claims{
-		set: map[string]any{
-			"auth_time": time.Now().Unix(),
-		},
+	idToken, err := makeIDToken(func(tok jwt.Token) {
+		_ = tok.Set("auth_time", time.Now().Unix())
 	})
 	require.NoError(t, err)
 	assert.NotZero(t, idToken.AuthTime())
 }
 
 func TestIDToken_GetLocaleClaim(t *testing.T) {
-	idToken, err := makeIDToken(&claims{
-		set: map[string]any{
-			"locale": "some-locale",
-		},
+	idToken, err := makeIDToken(func(tok jwt.Token) {
+		_ = tok.Set("locale", "some-locale")
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "some-locale", idToken.Locale())
 }
 
 func TestIDToken_GetOidClaim(t *testing.T) {
-	idToken, err := makeIDToken(&claims{
-		set: map[string]any{
-			"oid": "some-oid",
-		},
+	idToken, err := makeIDToken(func(tok jwt.Token) {
+		_ = tok.Set("oid", "some-oid")
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "some-oid", idToken.Oid())
 }
 
 func TestIDToken_GetSidClaim(t *testing.T) {
-	idToken, err := makeIDToken(&claims{
-		set: map[string]any{
-			"sid": "some-sid",
-		},
+	idToken, err := makeIDToken(func(tok jwt.Token) {
+		_ = tok.Set("sid", "some-sid")
 	})
 	require.NoError(t, err)
 
@@ -162,35 +145,9 @@ func TestIDToken_GetSidClaim(t *testing.T) {
 }
 
 func TestIDToken_Validate(t *testing.T) {
-	defaultConfig := func() *config.Config {
-		cfg := mock.Config()
-		cfg.OpenID.ACRValues = ""
-		cfg.OpenID.ClientID = "some-client-id"
-		cfg.OpenID.Audiences = []string{"trusted-id-1", "trusted-id-2"}
-
-		return cfg
-	}
-
-	defaultOpenIdConfig := func(cfg *config.Config) *mock.TestConfiguration {
-		openidcfg := mock.NewTestConfiguration(cfg)
-		openidcfg.TestProvider.SetIssuer("https://some-issuer")
-
-		return openidcfg
-	}
-
-	defaultClaims := func(cfg openidconfig.Config) *claims {
-		return &claims{
-			set: map[string]any{
-				"aud": cfg.Client().ClientID(),
-				"iss": cfg.Provider().Issuer(),
-			},
-			remove: []string{},
-		}
-	}
-
 	for _, tt := range []struct {
 		name       string
-		claims     *claims
+		mutate     func(tok jwt.Token)
 		requireAcr bool
 		requireSid bool
 		expectErr  string
@@ -200,184 +157,172 @@ func TestIDToken_Validate(t *testing.T) {
 		},
 		{
 			name: "missing sub",
-			claims: &claims{
-				remove: []string{"sub"},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Remove("sub")
 			},
 			expectErr: `required claim "sub" is missing`,
 		},
 		{
 			name: "missing exp",
-			claims: &claims{
-				remove: []string{"exp"},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Remove("exp")
 			},
 			expectErr: `required claim "exp" is missing`,
 		},
 		{
 			name: "missing iat",
-			claims: &claims{
-				remove: []string{"iat"},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Remove("iat")
 			},
 			expectErr: `required claim "iat" is missing`,
 		},
 		{
 			name: "missing iss",
-			claims: &claims{
-				remove: []string{"iss"},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Remove("iss")
 			},
 			expectErr: `required claim "iss" is missing`,
 		},
 		{
 			name: "iat is in the future",
-			claims: &claims{
-				set: map[string]any{
-					"iat": time.Now().Add(openid.AcceptableSkew + 5*time.Second).Unix(),
-				},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("iat", time.Now().Add(openid.AcceptableSkew+5*time.Second).Unix())
 			},
 			expectErr: `"iat" not satisfied`,
 		},
 		{
 			name: "exp is in the past",
-			claims: &claims{
-				set: map[string]any{
-					"exp": time.Now().Add(-openid.AcceptableSkew - 5*time.Second).Unix(),
-				},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("exp", time.Now().Add(-openid.AcceptableSkew-5*time.Second).Unix())
 			},
 			expectErr: `"exp" not satisfied`,
 		},
 		{
 			name: "nbf is in the future",
-			claims: &claims{
-				set: map[string]any{
-					"nbf": time.Now().Add(openid.AcceptableSkew + 5*time.Second).Unix(),
-				},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("nbf", time.Now().Add(openid.AcceptableSkew+5*time.Second).Unix())
 			},
 			expectErr: `"nbf" not satisfied`,
 		},
 		{
 			name: "issuer mismatch",
-			claims: &claims{
-				set: map[string]any{
-					"iss": "https://some-other-issuer",
-				},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("iss", "https://some-other-issuer")
 			},
 			expectErr: `claim "iss" does not have the expected value`,
 		},
 		{
 			name: "missing aud",
-			claims: &claims{
-				remove: []string{"aud"},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Remove("aud")
 			},
 			expectErr: `required claim "aud" is missing`,
 		},
 		{
 			name: "audience mismatch",
-			claims: &claims{
-				set: map[string]any{
-					"aud": "not-client-id",
-				},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("aud", "not-client-id")
 			},
 			expectErr: `"aud" not satisfied`,
 		},
 		{
 			name: "multiple audiences, missing client_id",
-			claims: &claims{
-				set: map[string]any{
-					"aud": []string{"not-client-id", "trusted-id-1"},
-				},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("aud", []string{"not-client-id", "trusted-id-1"})
 			},
 			expectErr: `"aud" not satisfied`,
 		},
 		{
 			name: "multiple audiences, all trusted",
-			claims: &claims{
-				set: map[string]any{
-					"aud": []string{"some-client-id", "trusted-id-1", "trusted-id-2"},
-				},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("aud", []string{"some-client-id", "trusted-id-1", "trusted-id-2"})
 			},
 		},
 		{
 			name: "multiple audiences, has untrusted audiences",
-			claims: &claims{
-				set: map[string]any{
-					"aud": []string{"some-client-id", "trusted-id-1", "trusted-id-2", "untrusted-id-1", "untrusted-id-2"},
-				},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("aud", []string{"some-client-id", "trusted-id-1", "trusted-id-2", "untrusted-id-1", "untrusted-id-2"})
 			},
 			expectErr: `'aud' not satisfied, untrusted audience(s) found: ["untrusted-id-1" "untrusted-id-2"]`,
 		},
 		{
 			name: "missing nonce",
-			claims: &claims{
-				remove: []string{"nonce"},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Remove("nonce")
 			},
 			expectErr: `claim "nonce" does not exist`,
 		},
 		{
 			name: "nonce mismatch",
-			claims: &claims{
-				set: map[string]any{
-					"nonce": "invalid-nonce",
-				},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("nonce", "invalid-nonce")
 			},
 			expectErr: `claim "nonce" does not have the expected value`,
 		},
 		{
-			name:       "sid required",
+			name: "sid required",
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("sid", "some-sid")
+			},
 			requireSid: true,
 		},
 		{
 			name: "sid required, missing sid",
-			claims: &claims{
-				remove: []string{"sid"},
+			mutate: func(tok jwt.Token) {
+				_ = tok.Remove("sid")
 			},
 			requireSid: true,
 			expectErr:  `required claim "sid" is missing`,
 		},
 		{
-			name:       "acr required",
+			name: "acr expected",
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("acr", "some-acr")
+			},
 			requireAcr: true,
 		},
 		{
-			name: "acr required, missing acr",
-			claims: &claims{
-				remove: []string{"acr"},
+			name: "acr expected, missing acr",
+			mutate: func(tok jwt.Token) {
+				_ = tok.Remove("acr")
 			},
 			requireAcr: true,
 			expectErr:  `invalid acr: got "", expected "some-acr"`,
 		},
 		{
-			name: "acr required, acr mismatch",
-			claims: &claims{
-				set: map[string]any{
-					"acr": "mismatch",
-				},
+			name: "acr expected, acr mismatch",
+			mutate: func(tok jwt.Token) {
+				_ = tok.Set("acr", "mismatch")
 			},
 			requireAcr: true,
 			expectErr:  `invalid acr: got "mismatch", expected "some-acr"`,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := defaultConfig()
-			openidcfg := defaultOpenIdConfig(cfg)
-			expectedNonce := "some-nonce"
-			expectedAcr := ""
-
-			c := defaultClaims(openidcfg)
-			c.merge(tt.claims)
-
-			if tt.requireSid {
-				openidcfg.TestProvider.WithFrontChannelLogoutSupport() // sid claim is required
-				c.setIfUnset("sid", "some-sid")
-			}
-
+			cfg := mock.Config()
+			cfg.OpenID.ACRValues = ""
 			if tt.requireAcr {
 				cfg.OpenID.ACRValues = "some-acr"
-				expectedAcr = "some-acr"
-				c.setIfUnset("acr", "some-acr")
+			}
+			cfg.OpenID.Audiences = []string{"trusted-id-1", "trusted-id-2"}
+			cfg.OpenID.ClientID = "some-client-id"
+
+			openidcfg := mock.NewTestConfiguration(cfg)
+			openidcfg.TestProvider.SetIssuer("https://some-issuer")
+			if tt.requireSid {
+				openidcfg.TestProvider.WithFrontChannelLogoutSupport()
 			}
 
-			idToken, err := makeIDToken(c)
+			// This is the `acr` value requested in the authorization request
+			expectedAcr := ""
+			if tt.requireAcr {
+				expectedAcr = "some-acr"
+			}
+
+			idToken, err := makeIDToken(tt.mutate)
 			require.NoError(t, err)
 
+			expectedNonce := "some-nonce"
 			err = idToken.Validate(openidcfg, expectedAcr, expectedNonce, &jwks.Public)
 			if tt.expectErr != "" {
 				assert.ErrorContains(t, err, tt.expectErr)
@@ -391,8 +336,8 @@ func TestIDToken_Validate(t *testing.T) {
 func TestValidateRefreshedIDToken(t *testing.T) {
 	for _, tt := range []struct {
 		name       string
-		previous   *claims
-		refreshed  *claims
+		previous   func(tok jwt.Token)
+		refreshed  func(tok jwt.Token)
 		requireAcr bool
 		expectErr  string
 	}{
@@ -401,103 +346,77 @@ func TestValidateRefreshedIDToken(t *testing.T) {
 		},
 		{
 			name: "issuer mismatch",
-			refreshed: &claims{
-				set: map[string]any{
-					"iss": "https://some-other-issuer",
-				},
+			refreshed: func(tok jwt.Token) {
+				_ = tok.Set("iss", "https://some-other-issuer")
 			},
 			expectErr: `'iss' claim mismatch`,
 		},
 		{
 			name: "subject mismatch",
-			refreshed: &claims{
-				set: map[string]any{
-					"sub": "some-other-sub",
-				},
+			refreshed: func(tok jwt.Token) {
+				_ = tok.Set("sub", "some-other-sub")
 			},
 			expectErr: `'sub' claim mismatch`,
 		},
 		{
 			name: "iat unchanged",
-			previous: &claims{
-				set: map[string]any{
-					"iat": time.Now().Unix(),
-				},
+			previous: func(tok jwt.Token) {
+				_ = tok.Set("iat", time.Now().Unix())
 			},
-			refreshed: &claims{
-				set: map[string]any{
-					"iat": time.Now().Unix(),
-				},
+			refreshed: func(tok jwt.Token) {
+				_ = tok.Set("iat", time.Now().Unix())
 			},
 			expectErr: "'iat' claim in refreshed id_token must be greater than previous id_token",
 		},
 		{
 			name: "audience mismatch",
-			refreshed: &claims{
-				set: map[string]any{
-					"aud": []string{"some-client id", "trusted-id-1"},
-				},
+			refreshed: func(tok jwt.Token) {
+				_ = tok.Set("aud", []string{"some-client id", "trusted-id-1"})
 			},
 			expectErr: `'aud' claim mismatch`,
 		},
 		{
 			name: "auth_time mismatch",
-			previous: &claims{
-				set: map[string]any{
-					"auth_time": time.Now().Unix(),
-				},
+			previous: func(tok jwt.Token) {
+				_ = tok.Set("auth_time", time.Now().Unix())
 			},
-			refreshed: &claims{
-				set: map[string]any{
-					"auth_time": time.Now().Add(5 * time.Second).Unix(),
-				},
+			refreshed: func(tok jwt.Token) {
+				_ = tok.Set("auth_time", time.Now().Add(5*time.Second).Unix())
 			},
 			expectErr: "'auth_time' claim mismatch",
 		},
 		{
 			name: "nonce mismatch",
-			previous: &claims{
-				set: map[string]any{
-					"nonce": "some-nonce",
-				},
+			previous: func(tok jwt.Token) {
+				_ = tok.Set("nonce", "some-nonce")
 			},
-			refreshed: &claims{
-				set: map[string]any{
-					"nonce": "some-other-nonce",
-				},
+			refreshed: func(tok jwt.Token) {
+				_ = tok.Set("nonce", "some-other-nonce")
 			},
 			expectErr: "'nonce' claim mismatch",
 		},
 		{
 			name: "acr mismatch",
-			previous: &claims{
-				set: map[string]any{
-					"acr": "some-acr",
-				},
+			previous: func(tok jwt.Token) {
+				_ = tok.Set("acr", "some-acr")
 			},
-			refreshed: &claims{
-				set: map[string]any{
-					"acr": "some-other-acr",
-				},
+			refreshed: func(tok jwt.Token) {
+				_ = tok.Set("acr", "some-other-acr")
 			},
 			requireAcr: true,
 			expectErr:  `invalid acr: got "some-other-acr", expected "some-acr"`,
 		},
 		{
 			name: "iat is in the future",
-			refreshed: &claims{
-				set: map[string]any{
-					"iat": time.Now().Add(openid.AcceptableSkew + 5*time.Second).Unix(),
-				},
+			refreshed: func(tok jwt.Token) {
+				_ = tok.Set("iat", time.Now().Add(openid.AcceptableSkew+5*time.Second).Unix())
 			},
 			expectErr: `"iat" not satisfied`,
 		},
 		{
 			name: "exp is in the past",
-			refreshed: &claims{
-				set: map[string]any{
-					"exp": time.Now().Add(-openid.AcceptableSkew - 5*time.Second).Unix(),
-				},
+			refreshed: func(tok jwt.Token) {
+				_ = tok.Set("exp", time.Now().Add(-openid.AcceptableSkew-5*time.Second).Unix())
 			},
 			expectErr: `"exp" not satisfied`,
 		},
@@ -505,45 +424,42 @@ func TestValidateRefreshedIDToken(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := mock.Config()
 			cfg.OpenID.ACRValues = ""
-			cfg.OpenID.ClientID = "some-client-id"
+			if tt.requireAcr {
+				cfg.OpenID.ACRValues = "some-acr"
+			}
 			cfg.OpenID.Audiences = []string{"trusted-id-1", "trusted-id-2"}
+			cfg.OpenID.ClientID = "some-client-id"
 
 			openidcfg := mock.NewTestConfiguration(cfg)
 			openidcfg.TestProvider.SetIssuer("https://some-issuer")
 
-			previous := &claims{
-				set: map[string]any{
-					"aud": openidcfg.Client().ClientID(),
-					"iss": openidcfg.Provider().Issuer(),
-					"sub": "some-sub",
-				},
-			}
-			previous.merge(tt.previous)
-			previousIDToken, err := makeIDToken(previous)
+			previousIDToken, err := makeIDToken(func(tok jwt.Token) {
+				_ = tok.Set("sub", "some-sub")
+				if tt.previous != nil {
+					tt.previous(tok)
+				}
+			})
 			require.NoError(t, err)
 
-			previousIssuedAt, ok := previousIDToken.IssuedAt()
+			prevIat, ok := previousIDToken.IssuedAt()
 			require.True(t, ok)
-			previousExpiry, ok := previousIDToken.Expiration()
+			prevExp, ok := previousIDToken.Expiration()
 			require.True(t, ok)
-			refreshed := &claims{
-				set: map[string]any{
-					"aud": openidcfg.Client().ClientID(),
-					"iss": openidcfg.Provider().Issuer(),
-					"sub": "some-sub",
-					"iat": previousIssuedAt.Add(5 * time.Second).Unix(),
-					"exp": previousExpiry.Add(5 * time.Second).Unix(),
-				},
-			}
-			refreshed.merge(tt.refreshed)
-			refreshedIDToken, err := makeIDToken(refreshed)
+			refreshedIDToken, err := makeIDToken(func(tok jwt.Token) {
+				_ = tok.Set("sub", "some-sub")
+				_ = tok.Set("iat", prevIat.Add(5*time.Second).Unix())
+				_ = tok.Set("exp", prevExp.Add(5*time.Second).Unix())
+				if tt.refreshed != nil {
+					tt.refreshed(tok)
+				}
+			})
 			require.NoError(t, err)
 
 			expectedAcr := ""
-			if tt.requireAcr {
-				cfg.OpenID.ACRValues = "some-acr"
-				expectedAcr = "some-acr"
+			if acr := previousIDToken.Acr(); acr != "" && tt.requireAcr {
+				expectedAcr = acr
 			}
+
 			err = openid.ValidateRefreshedIDToken(openidcfg,
 				previousIDToken.Serialized(),
 				refreshedIDToken.Serialized(),
@@ -558,53 +474,22 @@ func TestValidateRefreshedIDToken(t *testing.T) {
 	}
 }
 
-type claims struct {
-	set    map[string]any
-	remove []string
-}
-
-func (in *claims) setIfUnset(key, value string) {
-	if _, ok := in.set[key]; !ok {
-		in.set[key] = value
-	}
-}
-
-func (in *claims) merge(other *claims) {
-	if other == nil {
-		return
-	}
-
-	if other.set != nil {
-		for k, v := range other.set {
-			in.set[k] = v
-		}
-	}
-
-	if len(other.remove) > 0 {
-		in.remove = append(in.remove, other.remove...)
-	}
-}
-
-func makeIDToken(claims *claims) (*openid.IDToken, error) {
+func makeIDToken(mutate func(tok jwt.Token)) (*openid.IDToken, error) {
 	iat := time.Now().Truncate(time.Second).UTC()
 	exp := iat.Add(5 * time.Second)
 	sub := uuid.New().String()
 
-	idToken := jwt.New()
-	idToken.Set("sub", sub)
-	idToken.Set("iss", "some-issuer")
-	idToken.Set("aud", "some-client-id")
-	idToken.Set("nonce", "some-nonce")
-	idToken.Set("iat", iat.Unix())
-	idToken.Set("exp", exp.Unix())
-	idToken.Set("jti", uuid.NewString())
+	tok := jwt.New()
+	_ = tok.Set("sub", sub)
+	_ = tok.Set("iss", "https://some-issuer")
+	_ = tok.Set("aud", "some-client-id")
+	_ = tok.Set("nonce", "some-nonce")
+	_ = tok.Set("iat", iat.Unix())
+	_ = tok.Set("exp", exp.Unix())
+	_ = tok.Set("jti", uuid.NewString())
 
-	for claim, claimValue := range claims.set {
-		idToken.Set(claim, claimValue)
-	}
-
-	for _, claim := range claims.remove {
-		idToken.Remove(claim)
+	if mutate != nil {
+		mutate(tok)
 	}
 
 	key, ok := jwks.Private.Key(0)
@@ -612,7 +497,12 @@ func makeIDToken(claims *claims) (*openid.IDToken, error) {
 		return nil, fmt.Errorf("no private key found at index 0")
 	}
 
-	jws, err := jwt.Sign(idToken, jwt.WithKey(jwa.RS256(), key))
+	alg, ok := key.Algorithm()
+	if !ok {
+		return nil, fmt.Errorf("no algorithm found for key")
+	}
+
+	jws, err := jwt.Sign(tok, jwt.WithKey(alg, key))
 	if err != nil {
 		return nil, fmt.Errorf("signing token: %w", err)
 	}
