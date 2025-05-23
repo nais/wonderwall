@@ -23,7 +23,7 @@ openid:
   clientID:
   clientSecret:
   extraAudience:
-  scopes: "profile,email,offline_access"
+  extraScopes:
   wellKnownURL: https://auth.nais.io/.well-known/openid-configuration
 session:
   maxLifetime: 10h

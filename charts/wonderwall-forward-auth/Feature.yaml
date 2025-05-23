@@ -3,19 +3,23 @@ environmentKinds:
 timeout: "1800s"
 values:
   openid.clientID:
-    required: true
     computed:
       template: |
         {{ .Env.wonderwall_forward_auth_zitadel_client_id | quote }}
-  openid.extraAudience:
-    computed:
-      template: |
-        {{ .Env.wonderwall_forward_auth_zitadel_project_id | quote }}
   openid.clientSecret:
-    required: true
     computed:
       template: |
         {{ .Env.wonderwall_forward_auth_zitadel_client_secret | quote }}
+  openid.extraAudience:
+    description: Comma separated list of additional audiences for id_token validation.
+    computed:
+      template: |
+        {{ .Env.wonderwall_forward_auth_zitadel_project_id | quote }}
+  openid.extraScopes:
+    description: Comma separated list of additional scopes to request from the OpenID provider.
+    computed:
+      template: |
+        "urn:zitadel:iam:org:id:{{ .Env.zitadel_organization_id }}"
   replicas.min:
     config:
       type: int
