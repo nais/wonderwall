@@ -9,21 +9,19 @@ import (
 	"slices"
 	stringslib "strings"
 
-	"github.com/nais/wonderwall/internal/o11y/otel"
-	"github.com/nais/wonderwall/pkg/retry"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
-
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
-
 	"github.com/nais/wonderwall/internal/crypto"
+	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/cookie"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/acr"
+	"github.com/nais/wonderwall/pkg/retry"
 	"github.com/nais/wonderwall/pkg/strings"
 	"github.com/nais/wonderwall/pkg/url"
+	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -188,52 +186,63 @@ func (l *Login) LogFields(fields log.Fields) log.Fields {
 }
 
 func getAcrParam(c *Client, r *http.Request) string {
-	defaultValue := c.cfg.Client().ACRValues()
-	if len(defaultValue) == 0 {
+	supported := c.cfg.Provider().ACRValuesSupported()
+	param := r.URL.Query().Get(QueryParamSecurityLevel)
+	if param != "" {
+		if supported.Contains(param) {
+			return param
+		}
+		translated, ok := acr.IDPortenLegacyMapping[param]
+		if ok && supported.Contains(translated) {
+			return translated
+		}
+
+		span := trace.SpanFromContext(r.Context())
+		span.SetAttributes(attribute.String("login.query.invalid_level", param))
+		// The provided ACR value is empty or invalid, check if we can fall back to a default value
+	}
+
+	defaultAcr := c.cfg.Client().ACRValues()
+	if defaultAcr == "" {
 		return ""
 	}
-
-	paramValue := r.URL.Query().Get(QueryParamSecurityLevel)
-	if len(paramValue) == 0 {
-		paramValue = defaultValue
+	if !supported.Contains(defaultAcr) {
+		translated, ok := acr.IDPortenLegacyMapping[defaultAcr]
+		if ok && supported.Contains(translated) {
+			defaultAcr = translated
+		} else {
+			// The default ACR value is invalid
+			return ""
+		}
 	}
-
-	supported := c.cfg.Provider().ACRValuesSupported()
-	if supported.Contains(paramValue) {
-		return paramValue
+	if param != "" {
+		mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamSecurityLevel, param, supported, defaultAcr)
 	}
-
-	translatedAcr, ok := acr.IDPortenLegacyMapping[paramValue]
-	if ok && supported.Contains(translatedAcr) {
-		return translatedAcr
-	}
-
-	span := trace.SpanFromContext(r.Context())
-	span.SetAttributes(attribute.String("login.query.invalid_level", paramValue))
-	mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamSecurityLevel, paramValue, supported, defaultValue)
-	return defaultValue
+	return defaultAcr
 }
 
 func getLocaleParam(c *Client, r *http.Request) string {
-	defaultValue := c.cfg.Client().UILocales()
-	if len(defaultValue) == 0 {
+	supported := c.cfg.Provider().UILocalesSupported()
+	param := r.URL.Query().Get(QueryParamLocale)
+	if param != "" {
+		if supported.Contains(param) {
+			return param
+		}
+
+		span := trace.SpanFromContext(r.Context())
+		span.SetAttributes(attribute.String("login.query.invalid_locale", param))
+		// The provided locale is invalid, check if we can fall back to a default value
+	}
+
+	defaultLocale := c.cfg.Client().UILocales()
+	if defaultLocale == "" || !supported.Contains(defaultLocale) {
+		// The default locale is empty or invalid
 		return ""
 	}
-
-	paramValue := r.URL.Query().Get(QueryParamLocale)
-	if len(paramValue) == 0 {
-		paramValue = defaultValue
+	if param != "" {
+		mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamLocale, param, supported, defaultLocale)
 	}
-
-	supported := c.cfg.Provider().UILocalesSupported()
-	if supported.Contains(paramValue) {
-		return paramValue
-	}
-
-	span := trace.SpanFromContext(r.Context())
-	span.SetAttributes(attribute.String("login.query.invalid_locale", paramValue))
-	mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamLocale, paramValue, supported, defaultValue)
-	return defaultValue
+	return defaultLocale
 }
 
 func getPromptParam(r *http.Request) string {
