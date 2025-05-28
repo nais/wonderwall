@@ -36,6 +36,10 @@ spec:
               weight: 10
       containers:
         - env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "wonderwall-forward-auth.fullname" . }}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: {{ .Values.otel.endpoint }}
           - name: WONDERWALL_REDIS_PASSWORD
             valueFrom:
               secretKeyRef:

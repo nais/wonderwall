@@ -23,6 +23,8 @@ replicas:
 podDisruptionBudget:
   maxUnavailable: 1
 ingressClassName: nais-ingress-fa
+otel:
+  endpoint: http://opentelemetry-management-collector.nais-system:4317
 
 openid:
   clientID:
