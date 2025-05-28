@@ -12,5 +12,9 @@ spec:
       port: 80
       protocol: TCP
       targetPort: http
+    - name: http-metrics
+      port: 8081
+      protocol: TCP
+      targetPort: http-metrics
   selector:
     {{- include "wonderwall-forward-auth.selectorLabels" . | nindent 4 }}

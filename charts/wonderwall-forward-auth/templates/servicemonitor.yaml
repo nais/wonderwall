@@ -1,0 +1,20 @@
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1" }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "wonderwall-forward-auth.fullname" . }}
+  labels: {{- include "wonderwall-forward-auth.labels" . | nindent 4 }}
+spec:
+  endpoints:
+    - interval: 1m
+      port: http-metrics
+      scrapeTimeout: 10s
+      path: "/"
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "wonderwall-forward-auth.selectorLabels" . | nindent 6 }}
+{{- end }}

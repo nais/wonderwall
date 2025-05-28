@@ -1,0 +1,27 @@
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1" }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "wonderwall-forward-auth.fullname" . }}
+  labels:
+    {{- include "wonderwall-forward-auth.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: "wonderwall-forward-auth"
+      rules:
+        - alert: wonderwall-forward-auth (Zitadel) reports a high amount of internal errors
+          expr: sum(increase(requests_total{service="{{ include "wonderwall-forward-auth.fullname" . }}", namespace="{{ .Release.Namespace }}", code="500"}[5m])) > 30
+          for: 5m
+          annotations:
+            summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
+            consequence: This probably means that end-users are having trouble with authentication.
+            action: |
+              * Check the logs and metrics in the dashboard
+              * Check the Valkey instance in the cluster
+              * Check the Zitadel dashboard: <https://monitoring.nais.io/d/bel6280x2srggc/>
+            dashboard_url: "https://monitoring.nais.io/d/ben86a369fj7kd"
+          labels:
+            severity: critical
+            namespace: {{ .Release.Namespace }}
+{{ end }}
