@@ -20,7 +20,7 @@ spec:
               * Check the logs and metrics in the dashboard
               * Check the Valkey instance in the cluster
               * Check the Zitadel dashboard: <https://monitoring.nais.io/d/bel6280x2srggc/>
-            dashboard_url: "https://monitoring.nais.io/d/ben86a369fj7kd"
+            dashboard_url: "https://monitoring.nais.io/d/ben86a369fj7kd?var-tenant={{ .Values.fasit.tenant.name }}"
           labels:
             severity: critical
             namespace: {{ .Release.Namespace }}

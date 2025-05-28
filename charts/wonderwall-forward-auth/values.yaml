@@ -5,6 +5,11 @@ image:
   repository: europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall
   tag: latest
 
+# mapped by fasit
+fasit:
+  tenant:
+    name:
+
 resources:
   limits:
     cpu: "2"
