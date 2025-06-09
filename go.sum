@@ -104,8 +104,8 @@ github.com/redis/go-redis/extra/redisotel/v9 v9.9.0 h1:trEhEKFu8qKSNl+7TRvUKcsoA
 github.com/redis/go-redis/extra/redisotel/v9 v9.9.0/go.mod h1:gz3iYRb85Y8cXhuZKCvwZBH9rS+VS6ZCMItCRdMA+NU=
 github.com/redis/go-redis/extra/redisprometheus/v9 v9.9.0 h1:ylUFiRFY7+YebZ2fhnXCuytJE0gcM91ZzrQ5j0e+TKE=
 github.com/redis/go-redis/extra/redisprometheus/v9 v9.9.0/go.mod h1:x9oWtVu+6IrRPJBXC0P0EHzzJL5H8ykN2ucvET8+e0Y=
-github.com/redis/go-redis/v9 v9.9.0 h1:URbPQ4xVQSQhZ27WMQVmZSo3uT3pL+4IdHVcYq2nVfM=
-github.com/redis/go-redis/v9 v9.9.0/go.mod h1:huWgSWd8mW6+m0VPhJjSSQ+d6Nh1VICQ6Q5lHuCH/Iw=
+github.com/redis/go-redis/v9 v9.10.0 h1:FxwK3eV8p/CQa0Ch276C7u2d0eNC9kCmAYQ7mCXCzVs=
+github.com/redis/go-redis/v9 v9.10.0/go.mod h1:huWgSWd8mW6+m0VPhJjSSQ+d6Nh1VICQ6Q5lHuCH/Iw=
 github.com/riandyrn/otelchi v0.12.1 h1:FdRKK3/RgZ/T+d+qTH5Uw3MFx0KwRF38SkdfTMMq/m8=
 github.com/riandyrn/otelchi v0.12.1/go.mod h1:weZZeUJURvtCcbWsdb7Y6F8KFZGedJlSrgUjq9VirV8=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
