@@ -10,7 +10,7 @@ tool (
 
 require (
 	github.com/KimMachineGun/automemlimit v0.7.2
-	github.com/alicebob/miniredis/v2 v2.34.0
+	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/bsm/redislock v0.9.4
 	github.com/go-chi/chi/v5 v5.2.1
@@ -43,7 +43,6 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
-	github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
