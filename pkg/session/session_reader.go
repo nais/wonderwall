@@ -80,5 +80,6 @@ func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, e
 	}
 
 	span.SetAttributes(attribute.Bool("session.valid_session", true))
+	data.Metadata.SetSpanAttributes(span)
 	return sess, nil
 }

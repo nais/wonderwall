@@ -96,6 +96,7 @@ func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetim
 	sess := NewSession(data, ticket)
 	span.SetAttributes(attribute.Bool("session.created", true))
 	span.SetAttributes(attribute.String("session.id", sess.ExternalSessionID()))
+	data.Metadata.SetSpanAttributes(span)
 	return sess, nil
 }
 
@@ -117,7 +118,6 @@ func (in *manager) DeleteForExternalID(ctx context.Context, id string) error {
 func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
 	r, span := otel.StartSpanFromRequest(r, "Session.GetOrRefresh")
 	defer span.End()
-	span.SetAttributes(attribute.Bool("session.refreshed", false))
 
 	sess, err := in.Get(r)
 	if err != nil {
@@ -128,9 +128,9 @@ func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
 		return sess, nil
 	}
 
+	span.SetAttributes(attribute.Bool("session.should_refresh", true))
 	refreshed, err := in.Refresh(r, sess)
 	if err == nil {
-		span.SetAttributes(attribute.Bool("session.refreshed", true))
 		return refreshed, nil
 	}
 
@@ -233,6 +233,8 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 	sess.data.AccessToken = resp.AccessToken
 	sess.data.RefreshToken = resp.RefreshToken
 	sess.data.Metadata.Refresh(resp.ExpiresIn)
+	span.SetAttributes(attribute.String("session.token_expires_at", sess.data.Metadata.Tokens.ExpireAt.Format(time.RFC3339)))
+	span.SetAttributes(attribute.String("session.token_refreshed_at", sess.data.Metadata.Tokens.RefreshedAt.Format(time.RFC3339)))
 
 	if in.cfg.Session.Inactivity {
 		sess.data.Metadata.WithTimeout(in.cfg.Session.InactivityTimeout)

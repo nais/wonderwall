@@ -8,6 +8,8 @@ import (
 
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -267,6 +269,16 @@ func (in *Metadata) Verbose() MetadataVerbose {
 	return MetadataVerbose{
 		Session: session,
 		Tokens:  tokens,
+	}
+}
+
+func (in *Metadata) SetSpanAttributes(span trace.Span) {
+	span.SetAttributes(attribute.String("session.token_expires_at", in.Tokens.ExpireAt.Format(time.RFC3339)))
+	span.SetAttributes(attribute.String("session.token_refreshed_at", in.Tokens.RefreshedAt.Format(time.RFC3339)))
+	span.SetAttributes(attribute.String("session.created_at", in.Session.CreatedAt.Format(time.RFC3339)))
+	span.SetAttributes(attribute.String("session.ends_at", in.Session.EndsAt.Format(time.RFC3339)))
+	if !in.Session.TimeoutAt.IsZero() {
+		span.SetAttributes(attribute.String("session.timeout_at", in.Session.TimeoutAt.Format(time.RFC3339)))
 	}
 }
 

@@ -89,6 +89,7 @@ func (c *Client) redeemTokens(ctx context.Context, code string, cookie *openid.L
 	if err != nil {
 		return nil, fmt.Errorf("exchanging authorization code for token: %w", err)
 	}
+	span.SetAttributes(attribute.Int64("oauth.token_expires_in_seconds", rawTokens.ExpiresIn))
 
 	jwkSet, err := c.jwksProvider.GetPublicJwkSet(ctx)
 	if err != nil {
