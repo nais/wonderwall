@@ -69,7 +69,9 @@ func (a AuthorizationCodeParams) RequestParams() RequestParams {
 
 	if len(a.Prompt) > 0 {
 		params["prompt"] = a.Prompt
-		params["max_age"] = "0"
+		if a.Prompt == "login" {
+			params["max_age"] = "0"
+		}
 	}
 
 	if len(a.Resource) > 0 {

@@ -38,9 +38,10 @@ func TestLogin_PushedAuthorizationRequest(t *testing.T) {
 
 func TestLogin_URL(t *testing.T) {
 	type loginURLTest struct {
-		name       string
-		url        string
-		wantParams map[string]string
+		name          string
+		url           string
+		wantParams    map[string]string
+		wantNotParams []string
 	}
 
 	tests := []loginURLTest{
@@ -63,12 +64,20 @@ func TestLogin_URL(t *testing.T) {
 			},
 		},
 		{
-			name: "happy path with prompt",
+			name: "happy path with prompt login",
 			url:  mock.Ingress + "/oauth2/login?prompt=login",
 			wantParams: map[string]string{
 				"prompt":  "login",
 				"max_age": "0",
 			},
+		},
+		{
+			name: "happy path with prompt select_account",
+			url:  mock.Ingress + "/oauth2/login?prompt=select_account",
+			wantParams: map[string]string{
+				"prompt": "select_account",
+			},
+			wantNotParams: []string{"max_age"},
 		},
 		{
 			name: "happy path with both locale and level",
@@ -172,6 +181,12 @@ func TestLogin_URL(t *testing.T) {
 				assert.ElementsMatch(t, query["ui_locales"], []string{openidConfig.Client().UILocales()})
 				assert.NotContains(t, query, "prompt")
 				assert.NotContains(t, query, "max_age")
+			}
+
+			if test.wantNotParams != nil {
+				for _, param := range test.wantNotParams {
+					assert.NotContains(t, query, param, "Expected query to not contain: "+param)
+				}
 			}
 		})
 	}
