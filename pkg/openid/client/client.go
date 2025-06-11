@@ -119,6 +119,9 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken, previousIDToken
 		return nil, fmt.Errorf("unmarshalling token response: %w", err)
 	}
 	span.SetAttributes(attribute.Int64("oauth.token_expires_in_seconds", tokenResponse.ExpiresIn))
+	if tokenResponse.ExpiresIn <= 0 {
+		return nil, fmt.Errorf("invalid token response: expires_in must be greater than 0, got %d", tokenResponse.ExpiresIn)
+	}
 
 	// id_tokens may not always be returned from a refresh grant (OpenID Connect Core 12.1)
 	if tokenResponse.IDToken != "" {

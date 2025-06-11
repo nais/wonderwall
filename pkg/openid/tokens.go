@@ -51,9 +51,17 @@ func NewTokens(src *oauth2.Token, jwks *jwk.Set, cfg openidconfig.Config, cookie
 		return nil, fmt.Errorf("validating id_token: %w", err)
 	}
 
+	expiry := src.Expiry
+	if expiry.IsZero() {
+		if src.ExpiresIn <= 0 {
+			return nil, fmt.Errorf("missing or zero value for expires_in in token response")
+		}
+		expiry = time.Now().Add(time.Duration(src.ExpiresIn) * time.Second)
+	}
+
 	return &Tokens{
 		AccessToken:  src.AccessToken,
-		Expiry:       src.Expiry,
+		Expiry:       expiry,
 		IDToken:      idToken,
 		RefreshToken: src.RefreshToken,
 		TokenType:    src.TokenType,
