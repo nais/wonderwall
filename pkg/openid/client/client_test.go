@@ -86,7 +86,3 @@ func newTestClientWithConfig(config *mock.TestConfiguration) *client.Client {
 	jwksProvider := mock.NewTestJwksProvider()
 	return client.NewClient(config, jwksProvider)
 }
-
-func newTestClient() *client.Client {
-	return newTestClientWithConfig(mock.NewTestConfiguration(mock.Config()))
-}

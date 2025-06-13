@@ -417,23 +417,43 @@ func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) 
 	// Unconditionally destroy all local references to the session.
 	cookie.Clear(w, cookie.Session, s.GetCookieOptions(r))
 
-	lfc := s.Client.LogoutFrontchannel(r)
-	if lfc.MissingSidParameter() {
+	// sid is the session identifier that SHOULD be included as a parameter in the front-channel logout request.
+	sid := r.URL.Query().Get("sid")
+	if sid == "" {
 		span.SetAttributes(attribute.Bool("logout.frontchannel.missing_sid_parameter", true))
 		logger.Debugf("front-channel logout: sid parameter not found in request; ignoring")
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
-	id := lfc.Sid()
-	err := s.SessionManager.DeleteForExternalID(r.Context(), id)
-	if err != nil {
-		logger.Warnf("front-channel logout: destroying session with id %q: %+v", id, err)
+	if err := s.SessionManager.DeleteForExternalID(r.Context(), sid); err != nil {
+		if errors.Is(err, session.ErrNotFound) {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		logger.Infof("front-channel logout: destroying session with id %q: %+v", sid, err)
+		go func() {
+			// attempt background delete with retries
+			err := retry.Do(context.Background(), func(ctx context.Context) error {
+				err = s.SessionManager.DeleteForExternalID(ctx, sid)
+				if err == nil || errors.Is(err, session.ErrNotFound) {
+					return nil
+				}
+				return retry.RetryableError(err)
+			}, retry.WithMax(10*time.Minute))
+			if err != nil {
+				logger.Warnf("front-channel logout: retries exhausted for deletion of session with id %q: %+v", sid, err)
+			} else {
+				logger.WithField("sid", sid).Info("front-channel logout: session deleted in background")
+			}
+		}()
+
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
-	logger.WithField("sid", id).Info("front-channel logout: session deleted")
+	logger.WithField("sid", sid).Info("front-channel logout: session deleted")
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	metrics.ObserveLogout(metrics.LogoutOperationFrontChannel)
 	w.WriteHeader(http.StatusOK)

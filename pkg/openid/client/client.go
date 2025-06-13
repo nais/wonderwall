@@ -87,10 +87,6 @@ func (c *Client) LogoutCallback(r *http.Request, cookie *openid.LogoutCookie, va
 	return NewLogoutCallback(c, r, cookie, validator)
 }
 
-func (c *Client) LogoutFrontchannel(r *http.Request) *LogoutFrontchannel {
-	return NewLogoutFrontchannel(r)
-}
-
 func (c *Client) AuthCodeGrant(ctx context.Context, code string, opts []oauth2.AuthCodeOption) (*oauth2.Token, error) {
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, c.httpClient)
 	return c.oauth2Config.Exchange(ctx, code, opts...)
