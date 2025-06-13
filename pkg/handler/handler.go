@@ -10,12 +10,9 @@ import (
 	"strconv"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/internal/o11y/otel"
+	"github.com/nais/wonderwall/internal/retry"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/handler/acr"
@@ -29,6 +26,9 @@ import (
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/url"
+	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var _ router.Source = &Standalone{}

@@ -14,16 +14,15 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
-	"github.com/nais/wonderwall/pkg/retry"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/oauth2"
-
 	httpinternal "github.com/nais/wonderwall/internal/http"
 	"github.com/nais/wonderwall/internal/o11y/otel"
+	"github.com/nais/wonderwall/internal/retry"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/oauth2"
 )
 
 func init() {

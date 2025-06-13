@@ -11,11 +11,11 @@ import (
 
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/internal/o11y/otel"
+	"github.com/nais/wonderwall/internal/retry"
 	"github.com/nais/wonderwall/pkg/cookie"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/acr"
-	"github.com/nais/wonderwall/pkg/retry"
 	"github.com/nais/wonderwall/pkg/strings"
 	"github.com/nais/wonderwall/pkg/url"
 	log "github.com/sirupsen/logrus"

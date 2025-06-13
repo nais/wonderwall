@@ -8,8 +8,8 @@ import (
 
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/internal/o11y/otel"
+	"github.com/nais/wonderwall/internal/retry"
 	"github.com/nais/wonderwall/pkg/config"
-	"github.com/nais/wonderwall/pkg/retry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
