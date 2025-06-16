@@ -23,8 +23,6 @@ azure:
     # 256 bits key, in standard base64 encoding
     sessionCookieEncryptionKey:
     sessionCookieName: forwardauth
-    sessionInactivity: true
-    sessionInactivityTimeout: 1h
     ssoDefaultRedirectURL:
     ssoDomain:
     ssoServerSecretName: wonderwall-azure-sso-server

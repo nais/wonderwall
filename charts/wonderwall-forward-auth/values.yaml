@@ -37,8 +37,6 @@ session:
   # 256 bits key, in standard base64 encoding
   cookieEncryptionKey:
   cookieName: nais-io-forward-auth
-  inactivity: true
-  inactivityTimeout: 1h
 sso:
   defaultRedirectURL:
   domain:
