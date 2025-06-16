@@ -8,7 +8,6 @@ import (
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/openid"
-	"github.com/nais/wonderwall/pkg/strings"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
 
@@ -24,7 +23,7 @@ func NewLogout(c *Client, r *http.Request) (*Logout, error) {
 		return nil, fmt.Errorf("generating logout callback url: %w", err)
 	}
 
-	state, err := strings.GenerateBase64(32)
+	state, err := crypto.Text(32)
 	if err != nil {
 		return nil, fmt.Errorf("generating state: %w", err)
 	}

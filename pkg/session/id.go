@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
-	"github.com/nais/wonderwall/pkg/strings"
 )
 
 // ExternalID returns the external session ID, derived from the given request or id_token; e.g. `sid` or `session_state`.
@@ -33,7 +33,7 @@ func ExternalID(r *http.Request, cfg openidconfig.Provider, idToken *openid.IDTo
 	}
 
 	// 3. generate ID if all else fails
-	sessionID, err = strings.GenerateBase64(64)
+	sessionID, err = crypto.Text(64)
 	if err != nil {
 		return "", fmt.Errorf("generating session ID: %w", err)
 	}

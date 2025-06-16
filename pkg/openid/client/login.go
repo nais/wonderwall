@@ -16,7 +16,6 @@ import (
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/openid/acr"
-	"github.com/nais/wonderwall/pkg/strings"
 	"github.com/nais/wonderwall/pkg/url"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
@@ -76,12 +75,12 @@ func (c *Client) newAuthorizationCodeParams(r *http.Request) (openid.Authorizati
 		return req, fmt.Errorf("generating callback url: %w", err)
 	}
 
-	nonce, err := strings.GenerateBase64(32)
+	nonce, err := crypto.Text(32)
 	if err != nil {
 		return req, fmt.Errorf("creating nonce: %w", err)
 	}
 
-	state, err := strings.GenerateBase64(32)
+	state, err := crypto.Text(32)
 	if err != nil {
 		return req, fmt.Errorf("creating state: %w", err)
 	}
