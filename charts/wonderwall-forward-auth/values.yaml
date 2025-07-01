@@ -46,3 +46,4 @@ valkey:
   port:
   username:
   password:
+  connectionIdleTimeoutSeconds: 299
