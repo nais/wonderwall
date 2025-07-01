@@ -2,8 +2,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    reloader.stakater.com/search: "true"
   labels:
     {{- include "wonderwall-forward-auth.labels" . | nindent 4 }}
   name: {{ include "wonderwall-forward-auth.fullname" . }}
@@ -18,8 +16,8 @@ spec:
         kubectl.kubernetes.io/default-container: {{ include "wonderwall-forward-auth.fullname" . }}
         checksum/secret: {{ pick ( include (print $.Template.BasePath "/secret.yaml") . | fromYaml ) "data" | toYaml | sha256sum }}
       labels:
+        aiven: enabled
         {{- include "wonderwall-forward-auth.labels" . | nindent 8 }}
-        {{ printf "%s-client" .Values.valkey.fullnameOverride }}: "true"
       name: {{ include "wonderwall-forward-auth.fullname" . }}
     spec:
       affinity:
@@ -40,11 +38,6 @@ spec:
             value: {{ include "wonderwall-forward-auth.fullname" . }}
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: {{ .Values.otel.endpoint }}
-          - name: WONDERWALL_REDIS_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.valkey.fullnameOverride }}
-                key: "valkey-password"
           envFrom:
             - secretRef:
                 name: {{ include "wonderwall-forward-auth.fullname" . }}

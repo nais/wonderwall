@@ -21,21 +21,11 @@ spec:
           podSelector:
             matchLabels:
               nais.io/ingressClass: {{ .Values.ingressClassName }}
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: nais-system
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/instance: {{ .Release.Name }}
-              app.kubernetes.io/name: valkey
   podSelector:
     matchLabels:
       {{- include "wonderwall-forward-auth.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
-    - Egress
 {{- if .Capabilities.APIVersions.Has "networking.gke.io/v1alpha3" }}
 ---
 apiVersion: networking.gke.io/v1alpha3

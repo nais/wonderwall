@@ -18,7 +18,7 @@ spec:
             consequence: This probably means that end-users are having trouble with authentication.
             action: |
               * Check the logs and metrics in the dashboard
-              * Check the Valkey instance in the cluster
+              * Check Aiven Valkey (session store) and verify Aiven network connectivity
               * Check the Zitadel dashboard: <https://monitoring.nais.io/d/bel6280x2srggc/>
             dashboard_url: "https://monitoring.nais.io/d/ben86a369fj7kd?var-tenant={{ .Values.fasit.tenant.name }}"
           labels:

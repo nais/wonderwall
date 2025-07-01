@@ -42,13 +42,7 @@ sso:
   domain:
 
 valkey:
-  fullnameOverride: "wonderwall-forward-auth-valkey"
-  architecture: "standalone"
-  primary:
-    resourcesPreset: "medium"
-    persistence:
-      enabled: false
-  networkPolicy:
-    enabled: true
-    allowExternal: false
-    allowExternalEgress: false
+  host:
+  port:
+  username:
+  password:

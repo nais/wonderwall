@@ -5,7 +5,3 @@ type: application
 version: 1.0.0
 sources:
   - https://github.com/nais/wonderwall/tree/master/charts/wonderwall-forward-auth
-dependencies:
-  - name: valkey
-    version: 3.0.7
-    repository: https://charts.bitnami.com/bitnami

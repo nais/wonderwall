@@ -1,6 +1,8 @@
 environmentKinds:
   - management
-timeout: "1800s"
+dependencies:
+  - allOf:
+      - nais-netpols-management
 values:
   openid.clientID:
     computed:
@@ -41,3 +43,19 @@ values:
     computed:
       template: |
         {{ printf "https://%s" (subdomain . "console") | quote }}
+  valkey.host:
+    computed:
+      template: |
+        {{ .Env.wonderwall_forward_auth_valkey_host | quote }}
+  valkey.port:
+    computed:
+      template: |
+        {{ .Env.wonderwall_forward_auth_valkey_port | quote }}
+  valkey.username:
+    computed:
+      template: |
+        {{ .Env.wonderwall_forward_auth_valkey_username | quote }}
+  valkey.password:
+    computed:
+      template: |
+        {{ .Env.wonderwall_forward_auth_valkey_password | quote }}
