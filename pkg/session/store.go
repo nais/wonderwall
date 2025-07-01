@@ -45,7 +45,11 @@ func NewStore(cfg *config.Config) (Store, error) {
 	}
 
 	if cfg.OpenTelemetry.Enabled {
-		if err := redisotel.InstrumentTracing(redisClient, redisotel.WithDBStatement(false)); err != nil {
+		opts := []redisotel.TracingOption{
+			redisotel.WithDBStatement(false),
+			redisotel.WithCallerEnabled(false),
+		}
+		if err := redisotel.InstrumentTracing(redisClient, opts...); err != nil {
 			return nil, fmt.Errorf("failed to instrument Redis Client: %w", err)
 		}
 		log.Infof("session: using redis as backing store with OpenTelemetry instrumentation")
