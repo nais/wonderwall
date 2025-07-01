@@ -1,7 +1,6 @@
 package otel_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/nais/wonderwall/internal/o11y/otel"
@@ -11,6 +10,6 @@ import (
 
 func TestSetup(t *testing.T) {
 	// Assert that version for semconv schemas don't conflict with the current otel version.
-	_, err := otel.Setup(context.Background(), &config.Config{})
+	_, err := otel.Setup(t.Context(), &config.Config{})
 	assert.NoError(t, err)
 }
