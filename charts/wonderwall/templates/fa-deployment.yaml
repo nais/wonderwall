@@ -20,6 +20,7 @@ spec:
         prometheus.io/path: /
         prometheus.io/port: "8081"
         prometheus.io/scrape: "true"
+        checksum/secret: {{ pick ( include (print $.Template.BasePath "/fa-secret.yaml") . | fromYaml ) "data" | toYaml | sha256sum }}
       labels:
         aiven: enabled
         azure: enabled
