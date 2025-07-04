@@ -38,6 +38,55 @@ spec:
             value: {{ include "wonderwall-forward-auth.fullname" . }}
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: {{ .Values.otel.endpoint }}
+          - name: WONDERWALL_BIND_ADDRESS
+            value: "0.0.0.0:8080"
+          - name: WONDERWALL_COOKIE_SAME_SITE
+            value: "None"
+          - name: WONDERWALL_METRICS_BIND_ADDRESS
+            value: "0.0.0.0:8081"
+          - name: WONDERWALL_INGRESS
+            value: "https://{{ .Values.sso.domain }}"
+          - name: WONDERWALL_SHUTDOWN_WAIT_BEFORE_PERIOD
+            value: "5s"
+          - name: WONDERWALL_OPENID_PROVIDER
+            value: "openid"
+          - name: WONDERWALL_OPENID_CLIENT_ID
+            value: "{{ .Values.openid.clientID | required ".Values.openid.clientID is required." }}"
+          - name: WONDERWALL_OPENID_AUDIENCES
+            value: "{{ .Values.openid.extraAudience }}"
+          {{- if .Values.openid.extraScopes }}
+          - name: WONDERWALL_OPENID_SCOPES
+            value: "profile,email,offline_access,{{ .Values.openid.extraScopes }}"
+          {{- else }}
+          - name: WONDERWALL_OPENID_SCOPES
+            value: "profile,email,offline_access"
+          {{- end }}
+          - name: WONDERWALL_OPENID_WELL_KNOWN_URL
+            value: "{{ .Values.openid.wellKnownURL | required ".Values.openid.wellKnownURL is required." }}"
+          - name: WONDERWALL_REDIS_URI
+            value: "rediss://{{ .Values.valkey.host | required ".Values.valkey.host is required." }}:{{ .Values.valkey.port | required ".Values.valkey.port is required." }}"
+          - name: WONDERWALL_REDIS_USERNAME
+            value: "{{ .Values.valkey.username | required ".Values.valkey.username is required." }}"
+          - name: WONDERWALL_REDIS_CONNECTION_IDLE_TIMEOUT
+            value: "{{ .Values.valkey.connectionIdleTimeoutSeconds }}"
+          - name: WONDERWALL_REDIS_TLS
+            value: "true"
+          - name: WONDERWALL_SESSION_MAX_LIFETIME
+            value: "{{ .Values.session.maxLifetime | required ".Values.session.maxLifetime is required." }}"
+          - name: WONDERWALL_SESSION_FORWARD_AUTH
+            value: "true"
+          - name: WONDERWALL_SESSION_FORWARD_AUTH_SET_HEADERS
+            value: "true"
+          - name: WONDERWALL_SSO_DOMAIN
+            value: "{{ .Values.sso.domain | required ".Values.sso.domain is required." }}"
+          - name: WONDERWALL_SSO_ENABLED
+            value: "true"
+          - name: WONDERWALL_SSO_MODE
+            value: "server"
+          - name: WONDERWALL_SSO_SESSION_COOKIE_NAME
+            value: "{{ .Values.session.cookieName | required ".Values.session.cookieName is required." }}"
+          - name: WONDERWALL_SSO_SERVER_DEFAULT_REDIRECT_URL
+            value: "{{ .Values.sso.defaultRedirectURL | required ".Values.sso.defaultRedirectURL is required." }}"
           envFrom:
             - secretRef:
                 name: {{ include "wonderwall-forward-auth.fullname" . }}

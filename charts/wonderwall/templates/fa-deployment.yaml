@@ -40,6 +40,38 @@ spec:
               weight: 10
       containers:
         - env:
+          - name: OTEL_SERVICE_NAME
+            value: wonderwall-fa
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: {{ .Values.otel.endpoint }}
+          - name: WONDERWALL_BIND_ADDRESS
+            value: "0.0.0.0:8080"
+          - name: WONDERWALL_COOKIE_SAME_SITE
+            value: "None"
+          - name: WONDERWALL_METRICS_BIND_ADDRESS
+            value: "0.0.0.0:8081"
+          - name: WONDERWALL_INGRESS
+            value: "{{- include "wonderwall.azure.forwardAuthURL" . }}"
+          - name: WONDERWALL_SHUTDOWN_WAIT_BEFORE_PERIOD
+            value: "5s"
+          - name: WONDERWALL_OPENID_PROVIDER
+            value: "azure"
+          - name: WONDERWALL_REDIS_CONNECTION_IDLE_TIMEOUT
+            value: "{{ .Values.redis.connectionIdleTimeout }}"
+          - name: WONDERWALL_SESSION_MAX_LIFETIME
+            value: "{{ .Values.azure.sessionMaxLifetime | required ".Values.azure.forwardAuth.sessionMaxLifetime is required." }}"
+          - name: WONDERWALL_SESSION_FORWARD_AUTH
+            value: "true"
+          - name: WONDERWALL_SSO_DOMAIN
+            value: "{{ .Values.azure.forwardAuth.ssoDomain | required ".Values.azure.forwardAuth.ssoDomain is required." }}"
+          - name: WONDERWALL_SSO_ENABLED
+            value: "true"
+          - name: WONDERWALL_SSO_MODE
+            value: "server"
+          - name: WONDERWALL_SSO_SESSION_COOKIE_NAME
+            value: "{{ .Values.azure.forwardAuth.sessionCookieName | required ".Values.azure.forwardAuth.sessionCookieName is required." }}"
+          - name: WONDERWALL_SSO_SERVER_DEFAULT_REDIRECT_URL
+            value: "{{ .Values.azure.forwardAuth.ssoDefaultRedirectURL | required ".Values.azure.forwardAuth.ssoDefaultRedirectURL is required." }}"
           - name: WONDERWALL_REDIS_URI
             valueFrom:
               secretKeyRef:
@@ -49,10 +81,6 @@ spec:
                 key: REDIS_URI_WONDERWALL_AZURE
                 {{- end }}
                 name: {{ .Values.azure.redisSecretName }}
-          - name: OTEL_SERVICE_NAME
-            value: wonderwall-fa
-          - name: OTEL_EXPORTER_OTLP_ENDPOINT
-            value: {{ .Values.otel.endpoint }}
           - name: WONDERWALL_REDIS_USERNAME
             valueFrom:
               secretKeyRef:

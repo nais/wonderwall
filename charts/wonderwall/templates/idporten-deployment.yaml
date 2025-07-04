@@ -48,6 +48,48 @@ spec:
               weight: 10
       containers:
         - env:
+          - name: OTEL_SERVICE_NAME
+            value: wonderwall-idporten
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: {{ .Values.otel.endpoint }}
+          - name: WONDERWALL_BIND_ADDRESS
+            value: "0.0.0.0:8080"
+          - name: WONDERWALL_METRICS_BIND_ADDRESS
+            value: "0.0.0.0:8081"
+          - name: WONDERWALL_INGRESS
+            value: "{{- include "wonderwall.idporten.ssoServerURL" . }}"
+          - name: WONDERWALL_SHUTDOWN_WAIT_BEFORE_PERIOD
+            value: "5s"
+          - name: WONDERWALL_LEGACY_COOKIE
+            value: "{{ .Values.idporten.legacyCookie }}"
+          - name: WONDERWALL_OPENID_ACR_VALUES
+            value: "{{ .Values.idporten.openidAcrValues | required ".Values.idporten.openidAcrValues is required." }}"
+          - name: WONDERWALL_OPENID_LOCALE
+            value: "{{ .Values.idporten.openidLocale | required ".Values.idporten.openidLocale is required." }}"
+          - name: WONDERWALL_OPENID_POST_LOGOUT_REDIRECT_URI
+            value: "{{ .Values.idporten.openidPostLogoutRedirectURL | required ".Values.idporten.postLogoutRedirectURL is required." }}"
+          - name: WONDERWALL_OPENID_PROVIDER
+            value: "idporten"
+          - name: WONDERWALL_OPENID_RESOURCE_INDICATOR
+            value: "{{ .Values.idporten.openidResourceIndicator | required ".Values.idporten.openidResourceIndicator is required." }}"
+          - name: WONDERWALL_REDIS_CONNECTION_IDLE_TIMEOUT
+            value: "{{ .Values.redis.connectionIdleTimeout }}"
+          - name: WONDERWALL_SESSION_INACTIVITY
+            value: "{{ .Values.idporten.sessionInactivity | required ".Values.idporten.sessionInactivity is required." }}"
+          - name: WONDERWALL_SESSION_INACTIVITY_TIMEOUT
+            value: "{{ .Values.idporten.sessionInactivityTimeout | required ".Values.idporten.sessionInactivityTimeout is required." }}"
+          - name: WONDERWALL_SESSION_MAX_LIFETIME
+            value: "{{ .Values.idporten.sessionMaxLifetime | required ".Values.idporten.sessionMaxLifetime is required." }}"
+          - name: WONDERWALL_SSO_DOMAIN
+            value: "{{ .Values.idporten.ssoDomain | required ".Values.idporten.ssoDomain is required." }}"
+          - name: WONDERWALL_SSO_ENABLED
+            value: "true"
+          - name: WONDERWALL_SSO_MODE
+            value: "server"
+          - name: WONDERWALL_SSO_SESSION_COOKIE_NAME
+            value: "{{ .Values.idporten.sessionCookieName | required ".Values.idporten.sessionCookieName is required." }}"
+          - name: WONDERWALL_SSO_SERVER_DEFAULT_REDIRECT_URL
+            value: "{{ .Values.idporten.ssoDefaultRedirectURL | required ".Values.idporten.ssoDefaultRedirectURL is required." }}"
           - name: WONDERWALL_REDIS_URI
             valueFrom:
               secretKeyRef:
@@ -57,10 +99,6 @@ spec:
                 key: REDIS_URI_WONDERWALL_IDPORTEN
                 {{- end }}
                 name: {{ .Values.idporten.redisSecretNames.readwrite }}
-          - name: OTEL_SERVICE_NAME
-            value: wonderwall-idporten
-          - name: OTEL_EXPORTER_OTLP_ENDPOINT
-            value: {{ .Values.otel.endpoint }}
           - name: WONDERWALL_REDIS_USERNAME
             valueFrom:
               secretKeyRef:
