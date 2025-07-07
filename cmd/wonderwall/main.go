@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	_ "github.com/KimMachineGun/automemlimit"
 	log "github.com/sirupsen/logrus"
@@ -80,12 +81,32 @@ func run() error {
 
 	r := router.New(src, cfg)
 
-	go func() {
-		err := metrics.Handle(cfg.MetricsBindAddress, cfg.OpenID.Provider)
-		if err != nil {
-			log.Fatalf("fatal: metrics server error: %s", err)
-		}
-	}()
+	if cfg.MetricsBindAddress != "" {
+		go func() {
+			log.Infof("metrics: listening on %s", cfg.MetricsBindAddress)
+			err := metrics.Handle(cfg.MetricsBindAddress, cfg.OpenID.Provider)
+			if err != nil {
+				log.Fatalf("fatal: metrics server error: %s", err)
+			}
+		}()
+	}
+
+	if cfg.ProbeBindAddress != "" {
+		go func() {
+			mux := http.NewServeMux()
+			healthz := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("ok"))
+			})
+			mux.HandleFunc("/", healthz)
+			mux.HandleFunc("/healthz", healthz)
+			log.Infof("probe: listening on %s", cfg.ProbeBindAddress)
+			err := http.ListenAndServe(cfg.ProbeBindAddress, mux)
+			if err != nil {
+				log.Fatalf("fatal: probe server error: %s", err)
+			}
+		}()
+	}
 
 	return server.Start(cfg, r)
 }
