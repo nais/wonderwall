@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	_ "github.com/KimMachineGun/automemlimit"
-	log "github.com/sirupsen/logrus"
-	_ "go.uber.org/automaxprocs"
-
+	"github.com/KimMachineGun/automemlimit/memlimit"
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/config"
@@ -19,6 +16,8 @@ import (
 	"github.com/nais/wonderwall/pkg/openid/provider"
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/server"
+	log "github.com/sirupsen/logrus"
+	"go.uber.org/automaxprocs/maxprocs"
 )
 
 func main() {
@@ -32,6 +31,13 @@ func run() error {
 	cfg, err := config.Initialize()
 	if err != nil {
 		return err
+	}
+
+	if _, err := maxprocs.Set(); err != nil {
+		log.Debugf("setting GOMAXPROCS: %+v", err)
+	}
+	if _, err := memlimit.SetGoMemLimitWithOpts(); err != nil {
+		log.Debugf("setting GOMEMLIMIT: %+v", err)
 	}
 
 	key, err := crypto.EncryptionKeyOrGenerate(cfg)
@@ -83,7 +89,7 @@ func run() error {
 
 	if cfg.MetricsBindAddress != "" {
 		go func() {
-			log.Infof("metrics: listening on %s", cfg.MetricsBindAddress)
+			log.Debugf("metrics: listening on %s", cfg.MetricsBindAddress)
 			err := metrics.Handle(cfg.MetricsBindAddress, cfg.OpenID.Provider)
 			if err != nil {
 				log.Fatalf("fatal: metrics server error: %s", err)
@@ -100,7 +106,7 @@ func run() error {
 			})
 			mux.HandleFunc("/", healthz)
 			mux.HandleFunc("/healthz", healthz)
-			log.Infof("probe: listening on %s", cfg.ProbeBindAddress)
+			log.Debugf("probe: listening on %s", cfg.ProbeBindAddress)
 			err := http.ListenAndServe(cfg.ProbeBindAddress, mux)
 			if err != nil {
 				log.Fatalf("fatal: probe server error: %s", err)

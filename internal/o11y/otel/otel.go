@@ -42,7 +42,7 @@ func Setup(ctx context.Context, cfg *config.Config) (func(context.Context), erro
 	otel.SetTracerProvider(tracerProvider)
 	tracer = tracerProvider.Tracer(cfg.OpenTelemetry.ServiceName)
 
-	log.Infof("opentelemetry: initialized configuration")
+	log.Debug("opentelemetry: initialized configuration")
 	shutdown := func(ctx context.Context) {
 		if err := tracerProvider.Shutdown(ctx); err != nil {
 			log.Fatalf("fatal: otel shutdown error: %+v", err)

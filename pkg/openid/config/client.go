@@ -98,7 +98,7 @@ func NewClientConfig(cfg *config.Config) (Client, error) {
 
 	if len(cfg.OpenID.ClientJWK) > 0 {
 		if c.authMethod == AuthMethodClientSecret {
-			log.WithField("logger", "wonderwall.config").Info("both client JWK and client secret were set; using client JWK...")
+			log.WithField("logger", "wonderwall.config").Debug("both client JWK and client secret were set; using client JWK...")
 		}
 
 		clientJwk, err := jwk.ParseKey([]byte(cfg.OpenID.ClientJWK))
