@@ -9,7 +9,7 @@ tool (
 )
 
 require (
-	github.com/KimMachineGun/automemlimit v0.7.3
+	github.com/KimMachineGun/automemlimit v0.7.4
 	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/bsm/redislock v0.9.4
