@@ -33,7 +33,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
       - name: Install cosign
-        uses: sigstore/cosign-installer@e40248c492a99ad409432e2ea978d7a2811f2e1f # ratchet:sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # ratchet:sigstore/cosign-installer@main
         with:
           cosign-release: 'v2.2.3'
       - name: Verify runner image
@@ -67,7 +67,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
       - id: "auth"
         name: "Authenticate to Google Cloud"
-        uses: "google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193" # ratchet:google-github-actions/auth@v2
+        uses: "google-github-actions/auth@140bb5113ffb6b65a7e9b937a81fa96cf5064462" # ratchet:google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.NAIS_IO_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: "gh-wonderwall@nais-io.iam.gserviceaccount.com"
