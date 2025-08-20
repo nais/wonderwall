@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 
@@ -14,7 +16,7 @@ import (
 	"github.com/nais/wonderwall/pkg/openid/client"
 )
 
-func TestMakeAssertion(t *testing.T) {
+func TestClientAuthenticationAssertion(t *testing.T) {
 	cfg := mock.Config()
 	cfg.OpenID.ClientID = "some-client-id"
 
@@ -23,7 +25,7 @@ func TestMakeAssertion(t *testing.T) {
 	c := newTestClientWithConfig(openidConfig)
 
 	expiry := 30 * time.Second
-	jwtAssertion, err := c.MakeAssertion(expiry)
+	jwtAssertion, err := c.ClientAuthenticationAssertion(expiry)
 	assert.NoError(t, err)
 
 	assertFlattenedAudience(t, jwtAssertion)
@@ -64,6 +66,48 @@ func TestMakeAssertion(t *testing.T) {
 	assert.True(t, ok)
 	assert.True(t, exp.After(time.Now()))
 	assert.True(t, exp.Before(time.Now().Add(expiry)))
+
+	msg, err := jws.ParseString(jwtAssertion)
+	assert.NoError(t, err)
+	assert.Len(t, msg.Signatures(), 1)
+	headers := msg.Signatures()[0].ProtectedHeaders()
+
+	typ, ok := headers.Type()
+	assert.True(t, ok)
+	assert.Equal(t, "JWT", typ)
+
+	alg, ok = headers.Algorithm()
+	assert.True(t, ok)
+	assert.Equal(t, jwa.RS256(), alg)
+
+	expectedKid, ok := key.KeyID()
+	assert.True(t, ok)
+	kid, ok := headers.KeyID()
+	assert.True(t, ok)
+	assert.Equal(t, expectedKid, kid)
+}
+
+func TestClientAuthenticationAssertionHeader(t *testing.T) {
+	cfg := mock.Config()
+	cfg.OpenID.ClientID = "some-client-id"
+	cfg.OpenID.NewClientAuthJWTType = true
+
+	openidConfig := mock.NewTestConfiguration(cfg)
+	openidConfig.TestProvider.SetIssuer("some-issuer")
+	c := newTestClientWithConfig(openidConfig)
+
+	expiry := 30 * time.Second
+	jwtAssertion, err := c.ClientAuthenticationAssertion(expiry)
+	assert.NoError(t, err)
+
+	msg, err := jws.ParseString(jwtAssertion)
+	assert.NoError(t, err)
+	assert.Len(t, msg.Signatures(), 1)
+	headers := msg.Signatures()[0].ProtectedHeaders()
+
+	typ, ok := headers.Type()
+	assert.True(t, ok)
+	assert.Equal(t, "client-authentication+jwt", typ)
 }
 
 // assertFlattenedAudience asserts that the raw JWT assertion has a flattened audience claim, i.e. aud is a string value.

@@ -25,6 +25,7 @@ type OpenID struct {
 	ClientJWK             string   `json:"client-jwk"`
 	ClientSecret          string   `json:"client-secret"`
 	IDTokenSigningAlg     string   `json:"id-token-signing-alg"`
+	NewClientAuthJWTType  bool     `json:"new-client-auth-jwt-type"`
 	PostLogoutRedirectURI string   `json:"post-logout-redirect-uri"`
 	Provider              Provider `json:"provider"`
 	ResourceIndicator     string   `json:"resource-indicator"`
@@ -58,6 +59,7 @@ const (
 	OpenIDClientID              = "openid.client-id"
 	OpenIDClientJWK             = "openid.client-jwk"
 	OpenIDClientSecret          = "openid.client-secret"
+	OpenIDNewClientAuthJWTType  = "openid.new-client-auth-jwt-type"
 	OpenIDIDTokenSigningAlg     = "openid.id-token-signing-alg"
 	OpenIDPostLogoutRedirectURI = "openid.post-logout-redirect-uri"
 	OpenIDProvider              = "openid.provider"
@@ -74,6 +76,7 @@ func openidFlags() {
 	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format. If configured, this takes precedence over 'openid.client-secret'.")
 	flag.String(OpenIDClientSecret, "", "Client secret for the OpenID client. Overridden by 'openid.client-jwk', if configured.")
 	flag.String(OpenIDIDTokenSigningAlg, jwa.RS256().String(), "Expected JWA value (as defined in RFC 7518) of public keys for validating id_token signatures. This only applies where the key's 'alg' header is not set.")
+	flag.Bool(OpenIDNewClientAuthJWTType, false, "When enabled, sets the value of the \"typ\" header of the JWT used for client authentication equal to \"client-authentication+jwt\" in accordance with RFC7523bis. If not enabled, the value is set to \"JWT\".")
 	flag.String(OpenIDPostLogoutRedirectURI, "", "URI for redirecting the user after successful logout at the Identity Provider.")
 	flag.String(OpenIDProvider, string(ProviderOpenID), "Provider configuration to load and use, either 'openid', 'azure', 'idporten'.")
 	flag.String(OpenIDResourceIndicator, "", "OAuth2 resource indicator to include in authorization request for acquiring audience-restricted tokens.")

@@ -14,6 +14,8 @@ type TestClientConfiguration struct {
 	trustedAudiences map[string]bool
 }
 
+var _ openidconfig.Client = (*TestClientConfiguration)(nil)
+
 func (c *TestClientConfiguration) ACRValues() string {
 	return c.Config.OpenID.ACRValues
 }
@@ -36,6 +38,10 @@ func (c *TestClientConfiguration) ClientJWK() jwk.Key {
 
 func (c *TestClientConfiguration) ClientSecret() string {
 	return c.Config.OpenID.ClientSecret
+}
+
+func (c *TestClientConfiguration) NewClientAuthJWTType() bool {
+	return c.Config.OpenID.NewClientAuthJWTType
 }
 
 func (c *TestClientConfiguration) SetPostLogoutRedirectURI(uri string) {

@@ -24,6 +24,7 @@ type Client interface {
 	ClientID() string
 	ClientJWK() jwk.Key
 	ClientSecret() string
+	NewClientAuthJWTType() bool
 	PostLogoutRedirectURI() string
 	ResourceIndicator() string
 	Scopes() scopes.Scopes
@@ -37,6 +38,8 @@ type client struct {
 	clientJwk        jwk.Key
 	trustedAudiences map[string]bool
 }
+
+var _ Client = (*client)(nil)
 
 func (in *client) ACRValues() string {
 	return in.OpenID.ACRValues
@@ -60,6 +63,10 @@ func (in *client) ClientJWK() jwk.Key {
 
 func (in *client) ClientSecret() string {
 	return in.OpenID.ClientSecret
+}
+
+func (in *client) NewClientAuthJWTType() bool {
+	return in.OpenID.NewClientAuthJWTType
 }
 
 func (in *client) PostLogoutRedirectURI() string {

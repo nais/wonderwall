@@ -144,7 +144,7 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken, previousIDToken
 func (c *Client) ClientAuthenticationParams() (openid.RequestParams, error) {
 	switch c.cfg.Client().AuthMethod() {
 	case openidconfig.AuthMethodPrivateKeyJWT:
-		assertion, err := c.MakeAssertion(DefaultClientAssertionLifetime)
+		assertion, err := c.ClientAuthenticationAssertion(DefaultClientAssertionLifetime)
 		if err != nil {
 			return nil, fmt.Errorf("creating client assertion: %w", err)
 		}
@@ -158,12 +158,12 @@ func (c *Client) ClientAuthenticationParams() (openid.RequestParams, error) {
 	return nil, fmt.Errorf("unsupported client authentication method: %q", c.cfg.Client().AuthMethod())
 }
 
-func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
+func (c *Client) ClientAuthenticationAssertion(expiration time.Duration) (string, error) {
 	clientCfg := c.cfg.Client()
 	providerCfg := c.cfg.Provider()
 	key := clientCfg.ClientJWK()
 
-	iat := time.Now().Add(-5 * time.Second).Truncate(time.Second)
+	iat := time.Now()
 	exp := iat.Add(expiration)
 
 	tok, err := jwt.NewBuilder().
@@ -183,7 +183,16 @@ func (c *Client) MakeAssertion(expiration time.Duration) (string, error) {
 		return "", fmt.Errorf("missing algorithm on client key")
 	}
 
-	encoded, err := jwt.Sign(tok, jwt.WithKey(alg, key))
+	opts := make([]jwt.Option, 0)
+	if c.cfg.Client().NewClientAuthJWTType() {
+		hdrs := jws.NewHeaders()
+		if err := hdrs.Set(jws.TypeKey, "client-authentication+jwt"); err != nil {
+			return "", fmt.Errorf("setting type header on client assertion: %w", err)
+		}
+		opts = append(opts, jws.WithProtectedHeaders(hdrs))
+	}
+
+	encoded, err := jwt.Sign(tok, jwt.WithKey(alg, key, opts...))
 	if err != nil {
 		return "", fmt.Errorf("signing client assertion: %w", err)
 	}
