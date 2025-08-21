@@ -17,7 +17,6 @@ import (
 	"github.com/nais/wonderwall/pkg/router"
 	"github.com/nais/wonderwall/pkg/server"
 	log "github.com/sirupsen/logrus"
-	"go.uber.org/automaxprocs/maxprocs"
 )
 
 func main() {
@@ -33,9 +32,6 @@ func run() error {
 		return err
 	}
 
-	if _, err := maxprocs.Set(); err != nil {
-		log.Debugf("setting GOMAXPROCS: %+v", err)
-	}
 	if _, err := memlimit.SetGoMemLimitWithOpts(); err != nil {
 		log.Debugf("setting GOMEMLIMIT: %+v", err)
 	}
