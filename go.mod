@@ -17,7 +17,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
 	github.com/lestrrat-go/httprc/v3 v3.0.0
-	github.com/lestrrat-go/jwx/v3 v3.0.8
+	github.com/lestrrat-go/jwx/v3 v3.0.10
 	github.com/nais/liberator v0.0.0-20250408101050-2ffa1b42f7f2
 	github.com/prometheus/client_golang v1.23.0
 	github.com/redis/go-redis/extra/redisotel/v9 v9.12.1
