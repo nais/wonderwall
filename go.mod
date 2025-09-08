@@ -23,7 +23,7 @@ require (
 	github.com/redis/go-redis/extra/redisotel/v9 v9.12.1
 	github.com/redis/go-redis/extra/redisprometheus/v9 v9.12.1
 	github.com/redis/go-redis/v9 v9.12.1
-	github.com/riandyrn/otelchi v0.12.1
+	github.com/riandyrn/otelchi v0.12.2
 	github.com/rs/cors v1.11.1
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/sirupsen/logrus v1.9.3
