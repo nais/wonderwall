@@ -1,6 +1,6 @@
 module github.com/nais/wonderwall
 
-go 1.25.0
+go 1.25.1
 
 tool (
 	golang.org/x/vuln/cmd/govulncheck
