@@ -33,9 +33,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # ratchet:actions/checkout@v5
       - name: Install cosign
-        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # ratchet:sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # ratchet:sigstore/cosign-installer@v4.0.0
         with:
-          cosign-release: 'v2.2.3'
+          cosign-release: 'v3.0.2'
       - name: Verify runner image
         run: cosign verify --certificate-oidc-issuer https://accounts.google.com  --certificate-identity keyless@distroless.iam.gserviceaccount.com gcr.io/distroless/static-debian12:nonroot
       - uses: nais/platform-build-push-sign@main # ratchet:exclude
