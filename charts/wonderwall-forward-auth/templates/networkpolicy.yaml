@@ -20,6 +20,13 @@ spec:
               kubernetes.io/metadata.name: nais-system
           podSelector:
             matchLabels:
+              app.kubernetes.io/name: alloy
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nais-system
+          podSelector:
+            matchLabels:
               nais.io/ingressClass: {{ .Values.ingressClassName }}
   podSelector:
     matchLabels:
