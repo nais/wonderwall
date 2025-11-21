@@ -33,7 +33,6 @@ idporten:
   clientSessionLifetime: 21600
   clientSecretName: idporten-sso-server
   ingressClassName: nais-ingress-external
-  legacyCookie: true
   openidAcrValues: idporten-loa-high
   openidLocale: nb
   openidPostLogoutRedirectURL:

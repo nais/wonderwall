@@ -12,7 +12,6 @@ import (
 
 const (
 	DefaultPrefix = "io.nais.wonderwall"
-	loginservice  = "selvbetjening-idtoken"
 )
 
 var (
@@ -131,20 +130,6 @@ func EncryptAndSet(w http.ResponseWriter, key, value string, opts Options, crypt
 
 	Set(w, encryptedCookie)
 	return nil
-}
-
-func SetLegacyCookie(w http.ResponseWriter, value string, opts Options) {
-	c := Make(loginservice, value, opts.
-		WithSameSite(http.SameSiteLaxMode).
-		WithPath("/"))
-	Set(w, c)
-}
-
-func ClearLegacyCookies(w http.ResponseWriter, opts Options) {
-	// TODO - remove when legacy services are sunset and shut down
-	Clear(w, loginservice, opts.
-		WithSameSite(http.SameSiteLaxMode).
-		WithPath("/"))
 }
 
 func ConfigureCookieNamesWithPrefix(prefix string) {

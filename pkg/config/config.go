@@ -31,7 +31,6 @@ type Config struct {
 	Cookie                 Cookie   `json:"cookie"`
 	EncryptionKey          string   `json:"encryption-key"`
 	Ingresses              []string `json:"ingress"`
-	LegacyCookie           bool     `json:"legacy-cookie"`
 	UpstreamAccessLogs     bool     `json:"upstream-access-logs"`
 	UpstreamHost           string   `json:"upstream-host"`
 	UpstreamIP             string   `json:"upstream-ip"`

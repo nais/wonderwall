@@ -32,17 +32,14 @@ func NewSSOServer(cfg *config.Config, handler *Standalone) (*SSOServer, error) {
 }
 
 func (s *SSOServer) Logout(w http.ResponseWriter, r *http.Request) {
-	cookie.ClearLegacyCookies(w, s.GetCookieOptions(r))
 	s.Standalone.Logout(w, r)
 }
 
 func (s *SSOServer) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
-	cookie.ClearLegacyCookies(w, s.GetCookieOptions(r))
 	s.Standalone.LogoutFrontChannel(w, r)
 }
 
 func (s *SSOServer) LogoutLocal(w http.ResponseWriter, r *http.Request) {
-	cookie.ClearLegacyCookies(w, s.GetCookieOptions(r))
 	s.Standalone.LogoutLocal(w, r)
 }
 

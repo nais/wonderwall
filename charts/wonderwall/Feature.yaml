@@ -51,10 +51,6 @@ values:
     description: Enable ID-porten. Requires Digdirator to be enabled.
     config:
       type: bool
-  idporten.legacyCookie:
-    description: Set legacy session cookie for logins.
-    config:
-      type: bool
   idporten.openidResourceIndicator:
     description: Resource indicator for audience-restricted tokens.
     config:

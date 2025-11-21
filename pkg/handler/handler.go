@@ -273,12 +273,6 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	redirect := s.Redirect.Clean(r, loginCookie.Referer)
-
-	// TODO - remove when legacy services are sunset and shut down
-	if s.Config.LegacyCookie {
-		cookie.SetLegacyCookie(w, tokens.AccessToken, opts)
-	}
-
 	fields := log.Fields{
 		"redirect_to": redirect,
 		"sid":         sess.ExternalSessionID(),

@@ -82,7 +82,6 @@ const (
 	CookieSameSite = "cookie.same-site"
 	CookieSecure   = "cookie.secure"
 	EncryptionKey  = "encryption-key"
-	LegacyCookie   = "legacy-cookie"
 )
 
 func cookieFlags() {
@@ -90,5 +89,4 @@ func cookieFlags() {
 	flag.String(CookieSameSite, string(SameSiteLax), "SameSite attribute for session cookies.")
 	flag.Bool(CookieSecure, true, "Set secure flag on session cookies. Can only be disabled when `ingress` only consist of localhost hosts. Generally, disabling this is only necessary when using Safari.")
 	flag.String(EncryptionKey, "", "Base64 encoded 256-bit cookie encryption key; must be identical in instances that share session store.")
-	flag.Bool(LegacyCookie, false, "Set legacy session cookie.")
 }

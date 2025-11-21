@@ -61,8 +61,6 @@ spec:
             value: "{{- include "wonderwall.idporten.ssoServerURL" . }}"
           - name: WONDERWALL_SHUTDOWN_WAIT_BEFORE_PERIOD
             value: "5s"
-          - name: WONDERWALL_LEGACY_COOKIE
-            value: "{{ .Values.idporten.legacyCookie }}"
           - name: WONDERWALL_OPENID_ACR_VALUES
             value: "{{ .Values.idporten.openidAcrValues | required ".Values.idporten.openidAcrValues is required." }}"
           - name: WONDERWALL_OPENID_LOCALE
