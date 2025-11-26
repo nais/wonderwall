@@ -14,6 +14,8 @@ updates:
       redis:
         patterns:
           - 'github.com/redis/go-redis/*'
+    cooldown:
+      default-days: 7
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -25,6 +27,8 @@ updates:
       gh-actions:
         patterns:
           - '*'
+    cooldown:
+      default-days: 7
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -36,3 +40,5 @@ updates:
       docker:
         patterns:
           - '*'
+    cooldown:
+      default-days: 7
