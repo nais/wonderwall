@@ -1,2 +1,44 @@
 [tools]
 go = "1.25.3"
+
+[tasks.build]
+run = "go build -a -o bin/wonderwall ./cmd/wonderwall"
+
+[tasks.local]
+depends = ["fmt"]
+env = { OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4317" }
+run = '''go run cmd/wonderwall/main.go \
+    --openid.client-id=bogus \
+    --openid.client-secret=not-so-secret \
+    --openid.well-known-url=http://localhost:8888/default/.well-known/openid-configuration \
+    --ingress=http://localhost:3000 \
+    --bind-address=127.0.0.1:3000 \
+    --upstream-host=localhost:4000 \
+    --redis.uri=redis://localhost:6379 \
+    --log-level=info \
+    --log-format=text
+'''
+
+[tasks.fmt]
+run = "go tool gofumpt -w ./"
+
+[tasks.test]
+depends = ["fmt"]
+run = "go test -count=1 -shuffle=on ./... -coverprofile cover.out"
+
+[tasks.check]
+depends = ["fmt"]
+run = [
+    "go vet ./...",
+    "go tool staticcheck ./...",
+    "go tool govulncheck -show=traces ./...",
+    "go tool ratchet lint .github/workflows/*.yaml"
+]
+
+[tasks.actions-update]
+description = "Upgrade all github actions to latest version satisfying their version tag"
+run = "go tool ratchet update .github/workflows/*.yaml"
+
+[tasks.actions-upgrade]
+description = "Upgrade all github actions to latest"
+run = "go tool ratchet upgrade .github/workflows/*.yaml"

@@ -9,7 +9,7 @@ RUN go mod download
 COPY . .
 ARG TARGETOS
 ARG TARGETARCH
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make wonderwall
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags "-s -w" -a -o bin/wonderwall ./cmd/wonderwall
 
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app

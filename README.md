@@ -94,7 +94,7 @@ The `authorization` header should no longer be set in the upstream response.
 
 ## Development
 
-Requires Go 1.25.
+Requires Go 1.25 and [mise](https://mise.jdx.dev/) installed.
 
 Start up dependencies:
 
@@ -105,7 +105,7 @@ docker-compose up -d
 Start Wonderwall:
 
 ```shell
-make local
+mise run local
 ```
 
 ## Docker Images

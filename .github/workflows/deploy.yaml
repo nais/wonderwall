@@ -18,10 +18,9 @@ jobs:
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # ratchet:actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-      - name: Test Go
-        run: |
-          make test
-          make check
+      - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # ratchet:jdx/mise-action@v3
+      - run: mise run check
+      - run: mise run test
   build:
     needs: test
     name: Publish to Google and GitHub registries
