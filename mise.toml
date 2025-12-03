@@ -1,5 +1,5 @@
 [tools]
-go = "1.25.3"
+go = "1.25.5"
 
 [tasks.build]
 run = "go build -a -o bin/wonderwall ./cmd/wonderwall"

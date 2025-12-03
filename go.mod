@@ -1,6 +1,6 @@
 module github.com/nais/wonderwall
 
-go 1.25.3
+go 1.25.5
 
 tool (
 	github.com/sethvargo/ratchet
