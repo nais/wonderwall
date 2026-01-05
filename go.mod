@@ -17,7 +17,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
-	github.com/lestrrat-go/httprc/v3 v3.0.2
+	github.com/lestrrat-go/httprc/v3 v3.0.3
 	github.com/lestrrat-go/jwx/v3 v3.0.12
 	github.com/nais/liberator v0.0.0-20251121113042-7c7bc3ddeb41
 	github.com/prometheus/client_golang v1.23.2
