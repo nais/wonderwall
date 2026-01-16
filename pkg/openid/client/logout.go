@@ -13,12 +13,14 @@ import (
 
 type Logout struct {
 	*Client
-	Cookie            *openid.LogoutCookie
-	logoutCallbackURL string
+	Cookie     *openid.LogoutCookie
+	LogoutHint string
+
+	callbackURL string
 }
 
 func NewLogout(c *Client, r *http.Request) (*Logout, error) {
-	logoutCallbackURL, err := urlpkg.LogoutCallback(r)
+	callbackURL, err := urlpkg.LogoutCallback(r)
 	if err != nil {
 		return nil, fmt.Errorf("generating logout callback url: %w", err)
 	}
@@ -33,20 +35,24 @@ func NewLogout(c *Client, r *http.Request) (*Logout, error) {
 	}
 
 	return &Logout{
-		Client:            c,
-		Cookie:            logoutCookie,
-		logoutCallbackURL: logoutCallbackURL,
+		Client:      c,
+		Cookie:      logoutCookie,
+		LogoutHint:  r.URL.Query().Get("logout_hint"),
+		callbackURL: callbackURL,
 	}, nil
 }
 
 func (in *Logout) SingleLogoutURL(idToken string) string {
 	endSessionEndpoint := in.cfg.Provider().EndSessionEndpointURL()
 	v := endSessionEndpoint.Query()
-	v.Set("post_logout_redirect_uri", in.logoutCallbackURL)
+	v.Set("post_logout_redirect_uri", in.callbackURL)
 	v.Set("state", in.Cookie.State)
 
 	if len(idToken) > 0 {
 		v.Set("id_token_hint", idToken)
+	}
+	if len(in.LogoutHint) > 0 {
+		v.Set("logout_hint", in.LogoutHint)
 	}
 
 	endSessionEndpoint.RawQuery = v.Encode()
