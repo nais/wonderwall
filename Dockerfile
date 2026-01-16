@@ -11,7 +11,7 @@ ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags "-s -w" -a -o bin/wonderwall ./cmd/wonderwall
 
-FROM gcr.io/distroless/static-debian13:nonroot
+FROM cgr.dev/chainguard/static:latest
 WORKDIR /app
 COPY --from=builder /src/bin/wonderwall /app/wonderwall
 ENTRYPOINT ["/app/wonderwall"]
