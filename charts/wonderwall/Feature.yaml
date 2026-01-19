@@ -3,10 +3,10 @@ dependencies:
       - aiven-operator
       - aivenator
       - mutilator
+      - reloader
       - replicator
 environmentKinds:
   - tenant
-  - legacy
 timeout: "1800s"
 values:
   aiven.project:
@@ -99,8 +99,6 @@ values:
     description: Well-known URL to generic identity provider. Optional. Only needed if a default global provider is desired.
     config:
       type: string
-    ignoreKind:
-      - legacy
   resourceSuffix:
     description: Suffix for resources that may conflict in parallel environments.
     config:
