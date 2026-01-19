@@ -27,7 +27,7 @@ require (
 	github.com/riandyrn/otelchi v0.12.2
 	github.com/rs/cors v1.11.1
 	github.com/sethvargo/go-retry v0.3.0
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
