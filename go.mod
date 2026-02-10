@@ -12,7 +12,7 @@ tool (
 require (
 	github.com/KimMachineGun/automemlimit v0.7.5
 	github.com/alicebob/miniredis/v2 v2.36.1
-	github.com/bmatcuk/doublestar/v4 v4.9.2
+	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/bsm/redislock v0.9.4
 	github.com/go-chi/chi/v5 v5.2.4
 	github.com/go-viper/mapstructure/v2 v2.5.0
