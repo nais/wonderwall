@@ -89,8 +89,6 @@ github.com/lestrrat-go/dsig-secp256k1 v1.0.0 h1:JpDe4Aybfl0soBvoVwjqDbp+9S1Y2OM7
 github.com/lestrrat-go/dsig-secp256k1 v1.0.0/go.mod h1:CxUgAhssb8FToqbL8NjSPoGQlnO4w3LG1P0qPWQm/NU=
 github.com/lestrrat-go/httpcc v1.0.1 h1:ydWCStUeJLkpYyjLDHihupbn2tYmZ7m22BGkcvZZrIE=
 github.com/lestrrat-go/httpcc v1.0.1/go.mod h1:qiltp3Mt56+55GPVCbTdM9MlqhvzyuL6W/NMDA8vA5E=
-github.com/lestrrat-go/httprc/v3 v3.0.3 h1:WjLHWkDkgWXeIUrKi/7lS/sGq2DjkSAwdTbH5RHXAKs=
-github.com/lestrrat-go/httprc/v3 v3.0.3/go.mod h1:mSMtkZW92Z98M5YoNNztbRGxbXHql7tSitCvaxvo9l0=
 github.com/lestrrat-go/httprc/v3 v3.0.4 h1:pXyH2ppK8GYYggygxJ3TvxpCZnbEUWc9qSwRTTApaLA=
 github.com/lestrrat-go/httprc/v3 v3.0.4/go.mod h1:mSMtkZW92Z98M5YoNNztbRGxbXHql7tSitCvaxvo9l0=
 github.com/lestrrat-go/jwx/v3 v3.0.13 h1:AdHKiPIYeCSnOJtvdpipPg/0SuFh9rdkN+HF3O0VdSk=
@@ -101,8 +99,8 @@ github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/nais/liberator v0.0.0-20260120135046-bacd059312e3 h1:UgntL9FZBhHTsCWFPLw/V7eW9bWAyIYR+3QeMnHNND8=
-github.com/nais/liberator v0.0.0-20260120135046-bacd059312e3/go.mod h1:ec6FGHkMkSIWh2UnspPLq7uQrrZvAaUacVXUf4bBR1s=
+github.com/nais/liberator v0.0.0-20260202145950-a4e1bb21dc00 h1:URBUvXBGmcsDGOPMNDEr3zlDGZPrkgpHsNBCytSsB40=
+github.com/nais/liberator v0.0.0-20260202145950-a4e1bb21dc00/go.mod h1:kGhACyl59VRgE4Qqgw3+/OY6SnV6A32gSdoWa/31tYA=
 github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=

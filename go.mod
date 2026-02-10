@@ -19,7 +19,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/lestrrat-go/httprc/v3 v3.0.4
 	github.com/lestrrat-go/jwx/v3 v3.0.13
-	github.com/nais/liberator v0.0.0-20260120135046-bacd059312e3
+	github.com/nais/liberator v0.0.0-20260202145950-a4e1bb21dc00
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/extra/redisotel/v9 v9.17.2
 	github.com/redis/go-redis/extra/redisprometheus/v9 v9.17.2
