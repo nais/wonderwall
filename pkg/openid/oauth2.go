@@ -36,6 +36,7 @@ type AuthorizationCodeParams struct {
 	AcrValues    string
 	ClientID     string
 	CodeVerifier string
+	DomainHint   string
 	Nonce        string
 	Prompt       string
 	RedirectURI  string
@@ -77,6 +78,10 @@ func (a AuthorizationCodeParams) RequestParams() RequestParams {
 
 	if len(a.Resource) > 0 {
 		params["resource"] = a.Resource
+	}
+
+	if len(a.DomainHint) > 0 {
+		params["domain_hint"] = a.DomainHint
 	}
 
 	return params

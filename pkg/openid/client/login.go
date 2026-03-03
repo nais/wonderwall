@@ -27,6 +27,7 @@ const (
 	QueryParamLocale        = "locale"
 	QueryParamSecurityLevel = "level"
 	QueryParamPrompt        = "prompt"
+	QueryParamDomainHint    = "domain_hint"
 )
 
 var QueryParamPromptAllowedValues = []string{"login", "select_account"}
@@ -53,6 +54,9 @@ func (c *Client) Login(r *http.Request) (*Login, error) {
 	}
 	if request.Prompt != "" {
 		span.SetAttributes(attribute.String("login.prompt", request.Prompt))
+	}
+	if request.DomainHint != "" {
+		span.SetAttributes(attribute.String("login.domain_hint", request.DomainHint))
 	}
 
 	authCodeURL, err := c.authCodeURL(r.Context(), request)
@@ -89,6 +93,7 @@ func (c *Client) newAuthorizationCodeParams(r *http.Request) (openid.Authorizati
 		AcrValues:    getAcrParam(c, r),
 		ClientID:     c.oauth2Config.ClientID,
 		CodeVerifier: oauth2.GenerateVerifier(),
+		DomainHint:   getDomainHintParam(c, r),
 		Nonce:        nonce,
 		Prompt:       getPromptParam(r),
 		RedirectURI:  callbackURL,
@@ -181,6 +186,10 @@ func (l *Login) LogFields(fields log.Fields) log.Fields {
 		fields["prompt"] = prompt
 	}
 
+	if domainHint := l.DomainHint; domainHint != "" {
+		fields["domain_hint"] = domainHint
+	}
+
 	return fields
 }
 
@@ -259,4 +268,13 @@ func getPromptParam(r *http.Request) string {
 	span.SetAttributes(attribute.String("login.query.invalid_prompt", paramValue))
 	mw.LogEntryFrom(r).Warnf("login: invalid value for %s=%s (must be one of '%s'); falling back to %q", QueryParamPrompt, paramValue, QueryParamPromptAllowedValues, defaultValue)
 	return defaultValue
+}
+
+func getDomainHintParam(c *Client, r *http.Request) string {
+	param := r.URL.Query().Get(QueryParamDomainHint)
+	if param != "" {
+		return param
+	}
+
+	return c.cfg.Client().DomainHint()
 }

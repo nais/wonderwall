@@ -88,6 +88,13 @@ func TestLogin_URL(t *testing.T) {
 			},
 		},
 		{
+			name: "happy path with domain_hint",
+			url:  mock.Ingress + "/oauth2/login?domain_hint=example.com",
+			wantParams: map[string]string{
+				"domain_hint": "example.com",
+			},
+		},
+		{
 			name: "invalid level should use default as fallback",
 			url:  mock.Ingress + "/oauth2/login?level=NoLevel",
 			wantParams: map[string]string{
@@ -181,6 +188,7 @@ func TestLogin_URL(t *testing.T) {
 				assert.ElementsMatch(t, query["ui_locales"], []string{openidConfig.Client().UILocales()})
 				assert.NotContains(t, query, "prompt")
 				assert.NotContains(t, query, "max_age")
+				assert.NotContains(t, query, "domain_hint")
 			}
 
 			if test.wantNotParams != nil {
@@ -213,4 +221,27 @@ func TestLoginURL_WithResourceIndicator(t *testing.T) {
 	query := parsed.Query()
 	assert.Contains(t, query, "resource")
 	assert.ElementsMatch(t, query["resource"], []string{"https://some-resource"})
+}
+
+func TestLoginURL_WithDomainHint(t *testing.T) {
+	cfg := mock.Config()
+	cfg.OpenID.DomainHint = "example.com"
+
+	openidConfig := mock.NewTestConfiguration(cfg)
+	openidConfig.TestProvider.SetAuthorizationEndpoint("https://provider/authorize")
+
+	c := client.NewClient(openidConfig, nil)
+	ingresses := mock.Ingresses(cfg)
+
+	req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", ingresses)
+
+	result, err := c.Login(req)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, result)
+	parsed, err := url.Parse(result.AuthCodeURL)
+	assert.NoError(t, err)
+
+	query := parsed.Query()
+	assert.Contains(t, query, "domain_hint")
+	assert.ElementsMatch(t, query["domain_hint"], []string{"example.com"})
 }

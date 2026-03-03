@@ -24,6 +24,7 @@ type OpenID struct {
 	ClientID              string   `json:"client-id"`
 	ClientJWK             string   `json:"client-jwk"`
 	ClientSecret          string   `json:"client-secret"`
+	DomainHint            string   `json:"domain-hint"`
 	IDTokenSigningAlg     string   `json:"id-token-signing-alg"`
 	NewClientAuthJWTType  bool     `json:"new-client-auth-jwt-type"`
 	PostLogoutRedirectURI string   `json:"post-logout-redirect-uri"`
@@ -59,6 +60,7 @@ const (
 	OpenIDClientID              = "openid.client-id"
 	OpenIDClientJWK             = "openid.client-jwk"
 	OpenIDClientSecret          = "openid.client-secret"
+	OpenIDDomainHint            = "openid.domain-hint"
 	OpenIDNewClientAuthJWTType  = "openid.new-client-auth-jwt-type"
 	OpenIDIDTokenSigningAlg     = "openid.id-token-signing-alg"
 	OpenIDPostLogoutRedirectURI = "openid.post-logout-redirect-uri"
@@ -75,6 +77,7 @@ func openidFlags() {
 	flag.String(OpenIDClientID, "", "Client ID for the OpenID client.")
 	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format. If configured, this takes precedence over 'openid.client-secret'.")
 	flag.String(OpenIDClientSecret, "", "Client secret for the OpenID client. Overridden by 'openid.client-jwk', if configured.")
+	flag.String(OpenIDDomainHint, "", "Domain hint to include in authorization request for IdPs that support this parameter (e.g. Entra ID).")
 	flag.String(OpenIDIDTokenSigningAlg, jwa.RS256().String(), "Expected JWA value (as defined in RFC 7518) of public keys for validating id_token signatures. This only applies where the key's 'alg' header is not set.")
 	flag.Bool(OpenIDNewClientAuthJWTType, false, "When enabled, sets the value of the \"typ\" header of the JWT used for client authentication equal to \"client-authentication+jwt\" in accordance with RFC7523bis. If not enabled, the value is set to \"JWT\".")
 	flag.String(OpenIDPostLogoutRedirectURI, "", "URI for redirecting the user after successful logout at the Identity Provider.")

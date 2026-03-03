@@ -40,6 +40,10 @@ func (c *TestClientConfiguration) ClientSecret() string {
 	return c.Config.OpenID.ClientSecret
 }
 
+func (c *TestClientConfiguration) DomainHint() string {
+	return c.Config.OpenID.DomainHint
+}
+
 func (c *TestClientConfiguration) NewClientAuthJWTType() bool {
 	return c.Config.OpenID.NewClientAuthJWTType
 }

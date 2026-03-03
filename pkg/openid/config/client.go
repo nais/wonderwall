@@ -24,6 +24,7 @@ type Client interface {
 	ClientID() string
 	ClientJWK() jwk.Key
 	ClientSecret() string
+	DomainHint() string
 	NewClientAuthJWTType() bool
 	PostLogoutRedirectURI() string
 	ResourceIndicator() string
@@ -63,6 +64,10 @@ func (in *client) ClientJWK() jwk.Key {
 
 func (in *client) ClientSecret() string {
 	return in.OpenID.ClientSecret
+}
+
+func (in *client) DomainHint() string {
+	return in.OpenID.DomainHint
 }
 
 func (in *client) NewClientAuthJWTType() bool {
