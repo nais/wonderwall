@@ -36,7 +36,7 @@ jobs:
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # ratchet:sigstore/cosign-installer@v4.0.0
       - name: Verify runner image
         run: cosign verify --certificate-oidc-issuer https://accounts.google.com  --certificate-identity keyless@distroless.iam.gserviceaccount.com gcr.io/distroless/static-debian12:nonroot
-      - uses: nais/platform-build-push-sign@3dd09618ac5f8667477211cf201db6dcf63948a6 # ratchet:nais/platform-build-push-sign@main
+      - uses: nais/platform-build-push-sign@f276e60f3898b076a67bfc94b52ffbdb885224a7 # ratchet:nais/platform-build-push-sign@main
         id: build_push_sign
         with:
           name: wonderwall
