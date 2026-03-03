@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	log "github.com/sirupsen/logrus"
@@ -192,10 +193,8 @@ func (c *ProviderMetadata) validateLocaleValues(locale string) error {
 }
 
 func (c *ProviderMetadata) validateIDTokenSigningAlg(algorithm string) error {
-	for _, alg := range c.IDTokenSigningAlgValuesSupported {
-		if alg == algorithm {
-			return nil
-		}
+	if slices.Contains(c.IDTokenSigningAlgValuesSupported, algorithm) {
+		return nil
 	}
 
 	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", config.OpenIDIDTokenSigningAlg, algorithm, c.IDTokenSigningAlgValuesSupported)
@@ -204,10 +203,5 @@ func (c *ProviderMetadata) validateIDTokenSigningAlg(algorithm string) error {
 type Supported []string
 
 func (in Supported) Contains(value string) bool {
-	for _, allowed := range in {
-		if allowed == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(in, value)
 }

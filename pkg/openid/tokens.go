@@ -240,7 +240,7 @@ func (in *IDToken) StringSliceClaim(claim string) ([]string, error) {
 	}
 
 	// the claim is a slice of interfaces...
-	claimValues, ok := gotClaim.([]interface{})
+	claimValues, ok := gotClaim.([]any)
 	if !ok {
 		return nil, fmt.Errorf("'%s' claim is not a slice", claim)
 	}

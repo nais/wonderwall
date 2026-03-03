@@ -3,6 +3,7 @@ package http
 import (
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/nais/wonderwall/pkg/cookie"
@@ -34,15 +35,13 @@ func Accepts(r *http.Request, accepted ...string) bool {
 	// iterate over all Accept headers
 	for _, header := range r.Header.Values("Accept") {
 		// iterate over all comma-separated values in a single Accept header
-		for _, v := range strings.Split(header, ",") {
+		for v := range strings.SplitSeq(header, ",") {
 			v = strings.ToLower(v)
 			v = strings.TrimSpace(v)
 			v = strings.Split(v, ";")[0]
 
-			for _, accept := range accepted {
-				if v == accept {
-					return true
-				}
+			if slices.Contains(accepted, v) {
+				return true
 			}
 		}
 	}

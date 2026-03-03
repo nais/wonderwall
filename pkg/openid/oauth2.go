@@ -2,6 +2,7 @@ package openid
 
 import (
 	"fmt"
+	"maps"
 	"net/url"
 
 	"github.com/nais/wonderwall/pkg/openid/scopes"
@@ -119,9 +120,7 @@ func (a RequestParams) URLValues() url.Values {
 // With returns a new RequestParams with the given RequestParams added.
 // Conflicting keys are overridden by the given RequestParams.
 func (a RequestParams) With(other RequestParams) RequestParams {
-	for key, val := range other {
-		a[key] = val
-	}
+	maps.Copy(a, other)
 
 	return a
 }

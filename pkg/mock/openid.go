@@ -7,6 +7,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -309,13 +310,7 @@ func (ip *IdentityProviderHandler) parseAuthorizationRequest(query url.Values) (
 	for param, allowed := range allowedParamValues {
 		paramValue := query.Get(param)
 
-		found := false
-		for _, allowedValue := range allowed {
-			if paramValue == allowedValue {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(allowed, paramValue)
 
 		if !found {
 			return nil, fmt.Errorf("%q is an invalid value for %q, must be %q", paramValue, param, allowed)

@@ -2,6 +2,7 @@ package acr
 
 import (
 	"fmt"
+	"slices"
 )
 
 const (
@@ -40,10 +41,8 @@ func Validate(expected, actual string) error {
 		return fmt.Errorf("invalid acr: got %q, expected %q", actual, expected)
 	}
 
-	for _, accepted := range acceptedValues {
-		if actual == accepted {
-			return nil
-		}
+	if slices.Contains(acceptedValues, actual) {
+		return nil
 	}
 
 	return fmt.Errorf("invalid acr: got %q, must be one of %s", actual, acceptedValues)

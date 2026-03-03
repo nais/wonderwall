@@ -85,7 +85,7 @@ func (l *logEntryAdapter) Write(status, bytes int, _ http.Header, elapsed time.D
 		Debugf("response: %d %s", status, http.StatusText(status))
 }
 
-func (l *logEntryAdapter) Panic(v interface{}, _ []byte) {
+func (l *logEntryAdapter) Panic(v any, _ []byte) {
 	stacktrace := "#"
 
 	fields := log.Fields{

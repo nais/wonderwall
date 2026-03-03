@@ -48,7 +48,7 @@ func TestHandler_Error(t *testing.T) {
 			r := idp.GetRequest(idp.RelyingPartyServer.URL)
 
 			// should be automatically redirected to the retry URI until maximum attempts are exhausted
-			for i := 0; i < errorhandler.MaxAutoRetryAttempts; i++ {
+			for range errorhandler.MaxAutoRetryAttempts {
 				w := httptest.NewRecorder()
 
 				test.fn(w, r, fmt.Errorf("some error"))
