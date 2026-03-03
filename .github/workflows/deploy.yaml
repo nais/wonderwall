@@ -15,10 +15,10 @@ jobs:
       - name: Checkout latest code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
       - name: Set up Go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # ratchet:actions/setup-go@v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # ratchet:actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-      - uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # ratchet:jdx/mise-action@v3
+      - uses: jdx/mise-action@e79ddf65a11cec7b0e882bedced08d6e976efb2d # ratchet:jdx/mise-action@v3
       - run: mise run check
       - run: mise run test
   build:
@@ -34,11 +34,9 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
       - name: Install cosign
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # ratchet:sigstore/cosign-installer@v4.0.0
-        with:
-          cosign-release: 'v3.0.2'
       - name: Verify runner image
         run: cosign verify --certificate-oidc-issuer https://accounts.google.com  --certificate-identity keyless@distroless.iam.gserviceaccount.com gcr.io/distroless/static-debian12:nonroot
-      - uses: nais/platform-build-push-sign@8be8359cd90915318ee8ab5fbc8337d04937ae70 # ratchet:nais/platform-build-push-sign@main
+      - uses: nais/platform-build-push-sign@3dd09618ac5f8667477211cf201db6dcf63948a6 # ratchet:nais/platform-build-push-sign@main
         id: build_push_sign
         with:
           name: wonderwall
