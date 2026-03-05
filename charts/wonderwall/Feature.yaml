@@ -30,6 +30,10 @@ values:
     description: Enables forward auth server. Requires Azurerator and loadbalancer-fa to be enabled.
     config:
       type: bool
+  azure.forwardAuth.domainHint:
+    description: Domain hint for Azure AD authentication to prevent account selector when users are signed in with multiple accounts in different tenants.
+    config:
+      type: string
   azure.forwardAuth.groupIds:
     description: Additional group IDs to grant access to
     config:

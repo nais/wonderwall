@@ -27,6 +27,7 @@ azure:
     ssoDomain:
     ssoServerSecretName: wonderwall-azure-sso-server
     groupIds: [] # ["<group-id>"] - additional group IDs to grant access to
+    domainHint:
 idporten:
   enabled: false
   clientAccessTokenLifetime: 3600

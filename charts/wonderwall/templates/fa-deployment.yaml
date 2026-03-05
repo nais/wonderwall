@@ -57,6 +57,10 @@ spec:
             value: "5s"
           - name: WONDERWALL_OPENID_PROVIDER
             value: "azure"
+          {{- if .Values.azure.forwardAuth.domainHint }}
+          - name: WONDERWALL_OPENID_DOMAIN_HINT
+            value: "{{ .Values.azure.forwardAuth.domainHint }}"
+          {{- end }}
           - name: WONDERWALL_REDIS_CONNECTION_IDLE_TIMEOUT
             value: "{{ .Values.redis.connectionIdleTimeout }}"
           - name: WONDERWALL_SESSION_MAX_LIFETIME
