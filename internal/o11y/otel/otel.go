@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/nais/wonderwall/pkg/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
@@ -41,6 +42,9 @@ func Setup(ctx context.Context, cfg *config.Config) (func(context.Context), erro
 	}
 	otel.SetTracerProvider(tracerProvider)
 	tracer = tracerProvider.Tracer(cfg.OpenTelemetry.ServiceName)
+
+	// Disable internal otel logs as we don't care about them.
+	otel.SetLogger(logr.Discard())
 
 	log.Debug("opentelemetry: initialized configuration")
 	shutdown := func(ctx context.Context) {
