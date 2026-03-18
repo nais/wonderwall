@@ -18,7 +18,7 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # ratchet:actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-      - uses: jdx/mise-action@e79ddf65a11cec7b0e882bedced08d6e976efb2d # ratchet:jdx/mise-action@v3
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # ratchet:jdx/mise-action@v3
       - run: mise run check
       - run: mise run test
   build:
@@ -36,7 +36,7 @@ jobs:
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # ratchet:sigstore/cosign-installer@v4.0.0
       - name: Verify runner image
         run: cosign verify --certificate-oidc-issuer https://accounts.google.com  --certificate-identity keyless@distroless.iam.gserviceaccount.com gcr.io/distroless/static-debian12:nonroot
-      - uses: nais/platform-build-push-sign@f276e60f3898b076a67bfc94b52ffbdb885224a7 # ratchet:nais/platform-build-push-sign@main
+      - uses: nais/platform-build-push-sign@a16d89d06262f12e3468a20b9cc70f5317290bab # ratchet:nais/platform-build-push-sign@main
         id: build_push_sign
         with:
           name: wonderwall
@@ -70,7 +70,7 @@ jobs:
           service_account: "gh-wonderwall@nais-io.iam.gserviceaccount.com"
           token_format: "access_token"
       - name: "Login to registry"
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # ratchet:docker/login-action@v3
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # ratchet:docker/login-action@v4
         with:
           registry: "${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature"
           username: "oauth2accesstoken"
