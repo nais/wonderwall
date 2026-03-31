@@ -6,6 +6,13 @@ image:
   tag: latest
 imagePullSecrets: []
 
+# mapped by fasit
+fasit:
+  tenant:
+    name:
+  env:
+    name:
+
 aiven:
   project:
   prometheusEndpointId:

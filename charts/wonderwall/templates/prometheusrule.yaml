@@ -17,11 +17,12 @@ spec:
             summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
             consequence: This probably means that end-users are having trouble with authentication.
             action: |
-              * Check the logs for errors: <https://logs.adeo.no/app/r/s/tcZC2>
-              * Check DigDir status: <https://status.digdir.no> / <https://testmiljo.status.digdir.no/>
-              * Check Aiven Redis (session store) and verify Aiven network connectivity
-              * Check with DigDir in [#nav-digdir](https://nav-it.slack.com/archives/C013RTT99G9)
-            dashboard_url: "https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=idporten"
+              * Check the logs and metrics in the dashboard
+              * Verify outbound network connectivity to ID-porten and Aiven
+              * Check Digdir status: <https://status.digdir.no> / <https://testmiljo.status.digdir.no/>
+              * Check Aiven Valkey (session store)
+              * Check with Digdir in [#nav-digdir](https://nav-it.slack.com/archives/C013RTT99G9)
+            dashboard_url: "https://monitoring.nais.io/d/ac5x2gf?var-tenant={{ .Values.fasit.tenant.name }}&var-cluster={{ .Values.fasit.env.name }}"
           labels:
             severity: critical
             namespace: {{ .Release.Namespace }}
@@ -32,11 +33,12 @@ spec:
             summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
             consequence: This probably means that end-users are having trouble with authentication.
             action: |
-              * Check the logs for errors: <https://logs.adeo.no/app/r/s/rGZsy>
-              * Check DigDir status: <https://status.digdir.no> / <https://testmiljo.status.digdir.no/>
-              * Check Aiven Redis (session store) and verify Aiven network connectivity
-              * Check with DigDir in [#nav-digdir](https://nav-it.slack.com/archives/C013RTT99G9)
-            dashboard_url: "https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=idporten&var-namespace=nais-system"
+              * Check the logs and metrics in the dashboard
+              * Verify outbound network connectivity to ID-porten and Aiven
+              * Check Digdir status: <https://status.digdir.no> / <https://testmiljo.status.digdir.no/>
+              * Check Aiven Valkey (session store)
+              * Check with Digdir in [#nav-digdir](https://nav-it.slack.com/archives/C013RTT99G9)
+            dashboard_url: "https://monitoring.nais.io/d/acsbbd4?var-tenant={{ .Values.fasit.tenant.name }}"
           labels:
             severity: critical
             namespace: {{ .Release.Namespace }}
@@ -53,32 +55,34 @@ spec:
   groups:
     - name: "wonderwall-azure"
       rules:
-        - alert: Wonderwall for Azure AD reports a high amount of internal errors
+        - alert: Wonderwall sidecars for Entra ID reports a high amount of internal errors
           expr: sum(increase(requests_total{job="nais-system/monitoring-wonderwall", code="500", provider="azure"}[5m])) > 30
           for: 5m
           annotations:
             summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
             consequence: This probably means that end-users are having trouble with authentication.
             action: |
-              * Check the logs for errors: <https://logs.adeo.no/app/r/s/EQy2f>
+              * Check the logs and metrics in the dashboard
+              * Verify outbound network connectivity to Entra ID and Aiven
               * Check Azure status: https://status.azure.com/nb-no/status
-              * Check Aiven Redis (session store) and verify Aiven network connectivity
-            dashboard_url: "https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=azure"
+              * Check Aiven Valkey (session store)
+            dashboard_url: "https://monitoring.nais.io/d/acbc65d?var-tenant={{ .Values.fasit.tenant.name }}&var-cluster={{ .Values.fasit.env.name }}"
           labels:
             severity: critical
             namespace: {{ .Release.Namespace }}
         {{- if .Values.azure.forwardAuth.enabled }}
-        - alert: Wonderwall-fa (forward-auth / ansatt) for Azure AD reports a high amount of internal errors
+        - alert: Wonderwall-fa (forward-auth / ansatt) for Entra ID reports a high amount of internal errors
           expr: sum(increase(requests_total{app="wonderwall-fa", namespace="{{ .Release.Namespace }}", code="500"}[5m])) > 30
           for: 5m
           annotations:
             summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
             consequence: This probably means that end-users are having trouble with authentication.
             action: |
-              * Check the logs for errors: <https://logs.adeo.no/app/r/s/fhBqB>
+              * Check the logs and metrics in the dashboard
+              * Verify outbound network connectivity to Entra ID and Aiven
               * Check Azure status: https://status.azure.com/nb-no/status
-              * Check Aiven Redis (session store) and verify Aiven network connectivity
-            dashboard_url: "https://monitoring.nais.io/d/wQPQ7uHnz/wonderwall?var-provider=azure&var-namespace=nais-system"
+              * Check Aiven Valkey (session store)
+            dashboard_url: "https://monitoring.nais.io/d/act4w26?var-tenant={{ .Values.fasit.tenant.name }}"
           labels:
             severity: critical
             namespace: {{ .Release.Namespace }}
