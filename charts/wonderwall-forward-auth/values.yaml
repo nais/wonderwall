@@ -22,7 +22,11 @@ replicas:
   max: 4
 podDisruptionBudget:
   maxUnavailable: 1
-ingressClassName: nais-ingress-fa
+ingressClassName: external-fa-haproxy
+# Additional ingress class names for dual-controller operation during nginx-to-HAProxy migration.
+# Remove when nginx is decommissioned.
+additionalIngressClassNames:
+  - nais-ingress-fa
 otel:
   endpoint: http://opentelemetry-management-collector.nais-system:4317
 
