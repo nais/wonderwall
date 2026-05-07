@@ -21,6 +21,7 @@ type Config struct {
 	LogFormat                string        `json:"log-format"`
 	LogLevel                 string        `json:"log-level"`
 	MetricsBindAddress       string        `json:"metrics-bind-address"`
+	PprofEnabled             bool          `json:"pprof-enabled"`
 	ProbeBindAddress         string        `json:"probe-bind-address"`
 	ShutdownGracefulPeriod   time.Duration `json:"shutdown-graceful-period"`
 	ShutdownWaitBeforePeriod time.Duration `json:"shutdown-wait-before-period"`
@@ -50,6 +51,7 @@ const (
 	LogFormat                = "log-format"
 	LogLevel                 = "log-level"
 	MetricsBindAddress       = "metrics-bind-address"
+	PprofEnabled             = "pprof-enabled"
 	ProbeBindAddress         = "probe-bind-address"
 	ShutdownGracefulPeriod   = "shutdown-graceful-period"
 	ShutdownWaitBeforePeriod = "shutdown-wait-before-period"
@@ -73,6 +75,7 @@ func Initialize() (*Config, error) {
 	flag.String(LogFormat, "json", "Log format, either 'json' or 'text'.")
 	flag.String(LogLevel, "info", "Logging verbosity level.")
 	flag.String(MetricsBindAddress, "127.0.0.1:3001", "Listen address for metrics only. Empty disables metrics.")
+	flag.Bool(PprofEnabled, false, "Enable pprof debug endpoints on the probe server.")
 	flag.String(ProbeBindAddress, "", "Listen address for health probe. Empty disables health probe.")
 	flag.Duration(ShutdownGracefulPeriod, 30*time.Second, "Graceful shutdown period when receiving a shutdown signal after which the server is forcibly exited.")
 	flag.Duration(ShutdownWaitBeforePeriod, 0*time.Second, "Wait period when receiving a shutdown signal before actually starting a graceful shutdown. Useful for allowing propagation of Endpoint updates in Kubernetes.")

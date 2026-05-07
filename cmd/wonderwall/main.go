@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 
 	"github.com/KimMachineGun/automemlimit/memlimit"
 	"github.com/nais/wonderwall/internal/crypto"
@@ -102,6 +103,16 @@ func run() error {
 			})
 			mux.HandleFunc("/", healthz)
 			mux.HandleFunc("/healthz", healthz)
+
+			if cfg.PprofEnabled {
+				mux.HandleFunc("/debug/pprof/", pprof.Index)
+				mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+				mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+				mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+				mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+				log.Infof("pprof: enabled on %s/debug/pprof/", cfg.ProbeBindAddress)
+			}
+
 			log.Debugf("probe: listening on %s", cfg.ProbeBindAddress)
 			err := http.ListenAndServe(cfg.ProbeBindAddress, mux)
 			if err != nil {
