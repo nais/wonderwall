@@ -17,8 +17,12 @@ import (
 
 func Start(cfg *config.Config, r chi.Router) error {
 	server := http.Server{
-		Addr:    cfg.BindAddress,
-		Handler: r,
+		Addr:              cfg.BindAddress,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second, // Prevents slowloris attacks (connections held open without sending headers).
+		IdleTimeout:       90 * time.Second, // Reclaims idle keep-alive connections; without this, goroutines and buffers leak indefinitely.
+		MaxHeaderBytes:    1 << 16,          // 64KB
+		// ReadTimeout/WriteTimeout intentionally omitted - a reverse proxy must support slow transfers.
 	}
 
 	serverCtx, serverStopCtx := context.WithCancel(context.Background())
