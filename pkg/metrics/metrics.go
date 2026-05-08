@@ -1,15 +1,11 @@
 package metrics
 
 import (
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/nais/wonderwall/pkg/config"
 )
 
 const (
@@ -127,17 +123,8 @@ func InitLabels() {
 	Logins.With(prometheus.Labels{LabelAmr: "", LabelRedirect: ""})
 }
 
-func Handle(address string, provider config.Provider) error {
-	WithProvider(string(provider))
-	Register(prometheus.DefaultRegisterer)
-	InitLabels()
-
-	handler := promhttp.Handler()
-	return http.ListenAndServe(address, handler)
-}
-
-func Register(registry prometheus.Registerer) {
-	registry.MustRegister(
+func Register() {
+	prometheus.DefaultRegisterer.MustRegister(
 		RedisLatency,
 		Logins,
 		Logouts,

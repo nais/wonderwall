@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/http/pprof"
 
 	"github.com/KimMachineGun/automemlimit/memlimit"
 	"github.com/nais/wonderwall/internal/crypto"
@@ -12,7 +10,6 @@ import (
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/handler"
-	"github.com/nais/wonderwall/pkg/metrics"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/openid/provider"
 	"github.com/nais/wonderwall/pkg/router"
@@ -84,44 +81,7 @@ func run() error {
 
 	r := router.New(src, cfg)
 
-	if cfg.MetricsBindAddress != "" {
-		go func() {
-			log.Debugf("metrics: listening on %s", cfg.MetricsBindAddress)
-			err := metrics.Handle(cfg.MetricsBindAddress, cfg.OpenID.Provider)
-			if err != nil {
-				log.Fatalf("fatal: metrics server error: %s", err)
-			}
-		}()
-	}
-
-	if cfg.ProbeBindAddress != "" {
-		go func() {
-			mux := http.NewServeMux()
-			healthz := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("ok"))
-			})
-			mux.HandleFunc("/", healthz)
-			mux.HandleFunc("/healthz", healthz)
-
-			if cfg.PprofEnabled {
-				mux.HandleFunc("/debug/pprof/", pprof.Index)
-				mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-				mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-				mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-				mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-				log.Infof("pprof: enabled on %s/debug/pprof/", cfg.ProbeBindAddress)
-			}
-
-			log.Debugf("probe: listening on %s", cfg.ProbeBindAddress)
-			err := http.ListenAndServe(cfg.ProbeBindAddress, mux)
-			if err != nil {
-				log.Fatalf("fatal: probe server error: %s", err)
-			}
-		}()
-	}
-
-	return server.Start(cfg, r)
+	return server.Start(ctx, cfg, r)
 }
 
 func standalone(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*handler.Standalone, error) {
