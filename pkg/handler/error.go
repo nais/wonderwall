@@ -43,13 +43,13 @@ func (s *Standalone) BadRequest(w http.ResponseWriter, r *http.Request, cause er
 func (s *Standalone) Unauthorized(w http.ResponseWriter, r *http.Request, cause error) {
 	span := trace.SpanFromContext(r.Context())
 	otel.AddErrorEvent(span, "errorHandler", "Unauthorized", cause)
-	s.respondError(w, r, http.StatusUnauthorized, cause, log.WarnLevel)
+	s.respondError(w, r, http.StatusUnauthorized, cause, log.InfoLevel)
 }
 
 func (s *Standalone) TooManyRequests(w http.ResponseWriter, r *http.Request, cause error) {
 	span := trace.SpanFromContext(r.Context())
 	otel.AddErrorEvent(span, "errorHandler", "TooManyRequests", cause)
-	s.respondError(w, r, http.StatusTooManyRequests, cause, log.WarnLevel)
+	s.respondError(w, r, http.StatusTooManyRequests, cause, log.InfoLevel)
 }
 
 // Retry returns a URI that should retry the desired route that failed.
