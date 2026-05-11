@@ -105,11 +105,10 @@ func (s *Standalone) respondError(w http.ResponseWriter, r *http.Request, status
 		return
 	}
 
-	if level == log.WarnLevel || errors.Is(cause, context.Canceled) {
-		logger.Warnf(msg, cause)
-	} else {
-		logger.Errorf(msg, cause)
+	if errors.Is(cause, context.Canceled) {
+		level = log.WarnLevel
 	}
+	logger.Logf(level, msg, cause)
 
 	logger.Infof("errorhandler: maximum retry attempts exceeded; executing error template...")
 	span.SetAttributes(attribute.Bool("error.retries_exhausted", true))
