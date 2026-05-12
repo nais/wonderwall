@@ -117,12 +117,22 @@ jobs:
     runs-on: fasit-deploy
     permissions:
       id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        chart: ["wonderwall", "wonderwall-forward-auth"]
     steps:
-      - uses: nais/fasit-deploy@8727ed1c7a5a465e837873e6016a9a692a6b874a # ratchet:nais/fasit-deploy@v2
+      - uses: nais/fasit-deploy@58a70a338b16dc646373c91724fc7e7522d085a4 # ratchet:nais/fasit-deploy@v4.0.1
         with:
-          chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/${{ matrix.chart }}
+          chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/wonderwall
           version: "1.0.0-${{ needs.build.outputs.version }}"
+          targets: |
+            [
+              { "target": { "kind": "tenant", "tenant": "ci-nais" }, "wait": true },
+              { "target": { "kind": "tenant" } }
+            ]
+      - uses: nais/fasit-deploy@58a70a338b16dc646373c91724fc7e7522d085a4 # ratchet:nais/fasit-deploy@v4.0.1
+        with:
+          chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/wonderwall-forward-auth
+          version: "1.0.0-${{ needs.build.outputs.version }}"
+          targets: |
+            [
+              { "target": { "kind": "management", "tenant": "ci-nais" }, "wait": true },
+              { "target": { "kind": "management" } }
+            ]
