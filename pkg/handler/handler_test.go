@@ -393,7 +393,8 @@ func TestNonNavigationalRequests(t *testing.T) {
 	} {
 		t.Run("with fetch metadata", func(t *testing.T) {
 			rpClient := idp.RelyingPartyClient()
-			resp := get(t, rpClient, idp.RelyingPartyServer.URL+path,
+			resp := get(
+				t, rpClient, idp.RelyingPartyServer.URL+path,
 				header{"Sec-Fetch-Mode", "cors"},
 				header{"Sec-Fetch-Dest", "empty"},
 			)

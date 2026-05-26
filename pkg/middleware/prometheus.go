@@ -46,12 +46,13 @@ func Prometheus(provider string, buckets ...float64) *PrometheusMiddleware {
 	if len(buckets) == 0 {
 		buckets = defaultBuckets
 	}
-	m.latency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:        latencyName,
-		Help:        "How long it took to process the request, partitioned by status code, method and HTTP path.",
-		ConstLabels: prometheus.Labels{"service": serviceName, metrics.LabelProvider: provider},
-		Buckets:     buckets,
-	},
+	m.latency = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:        latencyName,
+			Help:        "How long it took to process the request, partitioned by status code, method and HTTP path.",
+			ConstLabels: prometheus.Labels{"service": serviceName, metrics.LabelProvider: provider},
+			Buckets:     buckets,
+		},
 		[]string{"code", "method", "path", "host"},
 	)
 

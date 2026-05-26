@@ -60,7 +60,8 @@ func New(src Source, cfg *config.Config) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.CorrelationIDHandler)
 	if cfg.OpenTelemetry.Enabled {
-		r.Use(otelchi.Middleware(cfg.OpenTelemetry.ServiceName,
+		r.Use(otelchi.Middleware(
+			cfg.OpenTelemetry.ServiceName,
 			otelchi.WithChiRoutes(r),
 			otelchi.WithRequestMethodInSpanName(true),
 			otelchi.WithFilter(func(r *http.Request) bool {

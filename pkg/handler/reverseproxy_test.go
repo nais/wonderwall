@@ -180,7 +180,8 @@ func TestReverseProxy(t *testing.T) {
 
 		t.Run("with fetch metadata", func(t *testing.T) {
 			target := idp.RelyingPartyServer.URL + "/"
-			resp := get(t, rpClient, target,
+			resp := get(
+				t, rpClient, target,
 				header{"Sec-Fetch-Mode", "cors"},
 				header{"Sec-Fetch-Dest", "empty"},
 			)
