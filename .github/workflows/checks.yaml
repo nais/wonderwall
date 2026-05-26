@@ -12,8 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         go:
-          - { go-version: stable }
-          - { go-version-file: go.mod }
+          - {go-version: stable}
+          - {go-version-file: go.mod}
         deps:
           - locked
           - latest

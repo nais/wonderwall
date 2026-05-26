@@ -37,7 +37,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
       - name: Install cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # ratchet:sigstore/cosign-installer@v4.1.1
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # ratchet:sigstore/cosign-installer@v4.1.2
       - name: Verify runner image
         run: cosign verify --certificate-oidc-issuer https://accounts.google.com  --certificate-identity keyless@distroless.iam.gserviceaccount.com gcr.io/distroless/static-debian12:nonroot
       - uses: nais/platform-build-push-sign@df590279b21bc5978519685752f9eaddd546043c # ratchet:nais/platform-build-push-sign@main
@@ -74,7 +74,7 @@ jobs:
           service_account: "gh-wonderwall@nais-io.iam.gserviceaccount.com"
           token_format: "access_token"
       - name: "Login to registry"
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # ratchet:docker/login-action@v4
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # ratchet:docker/login-action@v4
         with:
           registry: "${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature"
           username: "oauth2accesstoken"
@@ -118,7 +118,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: nais/fasit-deploy@58a70a338b16dc646373c91724fc7e7522d085a4 # ratchet:nais/fasit-deploy@v4.0.1
+      - uses: nais/fasit-deploy@9f870e05e92cde6cfd827b13384ec09e80be65fd # ratchet:nais/fasit-deploy@v4.1.0
         with:
           chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/wonderwall
           version: "1.0.0-${{ needs.build.outputs.version }}"
@@ -127,7 +127,7 @@ jobs:
               { "target": { "kind": "tenant", "tenant": "ci-nais" }, "wait": true },
               { "target": { "kind": "tenant" } }
             ]
-      - uses: nais/fasit-deploy@58a70a338b16dc646373c91724fc7e7522d085a4 # ratchet:nais/fasit-deploy@v4.0.1
+      - uses: nais/fasit-deploy@9f870e05e92cde6cfd827b13384ec09e80be65fd # ratchet:nais/fasit-deploy@v4.1.0
         with:
           chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/wonderwall-forward-auth
           version: "1.0.0-${{ needs.build.outputs.version }}"
