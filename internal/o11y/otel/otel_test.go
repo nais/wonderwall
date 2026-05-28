@@ -9,7 +9,7 @@ import (
 )
 
 func TestSetup(t *testing.T) {
-	// Assert that version for semconv schemas don't conflict with the current otel version.
+	// Assert that resource merge doesn't fail due to semconv schema conflicts.
 	_, err := otel.Setup(t.Context(), &config.Config{})
 	assert.NoError(t, err)
 }

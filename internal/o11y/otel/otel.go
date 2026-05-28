@@ -101,10 +101,7 @@ func attributesFrom(cfg *config.Config) []attribute.KeyValue {
 func newResource(attributes []attribute.KeyValue) (*resource.Resource, error) {
 	return resource.Merge(
 		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			attributes...,
-		),
+		resource.NewSchemaless(attributes...),
 	)
 }
 
