@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26.3 AS builder
 ENV CGO_ENABLED=0
 ENV GOTOOLCHAIN=auto
 WORKDIR /src
