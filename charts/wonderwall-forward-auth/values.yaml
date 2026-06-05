@@ -28,7 +28,8 @@ ingressClassName: external-fa-haproxy
 additionalIngressClassNames:
   - nais-ingress-fa
 otel:
-  endpoint: http://opentelemetry-management-collector.nais-system:4317
+  # mapped by fasit
+  endpoint:
 
 openid:
   clientID:

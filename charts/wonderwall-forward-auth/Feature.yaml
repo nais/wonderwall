@@ -22,6 +22,9 @@ values:
     computed:
       template: |
         "urn:zitadel:iam:org:id:{{ .Env.zitadel_organization_id }}"
+  otel.endpoint:
+    computed:
+      template: '"{{ .Env.otel_otlp_endpoint }}"'
   replicas.min:
     config:
       type: int

@@ -87,4 +87,5 @@ resourceSuffix: ""
 podDisruptionBudget:
   maxUnavailable: 1
 otel:
-  endpoint: http://opentelemetry-collector.nais-system:4317
+  # mapped by fasit
+  endpoint:
