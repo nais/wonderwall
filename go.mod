@@ -22,9 +22,9 @@ require (
 	github.com/lestrrat-go/jwx/v3 v3.1.1
 	github.com/nais/liberator v0.0.0-20260526061822-791cc0e0457c
 	github.com/prometheus/client_golang v1.23.2
-	github.com/redis/go-redis/extra/redisotel/v9 v9.19.0
-	github.com/redis/go-redis/extra/redisprometheus/v9 v9.19.0
-	github.com/redis/go-redis/v9 v9.19.0
+	github.com/redis/go-redis/extra/redisotel/v9 v9.20.0
+	github.com/redis/go-redis/extra/redisprometheus/v9 v9.20.0
+	github.com/redis/go-redis/v9 v9.20.0
 	github.com/riandyrn/otelchi v0.12.3
 	github.com/rs/cors v1.11.1
 	github.com/sethvargo/go-retry v0.3.0
@@ -79,7 +79,7 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
-	github.com/redis/go-redis/extra/rediscmd/v9 v9.19.0 // indirect
+	github.com/redis/go-redis/extra/rediscmd/v9 v9.20.0 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sethvargo/ratchet v0.11.4 // indirect
