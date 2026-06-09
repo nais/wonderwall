@@ -41,6 +41,7 @@ func TestClientAuthenticationAssertion(t *testing.T) {
 		jwt.WithKey(alg, publicKey),
 		jwt.WithRequiredClaim(jwt.IssuedAtKey),
 		jwt.WithRequiredClaim(jwt.ExpirationKey),
+		jwt.WithRequiredClaim(jwt.NotBeforeKey),
 		jwt.WithRequiredClaim(jwt.JwtIDKey),
 	}
 	assertion, err := jwt.ParseString(jwtAssertion, opts...)
@@ -61,6 +62,11 @@ func TestClientAuthenticationAssertion(t *testing.T) {
 	iat, ok := assertion.IssuedAt()
 	assert.True(t, ok)
 	assert.True(t, iat.Before(time.Now()))
+
+	nbf, ok := assertion.NotBefore()
+	assert.True(t, ok)
+	assert.True(t, nbf.Before(time.Now()))
+	assert.Equal(t, iat, nbf)
 
 	exp, ok := assertion.Expiration()
 	assert.True(t, ok)

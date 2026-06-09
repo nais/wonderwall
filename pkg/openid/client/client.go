@@ -172,6 +172,7 @@ func (c *Client) ClientAuthenticationAssertion(expiration time.Duration) (string
 		Audience([]string{providerCfg.Issuer()}). // the aud claim is flattened to a single string value on serialization
 		IssuedAt(iat).
 		Expiration(exp).
+		NotBefore(iat).
 		JwtID(uuid.New().String()).
 		Build()
 	if err != nil {
