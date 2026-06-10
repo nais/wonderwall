@@ -13,8 +13,10 @@ import (
 )
 
 const (
+	// RefreshMinInterval is the minimum wait between refreshes (the cooldown).
 	RefreshMinInterval = 1 * time.Minute
-	RefreshLeeway      = 30 * time.Second
+	// RefreshLeeway is how long before expiry we aim to refresh.
+	RefreshLeeway = 30 * time.Second
 )
 
 type EncryptedData struct {
@@ -166,14 +168,16 @@ func (in *Metadata) IsRefreshOnCooldown() bool {
 	return time.Now().Before(in.RefreshCooldown())
 }
 
+// NextRefresh returns when we should next proactively refresh the tokens. It
+// aims to refresh shortly before expiry, but never before the cooldown.
 func (in *Metadata) NextRefresh() time.Time {
-	// subtract the leeway to ensure that we refresh before expiry
+	// aim to refresh shortly before the tokens expire
 	next := in.Tokens.ExpireAt.Add(-RefreshLeeway)
 
-	// if inactivity is enabled...
+	// with inactivity enabled, refresh earlier - at the midpoint to the timeout
+	// - so an active user extends the timeout well before the session goes idle
 	timeout := in.Session.TimeoutAt
 	if !timeout.IsZero() {
-		// ...refresh at the half-life between the last refresh and the timeout
 		lastRefresh := in.Tokens.RefreshedAt
 		halfLife := lastRefresh.Add(timeout.Sub(lastRefresh) / 2)
 
@@ -182,9 +186,9 @@ func (in *Metadata) NextRefresh() time.Time {
 		}
 	}
 
-	// try to refresh at the first opportunity if the next refresh is in the past
-	if next.Before(time.Now()) {
-		return in.RefreshCooldown()
+	// but never before the cooldown has elapsed
+	if cooldown := in.RefreshCooldown(); next.Before(cooldown) {
+		next = cooldown
 	}
 
 	return next
@@ -196,11 +200,14 @@ func (in *Metadata) Refresh(nextExpirySeconds int64) {
 	in.Tokens.ExpireAt = now.Add(time.Duration(nextExpirySeconds) * time.Second)
 }
 
+// RefreshCooldown returns the earliest time the tokens may be refreshed again,
+// throttling calls to the identity provider. It waits RefreshMinInterval after
+// the last refresh, but caps short-lived tokens at half their lifetime so the
+// cooldown always leaves room to refresh before they expire.
 func (in *Metadata) RefreshCooldown() time.Time {
 	refreshed := in.Tokens.RefreshedAt
 	tokenLifetime := in.TokenLifetime()
 
-	// if token lifetime is less than the minimum refresh interval * 2, we'll allow refreshes at the token half-life
 	if tokenLifetime <= RefreshMinInterval*2 {
 		return refreshed.Add(tokenLifetime / 2)
 	}
@@ -211,10 +218,6 @@ func (in *Metadata) RefreshCooldown() time.Time {
 func (in *Metadata) ShouldRefresh() bool {
 	if in.IsExpired() {
 		return true
-	}
-
-	if in.IsRefreshOnCooldown() {
-		return false
 	}
 
 	return time.Now().After(in.NextRefresh())
