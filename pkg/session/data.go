@@ -17,6 +17,9 @@ const (
 	RefreshMinInterval = 1 * time.Minute
 	// RefreshLeeway is how long before expiry we aim to refresh.
 	RefreshLeeway = 30 * time.Second
+	// SecondsNotApplicable marks a *_in_seconds field whose feature is
+	// disabled: no inactivity timeout, or auto-refresh turned off.
+	SecondsNotApplicable int64 = -1
 )
 
 type EncryptedData struct {
@@ -247,31 +250,25 @@ func (in *Metadata) WithTimeout(timeoutIn time.Duration) {
 func (in *Metadata) Verbose() MetadataVerbose {
 	now := time.Now()
 
-	expireTime := in.Tokens.ExpireAt
-	endTime := in.Session.EndsAt
-	timeoutTime := in.Session.TimeoutAt
-
-	session := MetadataSessionVerbose{
-		MetadataSession:  in.Session,
-		EndsInSeconds:    toSeconds(endTime.Sub(now)),
-		Active:           !in.IsTimedOut(),
-		TimeoutInSeconds: toSeconds(timeoutTime.Sub(now)),
-	}
-	if timeoutTime.IsZero() {
-		session.TimeoutInSeconds = int64(-1)
-	}
-
-	tokens := MetadataTokensVerbose{
-		MetadataTokens:           in.Tokens,
-		ExpireInSeconds:          toSeconds(expireTime.Sub(now)),
-		NextAutoRefreshInSeconds: toSeconds(in.NextRefresh().Sub(now)),
-		RefreshCooldown:          in.IsRefreshOnCooldown(),
-		RefreshCooldownSeconds:   toSeconds(in.RefreshCooldown().Sub(now)),
+	timeoutInSeconds := SecondsNotApplicable
+	if !in.Session.TimeoutAt.IsZero() {
+		timeoutInSeconds = toSeconds(in.Session.TimeoutAt.Sub(now))
 	}
 
 	return MetadataVerbose{
-		Session: session,
-		Tokens:  tokens,
+		Session: MetadataSessionVerbose{
+			MetadataSession:  in.Session,
+			EndsInSeconds:    toSeconds(in.Session.EndsAt.Sub(now)),
+			Active:           !in.IsTimedOut(),
+			TimeoutInSeconds: timeoutInSeconds,
+		},
+		Tokens: MetadataTokensVerbose{
+			MetadataTokens:           in.Tokens,
+			ExpireInSeconds:          toSeconds(in.Tokens.ExpireAt.Sub(now)),
+			NextAutoRefreshInSeconds: toSeconds(in.NextRefresh().Sub(now)),
+			RefreshCooldown:          in.IsRefreshOnCooldown(),
+			RefreshCooldownSeconds:   toSeconds(in.RefreshCooldown().Sub(now)),
+		},
 	}
 }
 
@@ -292,14 +289,18 @@ type MetadataVerbose struct {
 
 type MetadataSessionVerbose struct {
 	MetadataSession
-	EndsInSeconds    int64 `json:"ends_in_seconds"`
-	Active           bool  `json:"active"`
+	EndsInSeconds int64 `json:"ends_in_seconds"`
+	Active        bool  `json:"active"`
+	// TimeoutInSeconds is the seconds until the inactivity timeout, or
+	// SecondsNotApplicable when no timeout is configured.
 	TimeoutInSeconds int64 `json:"timeout_in_seconds"`
 }
 
 type MetadataTokensVerbose struct {
 	MetadataTokens
-	ExpireInSeconds          int64 `json:"expire_in_seconds"`
+	ExpireInSeconds int64 `json:"expire_in_seconds"`
+	// NextAutoRefreshInSeconds is the seconds until the next automatic token
+	// refresh, or SecondsNotApplicable when auto-refresh is disabled.
 	NextAutoRefreshInSeconds int64 `json:"next_auto_refresh_in_seconds"`
 	RefreshCooldown          bool  `json:"refresh_cooldown"`
 	RefreshCooldownSeconds   int64 `json:"refresh_cooldown_seconds"`

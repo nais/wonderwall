@@ -507,7 +507,7 @@ func (s *Standalone) sessionWriteMetadataResponse(w http.ResponseWriter, r *http
 
 	metadata := sess.MetadataVerbose()
 	if s.Config.AutoRefreshDisabled() {
-		metadata.Tokens.NextAutoRefreshInSeconds = int64(-1)
+		metadata.Tokens.NextAutoRefreshInSeconds = session.SecondsNotApplicable
 	}
 
 	return json.NewEncoder(w).Encode(metadata)
