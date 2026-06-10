@@ -195,7 +195,7 @@ func TestMetadata_ShouldRefresh(t *testing.T) {
 		metadata := session.Metadata{
 			Tokens: session.MetadataTokens{
 				RefreshedAt: time.Now().Add(-5 * time.Minute),
-				ExpireAt:    time.Now().Add(time.Minute),
+				ExpireAt:    time.Now().Add(15 * time.Second),
 			},
 		}
 
@@ -273,7 +273,7 @@ func TestMetadata_ShouldRefresh(t *testing.T) {
 			},
 			Tokens: session.MetadataTokens{
 				RefreshedAt: time.Now().Add(-5 * time.Minute),
-				ExpireAt:    time.Now().Add(time.Minute),
+				ExpireAt:    time.Now().Add(15 * time.Second),
 			},
 		}
 

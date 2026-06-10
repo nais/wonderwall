@@ -36,7 +36,7 @@ If you've configured a session lifetime that is longer than the token expiry, yo
 The behaviour for refreshing depends on the [runtime mode](configuration.md#modes) for Wonderwall.
 
 In standalone mode, tokens are automatically refreshed. 
-Tokens will at the _earliest_ automatically be renewed 5 minutes before they expire.
+Tokens will at the _earliest_ automatically be renewed 30 seconds before they expire.
 If the token already _has_ expired, a refresh attempt is still automatically triggered as long as the session itself not has ended or is marked as inactive.
 
 Automatic refreshes happens whenever the end-user visits or requests any path that is proxied to the upstream application.

@@ -14,7 +14,7 @@ import (
 
 const (
 	RefreshMinInterval = 1 * time.Minute
-	RefreshLeeway      = 5 * time.Minute
+	RefreshLeeway      = 30 * time.Second
 )
 
 type EncryptedData struct {
