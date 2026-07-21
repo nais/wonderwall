@@ -80,6 +80,6 @@ spec:
   valkey:
     - access: {{ $access }}
       instance: {{ $instance }}
-  secretName: {{ $secretName }}
+      secretName: {{ $secretName }}
   protected: true
 {{- end }}
