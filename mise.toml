@@ -1,5 +1,15 @@
+[settings]
+pin = true
+
 [tools]
 go = "1.26.5"
+golangci-lint = "2.12.2"
+"go:github.com/securego/gosec/v2/cmd/gosec" = "2.28.0"
+"go:github.com/sethvargo/ratchet" = "0.12.0"
+"go:golang.org/x/tools/cmd/deadcode" = "0.48.0"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.6.0"
+"go:honnef.co/go/tools/cmd/staticcheck" = "0.7.0"
+"go:mvdan.cc/gofumpt" = "0.10.0"
 
 [tasks.build]
 run = "go build -a -o bin/wonderwall ./cmd/wonderwall"
@@ -20,25 +30,49 @@ run = '''go run cmd/wonderwall/main.go \
 '''
 
 [tasks.fmt]
-run = "go tool gofumpt -w ./"
+run = "gofumpt -w ./"
 
 [tasks.test]
 depends = ["fmt"]
 run = "go test -count=1 -shuffle=on ./... -coverprofile cover.out"
 
 [tasks.check]
-depends = ["fmt"]
-run = [
-    "go vet ./...",
-    "go tool staticcheck ./...",
-    "go tool govulncheck -show=traces ./...",
-    "go tool ratchet lint .github/workflows/*.yaml"
+depends = [
+    "fmt",
+    "check:golangci-lint",
+    "check:deadcode",
+    "check:gosec",
+    "check:govet",
+    "check:ratchet",
+    "check:staticcheck",
+    "check:govulncheck"
 ]
+
+[tasks."check:golangci-lint"]
+run = "golangci-lint run"
+
+[tasks."check:deadcode"]
+run = "deadcode -test ./..."
+
+[tasks."check:gosec"]
+run = "gosec --exclude-generated -terse ./..."
+
+[tasks."check:govet"]
+run = "go vet ./..."
+
+[tasks."check:ratchet"]
+run = "ratchet lint .github/workflows/*.yaml"
+
+[tasks."check:staticcheck"]
+run = "staticcheck ./..."
+
+[tasks."check:govulncheck"]
+run = "govulncheck -show=traces ./..."
 
 [tasks."actions:update"]
 description = "Upgrade all github actions to latest version satisfying their version tag"
-run = "go tool ratchet update .github/workflows/*.yaml"
+run = "ratchet update .github/workflows/*.yaml"
 
 [tasks."actions:upgrade"]
 description = "Upgrade all github actions to latest"
-run = "go tool ratchet upgrade .github/workflows/*.yaml"
+run = "ratchet upgrade .github/workflows/*.yaml"
