@@ -430,7 +430,7 @@ func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) 
 		go func() {
 			// attempt background delete with retries
 			err := retry.Do(context.Background(), func(ctx context.Context) error {
-				err = s.SessionManager.DeleteForExternalID(ctx, sid)
+				err := s.SessionManager.DeleteForExternalID(ctx, sid)
 				if err == nil || errors.Is(err, session.ErrNotFound) {
 					return nil
 				}
