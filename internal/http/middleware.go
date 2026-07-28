@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -24,7 +25,15 @@ func DisallowNonNavigationalRequests(next http.Handler) http.Handler {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = w.Write([]byte(`{"error": "unauthenticated", "error_description": "this is an interactive endpoint; user-agents must be navigated to this endpoint", "error_path": "` + r.URL.Path + `"}`))
+			_ = json.NewEncoder(w).Encode(struct {
+				Error            string `json:"error"`
+				ErrorDescription string `json:"error_description"`
+				ErrorPath        string `json:"error_path"`
+			}{
+				Error:            "unauthenticated",
+				ErrorDescription: "this is an interactive endpoint; user-agents must be navigated to this endpoint",
+				ErrorPath:        r.URL.Path,
+			})
 			return
 		}
 
