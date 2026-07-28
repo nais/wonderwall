@@ -1,15 +1,18 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	log "github.com/sirupsen/logrus"
 
+	httpinternal "github.com/nais/wonderwall/internal/http"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/openid/acr"
 )
@@ -83,12 +86,29 @@ func (p *provider) SidClaimRequired() bool {
 	return p.metadata.FrontchannelLogoutSupported && p.metadata.FrontchannelLogoutSessionSupported
 }
 
-func NewProviderConfig(cfg *config.Config) (Provider, error) {
-	response, err := http.Get(cfg.OpenID.WellKnownURL)
+// wellKnownTimeout bounds the fetch of the provider's metadata document at startup.
+const wellKnownTimeout = 10 * time.Second
+
+func NewProviderConfig(ctx context.Context, cfg *config.Config) (Provider, error) {
+	ctx, cancel := context.WithTimeout(ctx, wellKnownTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.OpenID.WellKnownURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request for well known configuration: %w", err)
+	}
+
+	client := &http.Client{Transport: httpinternal.Transport()}
+
+	response, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching well known configuration: %w", err)
 	}
 	defer func() { _ = response.Body.Close() }()
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetching well known configuration: %s responded with HTTP %d", cfg.OpenID.WellKnownURL, response.StatusCode)
+	}
 
 	providerCfg := new(ProviderMetadata)
 	if err := json.NewDecoder(response.Body).Decode(providerCfg); err != nil {

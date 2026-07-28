@@ -85,7 +85,7 @@ func run() error {
 }
 
 func standalone(ctx context.Context, cfg *config.Config, crypt crypto.Crypter) (*handler.Standalone, error) {
-	openidConfig, err := openidconfig.NewConfig(cfg)
+	openidConfig, err := openidconfig.NewConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}

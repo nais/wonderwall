@@ -1,6 +1,8 @@
 package config
 
 import (
+	"context"
+
 	wonderwallconfig "github.com/nais/wonderwall/pkg/config"
 )
 
@@ -22,13 +24,13 @@ func (c *openidconfig) Provider() Provider {
 	return c.providerConfig
 }
 
-func NewConfig(cfg *wonderwallconfig.Config) (Config, error) {
+func NewConfig(ctx context.Context, cfg *wonderwallconfig.Config) (Config, error) {
 	clientCfg, err := NewClientConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	providerCfg, err := NewProviderConfig(cfg)
+	providerCfg, err := NewProviderConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
