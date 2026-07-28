@@ -16,12 +16,6 @@ type fibonacci struct {
 
 type Option func(*fibonacci)
 
-func WithBase(d time.Duration) Option {
-	return func(f *fibonacci) {
-		f.base = d
-	}
-}
-
 func WithMax(d time.Duration) Option {
 	return func(f *fibonacci) {
 		f.max = d

@@ -62,14 +62,6 @@ func Prometheus(provider string, buckets ...float64) *PrometheusMiddleware {
 	return &m
 }
 
-func (m *PrometheusMiddleware) Initialize(path, method string, code int) {
-	m.reqs.WithLabelValues(
-		strconv.Itoa(code),
-		method,
-		path,
-	)
-}
-
 func (m *PrometheusMiddleware) Handler(next http.Handler) http.Handler {
 	relevantPaths := map[string]bool{
 		paths.OAuth2 + paths.Login:                       true,
