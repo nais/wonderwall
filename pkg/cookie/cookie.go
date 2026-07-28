@@ -29,14 +29,14 @@ type Cookie struct {
 }
 
 func (in *Cookie) Encrypt(crypter crypto.Crypter) (*Cookie, error) {
-	plaintext := []byte(in.Cookie.Value)
+	plaintext := []byte(in.Value)
 	ciphertext, err := crypter.Encrypt(plaintext)
 	if err != nil {
-		return nil, fmt.Errorf("unable to encrypt cookie '%s': %w", in.Cookie.Name, err)
+		return nil, fmt.Errorf("unable to encrypt cookie '%s': %w", in.Name, err)
 	}
 
 	value := base64.RawURLEncoding.EncodeToString(ciphertext)
-	in.Cookie.Value = value
+	in.Value = value
 	return in, nil
 }
 

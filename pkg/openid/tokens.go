@@ -212,7 +212,7 @@ func (in *IDToken) Claim(claim string) (any, error) {
 	}
 
 	var gotClaim any
-	if err := in.Token.Get(claim, &gotClaim); err != nil {
+	if err := in.Get(claim, &gotClaim); err != nil {
 		return nil, fmt.Errorf("missing required '%s' claim in id_token: %w", claim, err)
 	}
 
