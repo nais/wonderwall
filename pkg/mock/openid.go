@@ -699,7 +699,8 @@ func (in *relyingPartyServer) GetURL() string {
 
 func (in *relyingPartyServer) SetHandler(handler http.Handler) {
 	in.Config = &http.Server{
-		Handler: handler,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 }
 
