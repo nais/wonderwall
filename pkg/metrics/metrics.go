@@ -1,11 +1,13 @@
 package metrics
 
 import (
+	"errors"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -129,6 +131,19 @@ func Register() {
 		Logins,
 		Logouts,
 	)
+}
+
+func RegisterCollector(collector prometheus.Collector) {
+	err := prometheus.DefaultRegisterer.Register(collector)
+	if err == nil {
+		return
+	}
+
+	if _, ok := errors.AsType[prometheus.AlreadyRegisteredError](err); ok {
+		return
+	}
+
+	log.Warnf("metrics: registering collector: %+v", err)
 }
 
 func ObserveRedisLatency(operation string, fun func() error) error {

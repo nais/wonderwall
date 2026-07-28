@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/extra/redisprometheus/v9"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/metrics"
 )
 
 type Store interface {
@@ -34,7 +34,7 @@ func NewStore(cfg *config.Config) (Store, error) {
 	}
 
 	collector := redisprometheus.NewCollector("wonderwall", "", redisClient)
-	prometheus.Register(collector)
+	metrics.RegisterCollector(collector)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
