@@ -64,6 +64,11 @@ func NewClient(cfg openidconfig.Config, jwksProvider JwksProvider) *Client {
 	httpClient := &http.Client{
 		Timeout:   time.Second * 10,
 		Transport: httpinternal.Transport(),
+		// requests to the token and pushed authorization endpoints carry client credentials,
+		// so following a redirect would forward them to a host the provider did not advertise.
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return fmt.Errorf("refusing to follow redirect to %q", req.URL.Redacted())
+		},
 	}
 
 	return &Client{
@@ -209,6 +214,9 @@ func (c *Client) oauthPostRequest(ctx context.Context, endpoint string, payload 
 	}
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
+	// #nosec G704 -- the endpoint comes from the provider's metadata document, which is
+	// fetched from the operator-configured well-known URL at startup; redirects are refused
+	// so credentials cannot be forwarded elsewhere
 	resp, err := c.httpClient.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("performing request: %w", err)
