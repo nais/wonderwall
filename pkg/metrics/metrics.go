@@ -133,17 +133,26 @@ func Register() {
 	)
 }
 
-func RegisterCollector(collector prometheus.Collector) {
+// RegisterCollector registers a collector and returns the collector to record
+// observations on. If an equal collector is already registered, that one is returned
+// instead; observations on the given collector would otherwise never be scraped.
+// Registration errors are logged, as they would leave the collector silently absent
+// from the metrics endpoint.
+func RegisterCollector[T prometheus.Collector](collector T) T {
 	err := prometheus.DefaultRegisterer.Register(collector)
 	if err == nil {
-		return
+		return collector
 	}
 
-	if _, ok := errors.AsType[prometheus.AlreadyRegisteredError](err); ok {
-		return
+	if alreadyRegistered, ok := errors.AsType[prometheus.AlreadyRegisteredError](err); ok {
+		if existing, ok := alreadyRegistered.ExistingCollector.(T); ok {
+			return existing
+		}
+		return collector
 	}
 
 	log.Warnf("metrics: registering collector: %+v", err)
+	return collector
 }
 
 func ObserveRedisLatency(operation string, fun func() error) error {

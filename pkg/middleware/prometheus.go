@@ -56,8 +56,8 @@ func Prometheus(provider string, buckets ...float64) *PrometheusMiddleware {
 		[]string{"code", "method", "path", "host"},
 	)
 
-	metrics.RegisterCollector(m.reqs)
-	metrics.RegisterCollector(m.latency)
+	m.reqs = metrics.RegisterCollector(m.reqs)
+	m.latency = metrics.RegisterCollector(m.latency)
 
 	return &m
 }
