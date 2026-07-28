@@ -261,6 +261,7 @@ func (ip *IdentityProviderHandler) Authorize(w http.ResponseWriter, r *http.Requ
 	}
 
 	u.RawQuery = v.Encode()
+	// #nosec G710 -- the mock identity provider is required to redirect to the given redirect_uri
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
@@ -536,6 +537,7 @@ func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	// #nosec G117 -- the token endpoint response is required to carry the tokens
 	_ = json.NewEncoder(w).Encode(token)
 }
 
@@ -604,6 +606,7 @@ func (ip *IdentityProviderHandler) RefreshTokenGrant(w http.ResponseWriter, r *h
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	// #nosec G117 -- the token endpoint response is required to carry the tokens
 	_ = json.NewEncoder(w).Encode(token)
 }
 
@@ -682,6 +685,7 @@ func (ip *IdentityProviderHandler) EndSession(w http.ResponseWriter, r *http.Req
 	v.Set("state", state)
 	u.RawQuery = v.Encode()
 
+	// #nosec G710 -- the mock identity provider is required to redirect to the given post_logout_redirect_uri
 	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 

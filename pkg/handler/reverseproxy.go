@@ -193,6 +193,7 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 	if httpinternal.IsNavigationRequest(r) {
 		target := r.URL.String()
 		location := loginURL(target, "navigation request detected; redirecting to login...")
+		// #nosec G710 -- the location is a relative URL; the redirect target within it is validated by the login handler
 		http.Redirect(w, r, location, http.StatusFound)
 		return
 	}

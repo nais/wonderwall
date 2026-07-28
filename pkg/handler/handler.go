@@ -174,6 +174,7 @@ func (s *Standalone) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Info("login: redirecting to identity provider")
+	// #nosec G710 -- the URL is built from the authorization endpoint in the provider's metadata document
 	http.Redirect(w, r, login.AuthCodeURL, http.StatusFound)
 }
 
@@ -310,6 +311,7 @@ func (s *Standalone) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	logger.WithFields(fields).Info("callback: successful login")
 	metrics.ObserveLogin(amr, redirect)
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
+	// #nosec G710 -- the redirect is validated by Redirect.Clean
 	http.Redirect(w, r, redirect, http.StatusFound)
 }
 
@@ -358,6 +360,7 @@ func (s *Standalone) Logout(w http.ResponseWriter, r *http.Request) {
 		Info("logout: redirecting to identity provider for global/single-logout")
 	span.SetAttributes(attribute.String("logout.redirect_after", canonicalRedirect))
 	metrics.ObserveLogout(metrics.LogoutOperationSelfInitiated)
+	// #nosec G710 -- the URL is built from the end session endpoint in the provider's metadata document; the redirect after logout is validated by Redirect.Canonical
 	http.Redirect(w, r, logout.SingleLogoutURL(idToken), http.StatusFound)
 }
 
@@ -400,6 +403,7 @@ func (s *Standalone) LogoutCallback(w http.ResponseWriter, r *http.Request) {
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	logger.Infof("logout/callback: redirecting to %q", redirect)
 	span.SetAttributes(attribute.String("logout.redirect_to", redirect))
+	// #nosec G710 -- PostLogoutRedirectURI only returns a state-checked and validated redirect, or a configured fallback
 	http.Redirect(w, r, redirect, http.StatusFound)
 }
 
@@ -427,6 +431,7 @@ func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) 
 		}
 
 		logger.Infof("front-channel logout: destroying session with id %q: %+v", sid, err)
+		// #nosec G118 -- the retries must outlive the request, so the request context cannot be used
 		go func() {
 			// attempt background delete with retries
 			err := retry.Do(context.Background(), func(ctx context.Context) error {

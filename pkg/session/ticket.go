@@ -49,6 +49,7 @@ func (c *Ticket) Key() string {
 // SetCookie marshals the Ticket, encrypts the value with the given crypto.Crypter, and writes the resulting cookie to the
 // given http.ResponseWriter, applying any cookie.Options to the cookie itself.
 func (c *Ticket) SetCookie(w http.ResponseWriter, opts cookie.Options, crypter crypto.Crypter) error {
+	// #nosec G117 -- the marshalled ticket is encrypted below before it is written to the cookie
 	b, err := json.Marshal(c)
 	if err != nil {
 		return fmt.Errorf("marshalling ticket: %w", err)

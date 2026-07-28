@@ -58,6 +58,7 @@ func Clear(w http.ResponseWriter, name string, opts Options) {
 	expires := time.Unix(0, 0)
 	maxAge := -1
 
+	// #nosec G124 -- the Secure and SameSite attributes are validated in config.Cookie.Validate
 	cookie := &http.Cookie{
 		Expires:  expires,
 		HttpOnly: true,
@@ -98,6 +99,7 @@ func GetDecrypted(r *http.Request, key string, crypter crypto.Crypter) (string, 
 }
 
 func Make(name, value string, opts Options) *Cookie {
+	// #nosec G124 -- the Secure and SameSite attributes are validated in config.Cookie.Validate
 	cookie := &http.Cookie{
 		HttpOnly: true,
 		Name:     name,

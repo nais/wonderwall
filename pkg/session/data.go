@@ -81,6 +81,7 @@ func NewData(externalSessionID string, tokens *openid.Tokens, metadata *Metadata
 }
 
 func (in *Data) Encrypt(crypter crypto.Crypter) (*EncryptedData, error) {
+	// #nosec G117 -- the marshalled data is the plaintext input to the encryption below
 	bytes, err := json.Marshal(in)
 	if err != nil {
 		return nil, err

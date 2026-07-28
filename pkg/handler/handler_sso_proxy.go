@@ -143,12 +143,14 @@ func (s *SSOProxy) Login(w http.ResponseWriter, r *http.Request) {
 	}).Info("login: redirecting to sso server")
 	span.SetAttributes(attribute.String("login.redirect_after", canonicalRedirect))
 
+	// #nosec G710 -- the target is the configured SSO server URL; the redirect parameter is validated by Redirect.Canonical
 	http.Redirect(w, r, ssoServerLoginURL, http.StatusFound)
 }
 
 func (s *SSOProxy) LoginCallback(w http.ResponseWriter, r *http.Request) {
 	ingressPath := s.GetPath(r)
 	login := url.LoginRelative(ingressPath, ingressPath)
+	// #nosec G710 -- LoginRelative returns a relative URL
 	http.Redirect(w, r, login, http.StatusFound)
 }
 
@@ -171,6 +173,7 @@ func (s *SSOProxy) Logout(w http.ResponseWriter, r *http.Request) {
 	span.SetAttributes(attribute.String("logout.redirect_to", target.String()))
 	span.SetAttributes(attribute.String("logout.redirect_after", canonicalRedirect))
 
+	// #nosec G710 -- the target is the configured SSO server URL; the redirect parameter is validated by Redirect.Canonical
 	http.Redirect(w, r, ssoServerLogoutURL, http.StatusFound)
 }
 

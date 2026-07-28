@@ -59,10 +59,10 @@ const (
 	OpenIDAudiences             = "openid.audiences"
 	OpenIDClientID              = "openid.client-id"
 	OpenIDClientJWK             = "openid.client-jwk"
-	OpenIDClientSecret          = "openid.client-secret"
+	OpenIDClientSecret          = "openid.client-secret" // #nosec G101 -- configuration key, not a credential
 	OpenIDDomainHint            = "openid.domain-hint"
 	OpenIDNewClientAuthJWTType  = "openid.new-client-auth-jwt-type"
-	OpenIDIDTokenSigningAlg     = "openid.id-token-signing-alg"
+	OpenIDIDTokenSigningAlg     = "openid.id-token-signing-alg" // #nosec G101 -- configuration key, not a credential
 	OpenIDPostLogoutRedirectURI = "openid.post-logout-redirect-uri"
 	OpenIDProvider              = "openid.provider"
 	OpenIDResourceIndicator     = "openid.resource-indicator"
