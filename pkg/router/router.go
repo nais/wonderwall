@@ -115,7 +115,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 
 				r.Get(paths.Ping, func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte("pong"))
+					_, _ = w.Write([]byte("pong"))
 				})
 
 				r.Route(paths.Session, func(r chi.Router) {

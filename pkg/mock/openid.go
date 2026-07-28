@@ -347,7 +347,7 @@ func (ip *IdentityProviderHandler) parseAuthorizationRequest(query url.Values) (
 
 func (ip *IdentityProviderHandler) Jwks(w http.ResponseWriter, r *http.Request) {
 	jwks, _ := ip.Provider.GetPublicJwkSet(r.Context())
-	json.NewEncoder(w).Encode(jwks)
+	_ = json.NewEncoder(w).Encode(jwks)
 }
 
 func (ip *IdentityProviderHandler) PushedAuthorizationRequest(w http.ResponseWriter, r *http.Request) {
@@ -391,7 +391,7 @@ func (ip *IdentityProviderHandler) PushedAuthorizationRequest(w http.ResponseWri
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(openid.PushedAuthorizationResponse{
+	_ = json.NewEncoder(w).Encode(openid.PushedAuthorizationResponse{
 		RequestUri: requestUri,
 		ExpiresIn:  60,
 	})
@@ -480,13 +480,13 @@ func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http
 	sub := uuid.New().String()
 
 	accessToken := jwt.New()
-	accessToken.Set("sub", sub)
-	accessToken.Set("iss", ip.Config.Provider().Issuer())
-	accessToken.Set("acr", auth.AcrLevel)
-	accessToken.Set("iat", iat.Unix())
-	accessToken.Set("exp", exp.Unix())
-	accessToken.Set("jti", uuid.NewString())
-	accessToken.Set("aud", auth.ClientID)
+	_ = accessToken.Set("sub", sub)
+	_ = accessToken.Set("iss", ip.Config.Provider().Issuer())
+	_ = accessToken.Set("acr", auth.AcrLevel)
+	_ = accessToken.Set("iat", iat.Unix())
+	_ = accessToken.Set("exp", exp.Unix())
+	_ = accessToken.Set("jti", uuid.NewString())
+	_ = accessToken.Set("aud", auth.ClientID)
 	signedAccessToken, err := ip.signToken(accessToken)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -495,19 +495,19 @@ func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http
 	}
 
 	idToken := jwt.New()
-	idToken.Set("sub", sub)
-	idToken.Set("iss", ip.Config.Provider().Issuer())
-	idToken.Set("aud", auth.ClientID)
-	idToken.Set("locale", auth.Locale)
-	idToken.Set("nonce", auth.Nonce)
-	idToken.Set("acr", auth.AcrLevel)
-	idToken.Set("iat", iat.Unix())
-	idToken.Set("exp", exp.Unix())
-	idToken.Set("jti", uuid.NewString())
+	_ = idToken.Set("sub", sub)
+	_ = idToken.Set("iss", ip.Config.Provider().Issuer())
+	_ = idToken.Set("aud", auth.ClientID)
+	_ = idToken.Set("locale", auth.Locale)
+	_ = idToken.Set("nonce", auth.Nonce)
+	_ = idToken.Set("acr", auth.AcrLevel)
+	_ = idToken.Set("iat", iat.Unix())
+	_ = idToken.Set("exp", exp.Unix())
+	_ = idToken.Set("jti", uuid.NewString())
 
 	// If the sid claim should be in token and in active session
 	if ip.Config.Provider().SidClaimRequired() {
-		idToken.Set("sid", auth.SessionID)
+		_ = idToken.Set("sid", auth.SessionID)
 	}
 
 	signedIdToken, err := ip.signToken(idToken)
@@ -536,7 +536,7 @@ func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(token)
+	_ = json.NewEncoder(w).Encode(token)
 }
 
 func (ip *IdentityProviderHandler) RefreshTokenGrant(w http.ResponseWriter, r *http.Request) {
@@ -570,11 +570,11 @@ func (ip *IdentityProviderHandler) RefreshTokenGrant(w http.ResponseWriter, r *h
 	}
 
 	accessToken := jwt.New()
-	accessToken.Set("sub", sub)
-	accessToken.Set("iss", ip.Config.Provider().Issuer())
-	accessToken.Set("iat", iat.Unix())
-	accessToken.Set("exp", exp.Unix())
-	accessToken.Set("jti", uuid.NewString())
+	_ = accessToken.Set("sub", sub)
+	_ = accessToken.Set("iss", ip.Config.Provider().Issuer())
+	_ = accessToken.Set("iat", iat.Unix())
+	_ = accessToken.Set("exp", exp.Unix())
+	_ = accessToken.Set("jti", uuid.NewString())
 	signedAccessToken, err := ip.signToken(accessToken)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -604,7 +604,7 @@ func (ip *IdentityProviderHandler) RefreshTokenGrant(w http.ResponseWriter, r *h
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(token)
+	_ = json.NewEncoder(w).Encode(token)
 }
 
 func (ip *IdentityProviderHandler) validateClientAuthentication(w http.ResponseWriter, r *http.Request, expectedClientID string) error {
@@ -627,7 +627,7 @@ func (ip *IdentityProviderHandler) validateClientAuthentication(w http.ResponseW
 
 	clientJwk := ip.Config.Client().ClientJWK()
 	clientJwkSet := jwk.NewSet()
-	clientJwkSet.AddKey(clientJwk)
+	_ = clientJwkSet.AddKey(clientJwk)
 	publicClientJwkSet, err := jwk.PublicSetOf(clientJwkSet)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -705,7 +705,7 @@ func (in *relyingPartyServer) SetHandler(handler http.Handler) {
 
 func oauthError(w http.ResponseWriter, err error) {
 	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(openid.TokenErrorResponse{
+	_ = json.NewEncoder(w).Encode(openid.TokenErrorResponse{
 		Error:            "invalid_request",
 		ErrorDescription: err.Error(),
 	})

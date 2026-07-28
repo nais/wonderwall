@@ -8,6 +8,7 @@ import (
 	jwtlib "github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nais/liberator/pkg/keygen"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/openid"
@@ -32,9 +33,9 @@ func makeCrypter(t *testing.T) crypto.Crypter {
 	return crypto.NewCrypter(key)
 }
 
-func makeData() *session.Data {
+func makeData(t *testing.T) *session.Data {
 	idToken := jwtlib.New()
-	idToken.Set("jti", "id-token-jti")
+	require.NoError(t, idToken.Set("jti", "id-token-jti"))
 
 	accessToken := "some-access-token"
 	refreshToken := "some-refresh-token"

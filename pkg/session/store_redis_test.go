@@ -12,7 +12,7 @@ import (
 
 func TestRedis(t *testing.T) {
 	crypter := makeCrypter(t)
-	data := makeData()
+	data := makeData(t)
 	encryptedData, err := data.Encrypt(crypter)
 	assert.NoError(t, err)
 

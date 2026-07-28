@@ -209,10 +209,10 @@ func handleAutologin(src ReverseProxySource, w http.ResponseWriter, r *http.Requ
 	if httpinternal.Accepts(r, "*/*", "application/json") {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "unauthenticated, please log in"}`))
+		_, _ = w.Write([]byte(`{"error": "unauthenticated, please log in"}`))
 	} else {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("unauthenticated, please log in"))
+		_, _ = w.Write([]byte("unauthenticated, please log in"))
 	}
 }
 

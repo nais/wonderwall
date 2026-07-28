@@ -88,7 +88,7 @@ func NewProviderConfig(cfg *config.Config) (Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetching well known configuration: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 
 	providerCfg := new(ProviderMetadata)
 	if err := json.NewDecoder(response.Body).Decode(providerCfg); err != nil {

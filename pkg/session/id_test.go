@@ -9,6 +9,7 @@ import (
 
 	jwtlib "github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/nais/wonderwall/pkg/mock"
 	"github.com/nais/wonderwall/pkg/openid"
@@ -29,7 +30,7 @@ func TestExternalID(t *testing.T) {
 		{
 			name:       "Support for front channel session with required sid claim",
 			config:     sidRequired(),
-			idToken:    idTokenWithSid("some-sid"),
+			idToken:    idTokenWithSid(t, "some-sid"),
 			want:       "some-sid",
 			exactMatch: true,
 		},
@@ -37,20 +38,20 @@ func TestExternalID(t *testing.T) {
 			name:       "Support for front channel session with required sid claim and session_state in param",
 			config:     sidRequired(),
 			params:     params("session_state", "some-session-state"),
-			idToken:    idTokenWithSid("some-sid"),
+			idToken:    idTokenWithSid(t, "some-sid"),
 			want:       "some-sid",
 			exactMatch: true,
 		},
 		{
 			name:      "Support for front channel session without required sid claim",
 			config:    sidRequired(),
-			idToken:   idToken(),
+			idToken:   idToken(t),
 			expectErr: true,
 		},
 		{
 			name:       "Support for session management with required param",
 			config:     sessionStateRequired(),
-			idToken:    idToken(),
+			idToken:    idToken(t),
 			params:     params("session_state", "some-session"),
 			want:       "some-session",
 			exactMatch: true,
@@ -58,7 +59,7 @@ func TestExternalID(t *testing.T) {
 		{
 			name:       "Support for session management with required param and sid in id_token",
 			config:     sessionStateRequired(),
-			idToken:    idTokenWithSid("some-sid"),
+			idToken:    idTokenWithSid(t, "some-sid"),
 			params:     params("session_state", "some-session"),
 			want:       "some-sid",
 			exactMatch: true,
@@ -66,28 +67,28 @@ func TestExternalID(t *testing.T) {
 		{
 			name:      "Support for session management with missing required param",
 			config:    sessionStateRequired(),
-			idToken:   idToken(),
+			idToken:   idToken(t),
 			params:    params("not_session_state", "some-session"),
 			expectErr: true,
 		},
 		{
 			name:       "No support for front-channel logout nor session management should generate session ID",
 			config:     standardConfig(),
-			idToken:    idToken(),
+			idToken:    idToken(t),
 			want:       "some-generated-id",
 			exactMatch: false,
 		},
 		{
 			name:       "No support for front-channel logout nor session management, sid in id_token",
 			config:     standardConfig(),
-			idToken:    idTokenWithSid("some-sid"),
+			idToken:    idTokenWithSid(t, "some-sid"),
 			want:       "some-sid",
 			exactMatch: true,
 		},
 		{
 			name:       "No support for front-channel logout nor session management, session_state in param",
 			config:     standardConfig(),
-			idToken:    idToken(),
+			idToken:    idToken(t),
 			params:     params("session_state", "some-session-state"),
 			want:       "some-session-state",
 			exactMatch: true,
@@ -95,7 +96,7 @@ func TestExternalID(t *testing.T) {
 		{
 			name:       "No support for front-channel logout nor session management, sid in id_token and session_state in param, sid should take precedence",
 			config:     standardConfig(),
-			idToken:    idTokenWithSid("some-sid"),
+			idToken:    idTokenWithSid(t, "some-sid"),
 			params:     params("session_state", "some-session-state"),
 			want:       "some-sid",
 			exactMatch: true,
@@ -159,36 +160,34 @@ func params(key, value string) url.Values {
 	return values
 }
 
-func newIDToken(extraClaims map[string]string) *openid.IDToken {
+func newIDToken(t *testing.T, extraClaims map[string]string) *openid.IDToken {
 	now := time.Now().Truncate(time.Second)
 
 	idToken := jwtlib.New()
-	idToken.Set("sub", "test")
-	idToken.Set("iss", "test")
-	idToken.Set("aud", "test")
-	idToken.Set("iat", now.Unix())
-	idToken.Set("exp", now.Add(time.Hour).Unix())
+	require.NoError(t, idToken.Set("sub", "test"))
+	require.NoError(t, idToken.Set("iss", "test"))
+	require.NoError(t, idToken.Set("aud", "test"))
+	require.NoError(t, idToken.Set("iat", now.Unix()))
+	require.NoError(t, idToken.Set("exp", now.Add(time.Hour).Unix()))
 
 	for claim, value := range extraClaims {
 		if len(claim) > 0 {
-			idToken.Set(claim, value)
+			require.NoError(t, idToken.Set(claim, value))
 		}
 	}
 
 	serialized, err := jwtlib.NewSerializer().Serialize(idToken)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	return openid.NewIDToken(string(serialized), idToken)
 }
 
-func idTokenWithSid(sid string) *openid.IDToken {
-	return newIDToken(map[string]string{
+func idTokenWithSid(t *testing.T, sid string) *openid.IDToken {
+	return newIDToken(t, map[string]string{
 		"sid": sid,
 	})
 }
 
-func idToken() *openid.IDToken {
-	return newIDToken(nil)
+func idToken(t *testing.T) *openid.IDToken {
+	return newIDToken(t, nil)
 }

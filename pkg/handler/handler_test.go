@@ -652,7 +652,7 @@ func request(t *testing.T, client *http.Client, method, url string, headers ...h
 }
 
 func body(t *testing.T, resp *http.Response) string {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)

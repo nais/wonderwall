@@ -213,7 +213,7 @@ func (c *Client) oauthPostRequest(ctx context.Context, endpoint string, payload 
 	if err != nil {
 		return nil, fmt.Errorf("performing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -91,16 +91,16 @@ func openidFlags() {
 func resolveOpenIdProvider() {
 	switch Provider(viper.GetString(OpenIDProvider)) {
 	case ProviderIDPorten:
-		viper.BindEnv(OpenIDClientID, "IDPORTEN_CLIENT_ID")
-		viper.BindEnv(OpenIDClientJWK, "IDPORTEN_CLIENT_JWK")
-		viper.BindEnv(OpenIDWellKnownURL, "IDPORTEN_WELL_KNOWN_URL")
+		_ = viper.BindEnv(OpenIDClientID, "IDPORTEN_CLIENT_ID")
+		_ = viper.BindEnv(OpenIDClientJWK, "IDPORTEN_CLIENT_JWK")
+		_ = viper.BindEnv(OpenIDWellKnownURL, "IDPORTEN_WELL_KNOWN_URL")
 
 		viper.SetDefault(OpenIDACRValues, acr.IDPortenLevelHigh)
 		viper.SetDefault(OpenIDUILocales, "nb")
 	case ProviderAzure:
-		viper.BindEnv(OpenIDClientID, "AZURE_APP_CLIENT_ID")
-		viper.BindEnv(OpenIDClientJWK, "AZURE_APP_JWK")
-		viper.BindEnv(OpenIDWellKnownURL, "AZURE_APP_WELL_KNOWN_URL")
+		_ = viper.BindEnv(OpenIDClientID, "AZURE_APP_CLIENT_ID")
+		_ = viper.BindEnv(OpenIDClientJWK, "AZURE_APP_JWK")
+		_ = viper.BindEnv(OpenIDWellKnownURL, "AZURE_APP_WELL_KNOWN_URL")
 	default:
 		viper.Set(OpenIDProvider, ProviderOpenID)
 	}

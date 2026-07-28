@@ -29,7 +29,7 @@ func TestAbsoluteValidator_IsValidRedirect(t *testing.T) {
 	t.Run("open redirects list", func(t *testing.T) {
 		file, err := os.Open("testdata/open-redirects.txt")
 		require.NoError(t, err)
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
@@ -143,7 +143,7 @@ func TestRelativeValidator_IsValidRedirect(t *testing.T) {
 	t.Run("open redirects list", func(t *testing.T) {
 		file, err := os.Open("testdata/open-redirects.txt")
 		require.NoError(t, err)
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {

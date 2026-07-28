@@ -118,7 +118,7 @@ func newProbeServer(cfg *config.Config) *http.Server {
 	mux := http.NewServeMux()
 	healthz := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	})
 	mux.HandleFunc("/", healthz)
 	mux.HandleFunc("/healthz", healthz)

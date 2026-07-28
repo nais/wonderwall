@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/nais/wonderwall/internal/crypto"
 )
@@ -61,6 +62,7 @@ func BenchmarkEncrypt(b *testing.B) {
 	crypter := crypto.NewCrypter(key)
 
 	for n := 0; n < b.N; n++ {
-		crypter.Encrypt(plaintext)
+		_, err := crypter.Encrypt(plaintext)
+		require.NoError(b, err)
 	}
 }
