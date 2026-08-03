@@ -69,7 +69,7 @@ Expects a dict as input with the following keys:
 {{- $secretName := .secretName -}}
 {{- $instance := include "aiven.instanceName" (dict "provider" $provider "root" $root) }}
 ---
-apiVersion: aiven.nais.io/v1
+apiVersion: aiven.nais.io/v2
 kind: AivenApplication
 metadata:
   name: {{ $instance }}-{{ $access }}
@@ -80,6 +80,6 @@ spec:
   valkey:
     - access: {{ $access }}
       instance: {{ $instance }}
-  secretName: {{ $secretName }}
+      secretName: {{ $secretName }}
   protected: true
 {{- end }}
