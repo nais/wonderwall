@@ -74,7 +74,7 @@ jobs:
           service_account: "gh-wonderwall@nais-io.iam.gserviceaccount.com"
           token_format: "access_token"
       - name: "Login to registry"
-        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # ratchet:docker/login-action@v4
+        uses: docker/login-action@371161bbe7024a29a25c5e19bfcbc0804fe9ad2c # ratchet:docker/login-action@v4
         with:
           registry: "${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature"
           username: "oauth2accesstoken"
