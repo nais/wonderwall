@@ -135,6 +135,7 @@ type (
 )
 
 type IdentityProviderHandler struct {
+	ClientAssertions                map[string]bool
 	Codes                           map[Code]*AuthorizeRequest
 	Config                          openidconfig.Config
 	Provider                        *TestProvider
@@ -146,6 +147,7 @@ type IdentityProviderHandler struct {
 
 func newIdentityProviderHandler(provider *TestProvider, cfg openidconfig.Config) *IdentityProviderHandler {
 	return &IdentityProviderHandler{
+		ClientAssertions:                make(map[string]bool),
 		Codes:                           make(map[Code]*AuthorizeRequest),
 		Config:                          cfg,
 		Provider:                        provider,
@@ -643,8 +645,9 @@ func (ip *IdentityProviderHandler) validateClientAuthentication(w http.ResponseW
 		jwt.WithIssuer(ip.Config.Client().ClientID()),
 		jwt.WithSubject(ip.Config.Client().ClientID()),
 		jwt.WithAudience(ip.Config.Provider().Issuer()),
+		jwt.WithMaxDelta(10*time.Second, jwt.ExpirationKey, jwt.IssuedAtKey),
 	}
-	_, err = jwt.Parse([]byte(clientAssertion), opts...)
+	clientAssertionJwt, err := jwt.Parse([]byte(clientAssertion), opts...)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		v := url.Values{}
@@ -653,6 +656,25 @@ func (ip *IdentityProviderHandler) validateClientAuthentication(w http.ResponseW
 		v.Encode()
 		return fmt.Errorf("%s: %+v", v.Encode(), err)
 	}
+
+	var jti any
+	err = clientAssertionJwt.Get(jwt.JwtIDKey, &jti)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return fmt.Errorf("client_assertion missing jti claim")
+	}
+
+	jtiString, ok := jti.(string)
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return fmt.Errorf("client_assertion jti claim is not a string")
+	}
+
+	if ip.ClientAssertions[jtiString] {
+		w.WriteHeader(http.StatusBadRequest)
+		return fmt.Errorf("client_assertion with jti %q has already been used", jtiString)
+	}
+	ip.ClientAssertions[jtiString] = true
 
 	return nil
 }
