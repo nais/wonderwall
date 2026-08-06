@@ -24,7 +24,7 @@ func TestClientAuthenticationAssertion(t *testing.T) {
 	openidConfig.TestProvider.SetIssuer("some-issuer")
 	c := newTestClientWithConfig(openidConfig)
 
-	expiry := 30 * time.Second
+	expiry := client.DefaultClientAssertionLifetime
 	jwtAssertion, err := c.ClientAuthenticationAssertion(expiry)
 	assert.NoError(t, err)
 
@@ -102,7 +102,7 @@ func TestClientAuthenticationAssertionHeader(t *testing.T) {
 	openidConfig.TestProvider.SetIssuer("some-issuer")
 	c := newTestClientWithConfig(openidConfig)
 
-	expiry := 30 * time.Second
+	expiry := client.DefaultClientAssertionLifetime
 	jwtAssertion, err := c.ClientAuthenticationAssertion(expiry)
 	assert.NoError(t, err)
 

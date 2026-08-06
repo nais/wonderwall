@@ -35,7 +35,7 @@ var (
 )
 
 const (
-	DefaultClientAssertionLifetime = 30 * time.Second
+	DefaultClientAssertionLifetime = 5 * time.Second
 )
 
 type JwksProvider interface {
