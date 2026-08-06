@@ -113,13 +113,13 @@ func (c *Client) authCodeURL(ctx context.Context, authCodeParams openid.Authoriz
 		ctx, span := otel.StartSpan(ctx, "Client.PushedAuthorizationRequest")
 		defer span.End()
 
-		clientAuth, err := c.ClientAuthenticationParams()
-		if err != nil {
-			return "", fmt.Errorf("generating client authentication parameters: %w", err)
-		}
-
 		endpoint := c.cfg.Provider().PushedAuthorizationRequestEndpoint()
 		resp, err := retry.DoValue(ctx, func(ctx context.Context) (*openid.PushedAuthorizationResponse, error) {
+			clientAuth, err := c.ClientAuthenticationParams()
+			if err != nil {
+				return nil, fmt.Errorf("generating client authentication parameters: %w", err)
+			}
+
 			body, err := c.oauthPostRequest(ctx, endpoint, authCodeParams.RequestParams().With(clientAuth))
 			if err != nil {
 				if errors.Is(err, ErrOpenIDServer) {

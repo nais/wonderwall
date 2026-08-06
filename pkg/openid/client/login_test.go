@@ -1,9 +1,13 @@
 package client_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -34,6 +38,68 @@ func TestLogin_PushedAuthorizationRequest(t *testing.T) {
 	assert.NotEmpty(t, query["request_uri"])
 	assert.Contains(t, query["request_uri"][0], "urn:ietf:params:oauth:request_uri")
 	assert.ElementsMatch(t, query["client_id"], []string{idp.OpenIDConfig.Client().ClientID()})
+}
+
+func TestLogin_PushedAuthorizationRequest_RetryMintsNewAssertion(t *testing.T) {
+	var mu sync.Mutex
+	var assertions []string
+
+	attempts := 0
+	parServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseForm())
+
+		mu.Lock()
+		assertions = append(assertions, r.PostForm.Get("client_assertion"))
+		attempts++
+		attempt := attempts
+		mu.Unlock()
+
+		if attempt == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"request_uri":"urn:ietf:params:oauth:request_uri:some-uri","expires_in":60}`))
+	}))
+	defer parServer.Close()
+
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+	idp.OpenIDConfig.TestProvider.SetPushedAuthorizationRequestEndpoint(parServer.URL)
+
+	req := idp.GetRequest(mock.Ingress + "/oauth2/login")
+	result, err := idp.RelyingPartyHandler.Client.Login(req)
+	require.NoError(t, err)
+
+	parsed, err := url.Parse(result.AuthCodeURL)
+	require.NoError(t, err)
+	assert.Equal(t, "urn:ietf:params:oauth:request_uri:some-uri", parsed.Query().Get("request_uri"))
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, assertions, 2, "expected the 503 to be retried exactly once")
+
+	parseJti := func(t *testing.T, assertion string) string {
+		t.Helper()
+
+		tok, err := jwt.ParseString(
+			assertion,
+			jwt.WithVerify(false), // the assertion is signed for the IdP, not for us
+			jwt.WithValidate(false),
+		)
+		require.NoError(t, err)
+
+		jti, ok := tok.JwtID()
+		require.True(t, ok)
+		return jti
+	}
+
+	first := parseJti(t, assertions[0])
+	second := parseJti(t, assertions[1])
+	assert.NotEmpty(t, first)
+	assert.NotEqual(t, first, second, "retry reused the client assertion; each attempt must mint a new jti")
 }
 
 func TestLogin_URL(t *testing.T) {
