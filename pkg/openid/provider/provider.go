@@ -36,7 +36,7 @@ func (p *JwksProvider) GetPublicJwkSet(ctx context.Context) (*jwk.Set, error) {
 		return nil, fmt.Errorf("provider: fetching jwks: %w", err)
 	}
 
-	set, err = ensureJwkSetWithAlg(set, p.config.IDTokenSigningAlg())
+	set, err = ensureJwkSetWithAlg(set, p.config.JwksFallbackAlg())
 	if err != nil {
 		return nil, fmt.Errorf("provider: mutating jwks: %w", err)
 	}
@@ -65,7 +65,7 @@ func (p *JwksProvider) RefreshPublicJwkSet(ctx context.Context) (*jwk.Set, error
 		return nil, fmt.Errorf("provider: refreshing jwks: %w", err)
 	}
 
-	set, err = ensureJwkSetWithAlg(set, p.config.IDTokenSigningAlg())
+	set, err = ensureJwkSetWithAlg(set, p.config.JwksFallbackAlg())
 	if err != nil {
 		return nil, fmt.Errorf("provider: mutating jwks: %w", err)
 	}

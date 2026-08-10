@@ -25,7 +25,7 @@ type OpenID struct {
 	ClientJWK             string   `json:"client-jwk"`
 	ClientSecret          string   `json:"client-secret"`
 	DomainHint            string   `json:"domain-hint"`
-	IDTokenSigningAlg     string   `json:"id-token-signing-alg"`
+	JWKSFallbackAlg       string   `json:"jwks-fallback-alg"`
 	NewClientAuthJWTType  bool     `json:"new-client-auth-jwt-type"`
 	PostLogoutRedirectURI string   `json:"post-logout-redirect-uri"`
 	Provider              Provider `json:"provider"`
@@ -46,9 +46,9 @@ func (in OpenID) TrustedAudiences() map[string]bool {
 }
 
 func (in OpenID) Validate() error {
-	_, ok := jwa.LookupSignatureAlgorithm(in.IDTokenSigningAlg)
+	_, ok := jwa.LookupSignatureAlgorithm(in.JWKSFallbackAlg)
 	if !ok {
-		return fmt.Errorf("invalid id_token signing algorithm: %q, must be one of %s", in.IDTokenSigningAlg, jwa.SignatureAlgorithms())
+		return fmt.Errorf("invalid JWKS fallback algorithm: %q, must be one of %s", in.JWKSFallbackAlg, jwa.SignatureAlgorithms())
 	}
 
 	return nil
@@ -61,8 +61,8 @@ const (
 	OpenIDClientJWK             = "openid.client-jwk"
 	OpenIDClientSecret          = "openid.client-secret" // #nosec G101 -- configuration key, not a credential
 	OpenIDDomainHint            = "openid.domain-hint"
+	OpenIDJWKSFallbackAlg       = "openid.jwks-fallback-alg"
 	OpenIDNewClientAuthJWTType  = "openid.new-client-auth-jwt-type"
-	OpenIDIDTokenSigningAlg     = "openid.id-token-signing-alg" // #nosec G101 -- configuration key, not a credential
 	OpenIDPostLogoutRedirectURI = "openid.post-logout-redirect-uri"
 	OpenIDProvider              = "openid.provider"
 	OpenIDResourceIndicator     = "openid.resource-indicator"
@@ -78,7 +78,7 @@ func openidFlags() {
 	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format. If configured, this takes precedence over 'openid.client-secret'.")
 	flag.String(OpenIDClientSecret, "", "Client secret for the OpenID client. Overridden by 'openid.client-jwk', if configured.")
 	flag.String(OpenIDDomainHint, "", "Domain hint to include in authorization request for IdPs that support this parameter (e.g. Entra ID).")
-	flag.String(OpenIDIDTokenSigningAlg, jwa.RS256().String(), "Expected JWA value (as defined in RFC 7518) of public keys for validating id_token signatures. This only applies where the key's 'alg' header is not set.")
+	flag.String(OpenIDJWKSFallbackAlg, jwa.RS256().String(), "JWA value (as defined in RFC 7518) to assign to provider JWKS keys when their 'alg' header is not set.")
 	flag.Bool(OpenIDNewClientAuthJWTType, false, "When enabled, sets the value of the \"typ\" header of the JWT used for client authentication equal to \"client-authentication+jwt\" in accordance with RFC7523bis. If not enabled, the value is set to \"JWT\".")
 	flag.String(OpenIDPostLogoutRedirectURI, "", "URI for redirecting the user after successful logout at the Identity Provider.")
 	flag.String(OpenIDProvider, string(ProviderOpenID), "Provider configuration to load and use, either 'openid', 'azure', 'idporten'.")

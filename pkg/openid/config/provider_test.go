@@ -49,7 +49,7 @@ func TestProviderMetadata_Validate(t *testing.T) {
 		},
 		{
 			name:      "invalid signing algorithm",
-			config:    config.OpenID{IDTokenSigningAlg: "HS256"},
+			config:    config.OpenID{JWKSFallbackAlg: "HS256"},
 			assertion: assert.Error,
 		},
 	} {
@@ -61,8 +61,8 @@ func TestProviderMetadata_Validate(t *testing.T) {
 			if tt.config.UILocales != "" {
 				cfg.OpenID.UILocales = tt.config.UILocales
 			}
-			if tt.config.IDTokenSigningAlg != "" {
-				cfg.OpenID.IDTokenSigningAlg = tt.config.IDTokenSigningAlg
+			if tt.config.JWKSFallbackAlg != "" {
+				cfg.OpenID.JWKSFallbackAlg = tt.config.JWKSFallbackAlg
 			}
 
 			err := metadata.Validate(cfg.OpenID)

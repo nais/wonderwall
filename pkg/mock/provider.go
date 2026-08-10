@@ -58,7 +58,7 @@ func (t *TestProviderConfiguration) EndSessionEndpointURL() url.URL {
 	return *u
 }
 
-func (t *TestProviderConfiguration) IDTokenSigningAlg() jwa.KeyAlgorithm {
+func (t *TestProviderConfiguration) JwksFallbackAlg() jwa.KeyAlgorithm {
 	return jwa.RS256()
 }
 

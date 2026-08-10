@@ -19,7 +19,7 @@ func Config() *config.Config {
 		OpenID: config.OpenID{
 			ACRValues:             "idporten-loa-high",
 			ClientID:              "client-id",
-			IDTokenSigningAlg:     "RS256",
+			JWKSFallbackAlg:       "RS256",
 			PostLogoutRedirectURI: "https://google.com",
 			Provider:              "test",
 			Scopes:                []string{"some-scope"},

@@ -22,7 +22,7 @@ type Provider interface {
 	AuthorizationEndpoint() string
 	AuthorizationResponseIssParameterSupported() bool
 	EndSessionEndpointURL() url.URL
-	IDTokenSigningAlg() jwa.KeyAlgorithm
+	JwksFallbackAlg() jwa.KeyAlgorithm
 	Issuer() string
 	JwksURI() string
 	PushedAuthorizationRequestEndpoint() string
@@ -34,7 +34,7 @@ type Provider interface {
 
 type provider struct {
 	endSessionEndpointURL *url.URL
-	idTokenSigningAlg     jwa.KeyAlgorithm
+	jwksFallbackAlg       jwa.KeyAlgorithm
 	metadata              *ProviderMetadata
 }
 
@@ -54,8 +54,8 @@ func (p *provider) TokenEndpoint() string {
 	return p.metadata.TokenEndpoint
 }
 
-func (p *provider) IDTokenSigningAlg() jwa.KeyAlgorithm {
-	return p.idTokenSigningAlg
+func (p *provider) JwksFallbackAlg() jwa.KeyAlgorithm {
+	return p.jwksFallbackAlg
 }
 
 func (p *provider) Issuer() string {
@@ -127,14 +127,14 @@ func NewProviderConfig(ctx context.Context, cfg *config.Config) (Provider, error
 
 	providerCfg.Print()
 
-	signingAlg, ok := jwa.LookupSignatureAlgorithm(cfg.OpenID.IDTokenSigningAlg)
+	fallbackAlg, ok := jwa.LookupSignatureAlgorithm(cfg.OpenID.JWKSFallbackAlg)
 	if !ok {
-		return nil, fmt.Errorf("invalid id_token signing algorithm: %q, must be one of %s", cfg.OpenID.IDTokenSigningAlg, jwa.SignatureAlgorithms())
+		return nil, fmt.Errorf("invalid JWKS fallback algorithm: %q, must be one of %s", cfg.OpenID.JWKSFallbackAlg, jwa.SignatureAlgorithms())
 	}
 
 	return &provider{
 		endSessionEndpointURL: endSessionEndpointURL,
-		idTokenSigningAlg:     signingAlg,
+		jwksFallbackAlg:       fallbackAlg,
 		metadata:              providerCfg,
 	}, nil
 }
@@ -183,7 +183,7 @@ func (c *ProviderMetadata) Validate(cfg config.OpenID) error {
 		return err
 	}
 
-	err = c.validateIDTokenSigningAlg(cfg.IDTokenSigningAlg)
+	err = c.validateJWKSFallbackAlg(cfg.JWKSFallbackAlg)
 	if err != nil {
 		return err
 	}
@@ -212,12 +212,13 @@ func (c *ProviderMetadata) validateLocaleValues(locale string) error {
 	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", config.OpenIDUILocales, locale, c.UILocalesSupported)
 }
 
-func (c *ProviderMetadata) validateIDTokenSigningAlg(algorithm string) error {
+func (c *ProviderMetadata) validateJWKSFallbackAlg(algorithm string) error {
+	// The JWKS is only used to verify id_tokens, so this is the right list.
 	if slices.Contains(c.IDTokenSigningAlgValuesSupported, algorithm) {
 		return nil
 	}
 
-	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", config.OpenIDIDTokenSigningAlg, algorithm, c.IDTokenSigningAlgValuesSupported)
+	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", config.OpenIDJWKSFallbackAlg, algorithm, c.IDTokenSigningAlgValuesSupported)
 }
 
 type Supported []string
