@@ -89,7 +89,7 @@ func (p *provider) SidClaimRequired() bool {
 // wellKnownTimeout bounds the fetch of the provider's metadata document at startup.
 const wellKnownTimeout = 10 * time.Second
 
-func NewProviderConfig(ctx context.Context, cfg *config.Config) (Provider, error) {
+func NewProviderConfig(ctx context.Context, cfg *config.Config, clientAssertionAlg jwa.KeyAlgorithm) (Provider, error) {
 	ctx, cancel := context.WithTimeout(ctx, wellKnownTimeout)
 	defer cancel()
 
@@ -115,7 +115,7 @@ func NewProviderConfig(ctx context.Context, cfg *config.Config) (Provider, error
 		return nil, fmt.Errorf("decoding well known configuration: %w", err)
 	}
 
-	err = providerCfg.Validate(cfg.OpenID)
+	err = providerCfg.Validate(cfg.OpenID, clientAssertionAlg)
 	if err != nil {
 		return nil, fmt.Errorf("validating well known configuration: %w", err)
 	}
@@ -163,6 +163,7 @@ type ProviderMetadata struct {
 	SubjectTypesSupported                      []string  `json:"subject_types_supported"`
 	TokenEndpoint                              string    `json:"token_endpoint"`
 	TokenEndpointAuthMethodsSupported          []string  `json:"token_endpoint_auth_methods_supported"`
+	TokenEndpointAuthSigningAlgValuesSupported []string  `json:"token_endpoint_auth_signing_alg_values_supported"`
 	UILocalesSupported                         Supported `json:"ui_locales_supported"`
 	UserInfoEndpoint                           string    `json:"userinfo_endpoint"`
 }
@@ -172,7 +173,7 @@ func (c *ProviderMetadata) Print() {
 		Debugf("openid provider config: %+v", c)
 }
 
-func (c *ProviderMetadata) Validate(cfg config.OpenID) error {
+func (c *ProviderMetadata) Validate(cfg config.OpenID, clientAssertionAlg jwa.KeyAlgorithm) error {
 	err := c.validateAcrValues(cfg.ACRValues)
 	if err != nil {
 		return err
@@ -188,7 +189,7 @@ func (c *ProviderMetadata) Validate(cfg config.OpenID) error {
 		return err
 	}
 
-	return nil
+	return c.validateClientAssertionSigningAlg(clientAssertionAlg)
 }
 
 func (c *ProviderMetadata) validateAcrValues(acrValue string) error {
@@ -219,6 +220,18 @@ func (c *ProviderMetadata) validateJWKSFallbackAlg(algorithm string) error {
 	}
 
 	return fmt.Errorf("identity provider does not support '%s=%s', must be one of %s", config.OpenIDJWKSFallbackAlg, algorithm, c.IDTokenSigningAlgValuesSupported)
+}
+
+func (c *ProviderMetadata) validateClientAssertionSigningAlg(algorithm jwa.KeyAlgorithm) error {
+	if len(c.TokenEndpointAuthSigningAlgValuesSupported) == 0 || algorithm == nil {
+		return nil
+	}
+
+	if slices.Contains(c.TokenEndpointAuthSigningAlgValuesSupported, algorithm.String()) {
+		return nil
+	}
+
+	return fmt.Errorf("identity provider does not support client assertion signing algorithm %q, must be one of %s", algorithm, c.TokenEndpointAuthSigningAlgValuesSupported)
 }
 
 type Supported []string

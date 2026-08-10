@@ -30,7 +30,7 @@ func NewConfig(ctx context.Context, cfg *wonderwallconfig.Config) (Config, error
 		return nil, err
 	}
 
-	providerCfg, err := NewProviderConfig(ctx, cfg)
+	providerCfg, err := NewProviderConfig(ctx, cfg, clientCfg.ClientJWKAlgorithm())
 	if err != nil {
 		return nil, err
 	}

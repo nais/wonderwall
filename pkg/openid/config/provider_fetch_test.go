@@ -24,7 +24,7 @@ func TestNewProviderConfig_NonOK(t *testing.T) {
 		cfg := mock.Config()
 		cfg.OpenID.WellKnownURL = server.URL
 
-		_, err := openidconfig.NewProviderConfig(context.Background(), cfg)
+		_, err := openidconfig.NewProviderConfig(context.Background(), cfg, nil)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "responded with HTTP")
 	}
@@ -37,6 +37,6 @@ func TestNewProviderConfig_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := openidconfig.NewProviderConfig(ctx, cfg)
+	_, err := openidconfig.NewProviderConfig(ctx, cfg, nil)
 	assert.Error(t, err)
 }

@@ -3,8 +3,11 @@ package config_test
 import (
 	"testing"
 
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/nais/wonderwall/pkg/mock"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
@@ -65,8 +68,43 @@ func TestProviderMetadata_Validate(t *testing.T) {
 				cfg.OpenID.JWKSFallbackAlg = tt.config.JWKSFallbackAlg
 			}
 
-			err := metadata.Validate(cfg.OpenID)
+			err := metadata.Validate(cfg.OpenID, nil)
 			tt.assertion(t, err)
+		})
+	}
+}
+
+func TestProviderMetadata_ValidateClientAssertionSigningAlg(t *testing.T) {
+	key, err := crypto.NewJwk()
+	require.NoError(t, err)
+	algorithm, ok := key.Algorithm()
+	require.True(t, ok)
+
+	for _, tt := range []struct {
+		name      string
+		supported []string
+		clientAlg jwa.KeyAlgorithm
+		assertion assert.ErrorAssertionFunc
+	}{
+		{name: "supported", supported: []string{"RS256"}, clientAlg: algorithm, assertion: assert.NoError},
+		{name: "unsupported", supported: []string{"PS256"}, clientAlg: algorithm, assertion: func(t assert.TestingT, err error, msgAndArgs ...any) bool {
+			return assert.ErrorContains(t, err, "does not support client assertion signing algorithm", msgAndArgs...)
+		}},
+		{name: "metadata field absent", clientAlg: algorithm, assertion: assert.NoError},
+		// client_secret has no assertion alg; PS256 proves the check is skipped, not passed.
+		{name: "no client assertion algorithm", supported: []string{"PS256"}, assertion: assert.NoError},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			// acr and locale pass on empty input, so zeroing them isolates this test.
+			cfg := mock.Config()
+			cfg.OpenID.ACRValues = ""
+			cfg.OpenID.UILocales = ""
+
+			metadata := &openidconfig.ProviderMetadata{
+				IDTokenSigningAlgValuesSupported:           openidconfig.Supported{cfg.OpenID.JWKSFallbackAlg},
+				TokenEndpointAuthSigningAlgValuesSupported: tt.supported,
+			}
+			tt.assertion(t, metadata.Validate(cfg.OpenID, tt.clientAlg))
 		})
 	}
 }
