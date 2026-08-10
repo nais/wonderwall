@@ -184,10 +184,7 @@ func (c *Client) ClientAuthenticationAssertion(expiration time.Duration) (string
 		return "", fmt.Errorf("building client assertion: %w", err)
 	}
 
-	alg, ok := key.Algorithm()
-	if !ok {
-		return "", fmt.Errorf("missing algorithm on client key")
-	}
+	alg := clientCfg.ClientJWKAlgorithm()
 
 	opts := make([]jwt.Option, 0)
 	if c.cfg.Client().NewClientAuthJWTType() {

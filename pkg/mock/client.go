@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
@@ -11,6 +12,7 @@ import (
 type TestClientConfiguration struct {
 	*config.Config
 	clientJwk        jwk.Key
+	clientJwkAlg     jwa.KeyAlgorithm
 	trustedAudiences map[string]bool
 }
 
@@ -34,6 +36,10 @@ func (c *TestClientConfiguration) ClientID() string {
 
 func (c *TestClientConfiguration) ClientJWK() jwk.Key {
 	return c.clientJwk
+}
+
+func (c *TestClientConfiguration) ClientJWKAlgorithm() jwa.KeyAlgorithm {
+	return c.clientJwkAlg
 }
 
 func (c *TestClientConfiguration) ClientSecret() string {
@@ -78,9 +84,15 @@ func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
 		panic(err)
 	}
 
+	alg, ok := key.Algorithm()
+	if !ok {
+		panic("test client JWK is missing an algorithm")
+	}
+
 	return &TestClientConfiguration{
 		Config:           cfg,
 		clientJwk:        key,
+		clientJwkAlg:     alg,
 		trustedAudiences: cfg.OpenID.TrustedAudiences(),
 	}
 }

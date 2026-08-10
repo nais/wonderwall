@@ -75,7 +75,7 @@ func openidFlags() {
 	flag.String(OpenIDACRValues, "", "Space separated string that configures the default security level (acr_values) parameter for authorization requests.")
 	flag.StringSlice(OpenIDAudiences, []string{}, "List of additional trusted audiences (other than the client_id) for OpenID Connect id_token validation.")
 	flag.String(OpenIDClientID, "", "Client ID for the OpenID client.")
-	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format. If configured, this takes precedence over 'openid.client-secret'.")
+	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format. Must declare the 'alg' header. If configured, this takes precedence over 'openid.client-secret'.")
 	flag.String(OpenIDClientSecret, "", "Client secret for the OpenID client. Overridden by 'openid.client-jwk', if configured.")
 	flag.String(OpenIDDomainHint, "", "Domain hint to include in authorization request for IdPs that support this parameter (e.g. Entra ID).")
 	flag.String(OpenIDJWKSFallbackAlg, jwa.RS256().String(), "JWA value (as defined in RFC 7518) to assign to provider JWKS keys when their 'alg' header is not set.")

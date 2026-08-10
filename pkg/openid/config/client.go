@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	log "github.com/sirupsen/logrus"
 
@@ -23,6 +24,7 @@ type Client interface {
 	AuthMethod() AuthMethod
 	ClientID() string
 	ClientJWK() jwk.Key
+	ClientJWKAlgorithm() jwa.KeyAlgorithm
 	ClientSecret() string
 	DomainHint() string
 	NewClientAuthJWTType() bool
@@ -37,6 +39,7 @@ type client struct {
 	config.OpenID
 	authMethod       AuthMethod
 	clientJwk        jwk.Key
+	clientJwkAlg     jwa.KeyAlgorithm
 	trustedAudiences map[string]bool
 }
 
@@ -60,6 +63,12 @@ func (in *client) ClientID() string {
 
 func (in *client) ClientJWK() jwk.Key {
 	return in.clientJwk
+}
+
+// ClientJWKAlgorithm returns the algorithm declared by the client JWK, or nil
+// when authenticating with a client secret. NewClientConfig guarantees it is set.
+func (in *client) ClientJWKAlgorithm() jwa.KeyAlgorithm {
+	return in.clientJwkAlg
 }
 
 func (in *client) ClientSecret() string {
@@ -117,8 +126,13 @@ func NewClientConfig(cfg *config.Config) (Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("parsing client JWK: %w", err)
 		}
+		alg, ok := clientJwk.Algorithm()
+		if !ok {
+			return nil, fmt.Errorf("client JWK is missing required %q", jwk.AlgorithmKey)
+		}
 
 		c.clientJwk = clientJwk
+		c.clientJwkAlg = alg
 		c.authMethod = AuthMethodPrivateKeyJWT
 	}
 
