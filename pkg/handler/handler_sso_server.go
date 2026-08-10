@@ -31,18 +31,6 @@ func NewSSOServer(cfg *config.Config, handler *Standalone) (*SSOServer, error) {
 	return &SSOServer{Standalone: handler}, nil
 }
 
-func (s *SSOServer) Logout(w http.ResponseWriter, r *http.Request) {
-	s.Standalone.Logout(w, r)
-}
-
-func (s *SSOServer) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
-	s.Standalone.LogoutFrontChannel(w, r)
-}
-
-func (s *SSOServer) LogoutLocal(w http.ResponseWriter, r *http.Request) {
-	s.Standalone.LogoutLocal(w, r)
-}
-
 // Wildcard redirects unhandled requests to the default redirect URL.
 func (s *SSOServer) Wildcard(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, s.Config.SSO.ServerDefaultRedirectURL, http.StatusFound)
