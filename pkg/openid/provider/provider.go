@@ -95,7 +95,9 @@ func NewJwksProvider(ctx context.Context, openidCfg openidconfig.Config) (*JwksP
 }
 
 func ensureJwkSetWithAlg(set jwk.Set, expectedAlg jwa.KeyAlgorithm) (jwk.Set, error) {
-	for i := 0; i < set.Len(); i++ {
+	// Some providers omit "alg" from JWKS keys; this fallback is a compatibility
+	// shim, not a security control. Iterate backwards: RemoveKey shifts later keys down.
+	for i := set.Len() - 1; i >= 0; i-- {
 		key, ok := set.Key(i)
 		if !ok {
 			continue
