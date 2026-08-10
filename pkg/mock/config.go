@@ -3,6 +3,8 @@ package mock
 import (
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/ingress"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
@@ -45,8 +47,17 @@ func (c *TestConfiguration) Provider() openidconfig.Provider {
 }
 
 func NewTestConfiguration(cfg *config.Config) *TestConfiguration {
+	key, err := crypto.NewJwk()
+	if err != nil {
+		panic(err)
+	}
+
+	return NewTestConfigurationWithClientJWK(cfg, key)
+}
+
+func NewTestConfigurationWithClientJWK(cfg *config.Config, key jwk.Key) *TestConfiguration {
 	return &TestConfiguration{
-		TestClient:   clientConfiguration(cfg),
+		TestClient:   clientConfiguration(cfg, key),
 		TestProvider: providerConfiguration(cfg),
 	}
 }

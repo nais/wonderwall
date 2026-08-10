@@ -3,7 +3,6 @@ package mock
 import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"github.com/nais/wonderwall/pkg/openid/scopes"
@@ -78,12 +77,7 @@ func (c *TestClientConfiguration) WellKnownURL() string {
 	return c.OpenID.WellKnownURL
 }
 
-func clientConfiguration(cfg *config.Config) *TestClientConfiguration {
-	key, err := crypto.NewJwk()
-	if err != nil {
-		panic(err)
-	}
-
+func clientConfiguration(cfg *config.Config, key jwk.Key) *TestClientConfiguration {
 	alg, ok := key.Algorithm()
 	if !ok {
 		panic("test client JWK is missing an algorithm")
