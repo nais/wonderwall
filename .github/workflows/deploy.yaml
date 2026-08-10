@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # ratchet:actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # ratchet:jdx/mise-action@v4
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # ratchet:jdx/mise-action@v4
       - run: mise run ${{ matrix.task }}
   build:
     needs: verify
@@ -74,7 +74,7 @@ jobs:
           service_account: "gh-wonderwall@nais-io.iam.gserviceaccount.com"
           token_format: "access_token"
       - name: "Login to registry"
-        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # ratchet:docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # ratchet:docker/login-action@v4
         with:
           registry: "${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature"
           username: "oauth2accesstoken"
