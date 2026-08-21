@@ -2,7 +2,7 @@
 pin = true
 
 [tools]
-go = "1.26.6"
+go = "1.26.7"
 golangci-lint = "2.12.2"
 "go:github.com/securego/gosec/v2/cmd/gosec" = "2.28.0"
 "go:github.com/sethvargo/ratchet" = "0.12.0"

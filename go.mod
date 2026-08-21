@@ -1,6 +1,6 @@
 module github.com/nais/wonderwall
 
-go 1.26.6
+go 1.26.7
 
 require (
 	github.com/KimMachineGun/automemlimit v0.7.5
