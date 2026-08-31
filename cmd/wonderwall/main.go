@@ -30,7 +30,7 @@ func run() error {
 		return err
 	}
 
-	if _, err := memlimit.SetGoMemLimitWithOpts(); err != nil {
+	if _, err := memlimit.Set(); err != nil {
 		log.Debugf("setting GOMEMLIMIT: %+v", err)
 	}
 
