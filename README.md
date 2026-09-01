@@ -22,7 +22,7 @@ Wonderwall aims to be compliant with OAuth 2.1, and supports the following:
   - Standalone mode (default) for zero-trust based setups where each application has its own perimeter and client
   - Single sign-on (SSO) mode for shared authentication across multiple applications on a common domain
 
-Wonderwall fits in the backend-for-frontend (BFF) pattern as described in [Best Current Practices - OAuth 2.0 for Browser-Based Apps, section 6.1](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps#name-backend-for-frontend-bff).
+Wonderwall fits in the backend-for-frontend (BFF) pattern as described in [RFC 10017 - Best Current Practices - OAuth 2.0 for Browser-Based Applications, section 6.1](https://datatracker.ietf.org/doc/html/rfc10017#section-6.1).
 
 For further details, see [the documentation directory](docs):
 
