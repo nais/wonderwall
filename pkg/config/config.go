@@ -36,7 +36,7 @@ type Config struct {
 	UpstreamHost           string   `json:"upstream-host"`
 	UpstreamIP             string   `json:"upstream-ip"`
 	UpstreamPort           int      `json:"upstream-port"`
-	UpstreamIncludeIdToken bool     `json:"upstream-include-id-token"`
+	UpstreamIncludeIDToken bool     `json:"upstream-include-id-token"`
 
 	OpenTelemetry OpenTelemetry `json:"otel"`
 	OpenID        OpenID        `json:"openid"`

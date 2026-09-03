@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	urllib "net/url"
+	"slices"
 
 	httpinternal "github.com/nais/wonderwall/internal/http"
 	"github.com/nais/wonderwall/internal/o11y/otel"
@@ -31,19 +32,43 @@ type ReverseProxySource interface {
 
 type ReverseProxy struct {
 	*httputil.ReverseProxy
-	EnableAccessLogs bool
-	IncludeIDToken   bool
+	enableAccessLogs          bool
+	includeIDToken            bool
+	preserveInboundHostHeader bool
 }
 
-func NewUpstreamProxy(upstream *urllib.URL, enableAccessLogs bool, includeIDToken bool) *ReverseProxy {
-	rp := NewReverseProxy(upstream, true)
-	rp.EnableAccessLogs = enableAccessLogs
-	rp.IncludeIDToken = includeIDToken
-	return rp
+type ReverseProxyOption func(*ReverseProxy)
+
+func WithAccessLogs(enabled bool) ReverseProxyOption {
+	return func(rp *ReverseProxy) {
+		rp.enableAccessLogs = enabled
+	}
 }
 
-func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *ReverseProxy {
-	rp := &httputil.ReverseProxy{
+func WithIDToken(enabled bool) ReverseProxyOption {
+	return func(rp *ReverseProxy) {
+		rp.includeIDToken = enabled
+	}
+}
+
+func WithPreserveInboundHostHeader() ReverseProxyOption {
+	return func(rp *ReverseProxy) {
+		rp.preserveInboundHostHeader = true
+	}
+}
+
+func NewUpstreamProxy(upstream *urllib.URL, opts ...ReverseProxyOption) *ReverseProxy {
+	opts = append(opts, WithPreserveInboundHostHeader())
+	return NewReverseProxy(upstream, opts...)
+}
+
+func NewReverseProxy(upstream *urllib.URL, opts ...ReverseProxyOption) *ReverseProxy {
+	rp := &ReverseProxy{}
+	for _, opt := range opts {
+		opt(rp)
+	}
+
+	rp.ReverseProxy = &httputil.ReverseProxy{
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			logger := mw.LogEntryFrom(r).WithFields(httpinternal.Attributes(r))
 
@@ -56,15 +81,22 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 		},
 		ErrorLog: log.New(logrusErrorWriter{}, "reverseproxy: ", 0),
 		Rewrite: func(r *httputil.ProxyRequest) {
-			// preserve inbound Forwarded and X-Forwarded-* headers that is stripped when using Rewrite
-			// this presumes that we're behind a trusted reverse proxy (e.g. gateway or ingress controller)
-			r.Out.Header["Forwarded"] = r.In.Header["Forwarded"]
-			r.Out.Header["X-Forwarded-For"] = r.In.Header["X-Forwarded-For"]
-			r.Out.Header["X-Forwarded-Host"] = r.In.Header["X-Forwarded-Host"]
-			r.Out.Header["X-Forwarded-Proto"] = r.In.Header["X-Forwarded-Proto"]
 			r.SetURL(upstream)
 
-			if preserveInboundHostHeader {
+			// preserve inbound Forwarded and X-Forwarded-* headers that is stripped when using Rewrite
+			// this presumes that we're behind a trusted reverse proxy (e.g. gateway or ingress controller)
+			for _, header := range []string{
+				"Forwarded",
+				"X-Forwarded-For",
+				"X-Forwarded-Host",
+				"X-Forwarded-Proto",
+			} {
+				if values := r.In.Header.Values(header); len(values) > 0 {
+					r.Out.Header[header] = slices.Clone(values)
+				}
+			}
+
+			if rp.preserveInboundHostHeader {
 				// preserve the inbound request's Host header
 				r.Out.Host = r.In.Host
 			}
@@ -84,9 +116,7 @@ func NewReverseProxy(upstream *urllib.URL, preserveInboundHostHeader bool) *Reve
 		},
 		Transport: httpinternal.Transport(),
 	}
-	return &ReverseProxy{
-		ReverseProxy: rp,
-	}
+	return rp
 }
 
 func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r *http.Request) {
@@ -143,12 +173,12 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
 		span.SetAttributes(attribute.Bool("proxy.with_access_token", true))
-		if rp.IncludeIDToken && sess != nil {
+		if rp.includeIDToken && sess != nil {
 			ctx = mw.WithIDToken(ctx, sess.IDToken())
 			span.SetAttributes(attribute.Bool("proxy.with_id_token", true))
 		}
 
-		if rp.EnableAccessLogs && isRelevantAccessLog(r) {
+		if rp.enableAccessLogs && isRelevantAccessLog(r) {
 			logger.Info("default: authenticated request")
 		}
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/nais/wonderwall/pkg/handler"
 	"github.com/nais/wonderwall/pkg/mock"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
@@ -419,35 +420,6 @@ func TestReverseProxy(t *testing.T) {
 		})
 	})
 
-	t.Run("request with forwarded and x-forwarded-* headers set should be preserved", func(t *testing.T) {
-		cfg := mock.Config()
-		cfg.UpstreamHost = up.URL.Host
-		idp := mock.NewIdentityProvider(cfg)
-		defer idp.Close()
-
-		up.SetIdentityProvider(idp)
-		rpClient := idp.RelyingPartyClient()
-
-		// acquire session
-		login(t, rpClient, idp)
-
-		up.requestCallback = func(r *http.Request) {
-			assert.NotEmpty(t, r.Header.Get("Authorization"))
-			assert.Equal(t, "for=192.168.0.99;proto=http;by=203.0.113.43", r.Header.Get("Forwarded"))
-			assert.Equal(t, "192.168.0.99", r.Header.Get("X-Forwarded-For"))
-			assert.Equal(t, "wonderwall.example", r.Header.Get("X-Forwarded-Host"))
-			assert.Equal(t, "https", r.Header.Get("X-Forwarded-Proto"))
-		}
-
-		resp := get(t, rpClient, idp.RelyingPartyServer.URL, []header{
-			{"Forwarded", "for=192.168.0.99;proto=http;by=203.0.113.43"},
-			{"X-Forwarded-For", "192.168.0.99"},
-			{"X-Forwarded-Host", "wonderwall.example"},
-			{"X-Forwarded-Proto", "https"},
-		}...)
-		assertUpstreamOKResponse(t, resp)
-	})
-
 	t.Run("request should not include id_token by default", func(t *testing.T) {
 		cfg := mock.Config()
 		cfg.UpstreamHost = up.URL.Host
@@ -471,7 +443,7 @@ func TestReverseProxy(t *testing.T) {
 	t.Run("request should include id_token", func(t *testing.T) {
 		cfg := mock.Config()
 		cfg.UpstreamHost = up.URL.Host
-		cfg.UpstreamIncludeIdToken = true
+		cfg.UpstreamIncludeIDToken = true
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
@@ -492,7 +464,7 @@ func TestReverseProxy(t *testing.T) {
 	t.Run("request should strip incoming id_token if unauthenticated", func(t *testing.T) {
 		cfg := mock.Config()
 		cfg.UpstreamHost = up.URL.Host
-		cfg.UpstreamIncludeIdToken = true
+		cfg.UpstreamIncludeIDToken = true
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
@@ -508,6 +480,52 @@ func TestReverseProxy(t *testing.T) {
 		})
 		assertUpstreamUnauthorizedResponse(t, resp)
 	})
+}
+
+func TestReverseProxyForwardingHeaders(t *testing.T) {
+	forwardingHeaders := []string{
+		"Forwarded",
+		"X-Forwarded-For",
+		"X-Forwarded-Host",
+		"X-Forwarded-Proto",
+	}
+
+	for _, tt := range []struct {
+		name    string
+		headers http.Header
+	}{
+		{
+			name: "preserves present headers unchanged",
+			headers: http.Header{
+				"Forwarded":         {"for=192.168.0.99;proto=http;by=203.0.113.43", "for=198.51.100.1;proto=https;by=203.0.113.43"},
+				"X-Forwarded-For":   {"192.168.0.99", "198.51.100.1"},
+				"X-Forwarded-Host":  {"wonderwall.example", "example.net"},
+				"X-Forwarded-Proto": {"https", "https"},
+			},
+		},
+		{name: "does not add absent headers", headers: http.Header{}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				for _, header := range forwardingHeaders {
+					assert.Equal(t, tt.headers.Values(header), r.Header.Values(header))
+				}
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			defer upstream.Close()
+
+			target, err := url.Parse(upstream.URL)
+			assert.NoError(t, err)
+			proxy := handler.NewUpstreamProxy(target)
+
+			req := httptest.NewRequest(http.MethodGet, "http://wonderwall.example/", nil)
+			req.Header = tt.headers.Clone()
+
+			recorder := httptest.NewRecorder()
+			proxy.ServeHTTP(recorder, req)
+			assert.Equal(t, http.StatusNoContent, recorder.Code)
+		})
+	}
 }
 
 type upstream struct {
