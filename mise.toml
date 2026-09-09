@@ -2,14 +2,14 @@
 pin = true
 
 [tools]
-go = "1.26.7"
-golangci-lint = "2.12.2"
-"go:github.com/securego/gosec/v2/cmd/gosec" = "2.28.0"
+go = "1.27.1"
+golangci-lint = "2.13.2"
+"go:github.com/securego/gosec/v2/cmd/gosec" = "2.29.0"
 "go:github.com/sethvargo/ratchet" = "0.12.0"
-"go:golang.org/x/tools/cmd/deadcode" = "0.48.0"
-"go:golang.org/x/vuln/cmd/govulncheck" = "1.6.0"
-"go:honnef.co/go/tools/cmd/staticcheck" = "0.7.0"
-"go:mvdan.cc/gofumpt" = "0.10.0"
+"go:golang.org/x/tools/cmd/deadcode" = "0.49.0"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.7.0"
+"go:honnef.co/go/tools/cmd/staticcheck" = "0.8.1"
+"go:mvdan.cc/gofumpt" = "0.12.0"
 
 [tasks.build]
 run = "go build -a -o bin/wonderwall ./cmd/wonderwall"
