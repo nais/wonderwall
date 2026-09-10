@@ -117,6 +117,7 @@ jobs:
     runs-on: fasit-deploy
     permissions:
       id-token: write
+    environment: production
     steps:
       - uses: nais/fasit-deploy@53e433b1bdd08fc622e03a78584c0832c9083bd3 # ratchet:nais/fasit-deploy@v4
         with:
