@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"encoding/json"
+	"maps"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
@@ -31,9 +32,7 @@ func TestNewClientConfigRequiresClientJWKAlgorithm(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			fields := make(map[string]any, len(keyFields))
-			for name, value := range keyFields {
-				fields[name] = value
-			}
+			maps.Copy(fields, keyFields)
 			if tt.removeAlg {
 				delete(fields, "alg")
 			}
