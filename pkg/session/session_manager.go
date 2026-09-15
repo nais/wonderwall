@@ -231,7 +231,10 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 		sess.data.IDToken = resp.IDToken
 	}
 	sess.data.AccessToken = resp.AccessToken
-	sess.data.RefreshToken = resp.RefreshToken
+	// refresh tokens may not always be returned from a refresh grant if the validity period of the new access token is shorter than the validity of the old refresh token. E.g. ADFS
+	if resp.RefreshToken != "" {
+		sess.data.RefreshToken = resp.RefreshToken
+	}
 	sess.data.Metadata.Refresh(resp.ExpiresIn)
 	sess.data.Metadata.SetSpanAttributes(span)
 
