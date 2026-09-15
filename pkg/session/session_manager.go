@@ -231,7 +231,7 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 		sess.data.IDToken = resp.IDToken
 	}
 	sess.data.AccessToken = resp.AccessToken
-	// refresh tokens may not always be returned from a refresh grant if the validity period of the new access token is shorter than the validity of the old refresh token. E.g. ADFS
+	// refresh tokens may not always be returned from a refresh grant (RFC 6749, section 6)
 	if resp.RefreshToken != "" {
 		sess.data.RefreshToken = resp.RefreshToken
 	}
