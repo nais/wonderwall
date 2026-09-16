@@ -231,7 +231,10 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 		sess.data.IDToken = resp.IDToken
 	}
 	sess.data.AccessToken = resp.AccessToken
-	sess.data.RefreshToken = resp.RefreshToken
+	// refresh tokens may not always be returned from a refresh grant (RFC 6749, section 6)
+	if resp.RefreshToken != "" {
+		sess.data.RefreshToken = resp.RefreshToken
+	}
 	sess.data.Metadata.Refresh(resp.ExpiresIn)
 	sess.data.Metadata.SetSpanAttributes(span)
 
