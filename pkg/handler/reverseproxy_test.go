@@ -53,7 +53,7 @@ func TestReverseProxy(t *testing.T) {
 
 	t.Run("without auto-login", func(t *testing.T) {
 		cfg := mock.Config()
-		cfg.UpstreamHost = up.URL.Host
+		cfg.Upstream.Host = up.URL.Host
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
@@ -75,7 +75,7 @@ func TestReverseProxy(t *testing.T) {
 	t.Run("with auto-login", func(t *testing.T) {
 		cfg := mock.Config()
 		cfg.AutoLogin = true
-		cfg.UpstreamHost = up.URL.Host
+		cfg.Upstream.Host = up.URL.Host
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
@@ -138,7 +138,7 @@ func TestReverseProxy(t *testing.T) {
 			t.Run(method, func(t *testing.T) {
 				cfg := mock.Config()
 				cfg.AutoLogin = true
-				cfg.UpstreamHost = up.URL.Host
+				cfg.Upstream.Host = up.URL.Host
 				idp := mock.NewIdentityProvider(cfg)
 				defer idp.Close()
 
@@ -161,7 +161,7 @@ func TestReverseProxy(t *testing.T) {
 	t.Run("with auto-login for non-navigation requests returns 401 unauthorized", func(t *testing.T) {
 		cfg := mock.Config()
 		cfg.AutoLogin = true
-		cfg.UpstreamHost = up.URL.Host
+		cfg.Upstream.Host = up.URL.Host
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
@@ -193,7 +193,7 @@ func TestReverseProxy(t *testing.T) {
 	t.Run("with auto-login for navigation request without fetch metadata returns 3xx redirect", func(t *testing.T) {
 		cfg := mock.Config()
 		cfg.AutoLogin = true
-		cfg.UpstreamHost = up.URL.Host
+		cfg.Upstream.Host = up.URL.Host
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
@@ -354,7 +354,7 @@ func TestReverseProxy(t *testing.T) {
 		} {
 			t.Run(pattern, func(t *testing.T) {
 				cfg := mock.Config()
-				cfg.UpstreamHost = up.URL.Host
+				cfg.Upstream.Host = up.URL.Host
 				cfg.AutoLogin = true
 				cfg.AutoLoginIgnorePaths = []string{pattern}
 
@@ -389,7 +389,7 @@ func TestReverseProxy(t *testing.T) {
 
 	t.Run("request with authorization header set", func(t *testing.T) {
 		cfg := mock.Config()
-		cfg.UpstreamHost = up.URL.Host
+		cfg.Upstream.Host = up.URL.Host
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
@@ -422,7 +422,7 @@ func TestReverseProxy(t *testing.T) {
 
 	t.Run("request should not include id_token by default", func(t *testing.T) {
 		cfg := mock.Config()
-		cfg.UpstreamHost = up.URL.Host
+		cfg.Upstream.Host = up.URL.Host
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
@@ -442,8 +442,8 @@ func TestReverseProxy(t *testing.T) {
 
 	t.Run("request should include id_token", func(t *testing.T) {
 		cfg := mock.Config()
-		cfg.UpstreamHost = up.URL.Host
-		cfg.UpstreamIncludeIDToken = true
+		cfg.Upstream.Host = up.URL.Host
+		cfg.Upstream.IncludeIDToken = true
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 
@@ -463,8 +463,8 @@ func TestReverseProxy(t *testing.T) {
 
 	t.Run("request should strip incoming id_token if unauthenticated", func(t *testing.T) {
 		cfg := mock.Config()
-		cfg.UpstreamHost = up.URL.Host
-		cfg.UpstreamIncludeIDToken = true
+		cfg.Upstream.Host = up.URL.Host
+		cfg.Upstream.IncludeIDToken = true
 		idp := mock.NewIdentityProvider(cfg)
 		defer idp.Close()
 

@@ -27,16 +27,12 @@ type Config struct {
 	ShutdownWaitBeforePeriod time.Duration `json:"shutdown-wait-before-period"`
 	Version                  string        `json:"version"`
 
-	AutoLogin              bool     `json:"auto-login"`
-	AutoLoginIgnorePaths   []string `json:"auto-login-ignore-paths"`
-	Cookie                 Cookie   `json:"cookie"`
-	EncryptionKey          string   `json:"encryption-key"`
-	Ingresses              []string `json:"ingress"`
-	UpstreamAccessLogs     bool     `json:"upstream-access-logs"`
-	UpstreamHost           string   `json:"upstream-host"`
-	UpstreamIP             string   `json:"upstream-ip"`
-	UpstreamPort           int      `json:"upstream-port"`
-	UpstreamIncludeIDToken bool     `json:"upstream-include-id-token"`
+	AutoLogin            bool     `json:"auto-login"`
+	AutoLoginIgnorePaths []string `json:"auto-login-ignore-paths"`
+	Cookie               Cookie   `json:"cookie"`
+	EncryptionKey        string   `json:"encryption-key"`
+	Ingresses            []string `json:"ingress"`
+	Upstream             Upstream `json:"upstream"`
 
 	OpenTelemetry OpenTelemetry `json:"otel"`
 	OpenID        OpenID        `json:"openid"`
@@ -56,14 +52,9 @@ const (
 	ShutdownGracefulPeriod   = "shutdown-graceful-period"
 	ShutdownWaitBeforePeriod = "shutdown-wait-before-period"
 
-	AutoLogin              = "auto-login"
-	AutoLoginIgnorePaths   = "auto-login-ignore-paths"
-	Ingress                = "ingress"
-	UpstreamAccessLogs     = "upstream-access-logs"
-	UpstreamHost           = "upstream-host"
-	UpstreamIP             = "upstream-ip"
-	UpstreamPort           = "upstream-port"
-	UpstreamIncludeIdToken = "upstream-include-id-token"
+	AutoLogin            = "auto-login"
+	AutoLoginIgnorePaths = "auto-login-ignore-paths"
+	Ingress              = "ingress"
 )
 
 var logger = log.WithField("logger", "wonderwall.config")
@@ -83,11 +74,9 @@ func Initialize() (*Config, error) {
 	flag.Bool(AutoLogin, false, "Enforce authentication if the user does not have a valid session for all matching upstream paths. Automatically redirects HTTP navigation requests to login, otherwise responds with 401 with the Location header set.")
 	flag.StringSlice(AutoLoginIgnorePaths, []string{}, "Comma separated list of absolute paths to ignore when 'auto-login' is enabled. Supports basic wildcard matching with glob-style asterisks. Invalid patterns are ignored.")
 	flag.StringSlice(Ingress, []string{}, "Comma separated list of ingresses used to access the main application.")
-	flag.Bool(UpstreamAccessLogs, false, "Enable access logs for upstream requests.")
-	flag.String(UpstreamHost, "127.0.0.1:8080", "Address of upstream host.")
-	flag.String(UpstreamIP, "", "IP of upstream host. Overrides 'upstream-host' if set.")
-	flag.Int(UpstreamPort, 0, "Port of upstream host. Overrides 'upstream-host' if set.")
-	flag.Bool(UpstreamIncludeIdToken, false, "Include ID token in upstream requests in 'X-Wonderwall-Id-Token' header.")
+
+	// Register canonical and deprecated upstream flags before parsing.
+	registerUpstreamFlags(flag.CommandLine)
 
 	cookieFlags()
 	openidFlags()
@@ -100,13 +89,27 @@ func Initialize() (*Config, error) {
 	flag.Parse()
 
 	if err := viper.ReadInConfig(); err != nil {
-		if !errors.Is(err, err.(viper.ConfigFileNotFoundError)) {
+		if _, ok := errors.AsType[viper.ConfigFileNotFoundError](err); !ok {
 			return nil, err
 		}
 	}
-	if err := viper.BindPFlags(flag.CommandLine); err != nil {
-		return nil, err
+
+	// Bind only canonical keys to keep legacy aliases out of strict decoding.
+	var bindErr error
+	flag.CommandLine.VisitAll(func(f *flag.Flag) {
+		if isLegacyUpstreamFlag(f.Name) {
+			return
+		}
+		if err := viper.BindPFlag(f.Name, f); err != nil {
+			bindErr = err
+		}
+	})
+	if bindErr != nil {
+		return nil, bindErr
 	}
+
+	// Canonical flags take precedence over promoted legacy flags.
+	promoteLegacyUpstreamFlags(viper.GetViper(), flag.CommandLine)
 
 	level := viper.GetString(LogLevel)
 	format := viper.GetString(LogFormat)
@@ -171,39 +174,6 @@ func (c *Config) Validate() error {
 
 func (c *Config) AutoRefreshDisabled() bool {
 	return c.SSO.Enabled && !c.Session.ForwardAuth
-}
-
-func (c *Config) validateUpstream() error {
-	if c.UpstreamIP == "" && c.UpstreamPort == 0 {
-		return nil
-	}
-
-	if c.UpstreamIP == "" {
-		return fmt.Errorf("%q must be set when %q is set", UpstreamIP, UpstreamPort)
-	}
-
-	if c.UpstreamPort == 0 {
-		return fmt.Errorf("%q must be set when %q is set", UpstreamPort, UpstreamIP)
-	}
-
-	if c.UpstreamPort < 1 || c.UpstreamPort > 65535 {
-		return fmt.Errorf("%q must be in valid range (between '1' and '65535', was '%d')", UpstreamPort, c.UpstreamPort)
-	}
-
-	return nil
-}
-
-func resolveUpstream() {
-	ip := viper.GetString(UpstreamIP)
-	port := viper.GetInt(UpstreamPort)
-	host := viper.GetString(UpstreamHost)
-
-	if ip != "" && port > 0 {
-		resolved := fmt.Sprintf("%s:%d", ip, port)
-		logger.Debugf("%q and %q were set; overriding %q from %q to %q", UpstreamHost, UpstreamPort, UpstreamHost, host, resolved)
-
-		viper.Set(UpstreamHost, resolved)
-	}
 }
 
 func resolveVersion() {

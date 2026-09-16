@@ -19,7 +19,7 @@ services:
       --openid.well-known-url=http://localhost:8888/default/.well-known/openid-configuration
       --ingress=http://localhost:3000
       --bind-address=0.0.0.0:3000
-      --upstream-host=upstream:4000
+      --upstream.host=upstream:4000
       --redis.uri=redis://redis:6379
       --log-level=debug
       --log-format=text

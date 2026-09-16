@@ -73,7 +73,7 @@ func NewStandalone(
 	}
 
 	upstream := &urllib.URL{
-		Host:   cfg.UpstreamHost,
+		Host:   cfg.Upstream.Host,
 		Scheme: "http",
 	}
 
@@ -89,8 +89,8 @@ func NewStandalone(
 		SessionManager: sessionManager,
 		UpstreamProxy: NewUpstreamProxy(
 			upstream,
-			WithAccessLogs(cfg.UpstreamAccessLogs),
-			WithIDToken(cfg.UpstreamIncludeIDToken),
+			WithAccessLogs(cfg.Upstream.AccessLogs),
+			WithIDToken(cfg.Upstream.IncludeIDToken),
 		),
 	}, nil
 }

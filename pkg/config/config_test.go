@@ -43,29 +43,29 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			"upstream ip must be set if port is set",
 			func(cfg *config.Config) {
-				cfg.UpstreamIP = ""
-				cfg.UpstreamPort = 8080
+				cfg.Upstream.IP = ""
+				cfg.Upstream.Port = 8080
 			},
 		},
 		{
 			"upstream port must be set if ip is set",
 			func(cfg *config.Config) {
-				cfg.UpstreamIP = "127.0.0.1"
-				cfg.UpstreamPort = 0
+				cfg.Upstream.IP = "127.0.0.1"
+				cfg.Upstream.Port = 0
 			},
 		},
 		{
 			"upstream port must not exceed 65535",
 			func(cfg *config.Config) {
-				cfg.UpstreamIP = "127.0.0.1"
-				cfg.UpstreamPort = 65536
+				cfg.Upstream.IP = "127.0.0.1"
+				cfg.Upstream.Port = 65536
 			},
 		},
 		{
 			"upstream port must not be negative",
 			func(cfg *config.Config) {
-				cfg.UpstreamIP = "127.0.0.1"
-				cfg.UpstreamPort = -1
+				cfg.Upstream.IP = "127.0.0.1"
+				cfg.Upstream.Port = -1
 			},
 		},
 		{

@@ -58,7 +58,7 @@ func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) 
 	}
 
 	upstream := &urllib.URL{
-		Host:   cfg.UpstreamHost,
+		Host:   cfg.Upstream.Host,
 		Scheme: "http",
 	}
 
@@ -73,8 +73,8 @@ func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) 
 		SessionReader:         sessionReader,
 		UpstreamProxy: NewUpstreamProxy(
 			upstream,
-			WithAccessLogs(cfg.UpstreamAccessLogs),
-			WithIDToken(cfg.UpstreamIncludeIDToken),
+			WithAccessLogs(cfg.Upstream.AccessLogs),
+			WithIDToken(cfg.Upstream.IncludeIDToken),
 		),
 	}, nil
 }
