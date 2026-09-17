@@ -60,7 +60,10 @@ func NewStandalone(
 	cookieOpts := cookie.DefaultOptions().
 		WithSecure(cfg.Cookie.Secure)
 
-	openidClient := openidclient.NewClient(openidConfig, jwksProvider)
+	openidClient, err := openidclient.NewClient(openidConfig, jwksProvider)
+	if err != nil {
+		return nil, err
+	}
 
 	sessionManager, err := session.NewManager(cfg, openidConfig, crypter, openidClient)
 	if err != nil {
@@ -76,6 +79,14 @@ func NewStandalone(
 		Host:   cfg.Upstream.Host,
 		Scheme: "http",
 	}
+	upstreamOpts := []ReverseProxyOption{
+		WithAccessLogs(cfg.Upstream.AccessLogs),
+		WithIDToken(cfg.Upstream.IncludeIDToken),
+	}
+	if cfg.Upstream.DPoP {
+		upstreamOpts = append(upstreamOpts, WithDPoPProof(openidClient.DPoPProof))
+	}
+	upstreamProxy := NewUpstreamProxy(upstream, upstreamOpts...)
 
 	return &Standalone{
 		AcrHandler:     acr.NewHandler(cfg),
@@ -87,11 +98,7 @@ func NewStandalone(
 		Ingresses:      ingresses,
 		Redirect:       url.NewStandaloneRedirect(),
 		SessionManager: sessionManager,
-		UpstreamProxy: NewUpstreamProxy(
-			upstream,
-			WithAccessLogs(cfg.Upstream.AccessLogs),
-			WithIDToken(cfg.Upstream.IncludeIDToken),
-		),
+		UpstreamProxy:  upstreamProxy,
 	}, nil
 }
 

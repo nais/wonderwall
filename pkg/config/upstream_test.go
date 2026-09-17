@@ -9,6 +9,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestConfigValidateUpstreamDPoP(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		cfg  Config
+		want string
+	}{
+		{
+			name: "requires client JWK",
+			cfg:  Config{Upstream: Upstream{DPoP: true}},
+			want: `"upstream.dpop" requires "openid.client-jwk"`,
+		},
+		{
+			name: "not supported in SSO proxy mode",
+			cfg: Config{
+				OpenID:   OpenID{ClientJWK: `{"alg":"RS256"}`},
+				SSO:      SSO{Enabled: true, Mode: SSOModeProxy},
+				Upstream: Upstream{DPoP: true},
+			},
+			want: `"upstream.dpop" is not supported in SSO proxy mode`,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.ErrorContains(t, tt.cfg.validateUpstream(), tt.want)
+		})
+	}
+}
+
 func TestPromoteLegacyUpstreamFlags(t *testing.T) {
 	tests := []struct {
 		name      string

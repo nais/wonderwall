@@ -53,6 +53,10 @@ func (t *TestProviderConfiguration) AuthorizationResponseIssParameterSupported()
 	return t.Metadata.AuthorizationResponseIssParameterSupported
 }
 
+func (t *TestProviderConfiguration) DPoPSigningAlgValuesSupported() openidconfig.Supported {
+	return t.Metadata.DPoPSigningAlgValuesSupported
+}
+
 func (t *TestProviderConfiguration) EndSessionEndpointURL() url.URL {
 	u, _ := url.Parse(t.Metadata.EndSessionEndpoint)
 	return *u

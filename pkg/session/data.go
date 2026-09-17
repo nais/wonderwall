@@ -60,6 +60,7 @@ type Data struct {
 	AccessToken       string   `json:"access_token"`
 	IDToken           string   `json:"id_token"`
 	RefreshToken      string   `json:"refresh_token"`
+	DPoPThumbprint    string   `json:"dpop_thumbprint,omitempty"`
 	Acr               string   `json:"acr"`
 	Metadata          Metadata `json:"metadata"`
 }

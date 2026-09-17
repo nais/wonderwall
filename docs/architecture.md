@@ -57,6 +57,22 @@ graph LR
   end
 ```
 
+## HTTP Request Headers
+
+Wonderwall is a transparent reverse-proxy. It only replaces the credential headers that it owns, and only when the user has a valid session:
+
+| Session state                                  | `Authorization`                | `DPoP`                      |
+|------------------------------------------------|--------------------------------|-----------------------------|
+| No valid session                               | forwarded as-is                | forwarded as-is             |
+| Valid Bearer session                           | replaced with `Bearer <token>` | forwarded as-is             |
+| Valid DPoP session with upstream DPoP disabled | replaced with `Bearer <token>` | forwarded as-is             |
+| Valid DPoP session with upstream DPoP enabled  | replaced with `DPoP <token>`   | replaced with a fresh proof |
+
+Wonderwall never strips headers that it does not set. It is up to the upstream to validate and reject requests accordingly.
+Upstreams must apply the authentication scheme semantics: ignore a caller-supplied `DPoP` header when `Authorization` uses `Bearer`.
+
+See [DPoP](dpop.md) for provider negotiation, session binding, upstream proofs and nonce handling.
+
 ## Kubernetes Setup
 
 Wonderwall is primarily designed to be deployed as a _sidecar_ container in Kubernetes. An example setup could look like this:

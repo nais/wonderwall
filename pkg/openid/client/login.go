@@ -106,8 +106,13 @@ func (c *Client) newAuthorizationCodeParams(r *http.Request) (openid.Authorizati
 
 func (c *Client) authCodeURL(ctx context.Context, authCodeParams openid.AuthorizationCodeParams) (string, error) {
 	usePushedAuthorization := len(c.cfg.Provider().PushedAuthorizationRequestEndpoint()) > 0
+	params := authCodeParams.RequestParams()
+	if c.dpopProofer != nil {
+		params["dpop_jkt"] = c.dpopProofer.Thumbprint()
+	}
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(attribute.Bool("login.pushed_authorization_request", usePushedAuthorization))
+	span.SetAttributes(attribute.Bool("login.dpop_jkt_sent", c.dpopProofer != nil))
 
 	if usePushedAuthorization {
 		ctx, span := otel.StartSpan(ctx, "Client.PushedAuthorizationRequest")
@@ -115,12 +120,7 @@ func (c *Client) authCodeURL(ctx context.Context, authCodeParams openid.Authoriz
 
 		endpoint := c.cfg.Provider().PushedAuthorizationRequestEndpoint()
 		resp, err := retry.DoValue(ctx, func(ctx context.Context) (*openid.PushedAuthorizationResponse, error) {
-			clientAuth, err := c.ClientAuthenticationParams()
-			if err != nil {
-				return nil, fmt.Errorf("generating client authentication parameters: %w", err)
-			}
-
-			body, err := c.oauthPostRequest(ctx, endpoint, authCodeParams.RequestParams().With(clientAuth))
+			body, err := c.oauthPost(ctx, endpoint, params)
 			if err != nil {
 				if errors.Is(err, ErrOpenIDServer) {
 					return nil, retry.RetryableError(err)
@@ -145,7 +145,7 @@ func (c *Client) authCodeURL(ctx context.Context, authCodeParams openid.Authoriz
 		)), nil
 	}
 
-	return c.makeAuthCodeURL(authCodeParams.RequestParams()), nil
+	return c.makeAuthCodeURL(params), nil
 }
 
 func (c *Client) makeAuthCodeURL(params openid.RequestParams) string {

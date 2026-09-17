@@ -9,12 +9,15 @@ import (
 	"net/http/httputil"
 	urllib "net/url"
 	"slices"
+	"sync"
 
+	"github.com/nais/wonderwall/internal/dpop"
 	httpinternal "github.com/nais/wonderwall/internal/http"
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/pkg/handler/acr"
 	"github.com/nais/wonderwall/pkg/handler/autologin"
 	mw "github.com/nais/wonderwall/pkg/middleware"
+	"github.com/nais/wonderwall/pkg/openid"
 	"github.com/nais/wonderwall/pkg/session"
 	"github.com/nais/wonderwall/pkg/url"
 	"github.com/sirupsen/logrus"
@@ -35,9 +38,19 @@ type ReverseProxy struct {
 	enableAccessLogs          bool
 	includeIDToken            bool
 	preserveInboundHostHeader bool
+	dpop                      *upstreamDPoP
 }
 
 type ReverseProxyOption func(*ReverseProxy)
+
+func WithDPoPProof(proofer DPoPProofer) ReverseProxyOption {
+	return func(rp *ReverseProxy) {
+		if proofer == nil {
+			return
+		}
+		rp.dpop = &upstreamDPoP{proofer: proofer}
+	}
+}
 
 func WithAccessLogs(enabled bool) ReverseProxyOption {
 	return func(rp *ReverseProxy) {
@@ -103,7 +116,13 @@ func NewReverseProxy(upstream *urllib.URL, opts ...ReverseProxyOption) *ReverseP
 
 			accessToken, ok := mw.AccessTokenFrom(r.In.Context())
 			if ok {
-				r.Out.Header.Set("authorization", "Bearer "+accessToken)
+				// Keep caller authentication headers transparent unless Wonderwall replaces them with session credentials.
+				tokenType := openid.TokenTypeBearer
+				if proof, exists := mw.DPoPProofFrom(r.In.Context()); exists && proof != "" {
+					tokenType = openid.TokenTypeDPoP
+					r.Out.Header.Set("DPoP", proof)
+				}
+				r.Out.Header.Set("Authorization", tokenType+" "+accessToken)
 			}
 
 			idToken, ok := mw.IDTokenFrom(r.In.Context())
@@ -115,6 +134,16 @@ func NewReverseProxy(upstream *urllib.URL, opts ...ReverseProxyOption) *ReverseP
 			}
 		},
 		Transport: httpinternal.Transport(),
+		ModifyResponse: func(response *http.Response) error {
+			if response.Request == nil {
+				return nil
+			}
+			if proof, ok := mw.DPoPProofFrom(response.Request.Context()); !ok || proof == "" || rp.dpop == nil {
+				return nil
+			}
+			rp.dpop.captureNonce(response.Header.Get("DPoP-Nonce"))
+			return nil
+		},
 	}
 	return rp
 }
@@ -172,6 +201,20 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
+
+		if rp.dpop != nil && sess != nil && sess.UsesDPoP() {
+			proof, proofErr := rp.dpop.proof(r, accessToken)
+			if proofErr != nil {
+				logger.WithError(proofErr).Error("reverseproxy: failed to create DPoP proof")
+				otel.AddErrorEvent(span, "dpopProofError", "proof", proofErr)
+				http.Error(w, "failed to create DPoP proof", http.StatusInternalServerError)
+				return
+			}
+
+			ctx = mw.WithDPoPProof(ctx, proof)
+			span.SetAttributes(attribute.Bool("proxy.with_dpop", true))
+		}
+
 		span.SetAttributes(attribute.Bool("proxy.with_access_token", true))
 		if rp.includeIDToken && sess != nil {
 			ctx = mw.WithIDToken(ctx, sess.IDToken())
@@ -186,6 +229,39 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	ctx, span = otel.StartSpan(ctx, "ReverseProxy.ServeHTTP")
 	defer span.End()
 	rp.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// DPoPProofer constructs a DPoP proof.
+type DPoPProofer func(ctx context.Context, method string, target *urllib.URL, nonce, accessToken string) (string, error)
+
+type upstreamDPoP struct {
+	proofer DPoPProofer
+	nonceMu sync.RWMutex
+	nonce   string
+}
+
+func (d *upstreamDPoP) proof(r *http.Request, accessToken string) (string, error) {
+	ingressURL, err := url.MatchingIngress(r)
+	if err != nil {
+		return "", err
+	}
+	target := dpop.TargetURI(ingressURL, r)
+	return d.proofer(r.Context(), r.Method, target, d.nonceValue(), accessToken)
+}
+
+func (d *upstreamDPoP) captureNonce(nonce string) {
+	if nonce == "" {
+		return
+	}
+	d.nonceMu.Lock()
+	d.nonce = nonce
+	d.nonceMu.Unlock()
+}
+
+func (d *upstreamDPoP) nonceValue() string {
+	d.nonceMu.RLock()
+	defer d.nonceMu.RUnlock()
+	return d.nonce
 }
 
 func getSessionWithValidToken(src ReverseProxySource, r *http.Request) (*session.Session, string, error) {

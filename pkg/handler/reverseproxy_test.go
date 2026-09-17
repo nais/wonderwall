@@ -1,18 +1,29 @@
 package handler_test
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
-	"github.com/stretchr/testify/assert"
-
+	"github.com/nais/wonderwall/internal/crypto"
+	"github.com/nais/wonderwall/internal/dpop"
 	"github.com/nais/wonderwall/pkg/handler"
+	"github.com/nais/wonderwall/pkg/handler/acr"
+	"github.com/nais/wonderwall/pkg/handler/autologin"
+	"github.com/nais/wonderwall/pkg/ingress"
+	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/mock"
+	"github.com/nais/wonderwall/pkg/session"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestReverseProxy(t *testing.T) {
@@ -527,6 +538,229 @@ func TestReverseProxyForwardingHeaders(t *testing.T) {
 		})
 	}
 }
+
+func TestReverseProxyDPoP(t *testing.T) {
+	const accessToken = "access-token"
+
+	key, err := crypto.NewJwk()
+	require.NoError(t, err)
+
+	proofer, err := dpop.NewProofer(key)
+	require.NoError(t, err)
+
+	publicIngress, err := ingress.ParseIngress("https://public.example/app")
+	require.NoError(t, err)
+
+	dpopSession := session.NewSession(&session.Data{
+		AccessToken:    accessToken,
+		Metadata:       *session.NewMetadata(time.Hour, time.Hour),
+		DPoPThumbprint: proofer.Thumbprint(),
+	}, nil)
+	bearerSession := session.NewSession(&session.Data{
+		AccessToken: "session-token",
+		Metadata:    *session.NewMetadata(time.Hour, time.Hour),
+	}, nil)
+	dpopSource := &reverseProxySourceStub{sess: dpopSession}
+
+	proofCallback := func(ctx context.Context, method string, target *url.URL, nonce, accessToken string) (string, error) {
+		proof, err := proofer.Proof(ctx, method, target, nonce, accessToken)
+		return string(proof), err
+	}
+
+	newProxy := func(t *testing.T, upstreamHandler http.Handler, opts ...handler.ReverseProxyOption) *handler.ReverseProxy {
+		t.Helper()
+
+		upstream := httptest.NewServer(upstreamHandler)
+		t.Cleanup(upstream.Close)
+
+		upstreamURL, err := url.Parse(upstream.URL)
+		require.NoError(t, err)
+
+		return handler.NewUpstreamProxy(upstreamURL, opts...)
+	}
+
+	t.Run("generates an upstream proof with the public URL and access token", func(t *testing.T) {
+		var received *http.Request
+		proxy := newProxy(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			received = r
+			w.WriteHeader(http.StatusNoContent)
+		}),
+			handler.WithDPoPProof(proofCallback),
+		)
+
+		req := httptest.NewRequest(http.MethodPost, "https://internal.example/app/resource?query=value", nil)
+		req.Header.Set("DPoP", "caller-proof")
+		req = mw.RequestWithIngress(req, *publicIngress)
+
+		proxy.Handler(dpopSource, httptest.NewRecorder(), req)
+
+		require.NotNil(t, received)
+		assert.Equal(t, "DPoP "+accessToken, received.Header.Get("Authorization"))
+		assert.NotEqual(t, "caller-proof", received.Header.Get("DPoP"))
+
+		proof, err := jwt.ParseInsecure([]byte(received.Header.Get("DPoP")))
+		require.NoError(t, err)
+
+		var htu, ath string
+		require.NoError(t, proof.Get("htu", &htu))
+		require.NoError(t, proof.Get("ath", &ath))
+		assert.Equal(t, "https://public.example/app/resource", htu)
+
+		digest := sha256.Sum256([]byte(accessToken))
+		assert.Equal(t, base64.RawURLEncoding.EncodeToString(digest[:]), ath)
+	})
+
+	t.Run("uses an upstream nonce on the next request", func(t *testing.T) {
+		var proofs []string
+		proxy := newProxy(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			proofs = append(proofs, r.Header.Get("DPoP"))
+			if len(proofs) == 1 {
+				w.Header().Set("DPoP-Nonce", "upstream-nonce")
+			}
+			w.WriteHeader(http.StatusNoContent)
+		}),
+			handler.WithDPoPProof(proofCallback),
+		)
+
+		for range 2 {
+			req := httptest.NewRequest(http.MethodGet, "https://internal.example/app", nil)
+			req = mw.RequestWithIngress(req, *publicIngress)
+			proxy.Handler(dpopSource, httptest.NewRecorder(), req)
+		}
+
+		require.Len(t, proofs, 2)
+		firstProof, err := jwt.ParseInsecure([]byte(proofs[0]))
+		require.NoError(t, err)
+		assert.False(t, firstProof.Has("nonce"))
+
+		secondProof, err := jwt.ParseInsecure([]byte(proofs[1]))
+		require.NoError(t, err)
+
+		var nonce string
+		require.NoError(t, secondProof.Get("nonce", &nonce))
+		assert.Equal(t, "upstream-nonce", nonce)
+	})
+
+	t.Run("ignores a nonce from a transparent DPoP request", func(t *testing.T) {
+		var proofs []string
+		proxy := newProxy(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			proofs = append(proofs, r.Header.Get("DPoP"))
+			w.Header().Set("DPoP-Nonce", "caller-nonce")
+			w.WriteHeader(http.StatusNoContent)
+		}),
+			handler.WithDPoPProof(proofCallback),
+		)
+
+		transparent := httptest.NewRequest(http.MethodGet, "https://internal.example/app", nil)
+		transparent.Header.Set("Authorization", "DPoP caller-token")
+		transparent.Header.Set("DPoP", "caller-proof")
+		transparent = mw.RequestWithIngress(transparent, *publicIngress)
+		proxy.Handler(&reverseProxySourceStub{err: session.ErrNotFound}, httptest.NewRecorder(), transparent)
+
+		authenticated := httptest.NewRequest(http.MethodGet, "https://internal.example/app", nil)
+		authenticated = mw.RequestWithIngress(authenticated, *publicIngress)
+		proxy.Handler(dpopSource, httptest.NewRecorder(), authenticated)
+
+		require.Len(t, proofs, 2)
+
+		proof, err := jwt.ParseInsecure([]byte(proofs[1]))
+		require.NoError(t, err)
+
+		assert.False(t, proof.Has("nonce"))
+	})
+
+	t.Run("presents credentials based on session and proxy configuration", func(t *testing.T) {
+		for _, test := range []struct {
+			name                  string
+			session               *session.Session
+			sessionError          error
+			expectedAuthorization string
+			expectedProof         string
+			options               []handler.ReverseProxyOption
+		}{
+			{
+				name:                  "without session",
+				sessionError:          session.ErrNotFound,
+				expectedAuthorization: "DPoP caller-token",
+				expectedProof:         "caller-proof",
+			},
+			{
+				name:                  "with bearer session",
+				session:               bearerSession,
+				expectedAuthorization: "Bearer session-token",
+				expectedProof:         "caller-proof",
+			},
+			{
+				name:                  "with bearer session and upstream DPoP enabled",
+				session:               bearerSession,
+				expectedAuthorization: "Bearer session-token",
+				expectedProof:         "caller-proof",
+				options:               []handler.ReverseProxyOption{handler.WithDPoPProof(proofCallback)},
+			},
+			{
+				name:                  "with DPoP session and upstream DPoP disabled",
+				session:               dpopSession,
+				expectedAuthorization: "Bearer " + accessToken,
+				expectedProof:         "caller-proof",
+			},
+			{
+				name:                  "with nil proof option",
+				session:               dpopSession,
+				expectedAuthorization: "Bearer " + accessToken,
+				expectedProof:         "caller-proof",
+				options:               []handler.ReverseProxyOption{handler.WithDPoPProof(nil)},
+			},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				var authorization, proof string
+				proxy := newProxy(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					authorization = r.Header.Get("Authorization")
+					proof = r.Header.Get("DPoP")
+					w.WriteHeader(http.StatusNoContent)
+				}), test.options...)
+
+				source := &reverseProxySourceStub{sess: test.session, err: test.sessionError}
+
+				req := httptest.NewRequest(http.MethodGet, "http://public.example/resource", nil)
+				req.Header.Set("Authorization", "DPoP caller-token")
+				req.Header.Set("DPoP", "caller-proof")
+
+				proxy.Handler(source, httptest.NewRecorder(), req)
+
+				assert.Equal(t, test.expectedAuthorization, authorization)
+				assert.Equal(t, test.expectedProof, proof)
+			})
+		}
+	})
+
+	t.Run("requires ingress", func(t *testing.T) {
+		proxy := newProxy(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}),
+			handler.WithDPoPProof(proofCallback),
+		)
+		recorder := httptest.NewRecorder()
+		proxy.Handler(dpopSource, recorder, httptest.NewRequest(http.MethodGet, "https://internal.example/app", nil))
+
+		assert.Equal(t, http.StatusInternalServerError, recorder.Code)
+	})
+}
+
+type reverseProxySourceStub struct {
+	sess *session.Session
+	err  error
+}
+
+func (s *reverseProxySourceStub) GetAcrHandler() *acr.Handler { return &acr.Handler{} }
+func (s *reverseProxySourceStub) GetAutoLogin() *autologin.AutoLogin {
+	return &autologin.AutoLogin{}
+}
+func (s *reverseProxySourceStub) GetPath(*http.Request) string { return "" }
+func (s *reverseProxySourceStub) GetSession(*http.Request) (*session.Session, error) {
+	return s.sess, s.err
+}
+
+var _ handler.ReverseProxySource = (*reverseProxySourceStub)(nil)
 
 type upstream struct {
 	Server          *httptest.Server

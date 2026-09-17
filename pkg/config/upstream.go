@@ -13,6 +13,7 @@ type Upstream struct {
 	IP             string `json:"ip"`
 	Port           int    `json:"port"`
 	IncludeIDToken bool   `json:"include-id-token"`
+	DPoP           bool   `json:"dpop"`
 }
 
 const (
@@ -21,6 +22,7 @@ const (
 	UpstreamIP             = "upstream.ip"
 	UpstreamPort           = "upstream.port"
 	UpstreamIncludeIDToken = "upstream.include-id-token"
+	UpstreamDPoP           = "upstream.dpop"
 )
 
 var legacyUpstreamFlags = map[string]string{
@@ -32,6 +34,15 @@ var legacyUpstreamFlags = map[string]string{
 }
 
 func (c *Config) validateUpstream() error {
+	if c.Upstream.DPoP {
+		if c.SSO.Enabled && c.SSO.Mode == SSOModeProxy {
+			return fmt.Errorf("%q is not supported in SSO proxy mode", UpstreamDPoP)
+		}
+		if c.OpenID.ClientJWK == "" {
+			return fmt.Errorf("%q requires %q", UpstreamDPoP, OpenIDClientJWK)
+		}
+	}
+
 	if c.Upstream.IP == "" && c.Upstream.Port == 0 {
 		return nil
 	}
@@ -65,6 +76,7 @@ func registerUpstreamFlags(flags *flag.FlagSet) {
 	flags.String(UpstreamIP, "", "IP of upstream host. Overrides 'upstream.host' if set.")
 	flags.Int(UpstreamPort, 0, "Port of upstream host. Overrides 'upstream.host' if set.")
 	flags.Bool(UpstreamIncludeIDToken, false, "Include ID token in upstream requests in 'X-Wonderwall-Id-Token' header.")
+	flags.Bool(UpstreamDPoP, false, "Send DPoP-bound access tokens to the upstream with a DPoP proof instead of as bearer tokens.")
 
 	flags.Bool("upstream-access-logs", false, "Deprecated alias for --upstream.access-logs.")
 	flags.String("upstream-host", "", "Deprecated alias for --upstream.host.")

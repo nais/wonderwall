@@ -73,19 +73,8 @@ func (c *Client) authorizationServerIssuerIdentification(iss string) error {
 func (c *Client) redeemTokens(ctx context.Context, code string, cookie *openid.LoginCookie) (*openid.Tokens, error) {
 	ctx, span := otel.StartSpan(ctx, "Client.RedeemTokens")
 	defer span.End()
-	clientAuth, err := c.ClientAuthenticationParams()
-	if err != nil {
-		return nil, err
-	}
 
-	payload := openid.ExchangeAuthorizationCodeParams(
-		c.cfg.Client().ClientID(),
-		code,
-		cookie.CodeVerifier,
-		cookie.RedirectURI,
-	).With(clientAuth).AuthCodeOptions()
-
-	rawTokens, err := c.AuthCodeGrant(ctx, code, payload)
+	rawTokens, err := c.AuthCodeGrant(ctx, code, cookie.CodeVerifier, cookie.RedirectURI)
 	if err != nil {
 		return nil, fmt.Errorf("exchanging authorization code for token: %w", err)
 	}
@@ -102,6 +91,7 @@ func (c *Client) redeemTokens(ctx context.Context, code string, cookie *openid.L
 		_, _ = c.jwksProvider.RefreshPublicJwkSet(ctx)
 		return nil, fmt.Errorf("parsing tokens: %w", err)
 	}
+	c.recordTokenType(span, tokens.TokenType)
 
 	return tokens, nil
 }

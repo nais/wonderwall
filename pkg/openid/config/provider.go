@@ -21,6 +21,7 @@ type Provider interface {
 	ACRValuesSupported() Supported
 	AuthorizationEndpoint() string
 	AuthorizationResponseIssParameterSupported() bool
+	DPoPSigningAlgValuesSupported() Supported
 	EndSessionEndpointURL() url.URL
 	JwksFallbackAlg() jwa.KeyAlgorithm
 	Issuer() string
@@ -44,6 +45,10 @@ func (p *provider) AuthorizationResponseIssParameterSupported() bool {
 
 func (p *provider) AuthorizationEndpoint() string {
 	return p.metadata.AuthorizationEndpoint
+}
+
+func (p *provider) DPoPSigningAlgValuesSupported() Supported {
+	return p.metadata.DPoPSigningAlgValuesSupported
 }
 
 func (p *provider) EndSessionEndpointURL() url.URL {
@@ -145,6 +150,7 @@ type ProviderMetadata struct {
 	AuthorizationResponseIssParameterSupported bool      `json:"authorization_response_iss_parameter_supported"`
 	CheckSessionIframe                         string    `json:"check_session_iframe"`
 	CodeChallengeMethodsSupported              []string  `json:"code_challenge_methods_supported"`
+	DPoPSigningAlgValuesSupported              Supported `json:"dpop_signing_alg_values_supported"`
 	EndSessionEndpoint                         string    `json:"end_session_endpoint"`
 	FrontchannelLogoutSessionSupported         bool      `json:"frontchannel_logout_session_supported"`
 	FrontchannelLogoutSupported                bool      `json:"frontchannel_logout_supported"`

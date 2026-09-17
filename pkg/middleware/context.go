@@ -11,6 +11,7 @@ type contextKey string
 
 const (
 	ctxAccessToken = contextKey("AccessToken")
+	ctxDPoPProof   = contextKey("DPoPProof")
 	ctxIDToken     = contextKey("IDToken")
 	ctxIngress     = contextKey("Ingress")
 	ctxPath        = contextKey("Path")
@@ -23,6 +24,15 @@ func AccessTokenFrom(ctx context.Context) (string, bool) {
 
 func WithAccessToken(ctx context.Context, accessToken string) context.Context {
 	return context.WithValue(ctx, ctxAccessToken, accessToken)
+}
+
+func DPoPProofFrom(ctx context.Context) (string, bool) {
+	proof, ok := ctx.Value(ctxDPoPProof).(string)
+	return proof, ok
+}
+
+func WithDPoPProof(ctx context.Context, proof string) context.Context {
+	return context.WithValue(ctx, ctxDPoPProof, proof)
 }
 
 func IDTokenFrom(ctx context.Context) (string, bool) {

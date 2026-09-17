@@ -113,7 +113,7 @@ func newLogout(t *testing.T) *client.Logout {
 
 	req := mock.NewGetRequest(mock.Ingress+"/oauth2/logout", ingresses)
 
-	logout, err := newTestClientWithConfig(openidCfg).Logout(req)
+	logout, err := newTestClientWithConfig(t, openidCfg).Logout(req)
 	assert.NoError(t, err)
 
 	return logout

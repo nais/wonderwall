@@ -474,6 +474,24 @@ func TestValidateRefreshedIDToken(t *testing.T) {
 	}
 }
 
+func TestNormalizeTokenType(t *testing.T) {
+	for _, test := range []struct {
+		value    string
+		expected string
+		wantErr  bool
+	}{
+		{value: "bearer", expected: "Bearer"},
+		{value: "dpop", expected: "DPoP"},
+		{expected: "Bearer"},
+		{value: "Basic", wantErr: true},
+	} {
+		actual, err := openid.NormalizeTokenType(test.value)
+		if (err != nil) != test.wantErr || actual != test.expected {
+			t.Errorf("NormalizeTokenType(%q) = %q, %v", test.value, actual, err)
+		}
+	}
+}
+
 func makeIDToken(mutate func(tok jwt.Token)) (*openid.IDToken, error) {
 	iat := time.Now().Truncate(time.Second).UTC()
 	exp := iat.Add(5 * time.Second)

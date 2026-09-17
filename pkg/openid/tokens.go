@@ -35,6 +35,11 @@ type Tokens struct {
 }
 
 func NewTokens(src *oauth2.Token, jwks *jwk.Set, cfg openidconfig.Config, cookie *LoginCookie) (*Tokens, error) {
+	tokenType, err := NormalizeTokenType(src.TokenType)
+	if err != nil {
+		return nil, err
+	}
+
 	rawIdToken, ok := src.Extra("id_token").(string)
 	if !ok {
 		return nil, fmt.Errorf("missing id_token in token response")
@@ -64,8 +69,24 @@ func NewTokens(src *oauth2.Token, jwks *jwk.Set, cfg openidconfig.Config, cookie
 		Expiry:       expiry,
 		IDToken:      idToken,
 		RefreshToken: src.RefreshToken,
-		TokenType:    src.TokenType,
+		TokenType:    tokenType,
 	}, nil
+}
+
+// Token types that Wonderwall accepts in a token response, as defined by RFC 6750 and RFC 9449.
+const (
+	TokenTypeBearer = "Bearer"
+	TokenTypeDPoP   = "DPoP"
+)
+
+func NormalizeTokenType(tokenType string) (string, error) {
+	if tokenType == "" || strings.EqualFold(tokenType, TokenTypeBearer) {
+		return TokenTypeBearer, nil
+	}
+	if strings.EqualFold(tokenType, TokenTypeDPoP) {
+		return TokenTypeDPoP, nil
+	}
+	return "", fmt.Errorf("unsupported token_type %q", tokenType)
 }
 
 func NewIDToken(raw string, jwtToken jwt.Token) *IDToken {

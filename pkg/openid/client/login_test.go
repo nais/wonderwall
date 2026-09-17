@@ -40,6 +40,63 @@ func TestLogin_PushedAuthorizationRequest(t *testing.T) {
 	assert.ElementsMatch(t, query["client_id"], []string{idp.OpenIDConfig.Client().ClientID()})
 }
 
+func TestLogin_DPoPAuthorizationBinding(t *testing.T) {
+	cfg := mock.Config()
+	openidConfig := mock.NewTestConfiguration(cfg)
+	clientAlg := openidConfig.Client().ClientJWKAlgorithm()
+	openidConfig.TestProvider.Metadata.DPoPSigningAlgValuesSupported = append(
+		openidConfig.TestProvider.Metadata.DPoPSigningAlgValuesSupported,
+		clientAlg.String(),
+	)
+	openidConfig.TestProvider.SetAuthorizationEndpoint("https://provider.example/authorize")
+	openidConfig.TestProvider.SetTokenEndpoint("https://provider.example/token")
+
+	c, err := client.NewClient(openidConfig, nil)
+	require.NoError(t, err)
+
+	thumbprint := c.DPoPThumbprint()
+	require.NotEmpty(t, thumbprint)
+
+	req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", mock.Ingresses(cfg))
+
+	t.Run("authorization request", func(t *testing.T) {
+		result, err := c.Login(req)
+		require.NoError(t, err)
+
+		parsed, err := url.Parse(result.AuthCodeURL)
+		require.NoError(t, err)
+
+		assert.Equal(t, thumbprint, parsed.Query().Get("dpop_jkt"))
+	})
+
+	t.Run("pushed authorization request", func(t *testing.T) {
+		parServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Empty(t, r.Header.Get("DPoP"))
+			require.NoError(t, r.ParseForm())
+			assert.Equal(t, thumbprint, r.PostForm.Get("dpop_jkt"))
+
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"request_uri":"urn:ietf:params:oauth:request_uri:dpop-test","expires_in":60}`))
+		}))
+		defer parServer.Close()
+
+		openidConfig.TestProvider.SetPushedAuthorizationRequestEndpoint(parServer.URL)
+		c, err := client.NewClient(openidConfig, nil)
+		require.NoError(t, err)
+
+		result, err := c.Login(req)
+		require.NoError(t, err)
+
+		parsed, err := url.Parse(result.AuthCodeURL)
+		require.NoError(t, err)
+
+		assert.Equal(t, url.Values{
+			"client_id":   {openidConfig.Client().ClientID()},
+			"request_uri": {"urn:ietf:params:oauth:request_uri:dpop-test"},
+		}, parsed.Query())
+	})
+}
+
 func TestLogin_PushedAuthorizationRequest_RetryMintsNewAssertion(t *testing.T) {
 	var mu sync.Mutex
 	var assertions []string
@@ -203,7 +260,8 @@ func TestLogin_URL(t *testing.T) {
 			openidConfig := mock.NewTestConfiguration(cfg)
 			ingresses := mock.Ingresses(cfg)
 
-			c := client.NewClient(openidConfig, nil)
+			c, err := client.NewClient(openidConfig, nil)
+			require.NoError(t, err)
 
 			req := mock.NewGetRequest(test.url, ingresses)
 			result, err := c.Login(req)
@@ -266,48 +324,50 @@ func TestLogin_URL(t *testing.T) {
 	}
 }
 
-func TestLoginURL_WithResourceIndicator(t *testing.T) {
-	cfg := mock.Config()
-	cfg.OpenID.ResourceIndicator = "https://some-resource"
+func TestLoginURL_WithOptionalProviderParameters(t *testing.T) {
+	tests := []struct {
+		name              string
+		resourceIndicator string
+		domainHint        string
+		parameter         string
+		value             string
+	}{
+		{
+			name:              "resource indicator",
+			resourceIndicator: "https://some-resource",
+			parameter:         "resource",
+			value:             "https://some-resource",
+		},
+		{
+			name:       "domain hint",
+			domainHint: "example.com",
+			parameter:  "domain_hint",
+			value:      "example.com",
+		},
+	}
 
-	openidConfig := mock.NewTestConfiguration(cfg)
-	openidConfig.TestProvider.SetAuthorizationEndpoint("https://provider/authorize")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := mock.Config()
+			cfg.OpenID.ResourceIndicator = test.resourceIndicator
+			cfg.OpenID.DomainHint = test.domainHint
 
-	c := client.NewClient(openidConfig, nil)
-	ingresses := mock.Ingresses(cfg)
+			openidConfig := mock.NewTestConfiguration(cfg)
+			openidConfig.TestProvider.SetAuthorizationEndpoint("https://provider/authorize")
 
-	req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", ingresses)
+			c, err := client.NewClient(openidConfig, nil)
+			require.NoError(t, err)
+			req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", mock.Ingresses(cfg))
 
-	result, err := c.Login(req)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, result)
-	parsed, err := url.Parse(result.AuthCodeURL)
-	assert.NoError(t, err)
+			result, err := c.Login(req)
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+			parsed, err := url.Parse(result.AuthCodeURL)
+			require.NoError(t, err)
 
-	query := parsed.Query()
-	assert.Contains(t, query, "resource")
-	assert.ElementsMatch(t, query["resource"], []string{"https://some-resource"})
-}
-
-func TestLoginURL_WithDomainHint(t *testing.T) {
-	cfg := mock.Config()
-	cfg.OpenID.DomainHint = "example.com"
-
-	openidConfig := mock.NewTestConfiguration(cfg)
-	openidConfig.TestProvider.SetAuthorizationEndpoint("https://provider/authorize")
-
-	c := client.NewClient(openidConfig, nil)
-	ingresses := mock.Ingresses(cfg)
-
-	req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", ingresses)
-
-	result, err := c.Login(req)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, result)
-	parsed, err := url.Parse(result.AuthCodeURL)
-	assert.NoError(t, err)
-
-	query := parsed.Query()
-	assert.Contains(t, query, "domain_hint")
-	assert.ElementsMatch(t, query["domain_hint"], []string{"example.com"})
+			query := parsed.Query()
+			assert.Contains(t, query, test.parameter)
+			assert.ElementsMatch(t, query[test.parameter], []string{test.value})
+		})
+	}
 }

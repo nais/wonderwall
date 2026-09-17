@@ -79,7 +79,7 @@ func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 				cfg.OpenID.PostLogoutRedirectURI = ""
 			}
 
-			lc := newLogoutCallback(cfg, defaultState, tt.cookie)
+			lc := newLogoutCallback(t, cfg, defaultState, tt.cookie)
 
 			uri := lc.PostLogoutRedirectURI()
 			assert.NotEmpty(t, uri)
@@ -88,10 +88,11 @@ func TestLogoutCallback_PostLogoutRedirectURI(t *testing.T) {
 	}
 }
 
-func newLogoutCallback(cfg *config.Config, state string, cookie *openid.LogoutCookie) *client.LogoutCallback {
+func newLogoutCallback(t *testing.T, cfg *config.Config, state string, cookie *openid.LogoutCookie) *client.LogoutCallback {
+	t.Helper()
 	openidCfg := mock.NewTestConfiguration(cfg)
 	ingresses := mock.Ingresses(cfg)
 	validator := url.NewAbsoluteValidator(ingresses.Hosts())
 	req := mock.NewGetRequest(mock.Ingress+"/oauth2/logout/callback?state="+state, ingresses)
-	return newTestClientWithConfig(openidCfg).LogoutCallback(req, cookie, validator)
+	return newTestClientWithConfig(t, openidCfg).LogoutCallback(req, cookie, validator)
 }
