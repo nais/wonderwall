@@ -156,6 +156,48 @@ func TestManager_RefreshInvalidatesSessionOnTokenTypeMismatch(t *testing.T) {
 	}
 }
 
+func TestManager_RefreshUpdatesRefreshToken(t *testing.T) {
+	for _, test := range []struct {
+		name                 string
+		responseRefreshToken string
+		wantRefreshToken     string
+	}{
+		{name: "preserves existing token when omitted", wantRefreshToken: "old-refresh-token"},
+		{name: "replaces existing token when returned", responseRefreshToken: "new-refresh-token", wantRefreshToken: "new-refresh-token"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				response := map[string]any{
+					"access_token": "new-access-token",
+					"token_type":   openid.TokenTypeBearer,
+					"expires_in":   60,
+				}
+				if test.responseRefreshToken != "" {
+					response["refresh_token"] = test.responseRefreshToken
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(response)
+			}))
+			defer server.Close()
+
+			client, openidCfg := newTestClient(t, server.URL, false)
+			manager := newTestManager(t, client, openidCfg)
+			data := newTestData("")
+			data.RefreshToken = "old-refresh-token"
+			data.Metadata.Tokens.RefreshedAt = time.Now().Add(-time.Hour)
+			sess := writeTestSession(t, manager.store, data)
+
+			refreshed, err := manager.Refresh(newTestRequest(), sess)
+			require.NoError(t, err)
+			assert.Equal(t, test.wantRefreshToken, refreshed.data.RefreshToken)
+
+			stored, err := manager.getForTicket(t.Context(), sess.ticket)
+			require.NoError(t, err)
+			assert.Equal(t, test.wantRefreshToken, stored.data.RefreshToken)
+		})
+	}
+}
+
 // newTestClient returns an OpenID client for a provider served from a stub well-known endpoint.
 func newTestClient(t *testing.T, tokenEndpoint string, enableDPoP bool) (*openidclient.Client, openidconfig.Config) {
 	t.Helper()
