@@ -12,7 +12,7 @@ To use DPoP, all the following must be true:
 - `openid.dpop` is set to `true`.
 - Wonderwall runs in standalone mode.
 - The client is configured with a client JWK through the `openid.client-jwk` setting or equivalent environment variable.
-- The identity provider has the property `dpop_signing_alg_values_supported`  in the metadata document that supports the algorithm of the configured client JWK.
+- The identity provider advertises the client JWK's signing algorithm in `dpop_signing_alg_values_supported`.
 - The upstream accepts `Authorization: DPoP <token>` and validates the accompanying `DPoP` proof and token binding, as specified by [RFC 9449 Section 7.1](https://www.rfc-editor.org/rfc/rfc9449.html#section-7.1).
 
 Wonderwall validates the identity provider requirements at startup. The operator must verify upstream support because identity provider discovery does not describe resource server capabilities.

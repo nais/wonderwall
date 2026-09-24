@@ -51,6 +51,12 @@ func TestReader_ValidatesDPoPBinding(t *testing.T) {
 			wantInvalid: true,
 		},
 		{name: "bearer session with DPoP disabled", client: bearerClient},
+		{name: "bearer session in SSO proxy"},
+		{
+			name:        "DPoP-bound session in SSO proxy",
+			thumbprint:  client.DPoPThumbprint(),
+			wantInvalid: true,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			store := NewMemory()

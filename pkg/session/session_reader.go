@@ -94,6 +94,9 @@ func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, e
 // SSO readers have no OpenID client, and DPoP is not supported in SSO mode.
 func (in *reader) validateDPoPBinding(thumbprint string) error {
 	if in.client == nil {
+		if thumbprint != "" {
+			return fmt.Errorf("%w: DPoP-bound session is not supported in SSO mode", ErrInvalid)
+		}
 		return nil
 	}
 	if err := in.client.ValidateDPoPBinding(thumbprint); err != nil {
