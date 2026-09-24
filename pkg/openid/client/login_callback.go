@@ -91,7 +91,7 @@ func (c *Client) redeemTokens(ctx context.Context, code string, cookie *openid.L
 		_, _ = c.jwksProvider.RefreshPublicJwkSet(ctx)
 		return nil, fmt.Errorf("parsing tokens: %w", err)
 	}
-	c.recordTokenType(span, tokens.TokenType)
+	span.SetAttributes(attribute.String("oauth.token_type", tokens.TokenType))
 
 	return tokens, nil
 }

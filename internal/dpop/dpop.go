@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -83,7 +82,7 @@ func (p *Proofer) Proof(ctx context.Context, method string, targetURL *url.URL, 
 		return nil, fmt.Errorf("dpop: target URL is nil")
 	}
 
-	htm := strings.ToUpper(method)
+	htm := method
 	htu := stripTarget(targetURL).String()
 
 	builder := jwt.NewBuilder().
@@ -139,6 +138,7 @@ func TargetURI(base *url.URL, r *http.Request) *url.URL {
 func stripTarget(target *url.URL) *url.URL {
 	result := *target
 	result.RawQuery = ""
+	result.ForceQuery = false
 	result.Fragment = ""
 	result.RawFragment = ""
 	return &result

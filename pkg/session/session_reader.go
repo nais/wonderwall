@@ -90,8 +90,8 @@ func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, e
 	return sess, nil
 }
 
-// validateDPoPBinding rejects a session whose DPoP key is no longer the one we hold.
-// SSO proxies skip this because they do not hold the client key used to bind the session.
+// validateDPoPBinding checks that the session binding matches the current client's DPoP mode and key.
+// SSO readers have no OpenID client, and DPoP is not supported in SSO mode.
 func (in *reader) validateDPoPBinding(thumbprint string) error {
 	if in.client == nil {
 		return nil

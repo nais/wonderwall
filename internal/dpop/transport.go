@@ -3,8 +3,6 @@ package dpop
 import (
 	"fmt"
 	"net/http"
-	"net/url"
-	"strings"
 	"sync"
 )
 
@@ -33,29 +31,35 @@ func NewTransport(base http.RoundTripper, tokenURL string, proofer *Proofer) (*T
 	if proofer == nil {
 		return nil, fmt.Errorf("dpop: proofer is nil")
 	}
-	normalized, err := normalizeTokenURL(tokenURL)
-	if err != nil {
-		return nil, err
+
+	r, err := http.NewRequest(http.MethodPost, tokenURL, nil)
+	if err != nil || r.URL.Scheme == "" || r.URL.Host == "" {
+		return nil, fmt.Errorf("dpop: invalid token URL %q", tokenURL)
 	}
-	return &Transport{base: base, proofer: proofer, tokenURL: normalized}, nil
+	if r.URL.Scheme != "http" && r.URL.Scheme != "https" {
+		return nil, fmt.Errorf("dpop: token URL must use HTTP or HTTPS")
+	}
+	if r.URL.User != nil {
+		return nil, fmt.Errorf("dpop: token URL must not contain user info")
+	}
+	if r.URL.Fragment != "" {
+		return nil, fmt.Errorf("dpop: token URL must not contain a fragment")
+	}
+
+	return &Transport{base: base, proofer: proofer, tokenURL: r.URL.String()}, nil
 }
 
 func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 	if r == nil {
 		return nil, fmt.Errorf("dpop: request is nil")
 	}
-	requestURL, err := normalizeTokenURL(r.URL.String())
-	if err != nil || requestURL != t.tokenURL {
+	if r.URL.String() != t.tokenURL {
 		return t.base.RoundTrip(r)
-	}
-	proofTarget, err := url.Parse(requestURL)
-	if err != nil {
-		return nil, fmt.Errorf("dpop: parsing normalized token URL: %w", err)
 	}
 
 	ctx := r.Context()
 	requestCopy := r.Clone(ctx)
-	proof, err := t.proofer.Proof(ctx, r.Method, proofTarget, t.nonceValue(), "")
+	proof, err := t.proofer.Proof(ctx, r.Method, r.URL, t.nonceValue(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -85,20 +89,4 @@ func (t *Transport) captureNonce(response *http.Response) {
 		t.nonce = nonce
 		t.nonceMu.Unlock()
 	}
-}
-
-func normalizeTokenURL(value string) (string, error) {
-	parsed, err := url.Parse(value)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return "", fmt.Errorf("dpop: invalid token URL %q", value)
-	}
-	if parsed.User != nil {
-		return "", fmt.Errorf("dpop: token URL must not contain user info")
-	}
-	parsed.Scheme = strings.ToLower(parsed.Scheme)
-	parsed.Host = strings.ToLower(parsed.Host)
-	if parsed.Scheme == "https" && parsed.Port() == "443" || parsed.Scheme == "http" && parsed.Port() == "80" {
-		parsed.Host = parsed.Hostname()
-	}
-	return parsed.String(), nil
 }

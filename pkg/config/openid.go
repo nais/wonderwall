@@ -24,6 +24,7 @@ type OpenID struct {
 	ClientID              string   `json:"client-id"`
 	ClientJWK             string   `json:"client-jwk"`
 	ClientSecret          string   `json:"client-secret"`
+	DPoP                  bool     `json:"dpop"`
 	DomainHint            string   `json:"domain-hint"`
 	JWKSFallbackAlg       string   `json:"jwks-fallback-alg"`
 	NewClientAuthJWTType  bool     `json:"new-client-auth-jwt-type"`
@@ -45,10 +46,20 @@ func (in OpenID) TrustedAudiences() map[string]bool {
 	return m
 }
 
-func (in OpenID) Validate() error {
+func (in OpenID) Validate(c *Config) error {
 	_, ok := jwa.LookupSignatureAlgorithm(in.JWKSFallbackAlg)
 	if !ok {
 		return fmt.Errorf("invalid JWKS fallback algorithm: %q, must be one of %s", in.JWKSFallbackAlg, jwa.SignatureAlgorithms())
+	}
+
+	if in.DPoP {
+		if c.SSO.Enabled {
+			return fmt.Errorf("%q is not supported in SSO mode", OpenIDDPoP)
+		}
+
+		if in.ClientJWK == "" {
+			return fmt.Errorf("%q requires %q", OpenIDDPoP, OpenIDClientJWK)
+		}
 	}
 
 	return nil
@@ -60,6 +71,7 @@ const (
 	OpenIDClientID              = "openid.client-id"
 	OpenIDClientJWK             = "openid.client-jwk"
 	OpenIDClientSecret          = "openid.client-secret" // #nosec G101 -- configuration key, not a credential
+	OpenIDDPoP                  = "openid.dpop"
 	OpenIDDomainHint            = "openid.domain-hint"
 	OpenIDJWKSFallbackAlg       = "openid.jwks-fallback-alg"
 	OpenIDNewClientAuthJWTType  = "openid.new-client-auth-jwt-type"
@@ -77,6 +89,7 @@ func openidFlags() {
 	flag.String(OpenIDClientID, "", "Client ID for the OpenID client.")
 	flag.String(OpenIDClientJWK, "", "JWK containing the private key for the OpenID client in string format. Must declare the 'alg' header. If configured, this takes precedence over 'openid.client-secret'.")
 	flag.String(OpenIDClientSecret, "", "Client secret for the OpenID client. Overridden by 'openid.client-jwk', if configured.")
+	flag.Bool(OpenIDDPoP, false, "Enable DPoP end-to-end for identity-provider token requests and upstream requests.")
 	flag.String(OpenIDDomainHint, "", "Domain hint to include in authorization request for IdPs that support this parameter (e.g. Entra ID).")
 	flag.String(OpenIDJWKSFallbackAlg, jwa.RS256().String(), "JWA value (as defined in RFC 7518) to assign to provider JWKS keys when their 'alg' header is not set.")
 	flag.Bool(OpenIDNewClientAuthJWTType, false, "When enabled, sets the value of the \"typ\" header of the JWT used for client authentication equal to \"client-authentication+jwt\" in accordance with RFC7523bis. If not enabled, the value is set to \"JWT\".")

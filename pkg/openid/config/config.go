@@ -35,13 +35,11 @@ func NewConfig(ctx context.Context, cfg *wonderwallconfig.Config) (Config, error
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Upstream.DPoP {
+
+	if cfg.OpenID.DPoP {
 		algorithm := clientCfg.ClientJWKAlgorithm()
-		if algorithm == nil {
-			return nil, fmt.Errorf("%q requires %q", wonderwallconfig.UpstreamDPoP, wonderwallconfig.OpenIDClientJWK)
-		}
 		if !providerCfg.DPoPSigningAlgValuesSupported().Contains(algorithm.String()) {
-			return nil, fmt.Errorf("%q requires provider DPoP support for algorithm %q", wonderwallconfig.UpstreamDPoP, algorithm.String())
+			return nil, fmt.Errorf("%q requires provider DPoP support for algorithm %q", wonderwallconfig.OpenIDDPoP, algorithm.String())
 		}
 	}
 

@@ -143,18 +143,20 @@ func TestNewProviderConfig_CancelledContext(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestNewConfig_UpstreamDPoPRequiresProviderSupport(t *testing.T) {
+func TestNewConfig_DPoPRequiresProviderSupport(t *testing.T) {
 	key, err := crypto.NewJwk()
 	require.NoError(t, err)
+
 	keyJSON, err := json.Marshal(key)
 	require.NoError(t, err)
+
 	algorithm, ok := key.Algorithm()
 	require.True(t, ok)
 
 	for _, tt := range []struct {
 		name                string
 		supportedAlgorithms openidconfig.Supported
-		wantError           bool
+		wantError           string
 	}{
 		{
 			name:                "provider supports client signing algorithm",
@@ -162,12 +164,12 @@ func TestNewConfig_UpstreamDPoPRequiresProviderSupport(t *testing.T) {
 		},
 		{
 			name:      "provider does not advertise DPoP algorithms",
-			wantError: true,
+			wantError: `"openid.dpop" requires provider DPoP support for algorithm "RS256"`,
 		},
 		{
 			name:                "provider advertises a different signing algorithm",
 			supportedAlgorithms: openidconfig.Supported{"PS256"},
-			wantError:           true,
+			wantError:           `"openid.dpop" requires provider DPoP support for algorithm "RS256"`,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -179,44 +181,24 @@ func TestNewConfig_UpstreamDPoPRequiresProviderSupport(t *testing.T) {
 				TokenEndpoint:                    "https://provider.example/token",
 				UILocalesSupported:               openidconfig.Supported{"nb"},
 			}
+
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				require.NoError(t, json.NewEncoder(w).Encode(metadata))
+				assert.NoError(t, json.NewEncoder(w).Encode(metadata))
 			}))
 			defer server.Close()
 
 			cfg := mock.Config()
 			cfg.OpenID.ClientJWK = string(keyJSON)
 			cfg.OpenID.WellKnownURL = server.URL
-			cfg.Upstream.DPoP = true
+			cfg.OpenID.DPoP = true
 
 			_, err := openidconfig.NewConfig(t.Context(), cfg)
 
-			if tt.wantError {
-				assert.ErrorContains(t, err, `"upstream.dpop" requires provider DPoP support`)
-			} else {
-				require.NoError(t, err)
+			if tt.wantError != "" {
+				assert.EqualError(t, err, tt.wantError)
+				return
 			}
+			assert.NoError(t, err)
 		})
 	}
-}
-
-func TestNewConfig_UpstreamDPoPRequiresClientJWK(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.NoError(t, json.NewEncoder(w).Encode(openidconfig.ProviderMetadata{
-			ACRValuesSupported:               openidconfig.Supported{"idporten-loa-high"},
-			IDTokenSigningAlgValuesSupported: openidconfig.Supported{"RS256"},
-			Issuer:                           "https://provider.example",
-			TokenEndpoint:                    "https://provider.example/token",
-			UILocalesSupported:               openidconfig.Supported{"nb"},
-		}))
-	}))
-	defer server.Close()
-
-	cfg := mock.Config()
-	cfg.OpenID.ClientSecret = "client-secret"
-	cfg.OpenID.WellKnownURL = server.URL
-	cfg.Upstream.DPoP = true
-
-	_, err := openidconfig.NewConfig(t.Context(), cfg)
-	assert.ErrorContains(t, err, `"upstream.dpop" requires "openid.client-jwk"`)
 }

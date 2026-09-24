@@ -22,7 +22,6 @@ import (
 	"github.com/nais/wonderwall/pkg/openid"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
-	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
@@ -66,14 +65,14 @@ func NewClient(cfg openidconfig.Config, jwksProvider JwksProvider) (*Client, err
 	}
 
 	var proofer *dpop.Proofer
-	transport := http.RoundTripper(httpinternal.Transport())
-	alg := cfg.Client().ClientJWKAlgorithm()
-	if alg != nil && cfg.Provider().DPoPSigningAlgValuesSupported().Contains(alg.String()) {
+	transport := httpinternal.Transport()
+	if cfg.Client().DPoPEnabled() {
 		var err error
 		proofer, err = dpop.NewProofer(cfg.Client().ClientJWK())
 		if err != nil {
 			return nil, fmt.Errorf("creating DPoP proofer: %w", err)
 		}
+
 		dpopTransport, err := dpop.NewTransport(transport, cfg.Provider().TokenEndpoint(), proofer)
 		if err != nil {
 			return nil, fmt.Errorf("creating DPoP transport: %w", err)
@@ -100,25 +99,30 @@ func NewClient(cfg openidconfig.Config, jwksProvider JwksProvider) (*Client, err
 	}, nil
 }
 
+func (c *Client) DPoPEnabled() bool {
+	return c.dpopProofer != nil
+}
+
 func (c *Client) DPoPThumbprint() string {
-	if c.dpopProofer == nil {
+	if !c.DPoPEnabled() {
 		return ""
 	}
 	return c.dpopProofer.Thumbprint()
 }
 
 func (c *Client) ValidateDPoPBinding(thumbprint string) error {
-	if thumbprint == "" {
-		return nil
-	}
 	current := c.DPoPThumbprint()
-	if current == "" {
+	switch {
+	case thumbprint == current:
+		// valid DPoP binding (non-empty) or valid Bearer session (empty)
+		return nil
+	case thumbprint == "":
+		return fmt.Errorf("DPoP binding is missing")
+	case current == "":
 		return fmt.Errorf("DPoP is inactive")
-	}
-	if current != thumbprint {
+	default:
 		return fmt.Errorf("DPoP key changed")
 	}
-	return nil
 }
 
 func (c *Client) DPoPProof(ctx context.Context, method string, target *url.URL, nonce, accessToken string) (string, error) {
@@ -182,11 +186,11 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken, previousIDToken
 	}
 
 	// NewTokens normalizes authorization-code responses; refresh responses are decoded here.
-	tokenResponse.TokenType, err = openid.NormalizeTokenType(tokenResponse.TokenType)
+	tokenResponse.TokenType, err = openid.NormalizeTokenType(tokenResponse.TokenType, c.DPoPEnabled())
 	if err != nil {
 		return nil, err
 	}
-	c.recordTokenType(span, tokenResponse.TokenType)
+	span.SetAttributes(attribute.String("oauth.token_type", tokenResponse.TokenType))
 
 	// id_tokens may not always be returned from a refresh grant (OpenID Connect Core 12.1)
 	if tokenResponse.IDToken != "" {
@@ -328,15 +332,4 @@ func retryNonceChallenge[T any](span trace.Span, request func() (T, error)) (T, 
 	result, err = request()
 	span.SetAttributes(attribute.Bool("oauth.dpop_nonce_retry_succeeded", err == nil))
 	return result, err
-}
-
-func (c *Client) recordTokenType(span trace.Span, tokenType string) {
-	if tokenType == "" {
-		return
-	}
-	span.SetAttributes(attribute.String("oauth.token_type", tokenType))
-	if c.dpopProofer != nil && tokenType == openid.TokenTypeBearer {
-		log.WithField("logger", "wonderwall.openid").Warn("identity provider returned a bearer token after DPoP was requested")
-		span.SetAttributes(attribute.Bool("oauth.token_type_downgraded", true))
-	}
 }

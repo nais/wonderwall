@@ -2,29 +2,34 @@
 
 Wonderwall supports [OAuth 2.0 Demonstrating Proof of Possession (DPoP, RFC 9449)](https://datatracker.ietf.org/doc/html/rfc9449) for identity-provider token requests and proxied upstream requests.
 
+DPoP support is disabled by default.
+It must be explicitly opted in to with the `openid.dpop` configuration flag or `WONDERWALL_OPENID_DPOP=true` environment variable.
+
 ## Requirements
 
-To use DPoP, all of the following must be true:
+To use DPoP, all the following must be true:
 
-- The runtime mode is either the standalone or the SSO server mode.
+- `openid.dpop` is set to `true`.
+- Wonderwall runs in standalone mode.
 - The client is configured with a client JWK through the `openid.client-jwk` setting or equivalent environment variable.
 - The identity provider has the property `dpop_signing_alg_values_supported`  in the metadata document that supports the algorithm of the configured client JWK.
+- The upstream accepts `Authorization: DPoP <token>` and validates the accompanying `DPoP` proof and token binding, as specified by [RFC 9449 Section 7.1](https://www.rfc-editor.org/rfc/rfc9449.html#section-7.1).
+
+Wonderwall validates the identity provider requirements at startup. The operator must verify upstream support because identity provider discovery does not describe resource server capabilities.
 
 ## Identity Provider
 
-Wonderwall automatically uses DPoP against an identity provider when the requirements above are met.
-
-When eligible to use DPoP, Wonderwall:
+When `openid.dpop` is enabled, Wonderwall:
 
 - Adds `dpop_jkt` to authorization requests, including pushed authorization requests.
 - Adds DPoP proofs to all token requests for the `authorization_code` and `refresh_token` grant types.
 - Retries token requests once when the identity provider returns a `use_dpop_nonce` challenge.
 - Caches a returned `DPoP-Nonce` in memory for later token requests until a new one is returned.
 
-Wonderwall accepts the token type returned by the identity provider. A `DPoP` response creates a DPoP-bound session.
-A `Bearer` response creates a Bearer session.
+The identity provider must return `token_type=DPoP`.
+Wonderwall rejects Bearer responses because `openid.dpop=true` requires DPoP-bound access tokens throughout the flow.
 
-If provider discovery does not advertise a compatible algorithm, Wonderwall uses the existing Bearer flow.
+When `openid.dpop` is disabled, Wonderwall does not send DPoP proofs to the identity provider and requires Bearer token responses.
 
 ## Session Binding
 
@@ -35,25 +40,19 @@ Wonderwall validates the stored thumbprint whenever it loads the session.
 It invalidates the session when:
 
 - The configured client key changes.
-- Provider discovery no longer advertises a compatible DPoP algorithm.
+- The configured DPoP mode no longer matches the session.
 
 All replicas that share sessions must use the same client JWK.
 
-## Upstream Presentation
+## Upstream Requests
 
-The [`upstream.dpop`](configuration.md) setting controls how Wonderwall presents a DPoP-bound access token to the upstream resource server.
-It defaults to `false`.
-
-All [requirements](#requirements) must be met before `upstream.dpop` can be set to `true`.
-Wonderwall will reject the configuration at startup if any requirement is not met.
-
-When `upstream.dpop` is `false`, Wonderwall sends:
+When `openid.dpop` is disabled, Wonderwall sends:
 
 ```http
 Authorization: Bearer <access-token>
 ```
 
-When `upstream.dpop` is `true`, Wonderwall sends:
+When `openid.dpop` is enabled, Wonderwall sends:
 
 ```http
 Authorization: DPoP <access-token>
@@ -66,9 +65,9 @@ Each proof has a fresh `jti` and includes:
 - `htm`, derived from the request method.
 - `htu`, derived from the public ingress URL.
 
-The resource server must validate `htu` against the public ingress URL, not Wonderwall's internal connection to the upstream.
+Wonderwall uses the public ingress URL for `htu`.
+The upstream must use that external URL when validating the proof, even though its connection from Wonderwall uses HTTP.
 
-The setting does not affect Bearer sessions.
 See [HTTP Request Headers](architecture.md#http-request-headers) for the complete header behaviour.
 
 ### Upstream Nonces
@@ -84,8 +83,8 @@ Responses to caller-supplied DPoP requests do not update Wonderwall's cache.
 
 ## Runtime Modes
 
-| Runtime mode | Identity-provider DPoP                                    | Upstream DPoP                                                                                    |
-|--------------|-----------------------------------------------------------|--------------------------------------------------------------------------------------------------|
-| Standalone   | Automatic when the [requirements](#requirements) are met. | Optional with `upstream.dpop=true`.                                                              |
-| SSO server   | Automatic when the [requirements](#requirements) are met. | Optional with `upstream.dpop=true`.                                                              |
-| SSO proxy    | Not applicable. The proxy does not perform the OIDC flow. | Not supported. The proxy does not have a client key and rejects `upstream.dpop=true` at startup. |
+| Runtime mode | DPoP support                                                             |
+|--------------|--------------------------------------------------------------------------|
+| Standalone   | Enabled end-to-end with `openid.dpop=true`.                              |
+| SSO server   | Not supported. Application proxies do not hold the DPoP key.             |
+| SSO proxy    | Not supported. The proxy cannot generate proofs without the private key. |

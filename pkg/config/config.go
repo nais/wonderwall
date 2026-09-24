@@ -149,7 +149,7 @@ func (c *Config) Validate() error {
 		return err
 	}
 
-	if err := c.OpenID.Validate(); err != nil {
+	if err := c.OpenID.Validate(c); err != nil {
 		return err
 	}
 

@@ -45,9 +45,6 @@ type ReverseProxyOption func(*ReverseProxy)
 
 func WithDPoPProof(proofer DPoPProofer) ReverseProxyOption {
 	return func(rp *ReverseProxy) {
-		if proofer == nil {
-			return
-		}
 		rp.dpop = &upstreamDPoP{proofer: proofer}
 	}
 }
@@ -116,12 +113,15 @@ func NewReverseProxy(upstream *urllib.URL, opts ...ReverseProxyOption) *ReverseP
 
 			accessToken, ok := mw.AccessTokenFrom(r.In.Context())
 			if ok {
-				// Keep caller authentication headers transparent unless Wonderwall replaces them with session credentials.
+				// A valid session replaces caller credentials. Remove any caller DPoP proof before setting session credentials.
+				r.Out.Header.Del("DPoP")
+
 				tokenType := openid.TokenTypeBearer
-				if proof, exists := mw.DPoPProofFrom(r.In.Context()); exists && proof != "" {
+				if proof, exists := mw.DPoPProofFrom(r.In.Context()); exists {
 					tokenType = openid.TokenTypeDPoP
 					r.Out.Header.Set("DPoP", proof)
 				}
+
 				r.Out.Header.Set("Authorization", tokenType+" "+accessToken)
 			}
 
@@ -138,7 +138,7 @@ func NewReverseProxy(upstream *urllib.URL, opts ...ReverseProxyOption) *ReverseP
 			if response.Request == nil {
 				return nil
 			}
-			if proof, ok := mw.DPoPProofFrom(response.Request.Context()); !ok || proof == "" || rp.dpop == nil {
+			if _, ok := mw.DPoPProofFrom(response.Request.Context()); !ok || rp.dpop == nil {
 				return nil
 			}
 			rp.dpop.captureNonce(response.Header.Get("DPoP-Nonce"))
@@ -202,7 +202,7 @@ func (rp *ReverseProxy) Handler(src ReverseProxySource, w http.ResponseWriter, r
 	if isAuthenticated {
 		ctx = mw.WithAccessToken(ctx, accessToken)
 
-		if rp.dpop != nil && sess != nil && sess.UsesDPoP() {
+		if rp.dpop != nil {
 			proof, proofErr := rp.dpop.proof(r, accessToken)
 			if proofErr != nil {
 				logger.WithError(proofErr).Error("reverseproxy: failed to create DPoP proof")

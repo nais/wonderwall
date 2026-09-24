@@ -40,14 +40,11 @@ func TestLogin_PushedAuthorizationRequest(t *testing.T) {
 	assert.ElementsMatch(t, query["client_id"], []string{idp.OpenIDConfig.Client().ClientID()})
 }
 
-func TestLogin_DPoPAuthorizationBinding(t *testing.T) {
+func TestLogin_DPoPPushedAuthorizationBinding(t *testing.T) {
 	cfg := mock.Config()
+	cfg.OpenID.DPoP = true
+
 	openidConfig := mock.NewTestConfiguration(cfg)
-	clientAlg := openidConfig.Client().ClientJWKAlgorithm()
-	openidConfig.TestProvider.Metadata.DPoPSigningAlgValuesSupported = append(
-		openidConfig.TestProvider.Metadata.DPoPSigningAlgValuesSupported,
-		clientAlg.String(),
-	)
 	openidConfig.TestProvider.SetAuthorizationEndpoint("https://provider.example/authorize")
 	openidConfig.TestProvider.SetTokenEndpoint("https://provider.example/token")
 
@@ -59,42 +56,31 @@ func TestLogin_DPoPAuthorizationBinding(t *testing.T) {
 
 	req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", mock.Ingresses(cfg))
 
-	t.Run("authorization request", func(t *testing.T) {
-		result, err := c.Login(req)
-		require.NoError(t, err)
+	parServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Empty(t, r.Header.Get("DPoP"))
+		if !assert.NoError(t, r.ParseForm()) {
+			http.Error(w, "invalid test request", http.StatusBadRequest)
+			return
+		}
+		assert.Equal(t, thumbprint, r.PostForm.Get("dpop_jkt"))
 
-		parsed, err := url.Parse(result.AuthCodeURL)
-		require.NoError(t, err)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"request_uri":"urn:ietf:params:oauth:request_uri:dpop-test","expires_in":60}`))
+	}))
+	defer parServer.Close()
 
-		assert.Equal(t, thumbprint, parsed.Query().Get("dpop_jkt"))
-	})
+	openidConfig.TestProvider.SetPushedAuthorizationRequestEndpoint(parServer.URL)
 
-	t.Run("pushed authorization request", func(t *testing.T) {
-		parServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Empty(t, r.Header.Get("DPoP"))
-			require.NoError(t, r.ParseForm())
-			assert.Equal(t, thumbprint, r.PostForm.Get("dpop_jkt"))
+	result, err := c.Login(req)
+	require.NoError(t, err)
 
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"request_uri":"urn:ietf:params:oauth:request_uri:dpop-test","expires_in":60}`))
-		}))
-		defer parServer.Close()
+	parsed, err := url.Parse(result.AuthCodeURL)
+	require.NoError(t, err)
 
-		openidConfig.TestProvider.SetPushedAuthorizationRequestEndpoint(parServer.URL)
-		c, err := client.NewClient(openidConfig, nil)
-		require.NoError(t, err)
-
-		result, err := c.Login(req)
-		require.NoError(t, err)
-
-		parsed, err := url.Parse(result.AuthCodeURL)
-		require.NoError(t, err)
-
-		assert.Equal(t, url.Values{
-			"client_id":   {openidConfig.Client().ClientID()},
-			"request_uri": {"urn:ietf:params:oauth:request_uri:dpop-test"},
-		}, parsed.Query())
-	})
+	assert.Equal(t, url.Values{
+		"client_id":   {openidConfig.Client().ClientID()},
+		"request_uri": {"urn:ietf:params:oauth:request_uri:dpop-test"},
+	}, parsed.Query())
 }
 
 func TestLogin_PushedAuthorizationRequest_RetryMintsNewAssertion(t *testing.T) {
@@ -103,7 +89,10 @@ func TestLogin_PushedAuthorizationRequest_RetryMintsNewAssertion(t *testing.T) {
 
 	attempts := 0
 	parServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.NoError(t, r.ParseForm())
+		if !assert.NoError(t, r.ParseForm()) {
+			http.Error(w, "invalid test request", http.StatusBadRequest)
+			return
+		}
 
 		mu.Lock()
 		assertions = append(assertions, r.PostForm.Get("client_assertion"))
@@ -357,11 +346,13 @@ func TestLoginURL_WithOptionalProviderParameters(t *testing.T) {
 
 			c, err := client.NewClient(openidConfig, nil)
 			require.NoError(t, err)
+
 			req := mock.NewGetRequest(mock.Ingress+"/oauth2/login", mock.Ingresses(cfg))
 
 			result, err := c.Login(req)
 			require.NoError(t, err)
 			require.NotEmpty(t, result)
+
 			parsed, err := url.Parse(result.AuthCodeURL)
 			require.NoError(t, err)
 

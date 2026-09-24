@@ -26,6 +26,7 @@ type Client interface {
 	ClientJWK() jwk.Key
 	ClientJWKAlgorithm() jwa.KeyAlgorithm
 	ClientSecret() string
+	DPoPEnabled() bool
 	DomainHint() string
 	NewClientAuthJWTType() bool
 	PostLogoutRedirectURI() string
@@ -66,13 +67,17 @@ func (in *client) ClientJWK() jwk.Key {
 }
 
 // ClientJWKAlgorithm returns the algorithm declared by the client JWK, or nil
-// when authenticating with a client secret. NewClientConfig guarantees it is set.
+// when no client JWK is configured. NewClientConfig guarantees a non-nil value when DPoP is enabled.
 func (in *client) ClientJWKAlgorithm() jwa.KeyAlgorithm {
 	return in.clientJwkAlg
 }
 
 func (in *client) ClientSecret() string {
 	return in.OpenID.ClientSecret
+}
+
+func (in *client) DPoPEnabled() bool {
+	return in.DPoP
 }
 
 func (in *client) DomainHint() string {
@@ -134,6 +139,10 @@ func NewClientConfig(cfg *config.Config) (Client, error) {
 		c.clientJwk = clientJwk
 		c.clientJwkAlg = alg
 		c.authMethod = AuthMethodPrivateKeyJWT
+	}
+
+	if cfg.OpenID.DPoP && c.clientJwkAlg == nil {
+		return nil, fmt.Errorf("%q requires %q", config.OpenIDDPoP, config.OpenIDClientJWK)
 	}
 
 	var clientConfig Client

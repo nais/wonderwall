@@ -59,3 +59,16 @@ func TestNewClientConfigRequiresClientJWKAlgorithm(t *testing.T) {
 		})
 	}
 }
+
+func TestNewClientConfig_DPoPRequiresClientJWK(t *testing.T) {
+	cfg := &config.Config{OpenID: config.OpenID{
+		ClientID:     "client-id",
+		ClientSecret: "client-secret",
+		DPoP:         true,
+		Provider:     config.ProviderOpenID,
+		WellKnownURL: "https://issuer.example/.well-known/openid-configuration",
+	}}
+
+	_, err := openidconfig.NewClientConfig(cfg)
+	require.ErrorContains(t, err, `"openid.dpop" requires "openid.client-jwk"`)
+}

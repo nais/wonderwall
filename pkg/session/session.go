@@ -80,10 +80,6 @@ func (in *Session) IDToken() string {
 	return in.data.IDToken
 }
 
-func (in *Session) UsesDPoP() bool {
-	return in.data != nil && in.data.DPoPThumbprint != ""
-}
-
 func (in *Session) MetadataVerbose() MetadataVerbose {
 	return in.data.Metadata.Verbose()
 }

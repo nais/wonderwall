@@ -37,10 +37,6 @@ type SSOProxy struct {
 }
 
 func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) {
-	if cfg.Upstream.DPoP {
-		return nil, fmt.Errorf("%q is not supported in SSO proxy mode", config.UpstreamDPoP)
-	}
-
 	autoLogin, err := autologin.New(cfg)
 	if err != nil {
 		return nil, err
@@ -66,11 +62,6 @@ func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) 
 		Scheme: "http",
 	}
 
-	upstreamOpts := []ReverseProxyOption{
-		WithAccessLogs(cfg.Upstream.AccessLogs),
-		WithIDToken(cfg.Upstream.IncludeIDToken),
-	}
-
 	return &SSOProxy{
 		AcrHandler:            acr.NewHandler(cfg),
 		AutoLogin:             autoLogin,
@@ -80,7 +71,10 @@ func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) 
 		SSOServerURL:          serverURL,
 		SSOServerReverseProxy: NewReverseProxy(serverURL),
 		SessionReader:         sessionReader,
-		UpstreamProxy:         NewUpstreamProxy(upstream, upstreamOpts...),
+		UpstreamProxy: NewUpstreamProxy(upstream,
+			WithAccessLogs(cfg.Upstream.AccessLogs),
+			WithIDToken(cfg.Upstream.IncludeIDToken),
+		),
 	}, nil
 }
 

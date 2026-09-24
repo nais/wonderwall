@@ -49,17 +49,49 @@ func TestProofer(t *testing.T) {
 		assert.LessOrEqual(t, time.Since(issued), time.Second)
 	})
 
-	t.Run("method and target normalization", func(t *testing.T) {
-		encoded, err := proofer.Proof(t.Context(), "get", target, "", "")
-		require.NoError(t, err)
+	t.Run("method and target", func(t *testing.T) {
+		for _, test := range []struct {
+			name       string
+			method     string
+			target     string
+			wantTarget string
+		}{
+			{
+				name:       "standard method",
+				method:     http.MethodGet,
+				target:     "https://example.test/a%2Fb/c?q=1#fragment",
+				wantTarget: "https://example.test/a%2Fb/c",
+			},
+			{
+				name:       "lowercase method",
+				method:     "get",
+				target:     "https://example.test/path",
+				wantTarget: "https://example.test/path",
+			},
+			{
+				name:       "extension method",
+				method:     "Example-Method",
+				target:     "https://example.test/path?",
+				wantTarget: "https://example.test/path",
+			},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				target, err := url.Parse(test.target)
+				require.NoError(t, err)
 
-		proof := parseInsecure(t, encoded)
+				encoded, err := proofer.Proof(t.Context(), test.method, target, "", "")
+				require.NoError(t, err)
 
-		var method, targetURI string
-		require.NoError(t, proof.Get("htm", &method))
-		require.NoError(t, proof.Get("htu", &targetURI))
-		assert.Equal(t, http.MethodGet, method)
-		assert.Equal(t, "https://example.test/a%2Fb/c", targetURI)
+				proof := parseInsecure(t, encoded)
+
+				var method, targetURI string
+				require.NoError(t, proof.Get("htm", &method))
+				require.NoError(t, proof.Get("htu", &targetURI))
+
+				assert.Equal(t, test.method, method)
+				assert.Equal(t, test.wantTarget, targetURI)
+			})
+		}
 	})
 
 	t.Run("nonce and access-token hash", func(t *testing.T) {
@@ -75,10 +107,6 @@ func TestProofer(t *testing.T) {
 
 		hash := sha256.Sum256([]byte("access-token"))
 		assert.Equal(t, base64.RawURLEncoding.EncodeToString(hash[:]), ath)
-
-		decoded, err := base64.RawURLEncoding.DecodeString(ath)
-		require.NoError(t, err)
-		assert.Len(t, decoded, sha256.Size)
 	})
 
 	t.Run("omitted empty optional claims", func(t *testing.T) {
@@ -88,7 +116,6 @@ func TestProofer(t *testing.T) {
 		proof := parseInsecure(t, encoded)
 		assert.False(t, proof.Has("nonce"))
 		assert.False(t, proof.Has("ath"))
-		assert.False(t, proof.Has("exp"))
 	})
 
 	t.Run("fresh JTI", func(t *testing.T) {
@@ -131,33 +158,69 @@ func TestTransport(t *testing.T) {
 	proofer := testProofer(t)
 	tokenEndpoint := "https://example.test/token"
 
+	t.Run("validates token endpoint", func(t *testing.T) {
+		for _, test := range []struct {
+			name      string
+			endpoint  string
+			wantError string
+		}{
+			{name: "HTTPS", endpoint: tokenEndpoint},
+			{name: "HTTP", endpoint: "http://example.test/token"},
+			{name: "unsupported scheme", endpoint: "ftp://example.test/token", wantError: "dpop: token URL must use HTTP or HTTPS"},
+			{name: "fragment", endpoint: tokenEndpoint + "#fragment", wantError: "dpop: token URL must not contain a fragment"},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				_, err := NewTransport(nil, test.endpoint, proofer)
+				if test.wantError == "" {
+					require.NoError(t, err)
+					return
+				}
+
+				assert.EqualError(t, err, test.wantError)
+			})
+		}
+	})
+
 	t.Run("matches token endpoint", func(t *testing.T) {
 		tests := []struct {
-			name            string
-			configuredURL   string
-			requestURL      string
-			wantProof       bool
-			wantProofTarget string
+			name          string
+			configuredURL string
+			requestURL    string
+			wantProof     bool
 		}{
 			{
-				name:            "exact endpoint",
-				configuredURL:   tokenEndpoint,
-				requestURL:      tokenEndpoint,
-				wantProof:       true,
-				wantProofTarget: tokenEndpoint,
+				name:          "exact endpoint",
+				configuredURL: tokenEndpoint,
+				requestURL:    tokenEndpoint,
+				wantProof:     true,
 			},
 			{
-				name:            "equivalent host and default port",
-				configuredURL:   "https://EXAMPLE.TEST:443/token",
-				requestURL:      tokenEndpoint,
-				wantProof:       true,
-				wantProofTarget: tokenEndpoint,
+				name:          "uppercase scheme",
+				configuredURL: "HTTPS://example.test/token",
+				requestURL:    tokenEndpoint,
+				wantProof:     true,
+			},
+			{
+				name:          "empty port",
+				configuredURL: "https://example.test:/token",
+				requestURL:    tokenEndpoint,
+				wantProof:     true,
 			},
 			{
 				name:          "different path",
 				configuredURL: tokenEndpoint,
 				requestURL:    "https://example.test/other",
-				wantProof:     false,
+			},
+			{
+				name:          "endpoint with query",
+				configuredURL: tokenEndpoint + "?audience=example",
+				requestURL:    tokenEndpoint + "?audience=example",
+				wantProof:     true,
+			},
+			{
+				name:          "different query",
+				configuredURL: tokenEndpoint + "?audience=example",
+				requestURL:    tokenEndpoint + "?audience=other",
 			},
 		}
 
@@ -166,6 +229,7 @@ func TestTransport(t *testing.T) {
 				var proofTarget string
 				var proofAttached bool
 				base := roundTripFunc(func(request *http.Request) (*http.Response, error) {
+					assert.Equal(t, tt.requestURL, request.URL.String())
 					if encoded := request.Header.Get(proofHeader); encoded != "" {
 						proofAttached = true
 						proof := parseInsecure(t, []byte(encoded))
@@ -185,67 +249,54 @@ func TestTransport(t *testing.T) {
 				assert.Equal(t, tt.wantProof, proofAttached)
 
 				if tt.wantProof {
-					assert.Equal(t, tt.wantProofTarget, proofTarget)
+					assert.Equal(t, tokenEndpoint, proofTarget)
 				}
 			})
 		}
 	})
 
-	t.Run("captures nonce from responses without retrying", func(t *testing.T) {
-		for _, test := range []struct {
-			name       string
-			statusCode int
-			body       string
+	t.Run("replaces and retains nonces from successful responses", func(t *testing.T) {
+		responses := []struct {
+			responseNonce string
+			requestNonce  string
 		}{
-			{
-				name:       "nonce challenge",
-				statusCode: http.StatusBadRequest,
-				body:       `{"error":"use_dpop_nonce"}`,
-			},
-			{
-				name:       "successful response",
-				statusCode: http.StatusOK,
-			},
-		} {
-			t.Run(test.name, func(t *testing.T) {
-				var requests int
-				var proofs []jwt.Token
+			{responseNonce: "nonce-1"},
+			{responseNonce: "nonce-2", requestNonce: "nonce-1"},
+			{requestNonce: "nonce-2"},
+			{requestNonce: "nonce-2"},
+		}
 
-				base := roundTripFunc(func(request *http.Request) (*http.Response, error) {
-					requests++
-					proofs = append(proofs, parseInsecure(t, []byte(request.Header.Get(proofHeader))))
+		var proofs []jwt.Token
+		base := roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			proofs = append(proofs, parseInsecure(t, []byte(request.Header.Get(proofHeader))))
+			header := make(http.Header)
+			if nonce := responses[len(proofs)-1].responseNonce; nonce != "" {
+				header.Set(nonceHeader, nonce)
+			}
+			return &http.Response{StatusCode: http.StatusOK, Header: header, Body: http.NoBody}, nil
+		})
+		transport, err := NewTransport(base, tokenEndpoint, proofer)
+		require.NoError(t, err)
 
-					header := make(http.Header)
-					if requests == 1 {
-						header.Set(nonceHeader, "nonce-1")
-					}
+		for range responses {
+			request, err := http.NewRequest(http.MethodPost, tokenEndpoint, nil)
+			require.NoError(t, err)
 
-					return &http.Response{
-						StatusCode: test.statusCode,
-						Header:     header,
-						Body:       io.NopCloser(strings.NewReader(test.body)),
-					}, nil
-				})
-				transport, err := NewTransport(base, tokenEndpoint, proofer)
-				require.NoError(t, err)
+			response, err := transport.RoundTrip(request)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, response.StatusCode)
+			_ = response.Body.Close()
+		}
 
-				for range 2 {
-					request, err := http.NewRequest(http.MethodPost, tokenEndpoint, nil)
-					require.NoError(t, err)
-
-					response, err := transport.RoundTrip(request)
-					require.NoError(t, err)
-					assert.Equal(t, test.statusCode, response.StatusCode)
-				}
-
-				assert.Equal(t, 2, requests)
-				require.Len(t, proofs, 2)
-				assert.False(t, proofs[0].Has("nonce"))
-
-				var nonce string
-				require.NoError(t, proofs[1].Get("nonce", &nonce))
-				assert.Equal(t, "nonce-1", nonce)
-			})
+		require.Len(t, proofs, len(responses))
+		for i, expected := range responses {
+			if expected.requestNonce == "" {
+				assert.False(t, proofs[i].Has("nonce"))
+				continue
+			}
+			var nonce string
+			require.NoError(t, proofs[i].Get("nonce", &nonce))
+			assert.Equal(t, expected.requestNonce, nonce)
 		}
 	})
 
@@ -286,15 +337,22 @@ func TestTransportNonceConcurrentAccess(t *testing.T) {
 	}), "https://example.test/token", proofer)
 	require.NoError(t, err)
 
+	errors := make(chan error, 10)
 	var wait sync.WaitGroup
 	for range 10 {
 		wait.Go(func() {
-			request, _ := http.NewRequest(http.MethodPost, "https://example.test/token", nil)
-			_, _ = transport.RoundTrip(request)
-			_ = transport.nonceValue()
+			request, err := http.NewRequest(http.MethodPost, "https://example.test/token", nil)
+			if err == nil {
+				_, err = transport.RoundTrip(request)
+			}
+			errors <- err
 		})
 	}
 	wait.Wait()
+	close(errors)
+	for err := range errors {
+		require.NoError(t, err)
+	}
 }
 
 func testProofer(t *testing.T) *Proofer {

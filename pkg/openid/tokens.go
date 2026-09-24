@@ -1,6 +1,7 @@
 package openid
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -35,7 +36,7 @@ type Tokens struct {
 }
 
 func NewTokens(src *oauth2.Token, jwks *jwk.Set, cfg openidconfig.Config, cookie *LoginCookie) (*Tokens, error) {
-	tokenType, err := NormalizeTokenType(src.TokenType)
+	tokenType, err := NormalizeTokenType(src.TokenType, cfg.Client().DPoPEnabled())
 	if err != nil {
 		return nil, err
 	}
@@ -79,14 +80,27 @@ const (
 	TokenTypeDPoP   = "DPoP"
 )
 
-func NormalizeTokenType(tokenType string) (string, error) {
-	if tokenType == "" || strings.EqualFold(tokenType, TokenTypeBearer) {
-		return TokenTypeBearer, nil
+var ErrTokenTypeMismatch = errors.New("token type does not match configured DPoP mode")
+
+func NormalizeTokenType(tokenType string, dpopEnabled bool) (string, error) {
+	var normalized string
+	switch {
+	case tokenType == "" || strings.EqualFold(tokenType, TokenTypeBearer):
+		normalized = TokenTypeBearer
+	case strings.EqualFold(tokenType, TokenTypeDPoP):
+		normalized = TokenTypeDPoP
+	default:
+		return "", fmt.Errorf("unsupported token_type %q", tokenType)
 	}
-	if strings.EqualFold(tokenType, TokenTypeDPoP) {
-		return TokenTypeDPoP, nil
+
+	expected := TokenTypeBearer
+	if dpopEnabled {
+		expected = TokenTypeDPoP
 	}
-	return "", fmt.Errorf("unsupported token_type %q", tokenType)
+	if normalized != expected {
+		return "", fmt.Errorf("%w: identity provider returned token_type=%s, expected %s", ErrTokenTypeMismatch, normalized, expected)
+	}
+	return normalized, nil
 }
 
 func NewIDToken(raw string, jwtToken jwt.Token) *IDToken {

@@ -25,8 +25,6 @@ const (
 	refreshLockDuration             = 10 * time.Second
 )
 
-var errUnexpectedDPoPTokenType = errors.New("provider returned token_type=DPoP although Wonderwall did not use DPoP for the token request")
-
 var _ Manager = &manager{}
 
 type manager struct {
@@ -83,12 +81,7 @@ func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetim
 	}
 
 	data := NewData(externalSessionID, tokens, metadata)
-	if tokens.TokenType == openid.TokenTypeDPoP {
-		data.DPoPThumbprint = in.client.DPoPThumbprint()
-		if data.DPoPThumbprint == "" {
-			return nil, errUnexpectedDPoPTokenType
-		}
-	}
+	data.DPoPThumbprint = in.client.DPoPThumbprint()
 
 	encrypted, err := data.Encrypt(ticket.Crypter())
 	if err != nil {
@@ -229,6 +222,9 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 		return resp, nil
 	})
 	if err != nil {
+		if errors.Is(err, openid.ErrTokenTypeMismatch) {
+			return nil, fmt.Errorf("%w: %w", ErrInvalid, err)
+		}
 		if errors.Is(err, openidclient.ErrOpenIDClient) {
 			return nil, fmt.Errorf("%w: authorization might be invalid: %+v", ErrInvalidExternal, err)
 		}
@@ -243,15 +239,6 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 	// refresh tokens may not always be returned from a refresh grant (RFC 6749, section 6)
 	if resp.RefreshToken != "" {
 		sess.data.RefreshToken = resp.RefreshToken
-	}
-	switch resp.TokenType {
-	case openid.TokenTypeDPoP:
-		sess.data.DPoPThumbprint = in.client.DPoPThumbprint()
-		if sess.data.DPoPThumbprint == "" {
-			return nil, fmt.Errorf("%w: %w", ErrInvalid, errUnexpectedDPoPTokenType)
-		}
-	case openid.TokenTypeBearer:
-		sess.data.DPoPThumbprint = ""
 	}
 	sess.data.Metadata.Refresh(resp.ExpiresIn)
 	sess.data.Metadata.SetSpanAttributes(span)

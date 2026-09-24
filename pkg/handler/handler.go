@@ -83,7 +83,7 @@ func NewStandalone(
 		WithAccessLogs(cfg.Upstream.AccessLogs),
 		WithIDToken(cfg.Upstream.IncludeIDToken),
 	}
-	if cfg.Upstream.DPoP {
+	if cfg.OpenID.DPoP {
 		upstreamOpts = append(upstreamOpts, WithDPoPProof(openidClient.DPoPProof))
 	}
 	upstreamProxy := NewUpstreamProxy(upstream, upstreamOpts...)
