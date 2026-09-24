@@ -490,7 +490,8 @@ func TestNormalizeTokenType(t *testing.T) {
 		{name: "bearer case insensitive", value: "bEaReR", expected: "Bearer", assertError: assert.NoError},
 		{name: "dpop case insensitive", value: "dPoP", dpop: true, expected: "DPoP", assertError: assert.NoError},
 		{name: "unsupported", value: "Basic", assertError: func(t assert.TestingT, err error, msgAndArgs ...any) bool {
-			return assert.ErrorContains(t, err, `unsupported token_type "Basic"`, msgAndArgs...)
+			return assert.ErrorIs(t, err, openid.ErrTokenTypeMismatch, msgAndArgs...) &&
+				assert.ErrorContains(t, err, `unsupported token_type "Basic"`, msgAndArgs...)
 		}},
 		{name: "dpop disabled", value: "DPoP", assertError: assertMismatch},
 		{name: "empty with dpop enabled", dpop: true, assertError: assertMismatch},

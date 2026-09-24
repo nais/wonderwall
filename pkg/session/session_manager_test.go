@@ -122,6 +122,7 @@ func TestManager_RefreshInvalidatesSessionOnTokenTypeMismatch(t *testing.T) {
 	}{
 		{name: "Bearer response in DPoP mode", enableDPoP: true, tokenType: openid.TokenTypeBearer},
 		{name: "DPoP response in Bearer mode", tokenType: openid.TokenTypeDPoP},
+		{name: "unsupported response", tokenType: "Basic"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

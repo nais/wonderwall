@@ -90,7 +90,7 @@ func NormalizeTokenType(tokenType string, dpopEnabled bool) (string, error) {
 	case strings.EqualFold(tokenType, TokenTypeDPoP):
 		normalized = TokenTypeDPoP
 	default:
-		return "", fmt.Errorf("unsupported token_type %q", tokenType)
+		return "", fmt.Errorf("%w: unsupported token_type %q", ErrTokenTypeMismatch, tokenType)
 	}
 
 	expected := TokenTypeBearer
