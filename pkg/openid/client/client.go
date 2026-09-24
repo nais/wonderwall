@@ -151,7 +151,7 @@ func (c *Client) AuthCodeGrant(ctx context.Context, code, codeVerifier, redirect
 	defer span.End()
 
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, c.httpClient)
-	return retryNonceChallenge(span, func() (*oauth2.Token, error) {
+	return c.retryNonceChallenge(ctx, func() (*oauth2.Token, error) {
 		clientAuth, err := c.ClientAuthenticationParams()
 		if err != nil {
 			return nil, err
@@ -169,7 +169,7 @@ func (c *Client) RefreshGrant(ctx context.Context, refreshToken, previousIDToken
 	payload := openid.RefreshGrantParams(c.cfg.Client().ClientID(), refreshToken)
 
 	endpoint := c.cfg.Provider().TokenEndpoint()
-	body, err := retryNonceChallenge(span, func() ([]byte, error) {
+	body, err := c.retryNonceChallenge(ctx, func() ([]byte, error) {
 		return c.oauthPost(ctx, endpoint, payload)
 	})
 	if err != nil {
@@ -305,7 +305,7 @@ func (c *Client) oauthPost(ctx context.Context, endpoint string, payload openid.
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
 			return nil, fmt.Errorf("%w: HTTP %d: unmarshalling error response: %+v", ErrOpenIDClient, resp.StatusCode, err)
 		}
-		if errorResponse.Error == dpop.ErrorCodeUseNonce {
+		if errorResponse.Error == dpop.ErrorCodeUseNonce && resp.Header.Get("DPoP-Nonce") != "" {
 			span.SetAttributes(attribute.Bool("oauth.dpop_nonce_challenge", true))
 			return nil, fmt.Errorf("%w: %w: HTTP %d: %s", ErrOpenIDClient, dpop.ErrUseNonce, resp.StatusCode, errorResponse.ErrorDescription)
 		}
@@ -322,12 +322,13 @@ func (c *Client) oauthPost(ctx context.Context, endpoint string, payload openid.
 
 // retryNonceChallenge runs request again if the authorization server demands a DPoP nonce.
 // request must mint new client authentication parameters per call, as a client assertion cannot be replayed.
-func retryNonceChallenge[T any](span trace.Span, request func() (T, error)) (T, error) {
+func (c *Client) retryNonceChallenge[T any](ctx context.Context, request func() (T, error)) (T, error) {
 	result, err := request()
-	if !dpop.IsNonceChallenge(err) {
+	if !c.DPoPEnabled() || !dpop.IsNonceChallenge(err) {
 		return result, err
 	}
 
+	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(attribute.Bool("oauth.dpop_nonce_challenge", true))
 	result, err = request()
 	span.SetAttributes(attribute.Bool("oauth.dpop_nonce_retry_succeeded", err == nil))

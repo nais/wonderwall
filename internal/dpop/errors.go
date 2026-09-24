@@ -18,5 +18,5 @@ func IsNonceChallenge(err error) bool {
 		return true
 	}
 	retrieveError, ok := errors.AsType[*oauth2.RetrieveError](err)
-	return ok && retrieveError.ErrorCode == ErrorCodeUseNonce
+	return ok && retrieveError.ErrorCode == ErrorCodeUseNonce && retrieveError.Response != nil && retrieveError.Response.Header.Get("DPoP-Nonce") != ""
 }

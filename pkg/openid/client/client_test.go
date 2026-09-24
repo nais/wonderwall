@@ -300,11 +300,15 @@ func TestClient_DPoPNonceRetryLimit(t *testing.T) {
 	}
 	errors := []struct {
 		name         string
+		dpop         bool
 		errorCode    string
+		nonce        string
 		wantRequests int
 	}{
-		{name: "retries one nonce challenge", errorCode: "use_dpop_nonce", wantRequests: 2},
-		{name: "does not retry another DPoP error", errorCode: "invalid_dpop_proof", wantRequests: 1},
+		{name: "retries one nonce challenge", dpop: true, errorCode: "use_dpop_nonce", nonce: "nonce", wantRequests: 2},
+		{name: "does not retry another DPoP error", dpop: true, errorCode: "invalid_dpop_proof", nonce: "nonce", wantRequests: 1},
+		{name: "does not retry a Bearer nonce challenge", errorCode: "use_dpop_nonce", nonce: "nonce", wantRequests: 1},
+		{name: "does not retry without a nonce", dpop: true, errorCode: "use_dpop_nonce", wantRequests: 1},
 	}
 
 	for _, grant := range grants {
@@ -315,14 +319,16 @@ func TestClient_DPoPNonceRetryLimit(t *testing.T) {
 					server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 						requests++
 						w.Header().Set("Content-Type", "application/json")
-						w.Header().Set("DPoP-Nonce", "nonce")
+						if test.nonce != "" {
+							w.Header().Set("DPoP-Nonce", test.nonce)
+						}
 						w.WriteHeader(http.StatusBadRequest)
 						assert.NoError(t, json.NewEncoder(w).Encode(map[string]string{"error": test.errorCode}))
 					}))
 					defer server.Close()
 
 					cfg := mock.NewTestConfiguration(mock.Config())
-					cfg.TestClient.OpenID.DPoP = true
+					cfg.TestClient.OpenID.DPoP = test.dpop
 					cfg.TestProvider.SetTokenEndpoint(server.URL)
 
 					err := grant.run(newTestClientWithConfig(t, cfg))
