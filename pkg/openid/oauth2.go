@@ -124,10 +124,11 @@ func (a RequestParams) URLValues() url.Values {
 
 // With returns a new RequestParams with the given RequestParams added.
 // Conflicting keys are overridden by the given RequestParams.
+// The receiver remains unchanged.
 func (a RequestParams) With(other RequestParams) RequestParams {
-	maps.Copy(a, other)
-
-	return a
+	result := maps.Clone(a)
+	maps.Copy(result, other)
+	return result
 }
 
 // ClientAuthSecretParams returns a map of parameters to be sent to the authorization server when using a client secret for client authentication in RFC 6749, section 2.3.1.

@@ -44,6 +44,7 @@ func NewManager(cfg *config.Config, openidCfg openidconfig.Config, crypter crypt
 	rd := &reader{
 		cfg:           cfg,
 		cookieCrypter: crypter,
+		client:        openidClient,
 		store:         store,
 	}
 
@@ -80,6 +81,7 @@ func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetim
 	}
 
 	data := NewData(externalSessionID, tokens, metadata)
+	data.DPoPThumbprint = in.client.DPoPThumbprint()
 
 	encrypted, err := data.Encrypt(ticket.Crypter())
 	if err != nil {
@@ -220,6 +222,9 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 		return resp, nil
 	})
 	if err != nil {
+		if errors.Is(err, openid.ErrTokenTypeMismatch) {
+			return nil, fmt.Errorf("%w: %w", ErrInvalid, err)
+		}
 		if errors.Is(err, openidclient.ErrOpenIDClient) {
 			return nil, fmt.Errorf("%w: authorization might be invalid: %+v", ErrInvalidExternal, err)
 		}

@@ -57,6 +57,20 @@ graph LR
   end
 ```
 
+## HTTP Request Headers
+
+Wonderwall preserves caller credential headers when no valid session exists. When a valid session exists, Wonderwall replaces the caller credentials with the session credentials:
+
+| Session state      | `Authorization`         | `DPoP`                                       |
+|--------------------|-------------------------|----------------------------------------------|
+| No valid session   | preserve caller header  | preserve caller header                       |
+| Valid session      | set to `Bearer <token>` | remove caller header                         |
+| Valid DPoP session | set to `DPoP <token>`   | replace caller header with a generated proof |
+
+Other request headers remain unchanged. It is up to the upstream to validate and reject requests without valid Wonderwall session credentials.
+
+See [DPoP](dpop.md) for provider negotiation, session binding, upstream proofs and nonce handling.
+
 ## Kubernetes Setup
 
 Wonderwall is primarily designed to be deployed as a _sidecar_ container in Kubernetes. An example setup could look like this:

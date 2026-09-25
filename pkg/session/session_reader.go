@@ -10,6 +10,7 @@ import (
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/internal/retry"
 	"github.com/nais/wonderwall/pkg/config"
+	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -19,7 +20,9 @@ var _ Reader = &reader{}
 type reader struct {
 	cfg           *config.Config
 	cookieCrypter crypto.Crypter
-	store         Store
+	// client is nil for SSO proxies, which have no OpenID client of their own.
+	client *openidclient.Client
+	store  Store
 }
 
 func NewReader(cfg *config.Config, cookieCrypter crypto.Crypter) (Reader, error) {
@@ -78,8 +81,26 @@ func (in *reader) getForTicket(ctx context.Context, ticket *Ticket) (*Session, e
 	if err != nil {
 		return sess, err
 	}
+	if err := in.validateDPoPBinding(data.DPoPThumbprint); err != nil {
+		return sess, err
+	}
 
 	span.SetAttributes(attribute.Bool("session.valid_session", true))
 	data.Metadata.SetSpanAttributes(span)
 	return sess, nil
+}
+
+// validateDPoPBinding checks that the session binding matches the current client's DPoP mode and key.
+// SSO readers have no OpenID client, and DPoP is not supported in SSO mode.
+func (in *reader) validateDPoPBinding(thumbprint string) error {
+	if in.client == nil {
+		if thumbprint != "" {
+			return fmt.Errorf("%w: DPoP-bound session is not supported in SSO mode", ErrInvalid)
+		}
+		return nil
+	}
+	if err := in.client.ValidateDPoPBinding(thumbprint); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalid, err)
+	}
+	return nil
 }

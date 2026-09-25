@@ -143,6 +143,8 @@ type IdentityProviderHandler struct {
 	Sessions                        map[string]string
 	RefreshTokens                   map[string]*RefreshTokenData
 	TokenDuration                   time.Duration
+	TokenDPoPProof                  string
+	TokenType                       string
 }
 
 func newIdentityProviderHandler(provider *TestProvider, cfg openidconfig.Config) *IdentityProviderHandler {
@@ -155,6 +157,7 @@ func newIdentityProviderHandler(provider *TestProvider, cfg openidconfig.Config)
 		PushedAuthorizationRequestCodes: make(map[PushedAuthorizationRequest]Code),
 		RefreshTokens:                   make(map[string]*RefreshTokenData),
 		TokenDuration:                   time.Minute,
+		TokenType:                       openid.TokenTypeBearer,
 	}
 }
 
@@ -162,6 +165,7 @@ type AuthorizeRequest struct {
 	AcrLevel      string
 	ClientID      string
 	CodeChallenge string
+	DPoPJKT       string
 	Locale        string
 	Nonce         string
 	RedirectUri   string
@@ -340,6 +344,7 @@ func (ip *IdentityProviderHandler) parseAuthorizationRequest(query url.Values) (
 		AcrLevel:      acrLevel,
 		ClientID:      clientId,
 		CodeChallenge: codeChallenge,
+		DPoPJKT:       query.Get("dpop_jkt"),
 		Locale:        locale,
 		Nonce:         nonce,
 		RedirectUri:   redirect,
@@ -437,6 +442,7 @@ func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http
 		oauthError(w, fmt.Errorf("no matching code"))
 		return
 	}
+	ip.TokenDPoPProof = r.Header.Get("DPoP")
 
 	err := ip.validateClientAuthentication(w, r, auth.ClientID)
 	if err != nil {
@@ -524,7 +530,7 @@ func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http
 
 	token := &tokenResponse{
 		AccessToken:  signedAccessToken,
-		TokenType:    "Bearer",
+		TokenType:    ip.TokenType,
 		IDToken:      signedIdToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    int64(ip.TokenDuration.Seconds()),
@@ -594,7 +600,7 @@ func (ip *IdentityProviderHandler) RefreshTokenGrant(w http.ResponseWriter, r *h
 
 	token := &tokenResponse{
 		AccessToken:  signedAccessToken,
-		TokenType:    "Bearer",
+		TokenType:    ip.TokenType,
 		RefreshToken: refreshToken,
 		ExpiresIn:    int64(ip.TokenDuration.Seconds()),
 	}

@@ -474,6 +474,37 @@ func TestValidateRefreshedIDToken(t *testing.T) {
 	}
 }
 
+func TestNormalizeTokenType(t *testing.T) {
+	assertMismatch := func(t assert.TestingT, err error, msgAndArgs ...any) bool {
+		return assert.ErrorIs(t, err, openid.ErrTokenTypeMismatch, msgAndArgs...)
+	}
+
+	for _, test := range []struct {
+		name        string
+		value       string
+		dpop        bool
+		expected    string
+		assertError assert.ErrorAssertionFunc
+	}{
+		{name: "empty bearer", expected: "Bearer", assertError: assert.NoError},
+		{name: "bearer case insensitive", value: "bEaReR", expected: "Bearer", assertError: assert.NoError},
+		{name: "dpop case insensitive", value: "dPoP", dpop: true, expected: "DPoP", assertError: assert.NoError},
+		{name: "unsupported", value: "Basic", assertError: func(t assert.TestingT, err error, msgAndArgs ...any) bool {
+			return assert.ErrorIs(t, err, openid.ErrTokenTypeMismatch, msgAndArgs...) &&
+				assert.ErrorContains(t, err, `unsupported token_type "Basic"`, msgAndArgs...)
+		}},
+		{name: "dpop disabled", value: "DPoP", assertError: assertMismatch},
+		{name: "empty with dpop enabled", dpop: true, assertError: assertMismatch},
+		{name: "bearer with dpop enabled", value: "Bearer", dpop: true, assertError: assertMismatch},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := openid.NormalizeTokenType(test.value, test.dpop)
+			test.assertError(t, err)
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
+
 func makeIDToken(mutate func(tok jwt.Token)) (*openid.IDToken, error) {
 	iat := time.Now().Truncate(time.Second).UTC()
 	exp := iat.Add(5 * time.Second)

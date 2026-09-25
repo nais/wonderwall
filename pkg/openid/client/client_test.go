@@ -1,7 +1,6 @@
 package client_test
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -27,7 +26,7 @@ func TestClientAuthenticationAssertion(t *testing.T) {
 
 	openidConfig := mock.NewTestConfiguration(cfg)
 	openidConfig.TestProvider.SetIssuer("some-issuer")
-	c := newTestClientWithConfig(openidConfig)
+	c := newTestClientWithConfig(t, openidConfig)
 
 	expiry := client.DefaultClientAssertionLifetime
 	jwtAssertion, err := c.ClientAuthenticationAssertion(expiry)
@@ -104,7 +103,7 @@ func TestClientAuthenticationAssertionHeader(t *testing.T) {
 
 	openidConfig := mock.NewTestConfiguration(cfg)
 	openidConfig.TestProvider.SetIssuer("some-issuer")
-	c := newTestClientWithConfig(openidConfig)
+	c := newTestClientWithConfig(t, openidConfig)
 
 	expiry := client.DefaultClientAssertionLifetime
 	jwtAssertion, err := c.ClientAuthenticationAssertion(expiry)
@@ -141,7 +140,7 @@ func TestClientAuthenticationAssertionAlgorithms(t *testing.T) {
 
 			openidConfig := mock.NewTestConfigurationWithClientJWK(cfg, key)
 			openidConfig.TestProvider.SetIssuer("some-issuer")
-			c := newTestClientWithConfig(openidConfig)
+			c := newTestClientWithConfig(t, openidConfig)
 
 			jwtAssertion, err := c.ClientAuthenticationAssertion(client.DefaultClientAssertionLifetime)
 			require.NoError(t, err)
@@ -178,12 +177,167 @@ func TestClient_RefusesRedirect(t *testing.T) {
 	openidConfig := mock.NewTestConfiguration(mock.Config())
 	openidConfig.TestProvider.SetTokenEndpoint(redirector.URL)
 
-	_, err := newTestClientWithConfig(openidConfig).
-		RefreshGrant(context.Background(), "some-refresh-token", "", "")
+	_, err := newTestClientWithConfig(t, openidConfig).
+		RefreshGrant(t.Context(), "some-refresh-token", "", "")
 
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "refusing to follow redirect")
 	assert.False(t, redirected, "the redirect target must not be reached")
+}
+
+func TestClient_DPoPNonceRetryMintsFreshAssertionAndProof(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		runGrant func(*client.Client) error
+	}{
+		{
+			name: "refresh grant",
+			runGrant: func(c *client.Client) error {
+				response, err := c.RefreshGrant(t.Context(), "refresh-token", "", "")
+				if err == nil {
+					assert.Equal(t, "DPoP", response.TokenType)
+				}
+
+				return err
+			},
+		},
+		{
+			name: "auth code grant",
+			runGrant: func(c *client.Client) error {
+				_, err := c.AuthCodeGrant(t.Context(), "code", "verifier", "https://client.example/callback")
+				return err
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			const nonce = "server-nonce"
+			var assertions []string
+			var proofs []string
+
+			tokenEndpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if !assert.NoError(t, r.ParseForm()) {
+					http.Error(w, "invalid test request", http.StatusBadRequest)
+					return
+				}
+
+				assertions = append(assertions, r.PostForm.Get("client_assertion"))
+				proofs = append(proofs, r.Header.Get("DPoP"))
+
+				if len(assertions) == 1 {
+					w.Header().Set("DPoP-Nonce", nonce)
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte(`{"error":"use_dpop_nonce"}`))
+					return
+				}
+
+				_, _ = w.Write([]byte(`{"access_token":"access-token","token_type":"DPoP","refresh_token":"next-refresh-token","expires_in":60}`))
+			}))
+			defer tokenEndpoint.Close()
+
+			openidConfig := mock.NewTestConfiguration(mock.Config())
+			openidConfig.TestClient.OpenID.DPoP = true
+			openidConfig.TestProvider.SetTokenEndpoint(tokenEndpoint.URL)
+
+			require.NoError(t, test.runGrant(newTestClientWithConfig(t, openidConfig)))
+
+			require.Len(t, assertions, 2)
+			require.Len(t, proofs, 2)
+			for _, tokens := range []struct {
+				name    string
+				encoded []string
+			}{
+				{name: "client assertions", encoded: assertions},
+				{name: "DPoP proofs", encoded: proofs},
+			} {
+				t.Run(tokens.name, func(t *testing.T) {
+					first, err := jwt.ParseInsecure([]byte(tokens.encoded[0]))
+					require.NoError(t, err)
+					second, err := jwt.ParseInsecure([]byte(tokens.encoded[1]))
+					require.NoError(t, err)
+
+					firstID, ok := first.JwtID()
+					require.True(t, ok)
+					secondID, ok := second.JwtID()
+					require.True(t, ok)
+					assert.NotEmpty(t, firstID)
+					assert.NotEmpty(t, secondID)
+					assert.NotEqual(t, firstID, secondID)
+				})
+			}
+
+			retryProof, err := jwt.ParseInsecure([]byte(proofs[1]))
+			require.NoError(t, err)
+
+			var retryNonce string
+			require.NoError(t, retryProof.Get("nonce", &retryNonce))
+
+			assert.Equal(t, nonce, retryNonce)
+			assert.False(t, retryProof.Has("ath"))
+		})
+	}
+}
+
+func TestClient_DPoPNonceRetryLimit(t *testing.T) {
+	grants := []struct {
+		name string
+		run  func(*client.Client) error
+	}{
+		{
+			name: "refresh grant",
+			run: func(c *client.Client) error {
+				_, err := c.RefreshGrant(t.Context(), "refresh-token", "", "")
+				return err
+			},
+		},
+		{
+			name: "auth code grant",
+			run: func(c *client.Client) error {
+				_, err := c.AuthCodeGrant(t.Context(), "code", "verifier", "https://client.example/callback")
+				return err
+			},
+		},
+	}
+	errors := []struct {
+		name         string
+		dpop         bool
+		errorCode    string
+		nonce        string
+		wantRequests int
+	}{
+		{name: "retries one nonce challenge", dpop: true, errorCode: "use_dpop_nonce", nonce: "nonce", wantRequests: 2},
+		{name: "does not retry another DPoP error", dpop: true, errorCode: "invalid_dpop_proof", nonce: "nonce", wantRequests: 1},
+		{name: "does not retry a Bearer nonce challenge", errorCode: "use_dpop_nonce", nonce: "nonce", wantRequests: 1},
+		{name: "does not retry without a nonce", dpop: true, errorCode: "use_dpop_nonce", wantRequests: 1},
+	}
+
+	for _, grant := range grants {
+		t.Run(grant.name, func(t *testing.T) {
+			for _, test := range errors {
+				t.Run(test.name, func(t *testing.T) {
+					requests := 0
+					server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						requests++
+						w.Header().Set("Content-Type", "application/json")
+						if test.nonce != "" {
+							w.Header().Set("DPoP-Nonce", test.nonce)
+						}
+						w.WriteHeader(http.StatusBadRequest)
+						assert.NoError(t, json.NewEncoder(w).Encode(map[string]string{"error": test.errorCode}))
+					}))
+					defer server.Close()
+
+					cfg := mock.NewTestConfiguration(mock.Config())
+					cfg.TestClient.OpenID.DPoP = test.dpop
+					cfg.TestProvider.SetTokenEndpoint(server.URL)
+
+					err := grant.run(newTestClientWithConfig(t, cfg))
+					require.Error(t, err)
+					assert.Equal(t, test.wantRequests, requests)
+				})
+			}
+		})
+	}
 }
 
 // assertFlattenedAudience asserts that the raw JWT assertion has a flattened audience claim, i.e. aud is a string value.
@@ -202,7 +356,13 @@ func assertFlattenedAudience(t *testing.T, jwtAssertion string) {
 	assert.Equal(t, "some-issuer", claims["aud"])
 }
 
-func newTestClientWithConfig(config *mock.TestConfiguration) *client.Client {
+func newTestClientWithConfig(t *testing.T, config *mock.TestConfiguration) *client.Client {
+	t.Helper()
+
 	jwksProvider := mock.NewTestJwksProvider()
-	return client.NewClient(config, jwksProvider)
+
+	c, err := client.NewClient(config, jwksProvider)
+	require.NoError(t, err)
+
+	return c
 }

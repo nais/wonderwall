@@ -133,14 +133,40 @@ func TestLoginCallback(t *testing.T) {
 	})
 }
 
+func TestLoginCallbackRejectsTokenTypeMismatch(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		dpop      bool
+		tokenType string
+	}{
+		{name: "DPoP with disabled mode", tokenType: openid.TokenTypeDPoP},
+		{name: "Bearer with enabled mode", dpop: true, tokenType: openid.TokenTypeBearer},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			tokens, err := newLoginCallbackWithOptions(t, test.dpop, mock.Ingress+"/oauth2/callback?code=some-code&state=some-state", func(idp *mock.IdentityProvider) {
+				idp.ProviderHandler.TokenType = test.tokenType
+			})
+
+			assert.ErrorContains(t, err, "token type does not match configured DPoP mode")
+			assert.Nil(t, tokens)
+		})
+	}
+}
+
 func newLoginCallback(t *testing.T, url string, mutateFn func(*mock.IdentityProvider)) (*openid.Tokens, error) {
+	return newLoginCallbackWithOptions(t, false, url, mutateFn)
+}
+
+func newLoginCallbackWithOptions(t *testing.T, dpop bool, callbackURL string, mutateFn func(*mock.IdentityProvider)) (*openid.Tokens, error) {
 	cfg := mock.Config()
+	cfg.OpenID.DPoP = dpop
+
 	idp := mock.NewIdentityProvider(cfg)
 	defer idp.Close()
 
-	req := idp.GetRequest(url)
+	req := idp.GetRequest(callbackURL)
 	redirect, err := urlpkg.LoginCallback(req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	idp.ProviderHandler.Codes = map[string]*mock.AuthorizeRequest{
 		"some-code": {

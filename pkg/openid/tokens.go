@@ -1,6 +1,7 @@
 package openid
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -35,6 +36,11 @@ type Tokens struct {
 }
 
 func NewTokens(src *oauth2.Token, jwks *jwk.Set, cfg openidconfig.Config, cookie *LoginCookie) (*Tokens, error) {
+	tokenType, err := NormalizeTokenType(src.TokenType, cfg.Client().DPoPEnabled())
+	if err != nil {
+		return nil, err
+	}
+
 	rawIdToken, ok := src.Extra("id_token").(string)
 	if !ok {
 		return nil, fmt.Errorf("missing id_token in token response")
@@ -64,8 +70,37 @@ func NewTokens(src *oauth2.Token, jwks *jwk.Set, cfg openidconfig.Config, cookie
 		Expiry:       expiry,
 		IDToken:      idToken,
 		RefreshToken: src.RefreshToken,
-		TokenType:    src.TokenType,
+		TokenType:    tokenType,
 	}, nil
+}
+
+// Token types that Wonderwall accepts in a token response, as defined by RFC 6750 and RFC 9449.
+const (
+	TokenTypeBearer = "Bearer"
+	TokenTypeDPoP   = "DPoP"
+)
+
+var ErrTokenTypeMismatch = errors.New("token type does not match configured DPoP mode")
+
+func NormalizeTokenType(tokenType string, dpopEnabled bool) (string, error) {
+	var normalized string
+	switch {
+	case tokenType == "" || strings.EqualFold(tokenType, TokenTypeBearer):
+		normalized = TokenTypeBearer
+	case strings.EqualFold(tokenType, TokenTypeDPoP):
+		normalized = TokenTypeDPoP
+	default:
+		return "", fmt.Errorf("%w: unsupported token_type %q", ErrTokenTypeMismatch, tokenType)
+	}
+
+	expected := TokenTypeBearer
+	if dpopEnabled {
+		expected = TokenTypeDPoP
+	}
+	if normalized != expected {
+		return "", fmt.Errorf("%w: identity provider returned token_type=%s, expected %s", ErrTokenTypeMismatch, normalized, expected)
+	}
+	return normalized, nil
 }
 
 func NewIDToken(raw string, jwtToken jwt.Token) *IDToken {

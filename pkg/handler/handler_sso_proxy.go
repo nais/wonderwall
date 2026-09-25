@@ -71,8 +71,7 @@ func NewSSOProxy(cfg *config.Config, crypter crypto.Crypter) (*SSOProxy, error) 
 		SSOServerURL:          serverURL,
 		SSOServerReverseProxy: NewReverseProxy(serverURL),
 		SessionReader:         sessionReader,
-		UpstreamProxy: NewUpstreamProxy(
-			upstream,
+		UpstreamProxy: NewUpstreamProxy(upstream,
 			WithAccessLogs(cfg.Upstream.AccessLogs),
 			WithIDToken(cfg.Upstream.IncludeIDToken),
 		),

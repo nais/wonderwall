@@ -45,6 +45,10 @@ func (c *TestClientConfiguration) ClientSecret() string {
 	return c.OpenID.ClientSecret
 }
 
+func (c *TestClientConfiguration) DPoPEnabled() bool {
+	return c.OpenID.DPoP
+}
+
 func (c *TestClientConfiguration) DomainHint() string {
 	return c.OpenID.DomainHint
 }
