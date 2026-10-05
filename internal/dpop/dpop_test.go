@@ -152,6 +152,47 @@ func TestProofer(t *testing.T) {
 		assert.NotContains(t, string(header.JWK), `"d"`)
 		assert.NotEmpty(t, proofer.Thumbprint())
 	})
+
+	t.Run("omits key operations from public JWK", func(t *testing.T) {
+		for _, test := range []struct {
+			name string
+			ops  jwk.KeyOperationList
+		}{
+			{name: "absent"},
+			{name: "sign", ops: jwk.KeyOperationList{jwk.KeyOpSign}},
+			{name: "sign and verify", ops: jwk.KeyOperationList{jwk.KeyOpSign, jwk.KeyOpVerify}},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				key, err := proofer.key.Clone()
+				require.NoError(t, err)
+				if test.ops != nil {
+					require.NoError(t, key.Set(jwk.KeyOpsKey, test.ops))
+				}
+
+				p, err := NewProofer(key)
+				require.NoError(t, err)
+				encoded, err := p.Proof(t.Context(), http.MethodGet, target, "", "")
+				require.NoError(t, err)
+
+				headerPart := bytes.SplitN(encoded, []byte("."), 2)[0]
+				decodedHeader, err := base64.RawURLEncoding.DecodeString(string(headerPart))
+				require.NoError(t, err)
+				var header struct {
+					JWK json.RawMessage `json:"jwk"`
+				}
+				require.NoError(t, json.Unmarshal(decodedHeader, &header))
+				publicKey, err := jwk.ParseKey(header.JWK)
+				require.NoError(t, err)
+
+				assert.False(t, publicKey.Has(jwk.KeyOpsKey))
+				ops, _ := key.KeyOps()
+				assert.Equal(t, test.ops, ops)
+				assert.Equal(t, proofer.Thumbprint(), p.Thumbprint())
+				_, err = jwt.Parse(encoded, jwt.WithKey(jwa.RS256(), publicKey))
+				require.NoError(t, err)
+			})
+		}
+	})
 }
 
 func TestTransport(t *testing.T) {

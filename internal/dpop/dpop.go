@@ -60,6 +60,10 @@ func NewProofer(key jwk.Key) (*Proofer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("dpop: getting public key: %w", err)
 	}
+	// Private-key operations can prevent validators from importing the public JWK.
+	if err := publicKey.Remove(jwk.KeyOpsKey); err != nil {
+		return nil, fmt.Errorf("dpop: removing public key operations: %w", err)
+	}
 	thumbprint, err := publicKey.Thumbprint(crypto.SHA256)
 	if err != nil {
 		return nil, fmt.Errorf("dpop: creating thumbprint: %w", err)
