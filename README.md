@@ -96,7 +96,7 @@ The `authorization` header should no longer be set in the upstream response.
 
 ## Development
 
-Requires Go 1.26 and [mise](https://mise.jdx.dev/) installed.
+Requires [mise](https://mise.jdx.dev/).
 
 Start up dependencies:
 
