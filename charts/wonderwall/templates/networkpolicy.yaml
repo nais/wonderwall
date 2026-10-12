@@ -44,15 +44,6 @@ spec:
           podSelector:
             matchLabels:
               nais.io/ingressClass: {{ .Values.azure.forwardAuth.ingressClassName }}
-    {{- range .Values.azure.forwardAuth.additionalIngressClassNames }}
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: nais-system
-          podSelector:
-            matchLabels:
-              nais.io/ingressClass: {{ . }}
-    {{- end }}
     - from:
         - namespaceSelector:
             matchLabels:
@@ -60,19 +51,6 @@ spec:
           podSelector:
             matchLabels:
               nais.io/ingressClass: {{ .Values.idporten.ingressClassName }}
-    {{- range .Values.idporten.additionalIngressClassNames }}
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: nais-system
-          podSelector:
-            matchLabels:
-              nais.io/ingressClass: {{ . }}
-    {{- end }}
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              linkerd.io/is-control-plane: "true"
   podSelector:
     matchLabels:
       {{- include "wonderwall.selectorLabels" . | nindent 6 }}
