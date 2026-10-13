@@ -27,10 +27,6 @@ azure:
     replicasMax: 4
     clientSecretName: azure-sso-server
     ingressClassName: external-fa-haproxy
-    # Additional ingress class names for dual-controller operation during nginx-to-HAProxy migration.
-    # Remove when nginx is decommissioned.
-    additionalIngressClassNames:
-      - nais-ingress-fa
     # 256 bits key, in standard base64 encoding
     sessionCookieEncryptionKey:
     sessionCookieName: forwardauth
@@ -45,10 +41,6 @@ idporten:
   clientSessionLifetime: 21600
   clientSecretName: idporten-sso-server
   ingressClassName: external-haproxy
-  # Additional ingress class names for dual-controller operation during nginx-to-HAProxy migration.
-  # Remove when nginx is decommissioned.
-  additionalIngressClassNames:
-    - nais-ingress-external
   openidAcrValues: idporten-loa-high
   openidLocale: nb
   openidPostLogoutRedirectURL:

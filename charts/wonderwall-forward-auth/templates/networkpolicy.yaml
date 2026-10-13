@@ -28,15 +28,6 @@ spec:
           podSelector:
             matchLabels:
               nais.io/ingressClass: {{ .Values.ingressClassName }}
-    {{- range .Values.additionalIngressClassNames }}
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: nais-system
-          podSelector:
-            matchLabels:
-              nais.io/ingressClass: {{ . }}
-    {{- end }}
   podSelector:
     matchLabels:
       {{- include "wonderwall-forward-auth.selectorLabels" . | nindent 6 }}
