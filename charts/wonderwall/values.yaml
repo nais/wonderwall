@@ -27,6 +27,7 @@ azure:
     replicasMax: 4
     clientSecretName: azure-sso-server
     ingressClassName: external-fa-haproxy
+    # 256 bits key, in standard base64 encoding
     sessionCookieEncryptionKey:
     sessionCookieName: forwardauth
     ssoDefaultRedirectURL:
