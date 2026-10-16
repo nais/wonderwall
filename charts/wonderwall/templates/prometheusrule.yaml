@@ -28,7 +28,7 @@ spec:
             namespace: {{ .Release.Namespace }}
         - alert: Wonderwall SSO server for ID-porten reports a high amount of internal errors
           expr: sum(increase(requests_total{app="wonderwall-idporten", namespace="{{ .Release.Namespace }}", code="500"}[5m])) > 10
-          for: 5m
+          for: 10m
           annotations:
             summary: Wonderwall has responded with HTTP 500 for a high amount of requests within the last 5 minutes.
             consequence: This probably means that end-users are having trouble with authentication.
