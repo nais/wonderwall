@@ -70,6 +70,7 @@ func makeCallbackURL(r *http.Request, callbackPath string) (string, error) {
 		return "", err
 	}
 
+	// #nosec G125 -- callbackPath is only supplied by LoginCallback and LogoutCallback using fixed path constants.
 	return u.JoinPath(paths.OAuth2, callbackPath).String(), nil
 }
 
