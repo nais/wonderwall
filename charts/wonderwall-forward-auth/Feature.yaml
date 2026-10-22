@@ -2,6 +2,7 @@ environmentKinds:
   - management
 dependencies:
   - allOf:
+      - fqdn-policy-crds
       - nais-netpols-management
 values:
   openid.clientID:

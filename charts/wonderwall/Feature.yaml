@@ -1,5 +1,6 @@
 dependencies:
   - allOf:
+      - fqdn-policy-crds
       - aiven-operator
       - aivenator
       - mutilator
