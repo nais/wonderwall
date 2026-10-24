@@ -27,7 +27,7 @@ jobs:
           key: go-${{ runner.os }}-${{ runner.arch }}-${{ matrix.task }}-${{ github.sha }}
           restore-keys: |
             go-${{ runner.os }}-${{ runner.arch }}-${{ matrix.task }}-
-      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # ratchet:jdx/mise-action@v5
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # ratchet:jdx/mise-action@v5
       - run: mise run ${{ matrix.task }}
   build:
     needs: verify
@@ -78,7 +78,7 @@ jobs:
           service_account: "gh-wonderwall@nais-io.iam.gserviceaccount.com"
           token_format: "access_token"
       - name: "Login to registry"
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # ratchet:docker/login-action@v4
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # ratchet:docker/login-action@v4
         with:
           registry: "${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature"
           username: "oauth2accesstoken"
