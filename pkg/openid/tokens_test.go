@@ -1,11 +1,20 @@
 package openid_test
 
 import (
+	stdcrypto "crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -328,6 +337,48 @@ func TestIDToken_Validate(t *testing.T) {
 				assert.ErrorContains(t, err, tt.expectErr)
 			} else {
 				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestIDToken_ValidateAlgorithmMatch(t *testing.T) {
+	cfg := mock.Config()
+	cfg.OpenID.ACRValues = ""
+	cfg.OpenID.ClientID = "some-client-id"
+	openidcfg := mock.NewTestConfiguration(cfg)
+	openidcfg.TestProvider.SetIssuer("https://some-issuer")
+
+	token, err := makeIDToken(nil)
+	require.NoError(t, err)
+	key, ok := jwks.Private.Key(0)
+	require.True(t, ok)
+	var privateKey rsa.PrivateKey
+	require.NoError(t, jwk.Export(key, &privateKey))
+	kid, ok := key.KeyID()
+	require.True(t, ok)
+	payload := strings.Split(token.Serialized(), ".")[1]
+
+	for _, alg := range []string{"RS256", "RS512"} {
+		t.Run(alg, func(t *testing.T) {
+			header, err := json.Marshal(map[string]string{"alg": alg, "kid": kid})
+			require.NoError(t, err)
+			input := base64.RawURLEncoding.EncodeToString(header) + "." + payload
+			digest := sha256.Sum256([]byte(input))
+			// Sign with RS256 even when the protected header advertises RS512.
+			signature, err := rsa.SignPKCS1v15(rand.Reader, &privateKey, stdcrypto.SHA256, digest[:])
+			require.NoError(t, err)
+			raw := input + "." + base64.RawURLEncoding.EncodeToString(signature)
+
+			_, err = jws.Verify([]byte(raw), jws.WithKeySet(jwks.Public))
+			require.NoError(t, err, "signature must be valid under the JWK algorithm")
+			parsed, err := openid.ParseIDToken(raw)
+			require.NoError(t, err)
+			err = parsed.Validate(openidcfg, "", "some-nonce", &jwks.Public)
+			if alg == "RS256" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, `protected header "alg" "RS512" does not match verification algorithm "RS256"`)
 			}
 		})
 	}

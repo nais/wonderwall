@@ -134,7 +134,7 @@ func (in *IDToken) Validate(cfg openidconfig.Config, expectedAcr, expectedNonce 
 	openIDconfig := cfg.Provider()
 	clientConfig := cfg.Client()
 
-	_, err := jws.Verify([]byte(in.Serialized()), jws.WithKeySet(*jwks))
+	_, err := jws.Verify([]byte(in.Serialized()), jws.WithKeySet(*jwks), jws.WithAlgorithmMatch(true))
 	if err != nil {
 		return fmt.Errorf("verifying signature: %w", err)
 	}
