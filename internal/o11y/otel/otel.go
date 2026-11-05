@@ -28,6 +28,10 @@ const (
 var tracer = noop.NewTracerProvider().Tracer("noop")
 
 func Setup(ctx context.Context, cfg *config.Config) (func(context.Context), error) {
+	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+		log.Debugf("opentelemetry: %v", err)
+	}))
+
 	prop := newPropagator()
 	otel.SetTextMapPropagator(prop)
 
