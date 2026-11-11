@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/lestrrat-go/httprc/v3 v3.0.6
 	github.com/lestrrat-go/jwx/v3 v3.4.0
-	github.com/nais/liberator v0.0.0-20261023080722-1376de97c5f1
+	github.com/nais/liberator v0.0.0-20261109120756-7d80d1d113d2
 	github.com/prometheus/client_golang v1.25.0
 	github.com/redis/go-redis/extra/redisotel/v9 v9.23.0
 	github.com/redis/go-redis/extra/redisprometheus/v9 v9.23.0
@@ -22,7 +22,7 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/sethvargo/go-retry v0.5.0
 	github.com/sirupsen/logrus v1.10.2
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.12.1
 	github.com/uptrace/opentelemetry-go-extra/otellogrus v0.4.0
@@ -32,8 +32,8 @@ require (
 	go.opentelemetry.io/otel/sdk v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
 	golang.org/x/crypto v0.58.0
-	golang.org/x/oauth2 v0.37.0
-	golang.org/x/sync v0.24.0
+	golang.org/x/oauth2 v0.38.0
+	golang.org/x/sync v0.25.0
 )
 
 require (
@@ -73,7 +73,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.uber.org/atomic v1.12.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
