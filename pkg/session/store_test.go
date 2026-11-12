@@ -1,7 +1,6 @@
 package session_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -53,13 +52,20 @@ func makeData(t *testing.T) *session.Data {
 	return session.NewData("myid", tokens, metadata)
 }
 
+func makeEncryptedData(t *testing.T) *session.EncryptedData {
+	t.Helper()
+	encryptedData, err := makeData(t).Encrypt(makeCrypter(t))
+	require.NoError(t, err)
+	return encryptedData
+}
+
 func write(t *testing.T, store session.Store, key string, value *session.EncryptedData) {
-	err := store.Write(context.Background(), key, value, time.Minute)
+	err := store.Write(t.Context(), key, value, time.Minute)
 	assert.NoError(t, err)
 }
 
 func read(t *testing.T, store session.Store, key string, encrypted *session.EncryptedData, crypter crypto.Crypter) *session.Data {
-	result, err := store.Read(context.Background(), key)
+	result, err := store.Read(t.Context(), key)
 	assert.NoError(t, err)
 	assert.Equal(t, encrypted, result)
 
@@ -75,18 +81,39 @@ func update(t *testing.T, store session.Store, key string, data *session.Data, c
 	encryptedData, err := data.Encrypt(crypter)
 	assert.NoError(t, err)
 
-	err = store.Update(context.Background(), key, encryptedData)
+	err = store.Update(t.Context(), key, encryptedData)
 	assert.NoError(t, err)
 
 	return data, encryptedData
 }
 
 func del(t *testing.T, store session.Store, key string) {
-	err := store.Delete(context.Background(), key)
+	err := store.Delete(t.Context(), key)
 	assert.NoError(t, err)
 
-	result, err := store.Read(context.Background(), key)
+	result, err := store.Read(t.Context(), key)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, session.ErrNotFound)
 	assert.Nil(t, result)
+}
+
+func testStoreLifecycle(t *testing.T, store session.Store) {
+	crypter := makeCrypter(t)
+	data := makeData(t)
+	encryptedData, err := data.Encrypt(crypter)
+	require.NoError(t, err)
+
+	key := "key"
+
+	write(t, store, key, encryptedData)
+
+	decrypted := read(t, store, key, encryptedData, crypter)
+	decryptedEqual(t, data, decrypted)
+
+	data, encryptedData = update(t, store, key, data, crypter)
+
+	decrypted = read(t, store, key, encryptedData, crypter)
+	decryptedEqual(t, data, decrypted)
+
+	del(t, store, key)
 }
