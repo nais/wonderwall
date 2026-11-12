@@ -311,7 +311,7 @@ func TestManager_SameSIDOnMultipleHosts(t *testing.T) {
 
 	require.NoError(t, mgr.Delete(t.Context(), sessA))
 	requireDeleted(t, mgr, sessA)
-	requireReadable(t, mgr, sessB)
+	requireDeleted(t, mgr, sessB)
 }
 
 func TestManager_DeleteForExternalIDDeletesAllHostSessions(t *testing.T) {
@@ -339,6 +339,18 @@ func TestManager_DeleteForExternalIDDeletesAllHostSessions(t *testing.T) {
 			requireDeleted(t, legacy, sessLegacy)
 		})
 	}
+}
+
+func TestManager_DeleteDeletesLegacySession(t *testing.T) {
+	store := NewMemory()
+	legacy := newIngressTestManager(t, store, false, ingressA)
+	sessLegacy := createOnIngress(t, legacy, ingressA)
+
+	mgr := newIngressTestManager(t, store, false, ingressA, ingressB)
+	sess := createOnIngress(t, mgr, ingressA)
+	require.NoError(t, mgr.Delete(t.Context(), sess))
+
+	requireDeleted(t, legacy, sessLegacy)
 }
 
 func TestManager_DeleteForExternalIDAfterReducingToSingleHost(t *testing.T) {

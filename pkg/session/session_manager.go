@@ -132,8 +132,11 @@ func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetim
 func (in *manager) Delete(ctx context.Context, session *Session) error {
 	ctx, span := otel.StartSpan(ctx, "Session.Delete")
 	defer span.End()
-	span.SetAttributes(attribute.String("session.id", session.ExternalSessionID()))
-	return in.deleteForKey(ctx, session.key())
+	id := session.ExternalSessionID()
+	span.SetAttributes(attribute.String("session.id", id))
+	// Log out of every host, not only the session's own.
+	keys := append(in.keysForExternalID(id), session.key())
+	return in.deleteForKey(ctx, keys...)
 }
 
 func (in *manager) DeleteForExternalID(ctx context.Context, id string) error {
@@ -141,13 +144,7 @@ func (in *manager) DeleteForExternalID(ctx context.Context, id string) error {
 	defer span.End()
 	span.SetAttributes(attribute.String("session.id", id))
 
-	keys := []string{in.key(id)}
-	// Include host-scoped keys even with a single host, so that sessions created with multiple hosts are deleted.
-	for _, host := range in.hosts {
-		keys = append(keys, in.hostKey(id, host))
-	}
-
-	return in.deleteForKey(ctx, keys...)
+	return in.deleteForKey(ctx, in.keysForExternalID(id)...)
 }
 
 func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
@@ -322,6 +319,15 @@ func (in *manager) key(externalSessionID string) string {
 
 func (in *manager) hostKey(externalSessionID, host string) string {
 	return fmt.Sprintf("%s:%x", in.key(externalSessionID), sha256.Sum256([]byte(host)))
+}
+
+func (in *manager) keysForExternalID(externalSessionID string) []string {
+	keys := []string{in.key(externalSessionID)}
+	// Include host-scoped keys even with a single host, so that sessions created with multiple hosts are deleted.
+	for _, host := range in.hosts {
+		keys = append(keys, in.hostKey(externalSessionID, host))
+	}
+	return keys
 }
 
 func (in *manager) update(ctx context.Context, sess *Session) error {
