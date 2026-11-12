@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	"github.com/nais/wonderwall/internal/retry"
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/ingress"
 	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
@@ -33,9 +35,16 @@ type manager struct {
 	client    *openidclient.Client
 	openidCfg openidconfig.Config
 	store     Store
+	hosts     []string
 }
 
-func NewManager(cfg *config.Config, openidCfg openidconfig.Config, crypter crypto.Crypter, openidClient *openidclient.Client) (Manager, error) {
+func NewManager(
+	cfg *config.Config,
+	openidCfg openidconfig.Config,
+	crypter crypto.Crypter,
+	openidClient *openidclient.Client,
+	ingresses *ingress.Ingresses,
+) (Manager, error) {
 	store, err := NewStore(cfg)
 	if err != nil {
 		return nil, err
@@ -48,13 +57,20 @@ func NewManager(cfg *config.Config, openidCfg openidconfig.Config, crypter crypt
 		store:         store,
 	}
 
-	return &manager{
+	mgr := &manager{
 		reader:    rd,
 		cfg:       cfg,
 		client:    openidClient,
 		openidCfg: openidCfg,
 		store:     store,
-	}, nil
+	}
+
+	// SSO sessions are shared across applications and are not scoped to hosts.
+	if cfg.Standalone() {
+		mgr.hosts = ingresses.Hosts()
+	}
+
+	return mgr, nil
 }
 
 func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetime time.Duration) (*Session, error) {
@@ -62,12 +78,23 @@ func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetim
 	defer span.End()
 	span.SetAttributes(attribute.Bool("session.created", false))
 
+	ctx := r.Context()
 	externalSessionID, err := ExternalID(r, in.openidCfg.Provider(), tokens.IDToken)
 	if err != nil {
 		return nil, fmt.Errorf("generating session ID: %w", err)
 	}
 
 	key := in.key(externalSessionID)
+	// Session cookies are host-only, so logins with the same external session ID on different hosts
+	// would otherwise overwrite each other's session.
+	if len(in.hosts) > 1 {
+		ing, ok := mw.IngressFrom(ctx)
+		if !ok {
+			return nil, fmt.Errorf("generating session key: request does not match a configured ingress")
+		}
+		key = in.hostKey(externalSessionID, ing.Host())
+	}
+
 	tokenExpiresIn := time.Until(tokens.Expiry)
 	metadata := NewMetadata(tokenExpiresIn, sessionLifetime)
 
@@ -88,8 +115,8 @@ func (in *manager) Create(r *http.Request, tokens *openid.Tokens, sessionLifetim
 		return nil, fmt.Errorf("encrypting session data: %w", err)
 	}
 
-	if err := retry.Do(r.Context(), func(ctx context.Context) error {
-		err = in.store.Write(r.Context(), key, encrypted, sessionLifetime)
+	if err := retry.Do(ctx, func(ctx context.Context) error {
+		err = in.store.Write(ctx, key, encrypted, sessionLifetime)
 		return retry.RetryableError(err)
 	}); err != nil {
 		return nil, fmt.Errorf("writing to store: %w", err)
@@ -113,8 +140,14 @@ func (in *manager) DeleteForExternalID(ctx context.Context, id string) error {
 	ctx, span := otel.StartSpan(ctx, "Session.DeleteForExternalID")
 	defer span.End()
 	span.SetAttributes(attribute.String("session.id", id))
-	key := in.key(id)
-	return in.deleteForKey(ctx, key)
+
+	keys := []string{in.key(id)}
+	// Include host-scoped keys even with a single host, so that sessions created with multiple hosts are deleted.
+	for _, host := range in.hosts {
+		keys = append(keys, in.hostKey(id, host))
+	}
+
+	return in.deleteForKey(ctx, keys...)
 }
 
 func (in *manager) GetOrRefresh(r *http.Request) (*Session, error) {
@@ -257,12 +290,12 @@ func (in *manager) Refresh(r *http.Request, sess *Session) (*Session, error) {
 	return sess, nil
 }
 
-func (in *manager) deleteForKey(ctx context.Context, key string) error {
+func (in *manager) deleteForKey(ctx context.Context, keys ...string) error {
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(attribute.Bool("session.deleted", false))
 
 	if err := retry.Do(ctx, func(ctx context.Context) error {
-		err := in.store.Delete(ctx, key)
+		err := in.store.Delete(ctx, keys...)
 		if err == nil {
 			return nil
 		}
@@ -285,6 +318,10 @@ func (in *manager) key(externalSessionID string) string {
 	clientID := in.openidCfg.Client().ClientID()
 	providerName := in.cfg.OpenID.Provider
 	return fmt.Sprintf("%s:%s:%s", providerName, clientID, externalSessionID)
+}
+
+func (in *manager) hostKey(externalSessionID, host string) string {
+	return fmt.Sprintf("%s:%x", in.key(externalSessionID), sha256.Sum256([]byte(host)))
 }
 
 func (in *manager) update(ctx context.Context, sess *Session) error {

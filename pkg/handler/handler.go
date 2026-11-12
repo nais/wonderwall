@@ -65,12 +65,12 @@ func NewStandalone(
 		return nil, err
 	}
 
-	sessionManager, err := session.NewManager(cfg, openidConfig, crypter, openidClient)
+	ingresses, err := ingress.ParseIngresses(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	ingresses, err := ingress.ParseIngresses(cfg)
+	sessionManager, err := session.NewManager(cfg, openidConfig, crypter, openidClient, ingresses)
 	if err != nil {
 		return nil, err
 	}

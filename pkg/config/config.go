@@ -172,6 +172,10 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+func (c *Config) Standalone() bool {
+	return !c.SSO.Enabled
+}
+
 func (c *Config) AutoRefreshDisabled() bool {
 	return c.SSO.Enabled && !c.Session.ForwardAuth
 }

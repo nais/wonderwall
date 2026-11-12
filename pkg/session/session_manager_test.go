@@ -1,17 +1,22 @@
 package session
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/pkg/config"
+	"github.com/nais/wonderwall/pkg/ingress"
+	mw "github.com/nais/wonderwall/pkg/middleware"
 	"github.com/nais/wonderwall/pkg/openid"
 	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
@@ -282,4 +287,153 @@ func newTestData(thumbprint string) *Data {
 
 func newTestRequest() *http.Request {
 	return httptest.NewRequest(http.MethodGet, "https://wonderwall.example/callback", nil)
+}
+
+const (
+	ingressA = "https://a.example.test"
+	ingressB = "https://b.example.test/app"
+	testSID  = "shared-provider-session"
+)
+
+func TestManager_SameSIDOnMultipleHosts(t *testing.T) {
+	store := NewMemory()
+	mgr := newIngressTestManager(t, store, false, ingressA, ingressB)
+
+	sessA := createOnIngress(t, mgr, ingressA)
+	sessB := createOnIngress(t, mgr, ingressB)
+
+	assert.Equal(t, fmt.Sprintf("test:client-id:%s:%x", testSID, sha256.Sum256([]byte("a.example.test"))), sessA.key())
+	assert.NotEqual(t, sessA.key(), sessB.key())
+	assert.Equal(t, testSID, sessA.ExternalSessionID())
+	assert.Equal(t, testSID, sessB.ExternalSessionID())
+	requireReadable(t, mgr, sessA)
+	requireReadable(t, mgr, sessB)
+
+	require.NoError(t, mgr.Delete(t.Context(), sessA))
+	requireDeleted(t, mgr, sessA)
+	requireReadable(t, mgr, sessB)
+}
+
+func TestManager_DeleteForExternalIDDeletesAllHostSessions(t *testing.T) {
+	for _, test := range []struct {
+		name              string
+		ingressesAtLogout []string
+	}{
+		{name: "unchanged ingresses", ingressesAtLogout: []string{ingressA, ingressB}},
+		{name: "path removed from remaining host", ingressesAtLogout: []string{ingressA, "https://b.example.test"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			store := NewMemory()
+			mgr := newIngressTestManager(t, store, false, ingressA, ingressB)
+			sessA := createOnIngress(t, mgr, ingressA)
+			sessB := createOnIngress(t, mgr, ingressB)
+
+			legacy := newIngressTestManager(t, store, false, ingressA)
+			sessLegacy := createOnIngress(t, legacy, ingressA)
+
+			logout := newIngressTestManager(t, store, false, test.ingressesAtLogout...)
+			require.NoError(t, logout.DeleteForExternalID(t.Context(), testSID))
+
+			requireDeleted(t, mgr, sessA)
+			requireDeleted(t, mgr, sessB)
+			requireDeleted(t, legacy, sessLegacy)
+		})
+	}
+}
+
+func TestManager_DeleteForExternalIDAfterReducingToSingleHost(t *testing.T) {
+	store := NewMemory()
+	mgr := newIngressTestManager(t, store, false, ingressA, ingressB)
+	sess := createOnIngress(t, mgr, ingressA)
+
+	single := newIngressTestManager(t, store, false, ingressA)
+	require.NoError(t, single.DeleteForExternalID(t.Context(), testSID))
+
+	requireDeleted(t, mgr, sess)
+}
+
+func TestManager_LegacyKey(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		sso       bool
+		ingresses []string
+	}{
+		// Paths share a single host.
+		{name: "standalone with single host", ingresses: []string{ingressA, ingressA + "/other"}},
+		{name: "sso with multiple hosts", sso: true, ingresses: []string{ingressA, ingressB}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			store := NewMemory()
+			mgr := newIngressTestManager(t, store, test.sso, test.ingresses...)
+
+			sess := createOnIngress(t, mgr, ingressA)
+			assert.Equal(t, "test:client-id:"+testSID, sess.key())
+
+			require.NoError(t, mgr.DeleteForExternalID(t.Context(), testSID))
+			requireDeleted(t, mgr, sess)
+		})
+	}
+}
+
+func TestManager_MultipleHostsRequiresMatchingIngress(t *testing.T) {
+	store := NewMemory()
+	mgr := newIngressTestManager(t, store, false, ingressA, ingressB)
+
+	_, err := mgr.Create(newTestRequest(), newIngressTestTokens(t), time.Hour)
+
+	require.Error(t, err)
+	assert.Empty(t, store.(*memorySessionStore).sessions)
+}
+
+func newIngressTestManager(t *testing.T, store Store, sso bool, ingresses ...string) *manager {
+	t.Helper()
+	client, openidCfg := newTestClient(t, "https://provider.example/token", false)
+
+	cfg := &config.Config{Ingresses: ingresses}
+	cfg.OpenID.Provider = "test"
+	cfg.SSO.Enabled = sso
+	parsed, err := ingress.ParseIngresses(cfg)
+	require.NoError(t, err)
+	m, err := NewManager(cfg, openidCfg, crypto.NewCrypter(make([]byte, crypto.KeySize)), client, parsed)
+	require.NoError(t, err)
+
+	mgr := m.(*manager)
+	mgr.store = store
+	mgr.reader.store = store
+	return mgr
+}
+
+func createOnIngress(t *testing.T, mgr *manager, rawIngress string) *Session {
+	t.Helper()
+	ing, err := ingress.ParseIngress(rawIngress)
+	require.NoError(t, err)
+
+	r := mw.RequestWithIngress(httptest.NewRequest(http.MethodGet, rawIngress+"/oauth2/callback", nil), *ing)
+	sess, err := mgr.Create(r, newIngressTestTokens(t), time.Hour)
+	require.NoError(t, err)
+	return sess
+}
+
+func newIngressTestTokens(t *testing.T) *openid.Tokens {
+	t.Helper()
+	claims := jwt.New()
+	require.NoError(t, claims.Set("sid", testSID))
+	return &openid.Tokens{
+		AccessToken: "access-token",
+		Expiry:      time.Now().Add(time.Hour),
+		IDToken:     openid.NewIDToken("id-token", claims),
+		TokenType:   openid.TokenTypeBearer,
+	}
+}
+
+func requireReadable(t *testing.T, mgr *manager, sess *Session) {
+	t.Helper()
+	_, err := mgr.getForTicket(t.Context(), sess.ticket)
+	require.NoError(t, err)
+}
+
+func requireDeleted(t *testing.T, mgr *manager, sess *Session) {
+	t.Helper()
+	_, err := mgr.getForTicket(t.Context(), sess.ticket)
+	require.ErrorIs(t, err, ErrNotFound)
 }
