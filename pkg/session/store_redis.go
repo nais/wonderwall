@@ -82,19 +82,15 @@ func (s *redisSessionStore) Update(ctx context.Context, key string, value *Encry
 	ctx, span := otel.StartSpan(ctx, "RedisSessionStore.Update")
 	defer span.End()
 
-	_, err := s.Read(ctx, key)
-	if err != nil {
-		return err
-	}
-
-	err = metrics.ObserveRedisLatency(metrics.RedisOperationUpdate, func() error {
-		return s.client.Set(ctx, key, value, redis.KeepTTL).Err()
+	// XX prevents recreating a session deleted concurrently; KEEPTTL retains its expiry.
+	err := metrics.ObserveRedisLatency(metrics.RedisOperationUpdate, func() error {
+		return s.client.SetArgs(ctx, key, value, redis.SetArgs{Mode: "XX", KeepTTL: true}).Err()
 	})
-	if err != nil {
-		return err
+	if errors.Is(err, redis.Nil) {
+		return fmt.Errorf("%w: %w", ErrNotFound, err)
 	}
 
-	return nil
+	return err
 }
 
 func (s *redisSessionStore) MakeLock(key string) Lock {

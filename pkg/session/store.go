@@ -17,6 +17,7 @@ type Store interface {
 	Write(ctx context.Context, key string, value *EncryptedData, expiration time.Duration) error
 	Read(ctx context.Context, key string) (*EncryptedData, error)
 	Delete(ctx context.Context, keys ...string) error
+	// Update replaces an existing session without changing its expiry. It returns ErrNotFound if the session no longer exists.
 	Update(ctx context.Context, key string, value *EncryptedData) error
 
 	MakeLock(key string) Lock
