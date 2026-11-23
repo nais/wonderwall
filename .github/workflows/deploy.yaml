@@ -27,7 +27,7 @@ jobs:
           key: go-${{ runner.os }}-${{ runner.arch }}-${{ matrix.task }}-${{ github.sha }}
           restore-keys: |
             go-${{ runner.os }}-${{ runner.arch }}-${{ matrix.task }}-
-      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # ratchet:jdx/mise-action@v5
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5
       - run: mise run ${{ matrix.task }}
   build:
     needs: verify
