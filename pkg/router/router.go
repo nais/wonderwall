@@ -34,6 +34,8 @@ type Handlers interface {
 	LogoutCallback(http.ResponseWriter, *http.Request)
 	// LogoutFrontChannel performs a local logout initiated by a third party in the SSO circle-of-trust.
 	LogoutFrontChannel(http.ResponseWriter, *http.Request)
+	// LogoutBackChannel performs a local logout requested by the identity provider through a server-to-server request.
+	LogoutBackChannel(http.ResponseWriter, *http.Request)
 	// LogoutLocal clears the current user's local session for logout, without triggering single-logout at the identity provider.
 	LogoutLocal(http.ResponseWriter, *http.Request)
 	// Session returns metadata for the current user's session.
@@ -107,6 +109,7 @@ func New(src Source, cfg *config.Config) chi.Router {
 				})
 
 				r.Get(paths.LogoutFrontChannel, src.LogoutFrontChannel)
+				r.Post(paths.LogoutBackChannel, src.LogoutBackChannel)
 
 				if cfg.OpenID.Provider != config.ProviderIDPorten {
 					r.Get(paths.LogoutLocal, src.LogoutLocal)

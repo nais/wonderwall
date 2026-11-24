@@ -191,6 +191,12 @@ func (s *SSOProxy) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) {
 	s.SSOServerReverseProxy.ServeHTTP(w, r)
 }
 
+func (s *SSOProxy) LogoutBackChannel(w http.ResponseWriter, r *http.Request) {
+	r.URL.Path = paths.OAuth2 + paths.LogoutBackChannel
+	removeMiddlewareHeaders(w)
+	s.SSOServerReverseProxy.ServeHTTP(w, r)
+}
+
 func (s *SSOProxy) LogoutLocal(w http.ResponseWriter, r *http.Request) {
 	r.URL.Path = paths.OAuth2 + paths.LogoutLocal
 	removeMiddlewareHeaders(w)

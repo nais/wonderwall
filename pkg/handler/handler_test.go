@@ -11,11 +11,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/nais/wonderwall/pkg/config"
 	"github.com/nais/wonderwall/pkg/cookie"
 	"github.com/nais/wonderwall/pkg/mock"
+	openidclient "github.com/nais/wonderwall/pkg/openid/client"
 	"github.com/nais/wonderwall/pkg/session"
 	urlpkg "github.com/nais/wonderwall/pkg/url"
 )
@@ -200,6 +204,67 @@ func TestFrontChannelLogout(t *testing.T) {
 
 	resp := get(t, rpClient, frontchannelLogoutURL.String())
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestBackChannelLogout(t *testing.T) {
+	cfg := mock.Config()
+	idp := mock.NewIdentityProvider(cfg)
+	defer idp.Close()
+
+	rpClient := idp.RelyingPartyClient()
+	sessionCookie := login(t, rpClient, idp)
+	backchannelLogoutURL := idp.RelyingPartyServer.URL + "/oauth2/logout/backchannel"
+
+	req := idp.GetRequest(idp.RelyingPartyServer.URL)
+	req.AddCookie(sessionCookie)
+	sess, err := idp.RelyingPartyHandler.SessionManager.Get(req)
+	require.NoError(t, err)
+	sid := sess.ExternalSessionID()
+
+	logoutToken := signLogoutToken(t, idp, func(tok jwt.Token) {
+		_ = tok.Set("sid", sid)
+	})
+
+	resp := postLogoutToken(t, rpClient, backchannelLogoutURL, logoutToken)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	_, err = idp.RelyingPartyHandler.SessionManager.Get(req)
+	assert.ErrorIs(t, err, session.ErrNotFound)
+
+	t.Run("resent token for deleted session is accepted", func(t *testing.T) {
+		resp := postLogoutToken(t, rpClient, backchannelLogoutURL, logoutToken)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	for _, tt := range []struct {
+		name        string
+		logoutToken string
+		description string
+	}{
+		{
+			name:        "missing token",
+			logoutToken: "",
+			description: "missing logout_token",
+		},
+		{
+			name: "invalid token",
+			logoutToken: signLogoutToken(t, idp, func(tok jwt.Token) {
+				_ = tok.Set("sid", "some-sid")
+				_ = tok.Set("aud", "some-other-client")
+			}),
+			description: "invalid logout_token",
+		},
+	} {
+		t.Run(tt.name+" is rejected", func(t *testing.T) {
+			resp := postLogoutToken(t, rpClient, backchannelLogoutURL, tt.logoutToken)
+			assertBackChannelLogoutError(t, resp, tt.description)
+		})
+	}
+
+	t.Run("GET is not allowed", func(t *testing.T) {
+		resp := get(t, rpClient, backchannelLogoutURL)
+		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode)
+	})
 }
 
 func TestSession(t *testing.T) {
@@ -800,4 +865,54 @@ func assertSessionRefresh(t *testing.T, idp *mock.IdentityProvider, cfg *config.
 		initial:   initial,
 		refreshed: refreshed,
 	}
+}
+
+func signLogoutToken(t *testing.T, idp *mock.IdentityProvider, mutate func(tok jwt.Token)) string {
+	t.Helper()
+
+	now := time.Now()
+	tok := jwt.New()
+	_ = tok.Set("iss", idp.OpenIDConfig.Provider().Issuer())
+	_ = tok.Set("aud", idp.OpenIDConfig.Client().ClientID())
+	_ = tok.Set("sub", "some-sub")
+	_ = tok.Set("iat", now.Unix())
+	_ = tok.Set("exp", now.Add(2*time.Minute).Unix())
+	_ = tok.Set("jti", uuid.NewString())
+	_ = tok.Set("events", map[string]any{openidclient.BackChannelLogoutEvent: map[string]any{}})
+	if mutate != nil {
+		mutate(tok)
+	}
+
+	signed, err := idp.ProviderHandler.SignToken(tok)
+	require.NoError(t, err)
+	return signed
+}
+
+func postLogoutToken(t *testing.T, client *http.Client, target, logoutToken string) response {
+	t.Helper()
+
+	body := url.Values{}
+	if logoutToken != "" {
+		body.Set("logout_token", logoutToken)
+	}
+
+	resp, err := client.PostForm(target, body)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return response{StatusCode: resp.StatusCode, Body: string(b)}
+}
+
+func assertBackChannelLogoutError(t *testing.T, resp response, description string) {
+	t.Helper()
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	var body map[string]string
+	require.NoError(t, json.Unmarshal([]byte(resp.Body), &body))
+	assert.Equal(t, "invalid_request", body["error"])
+	assert.Equal(t, description, body["error_description"])
 }

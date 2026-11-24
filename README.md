@@ -16,6 +16,7 @@ Wonderwall aims to be compliant with OAuth 2.1, and supports the following:
 - Client authentication using client assertions (`private_key_jwt`) ([RFC 7523, Section 2.2](https://datatracker.ietf.org/doc/html/rfc7523))
 - [OpenID Connect RP-Initiated Logout](https://openid.net/specs/openid-connect-rpinitiated-1_0.html)
 - [OpenID Connect Front-Channel Logout](https://openid.net/specs/openid-connect-frontchannel-1_0.html)
+- [OpenID Connect Back-Channel Logout](https://openid.net/specs/openid-connect-backchannel-1_0.html)
 - [OAuth 2.0 Pushed Authorization Requests (RFC 9126)](https://datatracker.ietf.org/doc/html/rfc9126)
 - [OAuth 2.0 Demonstrating Proof of Possession (DPoP, RFC 9449)](https://datatracker.ietf.org/doc/html/rfc9449) for token and upstream requests
 - Sessions stored in Redis, encrypted with XChaCha20-Poly1305.

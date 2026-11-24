@@ -29,6 +29,7 @@ const (
 type LogoutOperation = string
 
 const (
+	LogoutOperationBackChannel   = "back_channel"
 	LogoutOperationFrontChannel  = "front_channel"
 	LogoutOperationLocal         = "local"
 	LogoutOperationSelfInitiated = "self_initiated"
@@ -116,7 +117,7 @@ func WithProvider(provider string) {
 
 // InitLabels zeroes out all possible label combinations
 func InitLabels() {
-	logoutOperations := []LogoutOperation{LogoutOperationSelfInitiated, LogoutOperationFrontChannel, LogoutOperationLocal}
+	logoutOperations := []LogoutOperation{LogoutOperationSelfInitiated, LogoutOperationFrontChannel, LogoutOperationBackChannel, LogoutOperationLocal}
 
 	for _, operation := range logoutOperations {
 		Logouts.With(prometheus.Labels{LabelOperation: operation})
