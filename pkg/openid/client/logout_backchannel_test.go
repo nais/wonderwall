@@ -1,6 +1,7 @@
 package client_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -123,7 +125,6 @@ func TestLogoutBackChannel(t *testing.T) {
 			name: "iat too old",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("iat", now.Add(-5*time.Minute-time.Minute).Unix())
-				_ = tok.Remove("exp")
 			},
 			expectErr: "iat",
 		},
@@ -133,6 +134,13 @@ func TestLogoutBackChannel(t *testing.T) {
 				_ = tok.Set("iat", now.Add(time.Minute).Unix())
 			},
 			expectErr: `"iat" not satisfied`,
+		},
+		{
+			name: "missing exp",
+			mutate: func(tok jwt.Token) {
+				_ = tok.Remove("exp")
+			},
+			expectErr: `required claim "exp"`,
 		},
 		{
 			name: "expired",
@@ -173,9 +181,7 @@ func TestLogoutBackChannel(t *testing.T) {
 			if tt.signingKeys != nil {
 				keys = tt.signingKeys
 			}
-			body := url.Values{"logout_token": {makeLogoutToken(t, now, keys, tt.mutate)}}
-			r := httptest.NewRequest(http.MethodPost, "/oauth2/logout/backchannel", strings.NewReader(body.Encode()))
-			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			r := newLogoutBackChannelRequest(makeLogoutToken(t, now, keys, tt.mutate))
 
 			sid, err := c.LogoutBackChannel(httptest.NewRecorder(), r)
 			if tt.expectErr != "" {
@@ -188,6 +194,46 @@ func TestLogoutBackChannel(t *testing.T) {
 			assert.Equal(t, tt.expectSid, sid)
 		})
 	}
+}
+
+// rotatingJwksProvider simulates a provider that has rotated its signing keys since the JWKS was cached.
+type rotatingJwksProvider struct {
+	cached, current *crypto.JwkSet
+}
+
+func (p *rotatingJwksProvider) GetPublicJwkSet(context.Context) (*jwk.Set, error) {
+	return &p.cached.Public, nil
+}
+
+func (p *rotatingJwksProvider) RefreshPublicJwkSet(context.Context) (*jwk.Set, error) {
+	p.cached = p.current
+	return &p.cached.Public, nil
+}
+
+func TestLogoutBackChannel_RotatedSigningKeys(t *testing.T) {
+	oldKeys, err := crypto.NewJwkSet()
+	require.NoError(t, err)
+	newKeys, err := crypto.NewJwkSet()
+	require.NoError(t, err)
+
+	cfg := mock.Config()
+	cfg.OpenID.ClientID = "some-client-id"
+	openidCfg := mock.NewTestConfiguration(cfg)
+	openidCfg.TestProvider.SetIssuer("https://some-issuer")
+	c, err := client.NewClient(openidCfg, &rotatingJwksProvider{cached: oldKeys, current: newKeys})
+	require.NoError(t, err)
+
+	r := newLogoutBackChannelRequest(makeLogoutToken(t, time.Now(), newKeys, nil))
+	sid, err := c.LogoutBackChannel(httptest.NewRecorder(), r)
+	require.NoError(t, err)
+	assert.Equal(t, "some-sid", sid)
+}
+
+func newLogoutBackChannelRequest(logoutToken string) *http.Request {
+	body := url.Values{"logout_token": {logoutToken}}
+	r := httptest.NewRequest(http.MethodPost, "/oauth2/logout/backchannel", strings.NewReader(body.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return r
 }
 
 func makeLogoutToken(t *testing.T, now time.Time, keys *crypto.JwkSet, mutate func(tok jwt.Token)) string {

@@ -47,7 +47,18 @@ func (c *Client) LogoutBackChannel(w http.ResponseWriter, r *http.Request) (stri
 		return "", fmt.Errorf("getting jwks: %w", err)
 	}
 
-	sid, err := c.validateLogoutToken(raw, jwks)
+	if err := verifyLogoutTokenSignature(raw, jwks); err != nil {
+		// The provider may have rotated its signing keys since they were cached. Refreshes are throttled.
+		jwks, err = c.jwksProvider.RefreshPublicJwkSet(r.Context())
+		if err != nil {
+			return "", fmt.Errorf("refreshing jwks: %w", err)
+		}
+		if err := verifyLogoutTokenSignature(raw, jwks); err != nil {
+			return "", fmt.Errorf("%w: %w", ErrLogoutBackChannelInvalidToken, err)
+		}
+	}
+
+	sid, err := c.validateLogoutTokenClaims(raw)
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrLogoutBackChannelInvalidToken, err)
 	}
@@ -55,20 +66,25 @@ func (c *Client) LogoutBackChannel(w http.ResponseWriter, r *http.Request) (stri
 	return sid, nil
 }
 
-func (c *Client) validateLogoutToken(raw string, jwks *jwk.Set) (string, error) {
+func verifyLogoutTokenSignature(raw string, jwks *jwk.Set) error {
 	if _, err := jws.Verify([]byte(raw),
 		jws.WithKeySet(*jwks),
 		jws.WithAlgorithmMatch(true),
 	); err != nil {
-		return "", fmt.Errorf("verifying signature: %w", err)
+		return fmt.Errorf("verifying signature: %w", err)
 	}
+	return nil
+}
 
+// validateLogoutTokenClaims validates the claims of a logout token whose signature has already been verified.
+func (c *Client) validateLogoutTokenClaims(raw string) (string, error) {
 	token, err := jwt.ParseString(raw,
-		jwt.WithVerify(false), // signature is verified above because WithAlgorithmMatch isn't accepted here
+		jwt.WithVerify(false), // signature is verified by the caller because WithAlgorithmMatch isn't accepted here
 		jwt.WithAcceptableSkew(openid.AcceptableSkew),
 		jwt.WithIssuer(c.cfg.Provider().Issuer()),
 		jwt.WithAudience(c.cfg.Client().ClientID()),
 		jwt.WithRequiredClaim(jwt.IssuedAtKey),
+		jwt.WithRequiredClaim(jwt.ExpirationKey),
 		// now - iat <= max age; an empty claim name refers to the current time.
 		jwt.WithMaxDelta(logoutTokenMaxAge, "", jwt.IssuedAtKey),
 		jwt.WithRequiredClaim(jwt.JwtIDKey),
