@@ -183,29 +183,7 @@ func (in *IDToken) Validate(cfg openidconfig.Config, expectedAcr, expectedNonce 
 		return err
 	}
 
-	// OpenID Connect Core 3.1.3.7, step 3.
-	//  The `aud` (audience) Claim MAY contain an array with more than one element.
-	//  The ID Token MUST be rejected if the ID Token [...] contains additional audiences not trusted by the Client.
-	audiences, ok := in.Audience()
-	if !ok {
-		return fmt.Errorf("missing required 'aud' claim in id_token")
-	}
-	if len(audiences) > 1 {
-		trusted := clientConfig.Audiences()
-		untrusted := make([]string, 0)
-
-		for _, audience := range audiences {
-			if !trusted[audience] {
-				untrusted = append(untrusted, audience)
-			}
-		}
-
-		if len(untrusted) > 0 {
-			return fmt.Errorf("'aud' not satisfied, untrusted audience(s) found: %q", untrusted)
-		}
-	}
-
-	return nil
+	return ValidateAudiences(in.Token, clientConfig)
 }
 
 func (in *IDToken) Acr() string {
@@ -412,4 +390,33 @@ func ValidateRefreshedIDToken(cfg openidconfig.Config, previous, refreshed, expe
 
 	// otherwise, the same rules apply as apply when issuing an ID Token at the time of the original authentication
 	return refreshedToken.Validate(cfg, expectedAcr, refreshedNonce, jwks)
+}
+
+// ValidateAudiences rejects tokens that contain additional audiences not trusted by the client.
+//
+// OpenID Connect Core 3.1.3.7, step 3.
+//
+//	The `aud` (audience) Claim MAY contain an array with more than one element.
+//	The ID Token MUST be rejected if the ID Token [...] contains additional audiences not trusted by the Client.
+func ValidateAudiences(token jwt.Token, clientConfig openidconfig.Client) error {
+	audiences, ok := token.Audience()
+	if !ok {
+		return fmt.Errorf("missing required 'aud' claim")
+	}
+	if len(audiences) > 1 {
+		trusted := clientConfig.Audiences()
+		untrusted := make([]string, 0)
+
+		for _, audience := range audiences {
+			if !trusted[audience] {
+				untrusted = append(untrusted, audience)
+			}
+		}
+
+		if len(untrusted) > 0 {
+			return fmt.Errorf("'aud' not satisfied, untrusted audience(s) found: %q", untrusted)
+		}
+	}
+
+	return nil
 }

@@ -442,23 +442,7 @@ func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) 
 		}
 
 		logger.Infof("front-channel logout: destroying session with id %q: %+v", sid, err)
-		// #nosec G118 -- the retries must outlive the request, so the request context cannot be used
-		go func() {
-			// attempt background delete with retries
-			err := retry.Do(context.Background(), func(ctx context.Context) error {
-				err := s.SessionManager.DeleteForExternalID(ctx, sid)
-				if err == nil || errors.Is(err, session.ErrNotFound) {
-					return nil
-				}
-				return retry.RetryableError(err)
-			}, retry.WithMax(10*time.Minute))
-			if err != nil {
-				logger.Warnf("front-channel logout: retries exhausted for deletion of session with id %q: %+v", sid, err)
-			} else {
-				logger.WithField("sid", sid).Info("front-channel logout: session deleted in background")
-			}
-		}()
-
+		s.deleteInBackground(logger, "front-channel logout", sid)
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
@@ -467,6 +451,78 @@ func (s *Standalone) LogoutFrontChannel(w http.ResponseWriter, r *http.Request) 
 	cookie.Clear(w, cookie.Retry, s.GetCookieOptions(r))
 	metrics.ObserveLogout(metrics.LogoutOperationFrontChannel)
 	w.WriteHeader(http.StatusOK)
+}
+
+// LogoutBackChannel implements the RP side of OpenID Connect Back-Channel Logout 1.0.
+func (s *Standalone) LogoutBackChannel(w http.ResponseWriter, r *http.Request) {
+	r, span := otel.StartSpanFromRequest(r, "LogoutBackChannel")
+	defer span.End()
+	logger := mw.LogEntryFrom(r)
+
+	sid, err := s.Client.LogoutBackChannel(w, r)
+	if err != nil {
+		logger.Infof("back-channel logout: %+v", err)
+		switch {
+		case errors.Is(err, openidclient.ErrLogoutBackChannelMalformedRequest):
+			backChannelLogoutError(w, "malformed request body")
+		case errors.Is(err, openidclient.ErrLogoutBackChannelMissingToken):
+			backChannelLogoutError(w, "missing logout_token")
+		case errors.Is(err, openidclient.ErrLogoutBackChannelInvalidToken):
+			span.SetAttributes(attribute.Bool("logout.backchannel.invalid_logout_token", true))
+			backChannelLogoutError(w, "invalid logout_token")
+		default:
+			backChannelLogoutError(w, "logout failed")
+		}
+		return
+	}
+
+	logger = logger.WithField("sid", sid)
+	err = s.SessionManager.DeleteForExternalID(r.Context(), sid)
+	switch {
+	case err == nil:
+		logger.Info("back-channel logout: session deleted")
+	case errors.Is(err, session.ErrNotFound):
+		// The spec considers logout of an already logged-out user a success.
+		logger.Debug("back-channel logout: session not found")
+	default:
+		logger.Warnf("back-channel logout: destroying session: %+v", err)
+		// The identity provider may not retry, so we keep trying in the background.
+		s.deleteInBackground(logger, "back-channel logout", sid)
+		backChannelLogoutError(w, "logout failed")
+		return
+	}
+
+	metrics.ObserveLogout(metrics.LogoutOperationBackChannel)
+	w.WriteHeader(http.StatusOK)
+}
+
+// backChannelLogoutError responds as required by OpenID Connect Back-Channel Logout 1.0, section 2.8.
+func backChannelLogoutError(w http.ResponseWriter, description string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(openid.TokenErrorResponse{
+		Error:            "invalid_request",
+		ErrorDescription: description,
+	})
+}
+
+// deleteInBackground retries deletion of the session with the given external ID after the request has completed.
+func (s *Standalone) deleteInBackground(logger *log.Entry, operation, sid string) {
+	// #nosec G118 -- the retries must outlive the request, so the request context cannot be used
+	go func() {
+		err := retry.Do(context.Background(), func(ctx context.Context) error {
+			err := s.SessionManager.DeleteForExternalID(ctx, sid)
+			if err == nil || errors.Is(err, session.ErrNotFound) {
+				return nil
+			}
+			return retry.RetryableError(err)
+		}, retry.WithMax(10*time.Minute))
+		if err != nil {
+			logger.Warnf("%s: retries exhausted for deletion of session with id %q: %+v", operation, sid, err)
+		} else {
+			logger.WithField("sid", sid).Infof("%s: session deleted in background", operation)
+		}
+	}()
 }
 
 func (s *Standalone) Session(w http.ResponseWriter, r *http.Request) {

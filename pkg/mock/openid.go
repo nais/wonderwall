@@ -188,7 +188,7 @@ type tokenResponse struct {
 	IDToken      string `json:"id_token"`
 }
 
-func (ip *IdentityProviderHandler) signToken(token jwt.Token) (string, error) {
+func (ip *IdentityProviderHandler) SignToken(token jwt.Token) (string, error) {
 	privateJwkSet := *ip.Provider.PrivateJwkSet()
 	signer, ok := privateJwkSet.Key(0)
 	if !ok {
@@ -496,7 +496,7 @@ func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http
 	_ = accessToken.Set("exp", exp.Unix())
 	_ = accessToken.Set("jti", uuid.NewString())
 	_ = accessToken.Set("aud", auth.ClientID)
-	signedAccessToken, err := ip.signToken(accessToken)
+	signedAccessToken, err := ip.SignToken(accessToken)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		oauthError(w, fmt.Errorf("could not sign access token: %w", err))
@@ -519,7 +519,7 @@ func (ip *IdentityProviderHandler) TokenCodeGrant(w http.ResponseWriter, r *http
 		_ = idToken.Set("sid", auth.SessionID)
 	}
 
-	signedIdToken, err := ip.signToken(idToken)
+	signedIdToken, err := ip.SignToken(idToken)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		oauthError(w, fmt.Errorf("could not sign id token: %w", err))
@@ -585,7 +585,7 @@ func (ip *IdentityProviderHandler) RefreshTokenGrant(w http.ResponseWriter, r *h
 	_ = accessToken.Set("iat", iat.Unix())
 	_ = accessToken.Set("exp", exp.Unix())
 	_ = accessToken.Set("jti", uuid.NewString())
-	signedAccessToken, err := ip.signToken(accessToken)
+	signedAccessToken, err := ip.SignToken(accessToken)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		oauthError(w, fmt.Errorf("could not sign access token: %w", err))

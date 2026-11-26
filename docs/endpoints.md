@@ -24,6 +24,7 @@ Endpoints that should be registered at and only be triggered by identity provide
 | `GET /oauth2/callback`            | Handles the callback from the identity provider                                            |
 | `GET /oauth2/logout/callback`     | Handles the logout callback from the identity provider                                     |
 | `GET /oauth2/logout/frontchannel` | Handles global logout request (initiated by identity provider on behalf of another client) |
+| `POST /oauth2/logout/backchannel` | Handles server-to-server global logout request (initiated by identity provider)            |
 
 ## Endpoint Details
 

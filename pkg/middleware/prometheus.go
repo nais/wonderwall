@@ -69,6 +69,7 @@ func (m *PrometheusMiddleware) Handler(next http.Handler) http.Handler {
 		paths.OAuth2 + paths.Logout:                      true,
 		paths.OAuth2 + paths.LogoutCallback:              true,
 		paths.OAuth2 + paths.LogoutFrontChannel:          true,
+		paths.OAuth2 + paths.LogoutBackChannel:           true,
 		paths.OAuth2 + paths.LogoutLocal:                 true,
 		paths.OAuth2 + paths.Ping:                        false,
 		paths.OAuth2 + paths.Session:                     true,
