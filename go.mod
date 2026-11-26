@@ -3,9 +3,9 @@ module github.com/nais/wonderwall
 go 1.27.4
 
 require (
-	github.com/KimMachineGun/automemlimit v1.0.1
-	github.com/alicebob/miniredis/v2 v2.40.0
-	github.com/bmatcuk/doublestar/v4 v4.10.4
+	github.com/KimMachineGun/automemlimit v1.0.2
+	github.com/alicebob/miniredis/v2 v2.41.0
+	github.com/bmatcuk/doublestar/v4 v4.10.7
 	github.com/bsm/redislock v0.10.0
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/go-logr/logr v1.4.4
@@ -13,11 +13,11 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/lestrrat-go/httprc/v3 v3.0.6
 	github.com/lestrrat-go/jwx/v3 v3.4.0
-	github.com/nais/liberator v0.0.0-20261109120756-7d80d1d113d2
+	github.com/nais/liberator v0.0.0-20261125100045-31a62ea36e6a
 	github.com/prometheus/client_golang v1.25.0
-	github.com/redis/go-redis/extra/redisotel/v9 v9.23.0
-	github.com/redis/go-redis/extra/redisprometheus/v9 v9.23.0
-	github.com/redis/go-redis/v9 v9.23.0
+	github.com/redis/go-redis/extra/redisotel/v9 v9.24.0
+	github.com/redis/go-redis/extra/redisprometheus/v9 v9.24.0
+	github.com/redis/go-redis/v9 v9.24.0
 	github.com/riandyrn/otelchi v0.12.3
 	github.com/rs/cors v1.11.1
 	github.com/sethvargo/go-retry v0.5.0
@@ -33,7 +33,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.47.0
 	go.opentelemetry.io/otel/sdk v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
-	golang.org/x/crypto v0.58.0
+	golang.org/x/crypto v0.59.0
 	golang.org/x/oauth2 v0.38.0
 	golang.org/x/sync v0.25.0
 )
@@ -89,7 +89,7 @@ require (
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.72.0 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
-	github.com/redis/go-redis/extra/rediscmd/v9 v9.23.0 // indirect
+	github.com/redis/go-redis/extra/rediscmd/v9 v9.24.0 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.6 // indirect
@@ -110,8 +110,8 @@ require (
 	go.uber.org/atomic v1.12.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
 	google.golang.org/grpc v1.83.2 // indirect
