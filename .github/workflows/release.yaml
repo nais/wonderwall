@@ -1,0 +1,143 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.2.3. Defaults to the next version computed from conventional commits."
+        required: false
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  release:
+    name: Release
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      packages: write
+    env:
+      GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/wonderwall
+      GAR_IMAGE: europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall
+    outputs:
+      build_version: ${{ steps.image.outputs.build_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # ratchet:jdx/mise-action@v5
+      - name: Check build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          conclusion="$(gh run list --workflow deploy.yaml --commit "$GITHUB_SHA" --branch master \
+            --limit 1 --json conclusion --jq '.[0].conclusion // ""')"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error ::Build for $GITHUB_SHA has not succeeded (conclusion: '${conclusion:-in progress or missing}'); wait for it and retry."
+            exit 1
+          fi
+      - name: Resolve version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="${INPUT_VERSION#v}"
+          if [ -z "$version" ]; then
+            version="$(git cliff --bumped-version)"
+            version="${version#v}"
+          fi
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error ::Invalid version '$version'; expected MAJOR.MINOR.PATCH."
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "::error ::Tag v$version already exists."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # ratchet:google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.NAIS_IO_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: gh-wonderwall@nais-io.iam.gserviceaccount.com
+          token_format: access_token
+      - name: Tag images
+        id: image
+        env:
+          GAR_TOKEN: ${{ steps.auth.outputs.access_token }}
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          echo "$GH_TOKEN" | crane auth login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          echo "$GAR_TOKEN" | crane auth login europe-north1-docker.pkg.dev -u oauth2accesstoken --password-stdin
+
+          # The build workflow tags images as <timestamp>-<short sha>.
+          short_sha="${GITHUB_SHA::7}"
+          source_tag="$(crane ls "$GHCR_IMAGE" | grep -E -- "-${short_sha}$" | sort | tail -n 1 || true)"
+          if [ -z "$source_tag" ]; then
+            echo "::error ::No image found for $GITHUB_SHA; wait for the build workflow to publish it."
+            exit 1
+          fi
+
+          major="${VERSION%%.*}"
+          minor="${VERSION%.*}"
+          for image in "$GHCR_IMAGE" "$GAR_IMAGE"; do
+            # Allow reruns of a partially completed release, but never move an existing version tag.
+            source_digest="$(crane digest "$image:$source_tag")"
+            if existing_digest="$(crane digest "$image:$VERSION" 2>/dev/null)" && [ "$existing_digest" != "$source_digest" ]; then
+              echo "::error ::$image:$VERSION already exists with a different digest ($existing_digest)."
+              exit 1
+            fi
+          done
+          for image in "$GHCR_IMAGE" "$GAR_IMAGE"; do
+            for tag in "$VERSION" "$minor" "$major"; do
+              crane tag "$image:$source_tag" "$tag"
+            done
+            echo "Tagged \`$image:$source_tag\` as $VERSION, $minor and $major." >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "build_version=$source_tag" >> "$GITHUB_OUTPUT"
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' >/dev/null 2>&1; then
+            git cliff --unreleased --tag "v$VERSION" --strip all > notes.md
+          else
+            echo "Initial release." > notes.md
+          fi
+          printf '\n### Image\n\n`%s:%s`\n' "$GHCR_IMAGE" "$VERSION" >> notes.md
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file notes.md
+  rollout:
+    name: Rollout
+    needs: release
+    runs-on: fasit-deploy
+    permissions:
+      id-token: write
+    env:
+      CHART_REGISTRY: oci://europe-north1-docker.pkg.dev/nais-io/nais/feature
+      CHART_VERSION: 1.0.0-${{ needs.release.outputs.build_version }}
+    steps:
+      - uses: nais/fasit-deploy@53e433b1bdd08fc622e03a78584c0832c9083bd3 # ratchet:nais/fasit-deploy@v4
+        with:
+          chart: ${{ env.CHART_REGISTRY }}/wonderwall
+          version: ${{ env.CHART_VERSION }}
+          targets: |
+            [
+              { "target": { "kind": "tenant" } }
+            ]
+      - uses: nais/fasit-deploy@53e433b1bdd08fc622e03a78584c0832c9083bd3 # ratchet:nais/fasit-deploy@v4
+        with:
+          chart: ${{ env.CHART_REGISTRY }}/wonderwall-forward-auth
+          version: ${{ env.CHART_VERSION }}
+          targets: |
+            [
+              { "target": { "kind": "management" } }
+            ]

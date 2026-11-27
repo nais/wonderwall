@@ -111,6 +111,18 @@ Start Wonderwall:
 mise run local
 ```
 
+### Releasing
+
+Pushes to `master` deploy to the `ci-nais` and `dev-nais` tenants.
+To release the latest `master` commit to all other tenants, wait for its build to succeed and run:
+
+```shell
+mise run release          # version from conventional commits
+mise run release 1.4.0    # explicit version
+```
+
+Mark breaking changes with `!` or a `BREAKING CHANGE:` footer.
+
 ## Docker Images
 
 Wonderwall is available on both GitHub Container Registry and Google Artifact Registry:
@@ -118,6 +130,8 @@ Wonderwall is available on both GitHub Container Registry and Google Artifact Re
 - `ghcr.io/nais/wonderwall`
 - `europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall`
 
+[Releases](https://github.com/nais/wonderwall/releases) are tagged as `X.Y.Z`, `X.Y` and `X`.
+Other tags are builds from `master`.
 For available tags, see [the versions overview on GitHub](https://github.com/nais/wonderwall/pkgs/container/wonderwall/versions).
 
 ### Verifying the Wonderwall image and its contents

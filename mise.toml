@@ -10,6 +10,8 @@ golangci-lint = "2.15.0"
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.10.0"
 "go:honnef.co/go/tools/cmd/staticcheck" = "0.8.2"
 "go:mvdan.cc/gofumpt" = "0.12.0"
+crane = "0.22.1"
+git-cliff = "2.14.2"
 
 [tasks.build]
 run = "go build -a -o bin/wonderwall ./cmd/wonderwall"
@@ -28,6 +30,11 @@ run = '''go run cmd/wonderwall/main.go \
     --log-level=info \
     --log-format=text
 '''
+
+[tasks.release]
+description = "Release the latest master commit and roll it out to production tenants"
+usage = 'arg "[version]" help="Override the computed version, e.g. 1.2.3"'
+run = 'gh workflow run release.yaml --ref master ${usage_version:+-f version="$usage_version"}'
 
 [tasks.fmt]
 run = "gofumpt -w ./"
