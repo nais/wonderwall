@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jws"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/pkg/openid/acr"
@@ -134,7 +134,7 @@ func (in *IDToken) Validate(cfg openidconfig.Config, expectedAcr, expectedNonce 
 	openIDconfig := cfg.Provider()
 	clientConfig := cfg.Client()
 
-	_, err := jws.Verify([]byte(in.Serialized()), jws.WithKeySet(*jwks), jws.WithAlgorithmMatch(true))
+	_, err := jws.Verify([]byte(in.Serialized()), jws.WithKeySet(*jwks))
 	if err != nil {
 		return fmt.Errorf("verifying signature: %w", err)
 	}
@@ -224,8 +224,8 @@ func (in *IDToken) Claim(claim string) (any, error) {
 		return nil, fmt.Errorf("token is nil")
 	}
 
-	var gotClaim any
-	if err := in.Get(claim, &gotClaim); err != nil {
+	gotClaim, err := jwt.Get[any](in.Token, claim)
+	if err != nil {
 		return nil, fmt.Errorf("missing required '%s' claim in id_token: %w", claim, err)
 	}
 
@@ -233,17 +233,11 @@ func (in *IDToken) Claim(claim string) (any, error) {
 }
 
 func (in *IDToken) StringClaim(claim string) (string, error) {
-	gotClaim, err := in.Claim(claim)
-	if err != nil {
-		return "", err
+	if in.Token == nil {
+		return "", fmt.Errorf("token is nil")
 	}
 
-	claimString, ok := gotClaim.(string)
-	if !ok {
-		return "", fmt.Errorf("'%s' claim is not a string", claim)
-	}
-
-	return claimString, nil
+	return jwt.Get[string](in.Token, claim)
 }
 
 func (in *IDToken) StringSliceClaim(claim string) ([]string, error) {

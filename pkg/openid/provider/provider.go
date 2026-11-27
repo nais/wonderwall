@@ -3,12 +3,14 @@ package provider
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
+	"github.com/jwx-go/jwkfetch/v4"
 	"github.com/lestrrat-go/httprc/v3"
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 	"github.com/nais/wonderwall/internal/o11y/otel"
 	openidconfig "github.com/nais/wonderwall/pkg/openid/config"
 	"go.opentelemetry.io/otel/attribute"
@@ -20,7 +22,7 @@ const (
 
 type JwksProvider struct {
 	config    openidconfig.Provider
-	jwksCache *jwk.Cache
+	jwksCache *jwkfetch.Cache
 	jwksLock  *jwksLock
 }
 
@@ -78,7 +80,13 @@ func NewJwksProvider(ctx context.Context, openidCfg openidconfig.Config) (*JwksP
 	providerCfg := openidCfg.Provider()
 
 	uri := providerCfg.JwksURI()
-	cache, err := jwk.NewCache(ctx, httprc.NewClient())
+	// Retain the default transport's proxy support and the library's redirect and timeout protections.
+	httpClient := jwkfetch.WrapHTTPClientDefaults(&http.Client{})
+	cache, err := jwkfetch.NewCache(ctx, httprc.NewClient(),
+		jwkfetch.WithHTTPClient(httpClient),
+		// Keep rejecting malformed JWKS entries instead of retaining unusable keys.
+		jwkfetch.WithParseOptions(jwk.WithStrictKeySetParsing(true)),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("creating jwks cache: %w", err)
 	}

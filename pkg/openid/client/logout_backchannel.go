@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jws"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 
 	"github.com/nais/wonderwall/pkg/openid"
 )
@@ -47,18 +47,15 @@ func (c *Client) LogoutBackChannel(w http.ResponseWriter, r *http.Request) (stri
 		return "", fmt.Errorf("getting jwks: %w", err)
 	}
 
-	if err := verifyLogoutTokenSignature(raw, jwks); err != nil {
+	sid, err := c.validateLogoutToken(raw, jwks)
+	if errors.Is(err, jws.VerifyError()) {
 		// The provider may have rotated its signing keys since they were cached. Refreshes are throttled.
-		jwks, err = c.jwksProvider.RefreshPublicJwkSet(r.Context())
-		if err != nil {
-			return "", fmt.Errorf("refreshing jwks: %w", err)
+		refreshed, refreshErr := c.jwksProvider.RefreshPublicJwkSet(r.Context())
+		if refreshErr != nil {
+			return "", fmt.Errorf("refreshing jwks: %w", refreshErr)
 		}
-		if err := verifyLogoutTokenSignature(raw, jwks); err != nil {
-			return "", fmt.Errorf("%w: %w", ErrLogoutBackChannelInvalidToken, err)
-		}
+		sid, err = c.validateLogoutToken(raw, refreshed)
 	}
-
-	sid, err := c.validateLogoutTokenClaims(raw)
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrLogoutBackChannelInvalidToken, err)
 	}
@@ -66,20 +63,11 @@ func (c *Client) LogoutBackChannel(w http.ResponseWriter, r *http.Request) (stri
 	return sid, nil
 }
 
-func verifyLogoutTokenSignature(raw string, jwks *jwk.Set) error {
-	if _, err := jws.Verify([]byte(raw),
-		jws.WithKeySet(*jwks),
-		jws.WithAlgorithmMatch(true),
-	); err != nil {
-		return fmt.Errorf("verifying signature: %w", err)
-	}
-	return nil
-}
-
-// validateLogoutTokenClaims validates the claims of a logout token whose signature has already been verified.
-func (c *Client) validateLogoutTokenClaims(raw string) (string, error) {
+func (c *Client) validateLogoutToken(raw string, jwks *jwk.Set) (string, error) {
 	token, err := jwt.ParseString(raw,
-		jwt.WithVerify(false), // signature is verified by the caller because WithAlgorithmMatch isn't accepted here
+		jwt.WithKeySet(*jwks),
+		jwt.WithVerify(true),
+		jwt.WithValidate(true),
 		jwt.WithAcceptableSkew(openid.AcceptableSkew),
 		jwt.WithIssuer(c.cfg.Provider().Issuer()),
 		jwt.WithAudience(c.cfg.Client().ClientID()),
@@ -98,8 +86,8 @@ func (c *Client) validateLogoutTokenClaims(raw string) (string, error) {
 	}
 
 	// Step 5: require the back-channel logout event.
-	var events map[string]any
-	if err := token.Get(eventsClaim, &events); err != nil {
+	events, err := jwt.Get[map[string]any](token, eventsClaim)
+	if err != nil {
 		return "", fmt.Errorf("missing or malformed %q claim: %w", eventsClaim, err)
 	}
 	event, ok := events[BackChannelLogoutEvent]
@@ -111,8 +99,8 @@ func (c *Client) validateLogoutTokenClaims(raw string) (string, error) {
 	}
 
 	// Step 6 allows tokens with only `sub`, but sessions can only be found by `sid`.
-	var sid string
-	if err := token.Get(openid.SidClaim, &sid); err != nil || sid == "" {
+	sid, err := jwt.Get[string](token, openid.SidClaim)
+	if err != nil || sid == "" {
 		return "", fmt.Errorf("missing or invalid %q claim; logout by %q alone is not supported", openid.SidClaim, "sub")
 	}
 

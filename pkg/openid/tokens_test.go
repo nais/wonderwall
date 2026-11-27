@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jws"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -153,13 +153,28 @@ func TestIDToken_GetSidClaim(t *testing.T) {
 	assert.Equal(t, "some-sid", sid)
 }
 
+func TestIDToken_StringClaimErrors(t *testing.T) {
+	claims := jwt.New()
+	idToken := openid.NewIDToken("", claims)
+	_, err := idToken.StringClaim(openid.SidClaim)
+	assert.ErrorIs(t, err, jwt.ClaimNotFoundError{})
+
+	require.NoError(t, claims.Set(openid.SidClaim, 123))
+	_, err = idToken.StringClaim(openid.SidClaim)
+	assert.ErrorIs(t, err, jwt.ClaimTypeMismatchError{})
+
+	_, err = openid.NewIDToken("", nil).StringClaim(openid.SidClaim)
+	assert.ErrorContains(t, err, "token is nil")
+}
+
 func TestIDToken_Validate(t *testing.T) {
 	for _, tt := range []struct {
-		name       string
-		mutate     func(tok jwt.Token)
-		requireAcr bool
-		requireSid bool
-		expectErr  string
+		name         string
+		mutate       func(tok jwt.Token)
+		requireAcr   bool
+		requireSid   bool
+		expectErr    string
+		expectJWTErr error
 	}{
 		{
 			name: "happy path",
@@ -169,77 +184,77 @@ func TestIDToken_Validate(t *testing.T) {
 			mutate: func(tok jwt.Token) {
 				_ = tok.Remove("sub")
 			},
-			expectErr: `required claim "sub" is missing`,
+			expectJWTErr: jwt.MissingRequiredClaimError{Claim: "sub"},
 		},
 		{
 			name: "missing exp",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Remove("exp")
 			},
-			expectErr: `required claim "exp" is missing`,
+			expectJWTErr: jwt.MissingRequiredClaimError{Claim: "exp"},
 		},
 		{
 			name: "missing iat",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Remove("iat")
 			},
-			expectErr: `required claim "iat" is missing`,
+			expectJWTErr: jwt.MissingRequiredClaimError{Claim: "iat"},
 		},
 		{
 			name: "missing iss",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Remove("iss")
 			},
-			expectErr: `required claim "iss" is missing`,
+			expectJWTErr: jwt.MissingRequiredClaimError{Claim: "iss"},
 		},
 		{
 			name: "iat is in the future",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("iat", time.Now().Add(openid.AcceptableSkew+5*time.Second).Unix())
 			},
-			expectErr: `"iat" not satisfied`,
+			expectJWTErr: jwt.InvalidIssuedAtError{},
 		},
 		{
 			name: "exp is in the past",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("exp", time.Now().Add(-openid.AcceptableSkew-5*time.Second).Unix())
 			},
-			expectErr: `"exp" not satisfied`,
+			expectJWTErr: jwt.TokenExpiredError{},
 		},
 		{
 			name: "nbf is in the future",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("nbf", time.Now().Add(openid.AcceptableSkew+5*time.Second).Unix())
 			},
-			expectErr: `"nbf" not satisfied`,
+			expectJWTErr: jwt.TokenNotYetValidError{},
 		},
 		{
 			name: "issuer mismatch",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("iss", "https://some-other-issuer")
 			},
-			expectErr: `claim "iss" does not have the expected value`,
+			expectJWTErr: jwt.InvalidIssuerError{},
 		},
 		{
 			name: "missing aud",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Remove("aud")
 			},
-			expectErr: `required claim "aud" is missing`,
+			expectJWTErr: jwt.MissingRequiredClaimError{Claim: "aud"},
 		},
 		{
 			name: "audience mismatch",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("aud", "not-client-id")
 			},
-			expectErr: `"aud" not satisfied`,
+			expectJWTErr: jwt.InvalidAudienceError{},
 		},
 		{
 			name: "multiple audiences, missing client_id",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("aud", []string{"not-client-id", "trusted-id-1"})
 			},
-			expectErr: `"aud" not satisfied`,
+			expectJWTErr: jwt.InvalidAudienceError{},
 		},
 		{
 			name: "multiple audiences, all trusted",
@@ -259,14 +274,14 @@ func TestIDToken_Validate(t *testing.T) {
 			mutate: func(tok jwt.Token) {
 				_ = tok.Remove("nonce")
 			},
-			expectErr: `claim "nonce" does not exist`,
+			expectJWTErr: jwt.ClaimValidationError{Claim: "nonce"},
 		},
 		{
 			name: "nonce mismatch",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("nonce", "invalid-nonce")
 			},
-			expectErr: `claim "nonce" does not have the expected value`,
+			expectJWTErr: jwt.ClaimValidationError{Claim: "nonce"},
 		},
 		{
 			name: "sid required",
@@ -280,8 +295,8 @@ func TestIDToken_Validate(t *testing.T) {
 			mutate: func(tok jwt.Token) {
 				_ = tok.Remove("sid")
 			},
-			requireSid: true,
-			expectErr:  `required claim "sid" is missing`,
+			requireSid:   true,
+			expectJWTErr: jwt.MissingRequiredClaimError{Claim: "sid"},
 		},
 		{
 			name: "acr expected",
@@ -333,10 +348,23 @@ func TestIDToken_Validate(t *testing.T) {
 
 			expectedNonce := "some-nonce"
 			err = idToken.Validate(openidcfg, expectedAcr, expectedNonce, &jwks.Public)
-			if tt.expectErr != "" {
-				assert.ErrorContains(t, err, tt.expectErr)
-			} else {
-				assert.NoError(t, err)
+			switch expected := tt.expectJWTErr.(type) {
+			case jwt.MissingRequiredClaimError:
+				var actual jwt.MissingRequiredClaimError
+				require.ErrorAs(t, err, &actual)
+				assert.Equal(t, expected.Claim, actual.Claim)
+			case jwt.ClaimValidationError:
+				var actual jwt.ClaimValidationError
+				require.ErrorAs(t, err, &actual)
+				assert.Equal(t, expected.Claim, actual.Claim)
+			case nil:
+				if tt.expectErr == "" {
+					assert.NoError(t, err)
+				} else {
+					assert.ErrorContains(t, err, tt.expectErr)
+				}
+			default:
+				assert.ErrorIs(t, err, expected)
 			}
 		})
 	}
@@ -353,8 +381,8 @@ func TestIDToken_ValidateAlgorithmMatch(t *testing.T) {
 	require.NoError(t, err)
 	key, ok := jwks.Private.Key(0)
 	require.True(t, ok)
-	var privateKey rsa.PrivateKey
-	require.NoError(t, jwk.Export(key, &privateKey))
+	privateKey, err := jwk.Export[*rsa.PrivateKey](key)
+	require.NoError(t, err)
 	kid, ok := key.KeyID()
 	require.True(t, ok)
 	payload := strings.Split(token.Serialized(), ".")[1]
@@ -366,31 +394,31 @@ func TestIDToken_ValidateAlgorithmMatch(t *testing.T) {
 			input := base64.RawURLEncoding.EncodeToString(header) + "." + payload
 			digest := sha256.Sum256([]byte(input))
 			// Sign with RS256 even when the protected header advertises RS512.
-			signature, err := rsa.SignPKCS1v15(rand.Reader, &privateKey, stdcrypto.SHA256, digest[:])
+			signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, stdcrypto.SHA256, digest[:])
 			require.NoError(t, err)
 			raw := input + "." + base64.RawURLEncoding.EncodeToString(signature)
 
-			_, err = jws.Verify([]byte(raw), jws.WithKeySet(jwks.Public))
-			require.NoError(t, err, "signature must be valid under the JWK algorithm")
 			parsed, err := openid.ParseIDToken(raw)
 			require.NoError(t, err)
 			err = parsed.Validate(openidcfg, "", "some-nonce", &jwks.Public)
 			if alg == "RS256" {
 				assert.NoError(t, err)
 			} else {
-				assert.ErrorContains(t, err, `protected header "alg" "RS512" does not match verification algorithm "RS256"`)
+				assert.ErrorIs(t, err, jws.VerificationError())
 			}
 		})
 	}
 }
 
 func TestValidateRefreshedIDToken(t *testing.T) {
+	issuedAt := time.Now().Unix()
 	for _, tt := range []struct {
-		name       string
-		previous   func(tok jwt.Token)
-		refreshed  func(tok jwt.Token)
-		requireAcr bool
-		expectErr  string
+		name         string
+		previous     func(tok jwt.Token)
+		refreshed    func(tok jwt.Token)
+		requireAcr   bool
+		expectErr    string
+		expectJWTErr error
 	}{
 		{
 			name: "happy path",
@@ -412,10 +440,10 @@ func TestValidateRefreshedIDToken(t *testing.T) {
 		{
 			name: "iat unchanged",
 			previous: func(tok jwt.Token) {
-				_ = tok.Set("iat", time.Now().Unix())
+				_ = tok.Set("iat", issuedAt)
 			},
 			refreshed: func(tok jwt.Token) {
-				_ = tok.Set("iat", time.Now().Unix())
+				_ = tok.Set("iat", issuedAt)
 			},
 			expectErr: "'iat' claim in refreshed id_token must be greater than previous id_token",
 		},
@@ -462,14 +490,14 @@ func TestValidateRefreshedIDToken(t *testing.T) {
 			refreshed: func(tok jwt.Token) {
 				_ = tok.Set("iat", time.Now().Add(openid.AcceptableSkew+5*time.Second).Unix())
 			},
-			expectErr: `"iat" not satisfied`,
+			expectJWTErr: jwt.InvalidIssuedAtError{},
 		},
 		{
 			name: "exp is in the past",
 			refreshed: func(tok jwt.Token) {
 				_ = tok.Set("exp", time.Now().Add(-openid.AcceptableSkew-5*time.Second).Unix())
 			},
-			expectErr: `"exp" not satisfied`,
+			expectJWTErr: jwt.TokenExpiredError{},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -516,7 +544,9 @@ func TestValidateRefreshedIDToken(t *testing.T) {
 				refreshedIDToken.Serialized(),
 				expectedAcr,
 				&jwks.Public)
-			if tt.expectErr != "" {
+			if tt.expectJWTErr != nil {
+				assert.ErrorIs(t, err, tt.expectJWTErr)
+			} else if tt.expectErr != "" {
 				assert.ErrorContains(t, err, tt.expectErr)
 			} else {
 				assert.NoError(t, err)

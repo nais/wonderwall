@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jws"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jws"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -269,8 +269,8 @@ func TestClient_DPoPNonceRetryMintsFreshAssertionAndProof(t *testing.T) {
 			retryProof, err := jwt.ParseInsecure([]byte(proofs[1]))
 			require.NoError(t, err)
 
-			var retryNonce string
-			require.NoError(t, retryProof.Get("nonce", &retryNonce))
+			retryNonce, err := jwt.Get[string](retryProof, "nonce")
+			require.NoError(t, err)
 
 			assert.Equal(t, nonce, retryNonce)
 			assert.False(t, retryProof.Has("ath"))

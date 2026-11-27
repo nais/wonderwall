@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/nais/wonderwall/internal/crypto"

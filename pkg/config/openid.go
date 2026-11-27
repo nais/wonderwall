@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwa"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 

@@ -16,9 +16,9 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"golang.org/x/oauth2"
 
 	"github.com/nais/wonderwall/internal/crypto"
@@ -646,6 +646,7 @@ func (ip *IdentityProviderHandler) validateClientAuthentication(w http.ResponseW
 	}
 
 	opts := []jwt.ParseOption{
+		jwt.WithVerify(true),
 		jwt.WithValidate(true),
 		jwt.WithKeySet(publicClientJwkSet),
 		jwt.WithIssuer(ip.Config.Client().ClientID()),
@@ -653,7 +654,7 @@ func (ip *IdentityProviderHandler) validateClientAuthentication(w http.ResponseW
 		jwt.WithAudience(ip.Config.Provider().Issuer()),
 		jwt.WithMaxDelta(10*time.Second, jwt.ExpirationKey, jwt.IssuedAtKey),
 	}
-	clientAssertionJwt, err := jwt.Parse([]byte(clientAssertion), opts...)
+	clientAssertionJwt, err := jwt.ParseString(clientAssertion, opts...)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		v := url.Values{}
@@ -663,24 +664,17 @@ func (ip *IdentityProviderHandler) validateClientAuthentication(w http.ResponseW
 		return fmt.Errorf("%s: %+v", v.Encode(), err)
 	}
 
-	var jti any
-	err = clientAssertionJwt.Get(jwt.JwtIDKey, &jti)
-	if err != nil {
+	jti, ok := clientAssertionJwt.JwtID()
+	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		return fmt.Errorf("client_assertion missing jti claim")
 	}
 
-	jtiString, ok := jti.(string)
-	if !ok {
+	if ip.ClientAssertions[jti] {
 		w.WriteHeader(http.StatusBadRequest)
-		return fmt.Errorf("client_assertion jti claim is not a string")
+		return fmt.Errorf("client_assertion with jti %q has already been used", jti)
 	}
-
-	if ip.ClientAssertions[jtiString] {
-		w.WriteHeader(http.StatusBadRequest)
-		return fmt.Errorf("client_assertion with jti %q has already been used", jtiString)
-	}
-	ip.ClientAssertions[jtiString] = true
+	ip.ClientAssertions[jti] = true
 
 	return nil
 }

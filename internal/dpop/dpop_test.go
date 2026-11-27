@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -84,9 +84,10 @@ func TestProofer(t *testing.T) {
 
 				proof := parseInsecure(t, encoded)
 
-				var method, targetURI string
-				require.NoError(t, proof.Get("htm", &method))
-				require.NoError(t, proof.Get("htu", &targetURI))
+				method, err := jwt.Get[string](proof, "htm")
+				require.NoError(t, err)
+				targetURI, err := jwt.Get[string](proof, "htu")
+				require.NoError(t, err)
 
 				assert.Equal(t, test.method, method)
 				assert.Equal(t, test.wantTarget, targetURI)
@@ -100,9 +101,10 @@ func TestProofer(t *testing.T) {
 
 		proof := parseInsecure(t, encoded)
 
-		var nonce, ath string
-		require.NoError(t, proof.Get("nonce", &nonce))
-		require.NoError(t, proof.Get("ath", &ath))
+		nonce, err := jwt.Get[string](proof, "nonce")
+		require.NoError(t, err)
+		ath, err := jwt.Get[string](proof, "ath")
+		require.NoError(t, err)
 		assert.Equal(t, "nonce", nonce)
 
 		hash := sha256.Sum256([]byte("access-token"))
@@ -274,7 +276,9 @@ func TestTransport(t *testing.T) {
 					if encoded := request.Header.Get(proofHeader); encoded != "" {
 						proofAttached = true
 						proof := parseInsecure(t, []byte(encoded))
-						require.NoError(t, proof.Get("htu", &proofTarget))
+						var err error
+						proofTarget, err = jwt.Get[string](proof, "htu")
+						require.NoError(t, err)
 					}
 					return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: http.NoBody}, nil
 				})
@@ -335,8 +339,8 @@ func TestTransport(t *testing.T) {
 				assert.False(t, proofs[i].Has("nonce"))
 				continue
 			}
-			var nonce string
-			require.NoError(t, proofs[i].Get("nonce", &nonce))
+			nonce, err := jwt.Get[string](proofs[i], "nonce")
+			require.NoError(t, err)
 			assert.Equal(t, expected.requestNonce, nonce)
 		}
 	})
@@ -402,7 +406,7 @@ func testProofer(t *testing.T) *Proofer {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 
-	private, err := jwk.Import(key)
+	private, err := jwk.Import[jwk.Key](key)
 	require.NoError(t, err)
 	require.NoError(t, private.Set(jwk.AlgorithmKey, jwa.RS256()))
 

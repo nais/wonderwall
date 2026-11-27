@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jws"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/nais/wonderwall/internal/dpop"
 	httpinternal "github.com/nais/wonderwall/internal/http"
 	"github.com/nais/wonderwall/internal/o11y/otel"
@@ -28,7 +28,9 @@ import (
 )
 
 func init() {
-	jwt.Settings(jwt.WithFlattenAudience(true))
+	if err := jwt.Settings(jwt.WithFlattenAudience(true)); err != nil {
+		panic(fmt.Errorf("configuring JWT audience serialization: %w", err))
+	}
 }
 
 var (

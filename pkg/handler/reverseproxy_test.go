@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jws"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jws"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/nais/wonderwall/internal/crypto"
 	"github.com/nais/wonderwall/internal/dpop"
 	"github.com/nais/wonderwall/pkg/handler"
@@ -132,10 +132,12 @@ func TestReverseProxy(t *testing.T) {
 		proof, err := jwt.ParseString(upstreamProof, jwt.WithKey(signingAlgorithm, publicKey))
 		require.NoError(t, err)
 
-		var method, target, accessTokenHash string
-		require.NoError(t, proof.Get("htm", &method))
-		require.NoError(t, proof.Get("htu", &target))
-		require.NoError(t, proof.Get("ath", &accessTokenHash))
+		method, err := jwt.Get[string](proof, "htm")
+		require.NoError(t, err)
+		target, err := jwt.Get[string](proof, "htu")
+		require.NoError(t, err)
+		accessTokenHash, err := jwt.Get[string](proof, "ath")
+		require.NoError(t, err)
 
 		assert.Equal(t, http.MethodGet, method)
 		assert.Equal(t, idp.RelyingPartyServer.URL+"/", target)
@@ -694,8 +696,8 @@ func TestReverseProxyDPoP(t *testing.T) {
 		proof, err := jwt.ParseInsecure([]byte(received.Header.Get("DPoP")))
 		require.NoError(t, err)
 
-		var htu string
-		require.NoError(t, proof.Get("htu", &htu))
+		htu, err := jwt.Get[string](proof, "htu")
+		require.NoError(t, err)
 		assert.Equal(t, "https://public.example/app/resource", htu)
 	})
 
@@ -743,8 +745,8 @@ func TestReverseProxyDPoP(t *testing.T) {
 				continue
 			}
 
-			var nonce string
-			require.NoError(t, proof.Get("nonce", &nonce))
+			nonce, err := jwt.Get[string](proof, "nonce")
+			require.NoError(t, err)
 			assert.Equal(t, expected.requestNonce, nonce)
 		}
 	})

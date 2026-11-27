@@ -8,8 +8,8 @@ import (
 	"crypto/rsa"
 	"fmt"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 )
 
 type JwkSet struct {
@@ -44,7 +44,7 @@ func NewJwkWithAlg(alg jwa.SignatureAlgorithm) (jwk.Key, error) {
 		return nil, fmt.Errorf("generating key: %w", err)
 	}
 
-	key, err := jwk.Import(privateKey)
+	key, err := jwk.Import[jwk.Key](privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("importing key: %w", err)
 	}

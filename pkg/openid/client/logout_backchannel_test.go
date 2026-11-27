@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -29,16 +30,17 @@ func TestLogoutBackChannel(t *testing.T) {
 	cfg.OpenID.ClientID = "some-client-id"
 	openidCfg := mock.NewTestConfiguration(cfg)
 	openidCfg.TestProvider.SetIssuer("https://some-issuer")
-	jwksProvider := mock.NewTestJwksProvider()
-	c, err := client.NewClient(openidCfg, jwksProvider)
+	trustedKeys, err := crypto.NewJwkSet()
 	require.NoError(t, err)
 
 	for _, tt := range []struct {
-		name        string
-		mutate      func(tok jwt.Token)
-		signingKeys *crypto.JwkSet
-		expectErr   string
-		expectSid   string
+		name            string
+		mutate          func(tok jwt.Token)
+		signingKeys     *crypto.JwkSet
+		expectErr       string
+		expectTokenErr  error
+		expectSid       string
+		expectRefreshes int
 	}{
 		{
 			name:      "valid with sid and sub",
@@ -126,14 +128,14 @@ func TestLogoutBackChannel(t *testing.T) {
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("iat", now.Add(-5*time.Minute-time.Minute).Unix())
 			},
-			expectErr: "iat",
+			expectTokenErr: jwt.TimeDeltaError{},
 		},
 		{
 			name: "iat in the future",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("iat", now.Add(time.Minute).Unix())
 			},
-			expectErr: `"iat" not satisfied`,
+			expectTokenErr: jwt.InvalidIssuedAtError{},
 		},
 		{
 			name: "missing exp",
@@ -147,21 +149,21 @@ func TestLogoutBackChannel(t *testing.T) {
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("exp", now.Add(-time.Minute).Unix())
 			},
-			expectErr: `"exp" not satisfied`,
+			expectTokenErr: jwt.TokenExpiredError{},
 		},
 		{
 			name: "wrong issuer",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("iss", "https://some-other-issuer")
 			},
-			expectErr: `"iss" not satisfied`,
+			expectTokenErr: jwt.InvalidIssuerError{},
 		},
 		{
 			name: "wrong audience",
 			mutate: func(tok jwt.Token) {
 				_ = tok.Set("aud", "some-other-client-id")
 			},
-			expectErr: `"aud" not satisfied`,
+			expectTokenErr: jwt.InvalidAudienceError{},
 		},
 		{
 			name: "untrusted additional audience",
@@ -171,22 +173,33 @@ func TestLogoutBackChannel(t *testing.T) {
 			expectErr: "untrusted audience(s) found",
 		},
 		{
-			name:        "unknown signing key",
-			signingKeys: unknownKeys,
-			expectErr:   "verifying signature",
+			name:            "unknown signing key",
+			signingKeys:     unknownKeys,
+			expectTokenErr:  jws.VerifyError(),
+			expectRefreshes: 1,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			keys := jwksProvider.JwksPair
+			jwksProvider := &rotatingJwksProvider{cached: trustedKeys, current: trustedKeys}
+			c, err := client.NewClient(openidCfg, jwksProvider)
+			require.NoError(t, err)
+
+			keys := trustedKeys
 			if tt.signingKeys != nil {
 				keys = tt.signingKeys
 			}
 			r := newLogoutBackChannelRequest(makeLogoutToken(t, now, keys, tt.mutate))
 
 			sid, err := c.LogoutBackChannel(httptest.NewRecorder(), r)
-			if tt.expectErr != "" {
+			assert.Equal(t, tt.expectRefreshes, jwksProvider.refreshes)
+			if tt.expectErr != "" || tt.expectTokenErr != nil {
 				assert.ErrorIs(t, err, client.ErrLogoutBackChannelInvalidToken)
-				assert.ErrorContains(t, err, tt.expectErr)
+				if tt.expectTokenErr != nil {
+					assert.ErrorIs(t, err, tt.expectTokenErr)
+				}
+				if tt.expectErr != "" {
+					assert.ErrorContains(t, err, tt.expectErr)
+				}
 				return
 			}
 
@@ -199,6 +212,7 @@ func TestLogoutBackChannel(t *testing.T) {
 // rotatingJwksProvider simulates a provider that has rotated its signing keys since the JWKS was cached.
 type rotatingJwksProvider struct {
 	cached, current *crypto.JwkSet
+	refreshes       int
 }
 
 func (p *rotatingJwksProvider) GetPublicJwkSet(context.Context) (*jwk.Set, error) {
@@ -206,6 +220,7 @@ func (p *rotatingJwksProvider) GetPublicJwkSet(context.Context) (*jwk.Set, error
 }
 
 func (p *rotatingJwksProvider) RefreshPublicJwkSet(context.Context) (*jwk.Set, error) {
+	p.refreshes++
 	p.cached = p.current
 	return &p.cached.Public, nil
 }
@@ -220,13 +235,15 @@ func TestLogoutBackChannel_RotatedSigningKeys(t *testing.T) {
 	cfg.OpenID.ClientID = "some-client-id"
 	openidCfg := mock.NewTestConfiguration(cfg)
 	openidCfg.TestProvider.SetIssuer("https://some-issuer")
-	c, err := client.NewClient(openidCfg, &rotatingJwksProvider{cached: oldKeys, current: newKeys})
+	jwksProvider := &rotatingJwksProvider{cached: oldKeys, current: newKeys}
+	c, err := client.NewClient(openidCfg, jwksProvider)
 	require.NoError(t, err)
 
 	r := newLogoutBackChannelRequest(makeLogoutToken(t, time.Now(), newKeys, nil))
 	sid, err := c.LogoutBackChannel(httptest.NewRecorder(), r)
 	require.NoError(t, err)
 	assert.Equal(t, "some-sid", sid)
+	assert.Equal(t, 1, jwksProvider.refreshes)
 }
 
 func newLogoutBackChannelRequest(logoutToken string) *http.Request {
