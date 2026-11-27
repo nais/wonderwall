@@ -19,6 +19,7 @@ spec:
     - "{{- include "wonderwall.idporten.ssoServerURL" . }}/oauth2/callback"
   secretName: "{{ .Values.idporten.clientSecretName }}"
   frontchannelLogoutURI: "{{ include "wonderwall.idporten.ssoServerURL" . }}/oauth2/logout/frontchannel"
+  backchannelLogoutURI: "{{ include "wonderwall.idporten.ssoServerURL" . }}/oauth2/logout/backchannel"
   postLogoutRedirectURIs:
     - "{{- include "wonderwall.idporten.ssoServerURL" . }}/oauth2/logout/callback"
   accessTokenLifetime: {{ .Values.idporten.clientAccessTokenLifetime }}
