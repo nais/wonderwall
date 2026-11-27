@@ -125,16 +125,16 @@ For available tags, see [the versions overview on GitHub](https://github.com/nai
 The image is signed "keylessly" using [Sigstore cosign](https://github.com/sigstore/cosign).
 To verify its authenticity run
 ```
-cosign verify europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall@sha25:<shasum> \
+cosign verify europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall@sha256:<shasum> \
 --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
---certificate-identity "https://github.com/nais/wonderwall/.github/workflows/deploy.yml@refs/heads/master"
+--certificate-identity "https://github.com/nais/wonderwall/.github/workflows/deploy.yaml@refs/heads/master"
 ```
 
 The images are also attested with SBOMs in the [CycloneDX](https://cyclonedx.org/) format.
 You can verify these by running
 ```
 cosign verify-attestation --type cyclonedx \
---certificate-identity "https://github.com/nais/wonderwall/.github/workflows/deploy.yml@refs/heads/master" \
+--certificate-identity "https://github.com/nais/wonderwall/.github/workflows/deploy.yaml@refs/heads/master" \
 --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall@sha25:<shasum>
+europe-north1-docker.pkg.dev/nais-io/nais/images/wonderwall@sha256:<shasum>
 ```
